@@ -88,7 +88,7 @@ export function AppNav({
       </aside>
 
       {/* Bottom nav — portrait phones only; hidden in landscape (use menu button) */}
-      <nav className="fixed inset-x-4 bottom-4 z-50 portrait:max-lg:block landscape:max-lg:hidden lg:hidden">
+      <nav className="fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50 portrait:max-lg:block landscape:max-lg:hidden lg:hidden">
         <div className="flex items-center justify-around rounded-full bg-hero px-1 py-1.5 shadow-[var(--shadow-float)]">
           {(showPreferences ? [...mainNav, PREFERENCES_NAV] : mainNav).map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href)

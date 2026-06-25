@@ -29,7 +29,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         isCoach={isCoach}
         dashboardNotificationCount={dashboardNotificationCount}
       />
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col pb-24 portrait:max-lg:pb-24 landscape:max-lg:pb-2 lg:pb-0">
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col pb-[calc(6rem+env(safe-area-inset-bottom))] portrait:max-lg:pb-[calc(6rem+env(safe-area-inset-bottom))] landscape:max-lg:pb-2 lg:pb-0">
         <header className="sticky top-0 z-40 flex items-center justify-between gap-2 px-3 py-2 backdrop-blur-md landscape:max-lg:py-1.5 lg:px-8 lg:py-4">
           <div className="flex min-w-0 items-center gap-2 lg:hidden">
             <MobileNavMenu

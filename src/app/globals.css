@@ -57,6 +57,19 @@ body {
   @apply bg-background text-foreground font-sans antialiased;
 }
 
+.pwa-safe {
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
 .app-gradient {
   background:
     radial-gradient(ellipse 80% 50% at 50% -10%, rgb(232 72 85 / 0.12), transparent),
