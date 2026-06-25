@@ -1,0 +1,92 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant portrait (@media (orientation: portrait));
+@custom-variant landscape (@media (orientation: landscape));
+
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-background: #f4f6fb;
+  --color-foreground: #1a1d26;
+  --color-card: #ffffff;
+  --color-card-foreground: #1a1d26;
+  --color-muted: #eef0f5;
+  --color-muted-foreground: #6b7280;
+  --color-border: #e8ebf2;
+  --color-primary: #e84855;
+  --color-primary-foreground: #ffffff;
+  --color-brand: #e84855;
+  --color-brand-foreground: #ffffff;
+  --color-brand-soft: #ffecee;
+  --color-brand-muted: #ffd4d8;
+  --color-hero: #1a1d26;
+  --color-hero-foreground: #ffffff;
+  --color-accent: #f4f6fb;
+  --color-accent-foreground: #1a1d26;
+  --color-destructive: #ef4444;
+  --color-success: #22c55e;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+  --radius-3xl: 1.5rem;
+  --shadow-card: 0 4px 24px -4px rgb(26 29 38 / 0.08);
+  --shadow-float: 0 12px 40px -12px rgb(26 29 38 / 0.22);
+}
+
+.dark {
+  --color-background: #0f1117;
+  --color-foreground: #f4f6fb;
+  --color-card: #1a1d26;
+  --color-card-foreground: #f4f6fb;
+  --color-muted: #252932;
+  --color-muted-foreground: #9ca3af;
+  --color-border: #2d3139;
+  --color-primary: #ff5a67;
+  --color-primary-foreground: #ffffff;
+  --color-brand: #ff5a67;
+  --color-brand-foreground: #ffffff;
+  --color-brand-soft: #3d2024;
+  --color-brand-muted: #5c2a30;
+  --color-hero: #0a0c10;
+  --color-hero-foreground: #ffffff;
+  --color-accent: #252932;
+  --color-accent-foreground: #f4f6fb;
+}
+
+body {
+  @apply bg-background text-foreground font-sans antialiased;
+}
+
+.app-gradient {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgb(232 72 85 / 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgb(99 102 241 / 0.08), transparent),
+    var(--color-background);
+}
+
+.dark .app-gradient {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgb(255 90 103 / 0.15), transparent),
+    var(--color-background);
+}
+
+.card-elevated {
+  @apply rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)];
+}
+
+.input-field {
+  @apply w-full min-w-0 rounded-2xl border border-border bg-card px-4 py-2.5 text-base shadow-sm transition focus:outline-none focus:ring-2 focus:ring-brand/25 sm:text-sm;
+  min-height: 2.75rem;
+}
+
+.pill-tab {
+  @apply rounded-full px-4 py-1.5 text-sm font-medium transition-colors;
+}
+
+.pill-tab-active {
+  @apply bg-brand text-brand-foreground shadow-sm;
+}
+
+.pill-tab-inactive {
+  @apply text-muted-foreground hover:bg-muted;
+}

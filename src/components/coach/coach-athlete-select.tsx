@@ -1,0 +1,42 @@
+'use client'
+
+import type { AthleteStatus } from '@prisma/client'
+import { switchAthlete } from '@/app/actions/session'
+import { athleteStatusLabel } from '@/lib/athlete-status'
+
+type CoachAthleteSelectProps = {
+  athletes: { id: string; name: string; status: AthleteStatus }[]
+  selectedAthleteId: string
+  redirectTo: string
+}
+
+export function CoachAthleteSelect({
+  athletes,
+  selectedAthleteId,
+  redirectTo,
+}: CoachAthleteSelectProps) {
+  if (athletes.length === 0) return null
+
+  return (
+    <form action={switchAthlete} className="flex items-center gap-2">
+      <input type="hidden" name="redirectTo" value={redirectTo} />
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+        <span className="hidden sm:inline">Athlete</span>
+        <select
+          name="athleteId"
+          defaultValue={selectedAthleteId}
+          onChange={(e) => e.currentTarget.form?.requestSubmit()}
+          className="input-field max-w-[11rem] py-1.5 text-xs sm:max-w-[14rem]"
+          aria-label="Select athlete"
+        >
+          {athletes.map((athlete) => (
+            <option key={athlete.id} value={athlete.id}>
+              {athlete.name}
+              {athlete.status !== 'ACTIVE' ? ` (${athleteStatusLabel(athlete.status)})` : ''}
+            </option>
+          ))}
+        </select>
+      </label>
+    </form>
+  )
+}

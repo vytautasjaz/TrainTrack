@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  COACH
+  ATHLETE
+}
+
+enum WorkoutType {
+  RUN
+  BIKE
+  SWIM
+  STRENGTH
+  HYROX
+  TRIATHLON
+  RECOVERY
+  REST
+}
+
+enum WorkoutStatus {
+  PLANNED
+  COMPLETED
+  SKIPPED
+}
+
+enum SessionType {
+  EASY_RUN
+  RECOVERY_RUN
+  LONG_RUN
+  TEMPO
+  THRESHOLD
+  VO2_MAX
+  INTERVALS
+  FARTLEK
+  RACE_PACE
+  HILL_REPEATS
+  BRICK
+  STRENGTH
+  CROSS_TRAINING
+  HYROX
+  CUSTOM
+}
+
+enum RaceType {
+  MARATHON
+  HALF_MARATHON
+  HYROX
+  TRIATHLON
+  CYCLING
+  OTHER
+}
+
+enum DayNoteStatus {
+  NEEDS_COACH
+  AVAILABLE
+  SELF_PLANNED
+  BUSY
+}
+
+enum AthleteStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  coachedAthletes   Athlete[]         @relation("CoachAthletes")
+  athleteProfile    Athlete?
+  templates         WorkoutTemplate[]
+  stravaConnection  StravaConnection?
+}
+
+model StravaConnection {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  stravaAthleteId String
+  accessToken     String
+  refreshToken    String
+  expiresAt       DateTime
+  scope           String
+  lastSyncedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Athlete {
+  id        String        @id @default(cuid())
+  coachId   String
+  userId    String?       @unique
+  name      String
+  status    AthleteStatus @default(ACTIVE)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Training pace zones (min/km, e.g. 5.5 = 5:30/km)
+  paceRecoveryMinPerKm    Float?
+  paceEasyMinPerKm        Float?
+  paceTempoMinPerKm       Float?
+  paceThresholdMinPerKm   Float?
+  paceVo2MaxMinPerKm      Float?
+
+  // Heart rate zones (bpm)
+  hrMax       Int?
+  hrResting   Int?
+  hrZone1Max  Int?
+  hrZone2Max  Int?
+  hrZone3Max  Int?
+  hrZone4Max  Int?
+
+  // Coach training planner: default sport rows always shown
+  planSportRows WorkoutType[] @default([RUN, BIKE, SWIM])
+
+  coach            User                      @relation("CoachAthletes", fields: [coachId], references: [id], onDelete: Cascade)
+  user             User?                     @relation(fields: [userId], references: [id])
+  races            Race[]
+  workouts         Workout[]
+  dayNotes         DayNote[]
+  weekPlanSportRows        AthleteWeekPlanSportRow[]
+  weekHiddenPlanSportRows AthleteWeekHiddenPlanSportRow[]
+
+  @@index([coachId])
+}
+
+model AthleteWeekPlanSportRow {
+  id        String      @id @default(cuid())
+  athleteId String
+  weekStart DateTime    @db.Date
+  sport     WorkoutType
+  createdAt DateTime    @default(now())
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([athleteId, weekStart, sport])
+  @@index([athleteId, weekStart])
+}
+
+model AthleteWeekHiddenPlanSportRow {
+  id        String      @id @default(cuid())
+  athleteId String
+  weekStart DateTime    @db.Date
+  sport     WorkoutType
+  createdAt DateTime    @default(now())
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([athleteId, weekStart, sport])
+  @@index([athleteId, weekStart])
+}
+
+model Race {
+  id        String      @id @default(cuid())
+  athleteId String
+  name      String
+  date      DateTime    @db.Date
+  location  String?
+  type      RaceType
+  sport     WorkoutType @default(RUN)
+  goal      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId, date])
+}
+
+model WorkoutTemplate {
+  id          String       @id @default(cuid())
+  coachId     String
+  title       String
+  type        WorkoutType
+  sessionType SessionType  @default(CUSTOM)
+  description String?
+  durationMin Int?
+  distanceKm  Float?
+  notes       String?
+  structure   Json?
+  tags        String[]     @default([])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  coach    User      @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  workouts Workout[]
+
+  @@index([coachId])
+}
+
+model Workout {
+  id              String        @id @default(cuid())
+  athleteId       String
+  templateId      String?
+  date            DateTime      @db.Date
+  type            WorkoutType
+  sessionType     SessionType   @default(CUSTOM)
+  title           String
+  description     String?
+  plannedDistance Float?
+  plannedDuration Int?
+  coachNotes      String?
+  structure       Json?
+  tags            String[]      @default([])
+  status          WorkoutStatus @default(PLANNED)
+  selfLogged      Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  athlete  Athlete          @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  template WorkoutTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  result   WorkoutResult?
+
+  @@index([athleteId, date])
+  @@index([date])
+}
+
+model WorkoutResult {
+  id               String   @id @default(cuid())
+  workoutId        String   @unique
+  actualDistance   Float?
+  actualDuration   Int?
+  rpe              Int?
+  athleteNotes     String?
+  coachReply       String?
+  coachRepliedAt   DateTime?
+  coachReplyReadAt DateTime?
+  feedbackDismissedAt DateTime?
+  stravaActivityId String?  @unique
+  stravaActivityUrl String?
+  completedAt      DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+}
+
+model DayNote {
+  id        String         @id @default(cuid())
+  athleteId String
+  date      DateTime       @db.Date
+  status    DayNoteStatus  @default(AVAILABLE)
+  notes     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([athleteId, date])
+  @@index([athleteId, date])
+}
