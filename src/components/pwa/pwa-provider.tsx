@@ -104,7 +104,7 @@ export function PwaProvider() {
   if (!showBanner) return null
 
   return (
-    <div className="fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-[60] portrait:max-lg:block landscape:max-lg:bottom-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
+    <div className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-[60] portrait:max-lg:block landscape:max-lg:bottom-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
       <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card/95 p-3 shadow-[var(--shadow-float)] backdrop-blur-md">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground">
           <Zap className="h-5 w-5" />

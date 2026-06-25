@@ -4,6 +4,7 @@ import { todayDateOnly, toDateKey } from '@/lib/dates'
 import type { DayNoteData } from '@/lib/day-notes'
 import { WorkoutStatus } from '@prisma/client'
 import { buildProgressStats } from '@/lib/progress-stats'
+import { WORKOUT_LIST_ORDER_BY } from '@/lib/workout-sort'
 
 export async function getAthleteDashboard(athleteId: string) {
   const today = todayDateOnly()
@@ -18,7 +19,7 @@ export async function getAthleteDashboard(athleteId: string) {
       prisma.workout.findMany({
         where: { athleteId, date: today },
         include: { result: true },
-        orderBy: { title: 'asc' },
+        orderBy: WORKOUT_LIST_ORDER_BY,
       }),
       prisma.workout.findMany({
         where: { athleteId, date: { gt: today } },
@@ -196,7 +197,7 @@ export async function getPlanWorkoutsInRange(athleteId: string, start: Date, end
   return prisma.workout.findMany({
     where: { athleteId, date: { gte: start, lte: end } },
     include: { result: true, template: true },
-    orderBy: [{ date: 'asc' }, { title: 'asc' }],
+    orderBy: WORKOUT_LIST_ORDER_BY,
   })
 }
 

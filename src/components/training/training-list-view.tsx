@@ -1,7 +1,11 @@
 'use client'
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
+import { ChevronLeft, ChevronRight, Flag } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import type { PlanDay } from '@/lib/plan-week'
 import type { TrainingDay } from '@/lib/training-timeline'
 import { todayKey } from '@/lib/training-timeline'
@@ -12,10 +16,9 @@ import {
 } from '@/lib/recovery-day'
 import { dayHasRace, raceDayStripClass } from '@/lib/race-day'
 import { cn } from '@/lib/utils'
-import { Flag } from 'lucide-react'
 
 const LIST_DAY_SECTION_ID = 'training-list-day'
-const DAYS_PER_WEEK = 7
+const WEEK_SWIPE_THRESHOLD = 60
 
 type TrainingListViewProps = {
   days: TrainingDay[]
@@ -24,14 +27,12 @@ type TrainingListViewProps = {
   canEditDayNotes?: boolean
   athleteId?: string
   header?: ReactNode
-}
-
-function chunkWeeks<T>(items: T[], size = DAYS_PER_WEEK): T[][] {
-  const chunks: T[][] = []
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size))
-  }
-  return chunks
+  prevWeekHref: string
+  nextWeekHref: string
+  /** Fixed mobile shell vs normal page flow (desktop list tab). */
+  variant?: 'fixed' | 'page'
+  /** Scroll to this day on first layout (defaults to today when in the week). */
+  initialScrollToKey?: string
 }
 
 function isWeekend(date: Date): boolean {
@@ -43,22 +44,15 @@ function WeekDayGrid({
   weekDays,
   planDays,
   onDaySelect,
-  columns = 7,
 }: {
   weekDays: TrainingDay[]
   planDays: PlanDay[]
   onDaySelect: (dateKey: string) => void
-  columns?: number
 }) {
   const planDayByKey = new Map(planDays.map((d) => [d.dateKey, d]))
 
   return (
-    <div
-      className={cn(
-        'grid w-full gap-0.5 sm:gap-1',
-        columns === 14 ? 'grid-cols-[repeat(14,minmax(0,1fr))]' : 'grid-cols-7',
-      )}
-    >
+    <div className="grid w-full grid-cols-7 gap-0.5 sm:gap-1">
       {weekDays.map((day) => {
         const planDay = planDayByKey.get(day.dateKey)
         const dayWorkouts = (planDay?.workouts ?? []).filter((w) => w.type !== 'REST')
@@ -75,7 +69,7 @@ function WeekDayGrid({
             onClick={() => onDaySelect(day.dateKey)}
             aria-label={`Scroll to ${dayName}`}
             className={cn(
-              'flex w-full min-w-0 cursor-pointer flex-col items-center rounded-lg px-0.5 py-1 transition hover:opacity-90 active:scale-[0.98] lg:rounded-xl lg:px-1 lg:py-2',
+              'flex w-full min-w-0 cursor-pointer flex-col items-center rounded-2xl px-0.5 py-2 transition active:scale-[0.98]',
               isRaceDay
                 ? raceDayStripClass(day.isToday)
                 : isRecovery
@@ -83,13 +77,13 @@ function WeekDayGrid({
                   : day.isToday
                     ? 'bg-brand text-brand-foreground shadow-sm'
                     : weekend
-                      ? 'border-2 border-muted-foreground/40 bg-muted shadow-[var(--shadow-card)]'
-                      : 'bg-card shadow-[var(--shadow-card)]',
+                      ? 'border border-border/60 bg-muted/50'
+                      : 'border border-border/40 bg-card shadow-sm',
             )}
           >
             <p
               className={cn(
-                'flex h-[2.2em] w-full items-center justify-center text-center text-[8px] font-semibold leading-[1.1] sm:text-[9px] lg:text-[10px]',
+                'flex h-[2.2em] w-full items-center justify-center text-center text-[8px] font-semibold leading-[1.1] sm:text-[9px]',
                 isRaceDay || isRecovery || day.isToday
                   ? 'opacity-90'
                   : weekend
@@ -99,7 +93,7 @@ function WeekDayGrid({
             >
               <span className="line-clamp-2">{dayName}</span>
             </p>
-            <p className="text-sm font-bold tabular-nums lg:text-base">{format(day.date, 'd')}</p>
+            <p className="text-sm font-bold tabular-nums">{format(day.date, 'd')}</p>
             <div className="mt-0.5 flex min-h-3 justify-center gap-0.5">
               {isRaceDay ? (
                 <Flag className="h-2.5 w-2.5 fill-amber-500/30 text-amber-600 sm:h-3 sm:w-3 dark:text-amber-300" />
@@ -129,85 +123,64 @@ function WeekDayGrid({
   )
 }
 
-function SwipeableWeekStrip({
-  stripDays,
-  weekChunks,
+function WeekDayStrip({
+  weekDays,
   planDays,
   onDaySelect,
+  prevWeekHref,
+  nextWeekHref,
 }: {
-  stripDays: TrainingDay[]
-  weekChunks: TrainingDay[][]
+  weekDays: TrainingDay[]
   planDays: PlanDay[]
   onDaySelect: (dateKey: string) => void
+  prevWeekHref: string
+  nextWeekHref: string
 }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [activeWeek, setActiveWeek] = useState(0)
+  const router = useRouter()
+  const touchStartX = useRef<number | null>(null)
 
-  const updateActiveWeek = useCallback(() => {
-    const el = scrollRef.current
-    if (!el || weekChunks.length === 0) return
-    const index = Math.round(el.scrollLeft / el.clientWidth)
-    setActiveWeek(Math.min(Math.max(index, 0), weekChunks.length - 1))
-  }, [weekChunks.length])
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    touchStartX.current = e.touches[0]?.clientX ?? null
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if ((e.target as HTMLElement).closest('button')) {
+      touchStartX.current = null
+      return
+    }
+    if (touchStartX.current === null) return
+    const endX = e.changedTouches[0]?.clientX ?? touchStartX.current
+    const delta = endX - touchStartX.current
+    touchStartX.current = null
+
+    if (Math.abs(delta) < WEEK_SWIPE_THRESHOLD) return
+    router.push(delta < 0 ? nextWeekHref : prevWeekHref)
+  }
 
   return (
-    <div className="border-b border-border/60 bg-background py-2">
+    <div className="flex items-center gap-3 py-2">
+      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full" asChild>
+        <Link href={prevWeekHref} aria-label="Previous week">
+          <ChevronLeft className="h-4 w-4" />
+        </Link>
+      </Button>
+
       <div
-        ref={scrollRef}
-        onScroll={updateActiveWeek}
-        className="flex w-full snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden"
+        className="min-w-0 flex-1"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
       >
-        {weekChunks.map((weekDays, index) => (
-          <div
-            key={weekDays[0]?.dateKey ?? index}
-            className="w-full min-w-full shrink-0 snap-start snap-always"
-          >
-            <WeekDayGrid
-              weekDays={weekDays}
-              planDays={planDays}
-              onDaySelect={onDaySelect}
-            />
-          </div>
-        ))}
+        <WeekDayGrid weekDays={weekDays} planDays={planDays} onDaySelect={onDaySelect} />
       </div>
 
-      <div className="hidden lg:block">
-        <WeekDayGrid
-          weekDays={stripDays}
-          columns={14}
-          planDays={planDays}
-          onDaySelect={onDaySelect}
-        />
-      </div>
-
-      {weekChunks.length > 1 && (
-        <div className="mt-2 flex justify-center gap-1.5 lg:hidden">
-          {weekChunks.map((week, index) => (
-            <button
-              key={week[0]?.dateKey ?? index}
-              type="button"
-              aria-label={`Show days ${index * DAYS_PER_WEEK + 1}–${index * DAYS_PER_WEEK + week.length}`}
-              onClick={() => {
-                const el = scrollRef.current
-                if (!el) return
-                el.scrollTo({ left: index * el.clientWidth, behavior: 'smooth' })
-                setActiveWeek(index)
-              }}
-              className={cn(
-                'h-1.5 rounded-full transition-all',
-                activeWeek === index ? 'w-4 bg-brand' : 'w-1.5 bg-muted-foreground/30',
-              )}
-            />
-          ))}
-        </div>
-      )}
+      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full" asChild>
+        <Link href={nextWeekHref} aria-label="Next week">
+          <ChevronRight className="h-4 w-4" />
+        </Link>
+      </Button>
     </div>
   )
-}
-
-function filterListPlanDays(planDays: PlanDay[], rangeEndKey: string): PlanDay[] {
-  const reference = todayKey()
-  return planDays.filter((day) => day.dateKey >= reference && day.dateKey <= rangeEndKey)
 }
 
 function withFullDayNames(days: PlanDay[]): PlanDay[] {
@@ -229,6 +202,57 @@ function getBottomInset() {
   return window.innerHeight - rect.top + 8
 }
 
+function getScrollTopForDay(container: HTMLElement, target: HTMLElement): number {
+  const containerRect = container.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  return container.scrollTop + (targetRect.top - containerRect.top)
+}
+
+function scrollDayIntoView(container: HTMLElement, dateKey: string, behavior: ScrollBehavior = 'auto') {
+  const target = document.getElementById(`${LIST_DAY_SECTION_ID}-${dateKey}`)
+  if (!target) return false
+
+  const top = getScrollTopForDay(container, target)
+  container.scrollTo({ top: Math.max(0, top), behavior })
+  return true
+}
+
+function TrainingListPanel({
+  contentShellClass,
+  stickyChrome,
+  dayStack,
+  workoutsScrollRef,
+  panelClassName,
+  panelStyle,
+}: {
+  contentShellClass: string
+  stickyChrome: ReactNode
+  dayStack: ReactNode
+  workoutsScrollRef: React.RefObject<HTMLDivElement | null>
+  panelClassName?: string
+  panelStyle?: React.CSSProperties
+}) {
+  return (
+    <div className={cn('flex min-h-0 flex-col bg-background', panelClassName)} style={panelStyle}>
+      <div
+        className={cn(
+          'relative z-10 shrink-0 border-b border-border/40 bg-background px-3 landscape:max-lg:px-2 lg:px-0',
+          contentShellClass,
+        )}
+      >
+        {stickyChrome}
+      </div>
+
+      <div
+        ref={workoutsScrollRef}
+        className="relative z-0 min-h-0 flex-1 overflow-y-auto overscroll-y-contain scroll-smooth [overflow-anchor:none] px-3 pb-2 landscape:max-lg:px-2 lg:px-0"
+      >
+        <div className={contentShellClass}>{dayStack}</div>
+      </div>
+    </div>
+  )
+}
+
 export function TrainingListView({
   days,
   planDays,
@@ -236,30 +260,36 @@ export function TrainingListView({
   canEditDayNotes = false,
   athleteId,
   header,
+  prevWeekHref,
+  nextWeekHref,
+  variant = 'fixed',
+  initialScrollToKey,
 }: TrainingListViewProps) {
   const workoutsScrollRef = useRef<HTMLDivElement>(null)
-  const stripRef = useRef<HTMLDivElement>(null)
-  const [layout, setLayout] = useState<{ top: number; bottom: number; stripHeight: number } | null>(
-    null,
-  )
+  const hasScrolledToInitial = useRef(false)
+  const [layout, setLayout] = useState<{ top: number; bottom: number } | null>(null)
 
-  const rangeEndKey = days[days.length - 1]?.dateKey ?? todayKey()
-  const stripDays = useMemo(
-    () => days.filter((day) => day.dateKey >= todayKey()),
-    [days],
-  )
-  const visibleDays = useMemo(
-    () => withFullDayNames(filterListPlanDays(planDays, rangeEndKey)),
-    [planDays, rangeEndKey],
-  )
-  const weekChunks = useMemo(() => chunkWeeks(stripDays), [stripDays])
+  const visibleDays = useMemo(() => withFullDayNames(planDays), [planDays])
+  const scrollTargetKey = useMemo(() => {
+    if (initialScrollToKey && planDays.some((d) => d.dateKey === initialScrollToKey)) {
+      return initialScrollToKey
+    }
+    const today = todayKey()
+    return planDays.some((d) => d.dateKey === today) ? today : null
+  }, [initialScrollToKey, planDays])
+
+  const isFixed = variant === 'fixed'
+  const contentShellClass = isFixed
+    ? 'mx-auto w-full max-w-lg'
+    : 'w-full max-w-3xl'
 
   useLayoutEffect(() => {
+    if (!isFixed) return
+
     const updateLayout = () => {
       setLayout({
         top: getAppHeaderHeight(),
         bottom: getBottomInset(),
-        stripHeight: stripRef.current?.offsetHeight ?? 0,
       })
     }
 
@@ -269,25 +299,88 @@ export function TrainingListView({
     const headerEl = document.querySelector('header')
     const observer = new ResizeObserver(updateLayout)
     if (headerEl) observer.observe(headerEl)
-    if (stripRef.current) observer.observe(stripRef.current)
 
     return () => {
       window.removeEventListener('resize', updateLayout)
       observer.disconnect()
     }
-  }, [])
+  }, [isFixed])
 
   const scrollToTrainingDay = useCallback((dateKey: string) => {
-    const container = workoutsScrollRef.current
-    const target = document.getElementById(`${LIST_DAY_SECTION_ID}-${dateKey}`)
-    if (!container || !target) return
-
-    const top = target.offsetTop - container.offsetTop - 8
-    container.scrollTo({ top, behavior: 'smooth' })
+    requestAnimationFrame(() => {
+      const container = workoutsScrollRef.current
+      if (!container) return
+      scrollDayIntoView(container, dateKey, 'smooth')
+    })
   }, [])
+
+  useLayoutEffect(() => {
+    if (!scrollTargetKey || hasScrolledToInitial.current) return
+
+    const runScroll = () => {
+      const container = workoutsScrollRef.current
+      if (!container) return
+      const scrolled = scrollDayIntoView(container, scrollTargetKey, 'auto')
+      if (scrolled) hasScrolledToInitial.current = true
+    }
+
+    requestAnimationFrame(() => requestAnimationFrame(runScroll))
+  }, [scrollTargetKey, layout, visibleDays, header])
 
   const panelTop = layout?.top ?? 48
   const panelBottom = layout?.bottom ?? 96
+
+  const weekStrip = (
+    <WeekDayStrip
+      weekDays={days}
+      planDays={planDays}
+      onDaySelect={scrollToTrainingDay}
+      prevWeekHref={prevWeekHref}
+      nextWeekHref={nextWeekHref}
+    />
+  )
+
+  const dayStack = (
+    <PlanMobileDayStack
+      days={visibleDays}
+      isCoach={isCoach}
+      canEditDayNotes={canEditDayNotes}
+      athleteId={athleteId}
+      coachEditable={false}
+      headerAddMenu
+      trainingMode
+      daySectionIdPrefix={LIST_DAY_SECTION_ID}
+      daySectionScrollMarginClass="scroll-mt-0"
+      className="w-full pb-4"
+    />
+  )
+
+  const stickyChrome = (
+    <>
+      {header && (
+        <div className={cn('space-y-4 pb-2 landscape:max-lg:space-y-3', isFixed && 'pt-2')}>
+          {header}
+        </div>
+      )}
+      {weekStrip}
+    </>
+  )
+
+  const panelProps = {
+    contentShellClass,
+    stickyChrome,
+    dayStack,
+    workoutsScrollRef,
+  }
+
+  if (!isFixed) {
+    return (
+      <TrainingListPanel
+        {...panelProps}
+        panelClassName={cn('lg:h-[calc(100dvh-2rem)]', contentShellClass)}
+      />
+    )
+  }
 
   return (
     <>
@@ -298,43 +391,11 @@ export function TrainingListView({
         />
       )}
 
-      <div
-        className="fixed inset-x-0 z-30 flex flex-col bg-background lg:left-64"
-        style={{ top: panelTop, bottom: panelBottom }}
-      >
-        <div ref={stripRef} className="mx-auto w-full min-w-0 max-w-6xl shrink-0 px-3 landscape:max-lg:px-2 lg:px-8">
-          <SwipeableWeekStrip
-            stripDays={stripDays}
-            weekChunks={weekChunks}
-            planDays={planDays}
-            onDaySelect={scrollToTrainingDay}
-          />
-        </div>
-
-        <div
-          ref={workoutsScrollRef}
-          className="mx-auto min-h-0 w-full min-w-0 max-w-6xl flex-1 overflow-y-auto overscroll-y-contain px-3 landscape:max-lg:px-2 lg:px-8"
-        >
-          {header && <div className="space-y-6 pb-4 pt-2 landscape:max-lg:space-y-3">{header}</div>}
-
-          {visibleDays.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
-              No upcoming days in the next 14 days.
-            </p>
-          ) : (
-            <PlanMobileDayStack
-              days={visibleDays}
-              isCoach={isCoach}
-              canEditDayNotes={canEditDayNotes}
-              athleteId={athleteId}
-              coachEditable={false}
-              headerAddMenu
-              daySectionIdPrefix={LIST_DAY_SECTION_ID}
-              className="mx-auto w-full max-w-lg lg:max-w-none"
-            />
-          )}
-        </div>
-      </div>
+      <TrainingListPanel
+        {...panelProps}
+        panelClassName="fixed inset-x-0 z-30 lg:left-64"
+        panelStyle={{ top: panelTop, bottom: panelBottom }}
+      />
     </>
   )
 }

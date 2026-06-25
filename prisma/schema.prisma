@@ -215,6 +215,7 @@ model Workout {
   structure       Json?
   tags            String[]      @default([])
   status          WorkoutStatus @default(PLANNED)
+  sortOrder       Int           @default(0)
   selfLogged      Boolean       @default(false)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt

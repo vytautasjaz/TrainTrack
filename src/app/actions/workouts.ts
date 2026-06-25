@@ -3,12 +3,12 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSession, resolveAthleteId } from '@/lib/session'
+import { requireSession, resolveAthleteId, requireAthleteSession } from '@/lib/session'
 import { parseDateOnly } from '@/lib/dates'
 import { WorkoutStatus, WorkoutType, RaceType, SessionType } from '@prisma/client'
 import { defaultSportForRaceType } from '@/lib/races'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import { requireAthleteSession } from '@/lib/session'
+import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 
 function parseOptionalFloat(value: FormDataEntryValue | null) {
   if (!value || value === '') return undefined
@@ -133,11 +133,15 @@ export async function createWorkoutFromTemplate(formData: FormData) {
     where: { id: templateId, coachId: session.userId },
   })
 
+  const workoutDate = parseDateOnly(date)
+  const sortOrder = await getNextWorkoutSortOrder(athleteId, workoutDate)
+
   await prisma.workout.create({
     data: {
       athleteId,
       templateId,
-      date: parseDateOnly(date),
+      date: workoutDate,
+      sortOrder,
       type: template.type,
       sessionType: template.sessionType,
       title: template.title,
@@ -247,10 +251,47 @@ export async function moveWorkoutToDate(workoutId: string, dateKey: string) {
   const session = await requireSession()
   if (session.role !== 'COACH') throw new Error('Only coaches can move workouts')
 
+  const workout = await prisma.workout.findUniqueOrThrow({
+    where: { id: workoutId },
+    select: { athleteId: true },
+  })
+  const date = parseDateOnly(dateKey)
+  const sortOrder = await getNextWorkoutSortOrder(workout.athleteId, date)
+
   await prisma.workout.update({
     where: { id: workoutId },
-    data: { date: parseDateOnly(dateKey) },
+    data: { date, sortOrder },
   })
+
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
+}
+
+export async function reorderDayWorkouts(dateKey: string, workoutIds: string[]) {
+  const session = await requireSession()
+  if (session.role !== 'COACH') throw new Error('Only coaches can reorder workouts')
+
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete selected')
+
+  const date = parseDateOnly(dateKey)
+  const workouts = await prisma.workout.findMany({
+    where: { id: { in: workoutIds }, athleteId, date },
+    select: { id: true },
+  })
+
+  if (workouts.length !== workoutIds.length) {
+    throw new Error('Invalid workouts for this day')
+  }
+
+  await prisma.$transaction(
+    workoutIds.map((id, index) =>
+      prisma.workout.update({
+        where: { id },
+        data: { sortOrder: index },
+      }),
+    ),
+  )
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
@@ -262,12 +303,15 @@ export async function duplicateWorkout(formData: FormData) {
   const date = formData.get('date') as string
 
   const source = await prisma.workout.findUniqueOrThrow({ where: { id: workoutId } })
+  const workoutDate = parseDateOnly(date)
+  const sortOrder = await getNextWorkoutSortOrder(source.athleteId, workoutDate)
 
   await prisma.workout.create({
     data: {
       athleteId: source.athleteId,
       templateId: source.templateId,
-      date: parseDateOnly(date),
+      date: workoutDate,
+      sortOrder,
       type: source.type,
       sessionType: source.sessionType,
       title: source.title,
@@ -290,10 +334,14 @@ export async function createWorkout(formData: FormData) {
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete selected')
 
+  const workoutDate = parseDateOnly(formData.get('date') as string)
+  const sortOrder = await getNextWorkoutSortOrder(athleteId, workoutDate)
+
   await prisma.workout.create({
     data: {
       athleteId,
-      date: parseDateOnly(formData.get('date') as string),
+      date: workoutDate,
+      sortOrder,
       type: formData.get('type') as WorkoutType,
       title: formData.get('title') as string,
       description: parseOptionalString(formData.get('description')),
@@ -416,11 +464,13 @@ export async function logManualWorkout(formData: FormData) {
   const rpe = parseOptionalInt(formData.get('rpe'))
   const athleteNotes = parseOptionalString(formData.get('athleteNotes'))
   const completedAt = parseDateOnly(date)
+  const sortOrder = await getNextWorkoutSortOrder(session.athleteId, completedAt)
 
   await prisma.workout.create({
     data: {
       athleteId: session.athleteId,
       date: completedAt,
+      sortOrder,
       type,
       sessionType: SessionType.CUSTOM,
       title,

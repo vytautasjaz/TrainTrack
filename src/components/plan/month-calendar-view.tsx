@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { format, isSameMonth } from 'date-fns'
+import { CalendarPeriodNav } from '@/components/plan/calendar-period-nav'
 import { DayNoteSection } from '@/components/plan/day-note-section'
 import { PlanDayAddMenu } from '@/components/plan/plan-day-add-menu'
 import { MonthDayCell } from '@/components/plan/month-day-cell'
@@ -32,6 +33,8 @@ type MonthCalendarViewProps = {
   anchorMonth: Date
   athleteId?: string
   trainingMode?: boolean
+  prevMonthHref?: string
+  nextMonthHref?: string
 }
 
 function SelectedDayPanel({
@@ -54,9 +57,12 @@ function SelectedDayPanel({
   trainingMode?: boolean
 }) {
   return (
-    <section className="flex min-h-0 w-full flex-col rounded-2xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)] landscape:max-lg:p-2 lg:min-h-[20rem]">
-      <div className="flex items-start justify-between gap-2">
-        <h3 className="min-w-0 text-sm font-semibold">{selectedLabel}</h3>
+    <section className="card-elevated flex min-h-0 w-full flex-col p-4 landscape:max-lg:p-3 lg:min-h-[20rem]">
+      <div className="flex items-start justify-between gap-3 border-b border-border/40 pb-3">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">Selected day</p>
+          <h3 className="min-w-0 text-base font-semibold">{selectedLabel}</h3>
+        </div>
         <PlanDayAddMenu
           dateKey={selectedDateKey}
           isCoach={isCoach}
@@ -79,7 +85,7 @@ function SelectedDayPanel({
         </div>
       )}
 
-      <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
+      <div className="mt-4 flex-1 space-y-2 overflow-y-auto">
         {selectedWorkouts.length === 0 ? (
           <p className="text-sm text-muted-foreground">No workouts scheduled.</p>
         ) : (
@@ -124,6 +130,8 @@ export function MonthCalendarView({
   anchorMonth,
   athleteId,
   trainingMode = false,
+  prevMonthHref,
+  nextMonthHref,
 }: MonthCalendarViewProps) {
   const defaultSelected = useMemo(() => {
     const today = todayDateKey()
@@ -154,10 +162,17 @@ export function MonthCalendarView({
 
   return (
     <div className="card-elevated p-4 landscape:max-lg:p-2">
-      <h2 className="mb-4 text-sm font-semibold landscape:max-lg:mb-1 landscape:max-lg:text-xs">{monthLabel}</h2>
-
       <div className="flex flex-col gap-4 portrait:max-lg:flex-col landscape:max-lg:grid landscape:max-lg:grid-cols-2 landscape:max-lg:items-start landscape:max-lg:gap-2 lg:grid lg:grid-cols-2 lg:gap-6">
         <div className="w-full min-w-0">
+          <CalendarPeriodNav
+            label={monthLabel}
+            prevHref={prevMonthHref}
+            nextHref={nextMonthHref}
+            prevAriaLabel="Previous month"
+            nextAriaLabel="Next month"
+            className="mb-4 landscape:max-lg:mb-1"
+          />
+
           <div className="grid grid-cols-7 gap-px text-center text-[8px] font-medium uppercase text-muted-foreground landscape:max-lg:gap-0.5 lg:gap-1 lg:text-[10px]">
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((full, i) => (
               <div key={full} className="py-0.5">

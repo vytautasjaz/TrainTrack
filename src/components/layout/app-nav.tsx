@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Moon, Sun, Zap } from 'lucide-react'
@@ -12,10 +13,12 @@ export function AppNav({
   showPreferences = true,
   isCoach = false,
   dashboardNotificationCount = 0,
+  sidebarFooter,
 }: {
   showPreferences?: boolean
   isCoach?: boolean
   dashboardNotificationCount?: number
+  sidebarFooter?: ReactNode
 }) {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
@@ -62,6 +65,7 @@ export function AppNav({
             )
           })}
         </nav>
+        <div className="mt-auto">
         {showPreferences && (
           <Link
             href={PREFERENCES_NAV.href}
@@ -85,11 +89,13 @@ export function AppNav({
           {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           Toggle theme
         </Button>
+        {sidebarFooter}
+        </div>
       </aside>
 
-      {/* Bottom nav — portrait phones only; hidden in landscape (use menu button) */}
-      <nav className="fixed inset-x-4 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-50 portrait:max-lg:block landscape:max-lg:hidden lg:hidden">
-        <div className="flex items-center justify-around rounded-full bg-hero px-1 py-1.5 shadow-[var(--shadow-float)]">
+      {/* Bottom nav — portrait phones; light bar inspired by activity apps */}
+      <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-card/95 shadow-[var(--shadow-nav)] backdrop-blur-md portrait:max-lg:block landscape:max-lg:hidden lg:hidden">
+        <div className="flex items-stretch justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
           {(showPreferences ? [...mainNav, PREFERENCES_NAV] : mainNav).map(({ href, label, icon: Icon }) => {
             const active = pathname.startsWith(href)
             const showBadge = href === '/dashboard' && dashboardNotificationCount > 0
@@ -98,19 +104,19 @@ export function AppNav({
                 key={href}
                 href={href}
                 className={cn(
-                  'flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-full py-1 text-[9px] font-semibold transition-all',
-                  active ? 'text-brand' : 'text-hero-foreground/50',
+                  'flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-semibold transition-all',
+                  active ? 'text-brand' : 'text-muted-foreground',
                 )}
               >
                 <span
                   className={cn(
-                    'relative flex h-7 w-7 items-center justify-center rounded-full transition-all',
-                    active && 'bg-brand/15',
+                    'relative flex h-8 w-8 items-center justify-center rounded-full transition-all',
+                    active && 'bg-brand/10',
                   )}
                 >
-                  <Icon className="h-3.5 w-3.5" />
+                  <Icon className="h-5 w-5" strokeWidth={active ? 2.25 : 2} />
                   {showBadge && (
-                    <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-brand ring-2 ring-hero" />
+                    <span className="absolute right-0 top-0 h-2 w-2 rounded-full bg-brand ring-2 ring-card" />
                   )}
                 </span>
                 <span className="truncate">{label}</span>

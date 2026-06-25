@@ -19,6 +19,7 @@ import { sumSportWeekTotals } from '@/lib/plan-week-totals'
 import { EditDefaultPlanSportsButton } from '@/components/coach/edit-default-plan-sports-button'
 import { dayHasRecovery, getRecoveryWorkout, recoveryDayCellClass, recoveryDayHeaderClass } from '@/lib/recovery-day'
 import { dayHasRace, raceDayCellClass, raceDayHeaderClass } from '@/lib/race-day'
+import { CalendarPeriodNav } from '@/components/plan/calendar-period-nav'
 import { cn } from '@/lib/utils'
 import { DayNoteSection } from '@/components/plan/day-note-section'
 import { RecoveryDaySection } from '@/components/plan/recovery-day-section'
@@ -42,6 +43,9 @@ type PlanTableViewProps = {
   planSportRows?: WorkoutType[]
   weekExtraPlanSportRows?: WorkoutType[]
   weekHiddenPlanSportRows?: WorkoutType[]
+  weekLabel?: string
+  prevWeekHref?: string
+  nextWeekHref?: string
 }
 
 const COACH_SPORT_ROWS_FALLBACK = SPORT_ROW_ORDER.filter(
@@ -264,6 +268,9 @@ function PlanTableViewInner({
   planSportRows = [],
   weekExtraPlanSportRows = [],
   weekHiddenPlanSportRows = [],
+  weekLabel,
+  prevWeekHref,
+  nextWeekHref,
 }: PlanTableViewProps) {
   const typesInWeek = new Set(days.flatMap((d) => d.workouts.map((w) => w.type)))
   const sportRows = isCoach
@@ -328,11 +335,24 @@ function PlanTableViewInner({
           weekExtraPlanSportRows={weekExtraPlanSportRows}
           weekHiddenPlanSportRows={weekHiddenPlanSportRows}
           dragEnabled={dragEnabled}
+          trainingMode={!isCoach}
         />
       </div>
 
       {/* Landscape + desktop: full week table */}
-      <div className="hidden w-full overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shadow-card)] landscape:max-lg:block lg:block">
+      <div className="hidden w-full landscape:max-lg:block lg:block">
+        {weekLabel && (
+          <CalendarPeriodNav
+            label={weekLabel}
+            prevHref={prevWeekHref}
+            nextHref={nextWeekHref}
+            prevAriaLabel="Previous week"
+            nextAriaLabel="Next week"
+            align="start"
+            className="mb-2"
+          />
+        )}
+        <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shadow-card)]">
         <table className="w-full table-fixed border-collapse text-left landscape:max-lg:text-[9px] lg:text-sm">
           <colgroup>
             <col className="w-[11%]" />
@@ -388,6 +408,7 @@ function PlanTableViewInner({
             {showRecoveryRow && <RecoveryTableRow days={days} isCoach={isCoach} />}
           </tbody>
         </table>
+        </div>
       </div>
     </>
   )

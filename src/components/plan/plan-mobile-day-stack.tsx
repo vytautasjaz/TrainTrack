@@ -8,6 +8,7 @@ import { RecoveryDaySection } from '@/components/plan/recovery-day-section'
 import { RacePlanItem } from '@/components/plan/race-plan-item'
 import { WorkoutPlanMeta } from '@/components/plan/workout-plan-meta'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
+import { TrainingDayWorkoutList } from '@/components/training/training-day-workout-list'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, SPORT_ROW_ORDER } from '@/lib/constants'
 import type { PlanDay } from '@/lib/plan-week'
 import { resolveCoachPlanSportRows } from '@/lib/plan-sports'
@@ -36,22 +37,25 @@ export type PlanMobileDayStackProps = {
   daySectionIdPrefix?: string
   daySectionScrollMarginClass?: string
   headerAddMenu?: boolean
+  trainingMode?: boolean
 }
 
-function daySectionClass(day: PlanDay) {
+function daySectionClass(day: PlanDay, trainingMode?: boolean) {
   return cn(
-    'rounded-2xl border border-border/70 bg-card shadow-[var(--shadow-card)]',
-    dayHasRace(day.workouts) && raceDaySectionClass(day.isToday),
-    dayHasRecovery(day.workouts) &&
+    trainingMode ? 'card-elevated' : 'rounded-2xl border border-border/70 bg-card shadow-[var(--shadow-card)]',
+    !trainingMode && dayHasRace(day.workouts) && raceDaySectionClass(day.isToday),
+    !trainingMode &&
+      dayHasRecovery(day.workouts) &&
       !dayHasRace(day.workouts) &&
       'border-violet-500/25 bg-violet-500/[0.03]',
     day.isToday &&
       !dayHasRace(day.workouts) &&
       !dayHasRecovery(day.workouts) &&
-      'ring-1 ring-brand/25',
+      (trainingMode ? 'ring-2 ring-brand/20' : 'ring-1 ring-brand/25'),
     day.isToday &&
       dayHasRecovery(day.workouts) &&
       !dayHasRace(day.workouts) &&
+      !trainingMode &&
       'ring-1 ring-violet-500/25',
   )
 }
@@ -129,6 +133,7 @@ export function PlanMobileDayStack({
   daySectionIdPrefix,
   daySectionScrollMarginClass,
   headerAddMenu = false,
+  trainingMode = false,
 }: PlanMobileDayStackProps) {
   const typesInDays = new Set(days.flatMap((d) => d.workouts.map((w) => w.type)))
   const sportRows =
@@ -148,30 +153,76 @@ export function PlanMobileDayStack({
   const showRecoveryRow = isCoach || days.some((d) => dayHasRecovery(d.workouts))
 
   return (
-    <div className={cn('space-y-3', className)}>
-      {days.map((day) => (
+    <div className={cn('space-y-4', trainingMode && 'space-y-3', className)}>
+      {days.map((day) => {
+        const trainingWorkouts = day.workouts.filter(
+          (w) => w.type !== WorkoutType.REST && w.type !== WorkoutType.RECOVERY && !w.isRace,
+        )
+        const raceWorkouts = day.workouts.filter((w) => w.isRace)
+
+        return (
         <section
           key={day.dateKey}
-          id={daySectionIdPrefix ? `${daySectionIdPrefix}-${day.dateKey}` : undefined}
+          id={
+            daySectionIdPrefix && !trainingMode
+              ? `${daySectionIdPrefix}-${day.dateKey}`
+              : undefined
+          }
           className={cn(
-            daySectionClass(day),
-            daySectionScrollMarginClass ?? (daySectionIdPrefix && 'scroll-mt-24'),
+            daySectionClass(day, trainingMode),
+            daySectionScrollMarginClass ?? (daySectionIdPrefix && !trainingMode && 'scroll-mt-24'),
           )}
         >
+          {daySectionIdPrefix && trainingMode && (
+            <div
+              id={`${daySectionIdPrefix}-${day.dateKey}`}
+              className="pointer-events-none h-0 w-full"
+              aria-hidden
+            />
+          )}
           <div
             className={cn(
-              'flex items-center justify-between gap-2 border-b border-border/60 px-4 py-3',
-              dayHasRace(day.workouts) && 'bg-amber-500/15',
-              dayHasRecovery(day.workouts) && !dayHasRace(day.workouts) && 'bg-violet-500/10',
-              day.isToday &&
+              'flex items-center justify-between gap-3 px-4 py-3',
+              trainingMode ? 'border-b border-border/40' : 'border-b border-border/60',
+              !trainingMode && dayHasRace(day.workouts) && 'bg-amber-500/15',
+              !trainingMode &&
+                dayHasRecovery(day.workouts) &&
+                !dayHasRace(day.workouts) &&
+                'bg-violet-500/10',
+              !trainingMode &&
+                day.isToday &&
                 !dayHasRace(day.workouts) &&
                 !dayHasRecovery(day.workouts) &&
                 'bg-brand/[0.04]',
             )}
           >
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">{day.dayLabel}</p>
-              <p className="text-xs text-muted-foreground">{day.dateLabel}</p>
+            <div className="flex min-w-0 items-center gap-3">
+              {trainingMode && (
+                <div
+                  className={cn(
+                    'flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl text-center',
+                    day.isToday ? 'bg-brand text-brand-foreground' : 'bg-muted/60',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'text-[10px] font-semibold uppercase leading-none',
+                      day.isToday ? 'opacity-90' : 'text-muted-foreground',
+                    )}
+                  >
+                    {day.dayLabel.slice(0, 3)}
+                  </span>
+                  <span className="text-lg font-bold leading-none tabular-nums">
+                    {day.dateKey.split('-')[2]?.replace(/^0/, '') ?? day.dateLabel}
+                  </span>
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className={cn('font-semibold', trainingMode ? 'text-base' : 'text-sm')}>
+                  {day.dayLabel}
+                </p>
+                <p className="text-xs text-muted-foreground">{day.dateLabel}</p>
+              </div>
             </div>
             {headerAddMenu && (
               <PlanDayAddMenu
@@ -196,6 +247,22 @@ export function PlanMobileDayStack({
               />
             </div>
           )}
+
+          {trainingMode && !coachEditable ? (
+            <TrainingDayWorkoutList
+              key={`${day.dateKey}-${trainingWorkouts.map((w) => w.id).join(',')}`}
+              dateKey={day.dateKey}
+              workouts={trainingWorkouts}
+              raceWorkouts={raceWorkouts}
+              isCoach={isCoach}
+              reorderEnabled={isCoach}
+              showEmpty={
+                trainingWorkouts.length === 0 &&
+                raceWorkouts.length === 0 &&
+                !dayHasRecovery(day.workouts)
+              }
+            />
+          ) : (
           <div className="divide-y divide-border/60">
             {sportRows.map((sport) => {
               const sportWorkouts = workoutsForSport(day, sport)
@@ -229,8 +296,10 @@ export function PlanMobileDayStack({
               <p className="px-3 py-4 text-xs text-muted-foreground">No workouts scheduled.</p>
             )}
           </div>
+          )}
+
           {!coachEditable && dayHasRecovery(day.workouts) && (
-            <div className="border-t border-border/60 px-3 py-2">
+            <div className={cn('border-t border-border/40 px-3 py-2', trainingMode && 'mx-0')}>
               <RecoveryDaySection
                 dateKey={day.dateKey}
                 workout={getRecoveryWorkout(day.workouts)}
@@ -251,7 +320,7 @@ export function PlanMobileDayStack({
             </div>
           )}
           {showNoteRow && !coachEditable && (!headerAddMenu || day.dayNote) && (
-            <div className="border-t border-border/60 px-3 py-2">
+            <div className={cn('border-t border-border/40 px-3 py-2', trainingMode && 'px-3')}>
               <DayNoteSection
                 dateKey={day.dateKey}
                 note={day.dayNote}
@@ -263,7 +332,8 @@ export function PlanMobileDayStack({
             </div>
           )}
         </section>
-      ))}
+        )
+      })}
     </div>
   )
 }

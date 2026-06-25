@@ -7,6 +7,7 @@ type ProgressRingProps = {
   stroke?: number
   label?: React.ReactNode
   sublabel?: React.ReactNode
+  tone?: 'dark' | 'light'
   className?: string
 }
 
@@ -17,12 +18,14 @@ export function ProgressRing({
   stroke = 10,
   label,
   sublabel,
+  tone = 'dark',
   className,
 }: ProgressRingProps) {
   const pct = max > 0 ? Math.min(Math.max(value / max, 0), 1) : 0
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
   const offset = circumference * (1 - pct)
+  const trackClass = tone === 'light' ? 'text-muted' : 'text-white/15'
 
   return (
     <div className={cn('relative inline-flex items-center justify-center', className)}>
@@ -34,7 +37,7 @@ export function ProgressRing({
           fill="none"
           stroke="currentColor"
           strokeWidth={stroke}
-          className="text-white/15"
+          className={trackClass}
         />
         <circle
           cx={size / 2}

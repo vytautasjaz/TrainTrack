@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, Moon, Sun } from 'lucide-react'
@@ -25,7 +25,8 @@ export function MobileNavMenu({
   showPreferences = true,
   isCoach = false,
   dashboardNotificationCount = 0,
-}: MobileNavMenuProps) {
+  menuFooter,
+}: MobileNavMenuProps & { menuFooter?: ReactNode }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
@@ -89,6 +90,7 @@ export function MobileNavMenu({
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             Toggle theme
           </Button>
+          {menuFooter}
         </DialogContent>
       </Dialog>
     </>

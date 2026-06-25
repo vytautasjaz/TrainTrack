@@ -23,6 +23,7 @@ import {
 } from '@/lib/constants'
 import { getSessionTypeLabel } from '@/lib/workout-builder/session-modes'
 import { CompletionSourceBadge } from '@/components/history/completion-source-badge'
+import { AthleteAddedBadge } from '@/components/plan/athlete-added-badge'
 import { getWorkoutCompletionSource } from '@/lib/workout-history'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { cn, formatDistance, formatDuration } from '@/lib/utils'
@@ -72,6 +73,7 @@ export function WorkoutDetailModal({
     workout.status === 'COMPLETED' && result
       ? getWorkoutCompletionSource({ selfLogged: workout.selfLogged ?? false, result })
       : null
+  const showAthleteAddedBadge = workout.selfLogged && workout.status !== WorkoutStatus.COMPLETED
 
   if (workout.type === WorkoutType.RECOVERY) {
     return (
@@ -193,6 +195,7 @@ export function WorkoutDetailModal({
                     </Badge>
                   )}
                   {completionSource && <CompletionSourceBadge source={completionSource} />}
+                  {showAthleteAddedBadge && <AthleteAddedBadge forCoach={isCoach} />}
                 </div>
               )}
             </div>

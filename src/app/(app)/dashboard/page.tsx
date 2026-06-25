@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { Flag, Route, Timer, TrendingUp, Users } from 'lucide-react'
+import { Flag, Footprints, Route, Timer, TrendingUp, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getSession, resolveAthleteId } from '@/lib/session'
 import { getAthleteDashboard, getCoachDashboard } from '@/lib/queries'
@@ -13,11 +13,20 @@ import {
   type AthleteCoachReplyItem,
 } from '@/components/athlete/athlete-coach-reply-list'
 import { Button } from '@/components/ui/button'
+import { MetricChip } from '@/components/ui/metric-chip'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatCard } from '@/components/ui/stat-card'
 import { PageHeader } from '@/components/ui/page-header'
 import { AthleteDashboardWorkouts } from '@/components/dashboard/athlete-dashboard-workouts'
 import { toPlanWorkoutDetail } from '@/lib/plan-workout'
+
+function formatTodayLabel() {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
+}
 
 export default async function DashboardPage() {
   const session = await getSession()
@@ -128,53 +137,56 @@ export default async function DashboardPage() {
     },
   }))
   const weekPct = percent(data.weekCompleted, data.weekPlanned)
-  const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="order-3 overflow-hidden rounded-3xl bg-hero p-6 text-hero-foreground shadow-[var(--shadow-float)] md:order-1 md:p-8">
-        <div className="flex flex-col items-center gap-6 md:flex-row md:justify-between">
-          <div className="text-center md:text-left">
-            <p className="text-sm font-medium opacity-80">{greeting}</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight md:text-3xl">{session.name}</h1>
-            <p className="mt-2 text-sm opacity-70">
-              {data.weekCompleted} of {data.weekPlanned} workouts done this week
-            </p>
-          </div>
+    <div className="space-y-6">
+      <section className="card-elevated overflow-hidden p-5 sm:p-6">
+        <div className="space-y-1 text-center">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Today
+          </p>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{session.name}</h1>
+          <p className="text-sm text-muted-foreground">{formatTodayLabel()}</p>
+        </div>
+
+        <div className="mt-5 flex flex-col items-center sm:mt-6">
           <ProgressRing
             value={data.weekCompleted}
             max={Math.max(data.weekPlanned, 1)}
-            size={140}
-            stroke={9}
-            label={
-              <span className="text-3xl font-bold tabular-nums">{weekPct}%</span>
-            }
+            size={180}
+            stroke={12}
+            tone="light"
+            label={<span className="metric-hero-value text-brand">{weekPct}%</span>}
             sublabel={
-              <span className="mt-0.5 text-xs opacity-70">weekly goal</span>
+              <span className="mt-1 text-xs font-medium text-muted-foreground">
+                {data.weekCompleted} / {data.weekPlanned} workouts
+              </span>
             }
           />
         </div>
-      </div>
 
-      <div className="order-4 grid gap-3 sm:grid-cols-2 md:order-2 lg:grid-cols-4">
+        <div className="mt-5 flex justify-around gap-2 border-t border-border/50 pt-5 sm:mt-6 sm:pt-6">
+          <MetricChip icon={Route} value={formatDistance(data.weekDistance)} label="Distance" />
+          <MetricChip icon={Timer} value={formatDuration(data.weekDuration)} label="Duration" />
+          <MetricChip icon={Footprints} value={String(data.weekCompleted)} label="Completed" />
+        </div>
+      </section>
+
+      {coachReplyItems.length > 0 && (
+        <section className="card-elevated p-5 sm:p-6">
+          <h2 className="mb-4 text-lg font-semibold leading-tight tracking-tight">Coach replies</h2>
+          <AthleteCoachReplyList replies={coachReplyItems} />
+        </section>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
         <StatCard
-          label="Distance"
-          value={formatDistance(data.weekDistance)}
-          hint="This week"
-          icon={Route}
-        />
-        <StatCard
-          label="Duration"
-          value={formatDuration(data.weekDuration)}
-          hint="This week"
-          icon={Timer}
-        />
-        <StatCard
-          label="Monthly"
+          label="Monthly volume"
           value={formatDistance(data.monthDistance)}
-          hint={`${data.monthWorkoutsCompleted} completed`}
+          hint={`${data.monthWorkoutsCompleted} workouts done`}
           icon={TrendingUp}
+          layout="row"
+          variant="flat"
         />
         {data.nextRace ? (
           <StatCard
@@ -182,23 +194,20 @@ export default async function DashboardPage() {
             value={`${daysUntil(data.nextRace.date)}d`}
             hint={data.nextRace.name}
             icon={Flag}
-            variant="brand"
+            layout="row"
+            variant="flat"
           />
         ) : (
-          <StatCard label="Next race" value="—" hint="None scheduled" icon={Flag} />
+          <StatCard
+            label="Next race"
+            value="—"
+            hint="None scheduled"
+            icon={Flag}
+            layout="row"
+            variant="flat"
+          />
         )}
       </div>
-
-      {coachReplyItems.length > 0 && (
-        <Card className="order-0 md:order-2">
-          <CardHeader>
-            <CardTitle>Coach replies</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AthleteCoachReplyList replies={coachReplyItems} />
-          </CardContent>
-        </Card>
-      )}
 
       <AthleteDashboardWorkouts
         todayWorkouts={data.todayWorkouts.map(toPlanWorkoutDetail)}

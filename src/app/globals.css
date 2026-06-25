@@ -6,31 +6,32 @@
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --color-background: #f4f6fb;
-  --color-foreground: #1a1d26;
+  --color-background: #f5f6f8;
+  --color-foreground: #111318;
   --color-card: #ffffff;
-  --color-card-foreground: #1a1d26;
-  --color-muted: #eef0f5;
+  --color-card-foreground: #111318;
+  --color-muted: #eef0f4;
   --color-muted-foreground: #6b7280;
-  --color-border: #e8ebf2;
+  --color-border: #e4e7ee;
   --color-primary: #e84855;
   --color-primary-foreground: #ffffff;
   --color-brand: #e84855;
   --color-brand-foreground: #ffffff;
-  --color-brand-soft: #ffecee;
+  --color-brand-soft: #fff0f1;
   --color-brand-muted: #ffd4d8;
-  --color-hero: #1a1d26;
-  --color-hero-foreground: #ffffff;
-  --color-accent: #f4f6fb;
-  --color-accent-foreground: #1a1d26;
+  --color-hero: #ffffff;
+  --color-hero-foreground: #111318;
+  --color-accent: #f5f6f8;
+  --color-accent-foreground: #111318;
   --color-destructive: #ef4444;
   --color-success: #22c55e;
   --radius-lg: 0.875rem;
   --radius-xl: 1rem;
   --radius-2xl: 1.25rem;
   --radius-3xl: 1.5rem;
-  --shadow-card: 0 4px 24px -4px rgb(26 29 38 / 0.08);
-  --shadow-float: 0 12px 40px -12px rgb(26 29 38 / 0.22);
+  --shadow-card: 0 1px 2px rgb(17 19 24 / 0.04), 0 8px 24px -8px rgb(17 19 24 / 0.1);
+  --shadow-float: 0 4px 20px -4px rgb(17 19 24 / 0.12), 0 12px 40px -12px rgb(17 19 24 / 0.08);
+  --shadow-nav: 0 -1px 0 rgb(17 19 24 / 0.06), 0 -8px 24px -8px rgb(17 19 24 / 0.08);
 }
 
 .dark {
@@ -47,8 +48,8 @@
   --color-brand-foreground: #ffffff;
   --color-brand-soft: #3d2024;
   --color-brand-muted: #5c2a30;
-  --color-hero: #0a0c10;
-  --color-hero-foreground: #ffffff;
+  --color-hero: #1a1d26;
+  --color-hero-foreground: #f4f6fb;
   --color-accent: #252932;
   --color-accent-foreground: #f4f6fb;
 }
@@ -71,20 +72,37 @@ body {
 }
 
 .app-gradient {
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgb(232 72 85 / 0.12), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 0%, rgb(99 102 241 / 0.08), transparent),
-    var(--color-background);
+  background: var(--color-background);
 }
 
 .dark .app-gradient {
   background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgb(255 90 103 / 0.15), transparent),
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgb(255 90 103 / 0.12), transparent),
     var(--color-background);
 }
 
 .card-elevated {
-  @apply rounded-2xl border border-border/60 bg-card shadow-[var(--shadow-card)];
+  @apply rounded-2xl border border-border/40 bg-card shadow-[var(--shadow-card)];
+}
+
+.metric-hero-value {
+  @apply text-3xl font-bold tabular-nums tracking-tight sm:text-4xl;
+}
+
+.metric-grid {
+  @apply grid grid-cols-2 gap-3 sm:grid-cols-4;
+}
+
+.metric-grid-item {
+  @apply rounded-2xl bg-muted/50 px-3 py-3 text-center;
+}
+
+.metric-grid-value {
+  @apply text-xl font-bold tabular-nums tracking-tight;
+}
+
+.metric-grid-label {
+  @apply mt-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground;
 }
 
 .input-field {

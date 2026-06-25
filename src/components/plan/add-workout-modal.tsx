@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog'
 import { WorkoutBlockBuilder } from '@/components/plan/workout-block-builder'
 import {
+  createAthleteWorkoutFromModal,
   createWorkoutFromModal,
   getCoachTemplatesForPicker,
   type WorkoutTemplatePickerItem,
@@ -26,28 +27,40 @@ import {
   getSessionTypeLabel,
   isSimpleSessionType,
   sessionTypesForSport,
+  SIMPLE_SESSION_TYPES,
 } from '@/lib/workout-builder/session-modes'
 import type { WorkoutStructure } from '@/lib/workout-builder/types'
 import { emptyStructure, parseStructure } from '@/lib/workout-builder/utils'
 
-const WORKOUT_TYPES = Object.keys(WORKOUT_TYPE_LABELS) as WorkoutType[]
+const WORKOUT_TYPES = (Object.keys(WORKOUT_TYPE_LABELS) as WorkoutType[]).filter(
+  (t) => t !== WorkoutType.RECOVERY && t !== WorkoutType.REST,
+)
 
 type AddWorkoutModalProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   date: string
   sport?: WorkoutType
+  /** Athlete self-add: simpler form, marked selfLogged on save. */
+  athleteMode?: boolean
 }
 
-export function AddWorkoutModal({ open, onOpenChange, date, sport }: AddWorkoutModalProps) {
+export function AddWorkoutModal({
+  open,
+  onOpenChange,
+  date,
+  sport,
+  athleteMode = false,
+}: AddWorkoutModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] max-w-lg overflow-x-hidden overflow-y-auto">
         {open ? (
           <AddWorkoutForm
-            key={`${date}-${sport ?? 'all'}`}
+            key={`${date}-${sport ?? 'all'}-${athleteMode ? 'athlete' : 'coach'}`}
             date={date}
             sport={sport}
+            athleteMode={athleteMode}
             onClose={() => onOpenChange(false)}
           />
         ) : null}
@@ -59,10 +72,11 @@ export function AddWorkoutModal({ open, onOpenChange, date, sport }: AddWorkoutM
 type AddWorkoutFormProps = {
   date: string
   sport?: WorkoutType
+  athleteMode?: boolean
   onClose: () => void
 }
 
-function AddWorkoutForm({ date, sport, onClose }: AddWorkoutFormProps) {
+function AddWorkoutForm({ date, sport, athleteMode = false, onClose }: AddWorkoutFormProps) {
   const sportLabel = sport ? WORKOUT_TYPE_LABELS[sport] : null
   const initialSport = sport ?? WorkoutType.RUN
   const initialSession = SessionType.EASY_RUN
@@ -79,11 +93,14 @@ function AddWorkoutForm({ date, sport, onClose }: AddWorkoutFormProps) {
   const titleCustomizedRef = useRef(false)
 
   useEffect(() => {
+    if (athleteMode) return
     getCoachTemplatesForPicker().then(setTemplates).catch(() => setTemplates([]))
-  }, [])
+  }, [athleteMode])
 
   const isSimple = isSimpleSessionType(sessionType)
-  const sessionOptions = sessionTypesForSport(sportType)
+  const sessionOptions = sessionTypesForSport(sportType).filter(
+    (t) => !athleteMode || SIMPLE_SESSION_TYPES.includes(t),
+  )
   const defaultTitle = defaultWorkoutTitle(sessionType, sportType)
   const visibleTemplates = sport
     ? templates.filter((t) => t.type === sport)
@@ -120,10 +137,12 @@ function AddWorkoutForm({ date, sport, onClose }: AddWorkoutFormProps) {
   }
 
   function handleSportChange(next: WorkoutType) {
-    const options = sessionTypesForSport(next)
+    const options = sessionTypesForSport(next).filter(
+      (t) => !athleteMode || SIMPLE_SESSION_TYPES.includes(t),
+    )
     let nextSession = sessionType
     if (!options.includes(sessionType)) {
-      nextSession = options[0]
+      nextSession = options[0] ?? SessionType.EASY_RUN
       setSessionType(nextSession)
       if (!isSimpleSessionType(nextSession)) {
         setStructure(createDefaultStructuredWorkout(nextSession))
@@ -155,17 +174,28 @@ function AddWorkoutForm({ date, sport, onClose }: AddWorkoutFormProps) {
     e.preventDefault()
     const finalTitle = title.trim() || defaultWorkoutTitle(sessionType, sportType)
     startTransition(async () => {
-      await createWorkoutFromModal({
-        title: finalTitle,
-        sportType,
-        sessionType,
-        scheduledDate: date,
-        plannedDistance: plannedDistance ? parseFloat(plannedDistance) : undefined,
-        plannedDuration: plannedDuration ? parseInt(plannedDuration, 10) : undefined,
-        coachNotes: coachNotes.trim() || undefined,
-        structure: isSimple ? undefined : { ...structure, coachNotes: coachNotes.trim() || structure.coachNotes },
-        templateId: selectedTemplateId || undefined,
-      })
+      if (athleteMode) {
+        await createAthleteWorkoutFromModal({
+          title: finalTitle,
+          sportType,
+          sessionType,
+          scheduledDate: date,
+          plannedDistance: plannedDistance ? parseFloat(plannedDistance) : undefined,
+          plannedDuration: plannedDuration ? parseInt(plannedDuration, 10) : undefined,
+        })
+      } else {
+        await createWorkoutFromModal({
+          title: finalTitle,
+          sportType,
+          sessionType,
+          scheduledDate: date,
+          plannedDistance: plannedDistance ? parseFloat(plannedDistance) : undefined,
+          plannedDuration: plannedDuration ? parseInt(plannedDuration, 10) : undefined,
+          coachNotes: coachNotes.trim() || undefined,
+          structure: isSimple ? undefined : { ...structure, coachNotes: coachNotes.trim() || structure.coachNotes },
+          templateId: selectedTemplateId || undefined,
+        })
+      }
       onClose()
     })
   }
@@ -176,11 +206,13 @@ function AddWorkoutForm({ date, sport, onClose }: AddWorkoutFormProps) {
         <DialogTitle>
           {sportLabel ? `Add ${sportLabel} workout` : 'Add workout'}
         </DialogTitle>
-        <DialogDescription>{date}</DialogDescription>
+        <DialogDescription>
+          {athleteMode ? `Add a workout to ${date}` : date}
+        </DialogDescription>
       </DialogHeader>
 
       <form onSubmit={handleSubmit} className="min-w-0 space-y-3">
-          {visibleTemplates.length > 0 && (
+          {!athleteMode && visibleTemplates.length > 0 && (
             <label className="block text-sm">
               <span className="text-muted-foreground">Start from template</span>
               <select
@@ -246,43 +278,31 @@ function AddWorkoutForm({ date, sport, onClose }: AddWorkoutFormProps) {
           </label>
 
           {isSimple ? (
-            <>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <label className="block text-sm">
-                  <span className="text-muted-foreground">Distance (km)</span>
-                  <input
-                    type="number"
-                    step="0.1"
-                    min={0}
-                    value={plannedDistance}
-                    onChange={(e) => setPlannedDistance(e.target.value)}
-                    placeholder="Optional"
-                    className="input-field mt-1"
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="text-muted-foreground">Duration (min)</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={plannedDuration}
-                    onChange={(e) => setPlannedDuration(e.target.value)}
-                    placeholder="Optional"
-                    className="input-field mt-1"
-                  />
-                </label>
-              </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block text-sm">
-                <span className="text-muted-foreground">Coach comment</span>
-                <textarea
-                  value={coachNotes}
-                  onChange={(e) => setCoachNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Optional notes for the athlete"
+                <span className="text-muted-foreground">Distance (km)</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min={0}
+                  value={plannedDistance}
+                  onChange={(e) => setPlannedDistance(e.target.value)}
+                  placeholder="Optional"
                   className="input-field mt-1"
                 />
               </label>
-            </>
+              <label className="block text-sm">
+                <span className="text-muted-foreground">Duration (min)</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={plannedDuration}
+                  onChange={(e) => setPlannedDuration(e.target.value)}
+                  placeholder="Optional"
+                  className="input-field mt-1"
+                />
+              </label>
+            </div>
           ) : (
             <>
               <WorkoutBlockBuilder structure={structure} onChange={setStructure} />
@@ -299,12 +319,25 @@ function AddWorkoutForm({ date, sport, onClose }: AddWorkoutFormProps) {
             </>
           )}
 
+          {!athleteMode && isSimple && (
+            <label className="block text-sm">
+              <span className="text-muted-foreground">Coach comment</span>
+              <textarea
+                value={coachNotes}
+                onChange={(e) => setCoachNotes(e.target.value)}
+                rows={2}
+                placeholder="Optional notes for the athlete"
+                className="input-field mt-1"
+              />
+            </label>
+          )}
+
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               Cancel
             </Button>
             <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
-              {isPending ? 'Saving…' : 'Add to plan'}
+              {isPending ? 'Saving…' : athleteMode ? 'Add workout' : 'Add to plan'}
             </Button>
           </div>
         </form>

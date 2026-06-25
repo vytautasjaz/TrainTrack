@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import type { WorkoutType } from '@prisma/client'
 import {
-  addDays,
   addMonths,
   addWeeks,
   eachDayOfInterval,
@@ -15,12 +14,12 @@ import { PageHeader } from '@/components/ui/page-header'
 import { PlanTableView } from '@/components/plan/plan-table-view'
 import { MonthCalendarView } from '@/components/plan/month-calendar-view'
 import { TrainingListView } from '@/components/training/training-list-view'
+import { TrainingMobileWeekView } from '@/components/training/training-mobile-week-view'
 import { TrainingCalendarControls } from '@/components/training/training-calendar-controls'
 import {
   getDayNotesForRange,
   getMonthWorkouts,
   getPlanWorkouts,
-  getPlanWorkoutsInRange,
   getRacesForRange,
   getWeekDays,
   getWeekExtraPlanSportRows,
@@ -34,7 +33,7 @@ import { toPlanWorkoutDetail } from '@/lib/plan-workout'
 import { mergeRacesIntoByDate } from '@/lib/races'
 import { buildPlanTableDays } from '@/lib/plan-week'
 import { buildTrainingDays } from '@/lib/training-timeline'
-import { todayDateOnly, toDateKey } from '@/lib/dates'
+import { toDateKey } from '@/lib/dates'
 import { CoachAthleteSelect } from '@/components/coach/coach-athlete-select'
 import { CoachTrainingAthleteHeading } from '@/components/coach/coach-training-athlete-heading'
 
@@ -46,8 +45,8 @@ type TrainingPageProps = {
 
 function parseView(raw: string | undefined): TrainingView {
   if (raw === 'month') return 'month'
-  if (raw === 'list') return 'list'
-  return 'week'
+  if (raw === 'week') return 'week'
+  return 'list'
 }
 
 export default async function TrainingPage({ searchParams }: TrainingPageProps) {
@@ -72,18 +71,14 @@ export default async function TrainingPage({ searchParams }: TrainingPageProps) 
   const monthGridEnd = endOfWeek(endOfMonth(anchor), { weekStartsOn: 1 })
   const weekStart = startOfWeek(anchor, { weekStartsOn: 1 })
   const weekEnd = endOfWeek(anchor, { weekStartsOn: 1 })
-  const listRangeStart = todayDateOnly()
-  const listRangeEnd = addDays(listRangeStart, 13)
 
-  const rangeStart = view === 'list' ? listRangeStart : view === 'month' ? monthGridStart : weekStart
-  const rangeEnd = view === 'list' ? listRangeEnd : view === 'month' ? monthGridEnd : weekEnd
+  const rangeStart = view === 'month' ? monthGridStart : weekStart
+  const rangeEnd = view === 'month' ? monthGridEnd : weekEnd
 
   const rawWorkouts =
     view === 'month'
       ? await getMonthWorkouts(athleteId, anchor.getFullYear(), anchor.getMonth())
-      : view === 'list'
-        ? await getPlanWorkoutsInRange(athleteId, listRangeStart, listRangeEnd)
-        : await getPlanWorkouts(athleteId, anchor)
+      : await getPlanWorkouts(athleteId, anchor)
 
   const byDateRaw = groupWorkoutsByDate(rawWorkouts)
   const byDateWorkouts = new Map(
@@ -96,20 +91,8 @@ export default async function TrainingPage({ searchParams }: TrainingPageProps) 
   const notesByDate = groupDayNotesByDate(dayNotes)
 
   const weekDays = getWeekDays(anchor)
-  const listIntervalDays = eachDayOfInterval({ start: listRangeStart, end: listRangeEnd })
-  const listDays =
-    view === 'month'
-      ? eachDayOfInterval({ start: startOfMonth(anchor), end: endOfMonth(anchor) })
-      : view === 'list'
-        ? listIntervalDays
-        : weekDays
-
-  const trainingDays = buildTrainingDays(listDays)
-  const tableDays = buildPlanTableDays(
-    view === 'list' ? listIntervalDays : weekDays,
-    byDate,
-    notesByDate,
-  )
+  const trainingDays = buildTrainingDays(weekDays)
+  const tableDays = buildPlanTableDays(weekDays, byDate, notesByDate)
   const isCoach = session.role === 'COACH'
   const canLogWorkout = session.role === 'ATHLETE' && Boolean(session.athleteId)
   const today = format(new Date(), 'yyyy-MM-dd')
@@ -135,6 +118,10 @@ export default async function TrainingPage({ searchParams }: TrainingPageProps) 
   const prevMonth = monthOffset - 1
   const nextMonth = monthOffset + 1
 
+  const weekListHref = `/training?view=list&${weekQuery}`
+  const weekTableHref = `/training?view=week&${weekQuery}`
+  const monthHref = `/training?view=month&${monthQuery}`
+
   const prevHref =
     view === 'month'
       ? `/training?view=month&month=${prevMonth}`
@@ -144,19 +131,27 @@ export default async function TrainingPage({ searchParams }: TrainingPageProps) 
       ? `/training?view=month&month=${nextMonth}`
       : `/training?view=${view}&week=${nextWeek}`
 
-  const viewLabel =
-    view === 'month' ? 'month view' : view === 'week' ? 'week view' : 'list view'
-
   const trainingRedirectTo =
     view === 'month'
       ? `/training?view=month&month=${monthOffset}`
       : `/training?view=${view}&week=${weekOffset}`
 
   const trainingDescription = isCoach
-    ? viewLabel.charAt(0).toUpperCase() + viewLabel.slice(1)
-    : `Combined plan & history — ${viewLabel}`
+    ? view === 'month'
+      ? 'Month view'
+      : view === 'week'
+        ? 'Week view'
+        : 'List view'
+    : view === 'month'
+      ? 'Month calendar'
+      : 'This week — plan & history'
 
-  const listViewHeader = (
+  const periodLabel =
+    view === 'month'
+      ? format(anchor, 'MMMM yyyy')
+      : `${format(weekStart, 'd MMM')} – ${format(weekEnd, 'd MMM yyyy')}`
+
+  const pageHeader = (
     <>
       <PageHeader
         title="Training"
@@ -172,13 +167,10 @@ export default async function TrainingPage({ searchParams }: TrainingPageProps) 
             )}
             <TrainingCalendarControls
               view={view}
-              listHref={`/training?view=list&${weekQuery}`}
-              weekHref={`/training?view=week&${weekQuery}`}
-              monthHref={`/training?view=month&${monthQuery}`}
-              prevHref={prevHref}
-              nextHref={nextHref}
+              listHref={weekListHref}
+              weekHref={weekTableHref}
+              monthHref={monthHref}
               canLogWorkout={canLogWorkout}
-              showPeriodNav={view !== 'list'}
             />
           </div>
         }
@@ -190,57 +182,94 @@ export default async function TrainingPage({ searchParams }: TrainingPageProps) 
           status={selectedAthlete.status}
         />
       )}
+      {view !== 'week' && (
+        <p className="text-sm font-medium text-muted-foreground">{periodLabel}</p>
+      )}
     </>
   )
 
+  const coachPlanProps = {
+    athleteName: isCoach ? selectedAthlete?.name : undefined,
+    weekStartKey: isCoach ? weekStartKey : undefined,
+    planSportRows: athletePlanConfig?.planSportRows ?? [],
+    weekExtraPlanSportRows,
+    weekHiddenPlanSportRows,
+  }
+
   return (
     <div className="space-y-6 landscape:max-lg:space-y-3">
-      {view !== 'list' && listViewHeader}
+      {view === 'month' ? (
+        <>
+          {pageHeader}
+          <MonthCalendarView
+            monthLabel={format(anchor, 'MMMM yyyy')}
+            days={eachDayOfInterval({ start: monthGridStart, end: monthGridEnd }).map((day) => {
+              const key = format(day, 'yyyy-MM-dd')
+              return {
+                dateKey: key,
+                dayNumber: parseInt(format(day, 'd'), 10),
+                inMonth: day.getMonth() === anchor.getMonth(),
+                isToday: key === today,
+              }
+            })}
+            workoutsByDate={byDate}
+            notesByDate={notesByDate}
+            isCoach={isCoach}
+            anchorMonth={anchor}
+            athleteId={athleteId}
+            trainingMode
+            prevMonthHref={prevHref}
+            nextMonthHref={nextHref}
+          />
+        </>
+      ) : (
+        <>
+          <div className="hidden lg:block">
+            {view === 'list' ? (
+              <TrainingListView
+                key={weekStartKey}
+                days={trainingDays}
+                planDays={tableDays}
+                isCoach={isCoach}
+                canEditDayNotes
+                athleteId={athleteId}
+                header={pageHeader}
+                prevWeekHref={prevHref}
+                nextWeekHref={nextHref}
+                variant="page"
+              />
+            ) : (
+              <>
+                {pageHeader}
+                <PlanTableView
+                  days={tableDays}
+                  isCoach={isCoach}
+                  canEditDayNotes
+                  athleteId={athleteId}
+                  weekLabel={periodLabel}
+                  prevWeekHref={prevHref}
+                  nextWeekHref={nextHref}
+                  {...coachPlanProps}
+                />
+              </>
+            )}
+          </div>
 
-      {view === 'list' && (
-        <TrainingListView
-          days={trainingDays}
-          planDays={tableDays}
-          isCoach={isCoach}
-          canEditDayNotes
-          athleteId={athleteId}
-          header={listViewHeader}
-        />
-      )}
-
-      {view === 'week' && (
-        <PlanTableView
-          days={tableDays}
-          isCoach={isCoach}
-          canEditDayNotes
-          athleteId={athleteId}
-          athleteName={isCoach ? selectedAthlete?.name : undefined}
-          weekStartKey={isCoach ? weekStartKey : undefined}
-          planSportRows={athletePlanConfig?.planSportRows ?? []}
-          weekExtraPlanSportRows={weekExtraPlanSportRows}
-          weekHiddenPlanSportRows={weekHiddenPlanSportRows}
-        />
-      )}
-
-      {view === 'month' && (
-        <MonthCalendarView
-          monthLabel={format(anchor, 'MMMM yyyy')}
-          days={eachDayOfInterval({ start: monthGridStart, end: monthGridEnd }).map((day) => {
-            const key = format(day, 'yyyy-MM-dd')
-            return {
-              dateKey: key,
-              dayNumber: parseInt(format(day, 'd'), 10),
-              inMonth: day.getMonth() === anchor.getMonth(),
-              isToday: key === today,
-            }
-          })}
-          workoutsByDate={byDate}
-          notesByDate={notesByDate}
-          isCoach={isCoach}
-          anchorMonth={anchor}
-          athleteId={athleteId}
-          trainingMode
-        />
+          <div className="lg:hidden">
+            <TrainingMobileWeekView
+              days={trainingDays}
+              planDays={tableDays}
+              isCoach={isCoach}
+              canEditDayNotes
+              athleteId={athleteId}
+              header={pageHeader}
+              prevWeekHref={prevHref}
+              nextWeekHref={nextHref}
+              weekLabel={periodLabel}
+              {...coachPlanProps}
+            />
+          </div>
+        </>
       )}
     </div>
   )

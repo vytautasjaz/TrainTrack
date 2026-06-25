@@ -1,8 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { HistoryLogToolbar } from '@/components/history/history-log-toolbar'
 import { cn } from '@/lib/utils'
 
@@ -13,13 +11,12 @@ type TrainingCalendarControlsProps = {
   listHref: string
   weekHref: string
   monthHref: string
-  prevHref: string
-  nextHref: string
   canLogWorkout: boolean
-  showPeriodNav?: boolean
+  /** Hide list/week tabs on mobile where orientation switches layout automatically. */
+  hideWeekListOnMobile?: boolean
 }
 
-const VIEW_OPTIONS: { id: TrainingView; label: string }[] = [
+const DESKTOP_VIEW_OPTIONS: { id: TrainingView; label: string }[] = [
   { id: 'list', label: 'List' },
   { id: 'week', label: 'Week' },
   { id: 'month', label: 'Month' },
@@ -30,10 +27,8 @@ export function TrainingCalendarControls({
   listHref,
   weekHref,
   monthHref,
-  prevHref,
-  nextHref,
   canLogWorkout,
-  showPeriodNav = true,
+  hideWeekListOnMobile = true,
 }: TrainingCalendarControlsProps) {
   const viewHrefs: Record<TrainingView, string> = {
     list: listHref,
@@ -46,20 +41,23 @@ export function TrainingCalendarControls({
       <HistoryLogToolbar canLogWorkout={canLogWorkout} />
 
       <div
-        className="inline-flex items-center rounded-xl bg-muted/50 p-0.5"
+        className={cn(
+          'inline-flex items-center rounded-full bg-muted/60 p-1',
+          hideWeekListOnMobile && 'hidden lg:inline-flex',
+        )}
         role="tablist"
         aria-label="Calendar view"
       >
-        {VIEW_OPTIONS.map(({ id, label }) => (
+        {DESKTOP_VIEW_OPTIONS.map(({ id, label }) => (
           <Link
             key={id}
             href={viewHrefs[id]}
             role="tab"
             aria-selected={view === id}
             className={cn(
-              'rounded-lg px-2.5 py-1.5 text-xs font-medium transition sm:px-3',
+              'rounded-full px-3 py-1.5 text-xs font-semibold transition sm:px-4',
               view === id
-                ? 'bg-card text-foreground shadow-sm'
+                ? 'bg-card text-brand shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -68,22 +66,18 @@ export function TrainingCalendarControls({
         ))}
       </div>
 
-      {showPeriodNav && (
-        <div className="flex items-center gap-1 rounded-xl border border-border/70 bg-card p-0.5 shadow-sm">
-          <Button variant="ghost" size="sm" className="h-8 gap-1 px-2.5 font-medium" asChild>
-            <Link href={prevHref} aria-label="Previous period">
-              <ChevronLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Prev</span>
-            </Link>
-          </Button>
-          <span className="hidden h-5 w-px bg-border/80 sm:block" aria-hidden />
-          <Button variant="ghost" size="sm" className="h-8 gap-1 px-2.5 font-medium" asChild>
-            <Link href={nextHref} aria-label="Next period">
-              <span className="hidden sm:inline">Next</span>
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </Button>
-        </div>
+      {hideWeekListOnMobile && (
+        <Link
+          href={monthHref}
+          className={cn(
+            'inline-flex rounded-full px-3 py-1.5 text-xs font-semibold transition lg:hidden',
+            view === 'month'
+              ? 'bg-muted/60 text-brand'
+              : 'text-muted-foreground hover:bg-muted/40 hover:text-foreground',
+          )}
+        >
+          Month
+        </Link>
       )}
     </div>
   )

@@ -16,6 +16,8 @@ import {
   YAxis,
 } from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MetricChip } from '@/components/ui/metric-chip'
+import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatCard } from '@/components/ui/stat-card'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import type { ProgressSportBucket, ProgressStats } from '@/lib/progress-stats'
@@ -102,6 +104,42 @@ export function ProgressStatsView({ stats, className }: ProgressStatsViewProps) 
 
   return (
     <div className={cn('space-y-6', className)}>
+      <div className="card-elevated flex flex-col items-center p-6">
+        <p className="text-sm font-medium text-muted-foreground">This month</p>
+        <div className="mt-4">
+          <ProgressRing
+            value={month.completedDistance}
+            max={Math.max(month.plannedDistance, 1)}
+            size={168}
+            stroke={11}
+            tone="light"
+            label={
+              <span className="text-3xl font-bold tabular-nums text-brand">
+                {formatDistance(month.completedDistance)}
+              </span>
+            }
+            sublabel={
+              <span className="mt-1 text-[11px] font-medium text-muted-foreground">
+                Goal {formatDistance(month.plannedDistance)}
+              </span>
+            }
+          />
+        </div>
+        <div className="mt-5 flex w-full justify-around border-t border-border/50 pt-5">
+          <MetricChip
+            icon={Route}
+            value={`${monthPct}%`}
+            label="Completion"
+          />
+          <MetricChip
+            icon={Timer}
+            value={formatDuration(month.completedDuration)}
+            label="Duration"
+          />
+          <MetricChip icon={TrendingUp} value={String(month.completed)} label="Workouts" />
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {sportOptions.map((option) => (
           <button
@@ -122,31 +160,38 @@ export function ProgressStatsView({ stats, className }: ProgressStatsViewProps) 
         ))}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2">
         <StatCard
           label="Planned distance"
           value={formatDistance(month.plannedDistance)}
           hint="This month"
           icon={Route}
+          layout="row"
+          variant="flat"
         />
         <StatCard
           label="Completed distance"
           value={formatDistance(month.completedDistance)}
           hint="Logged this month"
           icon={Route}
-          variant="brand"
+          layout="row"
+          variant="flat"
         />
         <StatCard
           label="Duration"
           value={formatDuration(month.completedDuration)}
           hint={`${formatDuration(month.plannedDuration)} planned`}
           icon={Timer}
+          layout="row"
+          variant="flat"
         />
         <StatCard
           label="Completion"
           value={`${monthPct}%`}
           hint={`${month.completed} done · ${month.skipped} skipped · ${month.planned} planned`}
           icon={TrendingUp}
+          layout="row"
+          variant="flat"
         />
       </div>
 

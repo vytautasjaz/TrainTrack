@@ -12,6 +12,7 @@ import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { WorkoutPlanMeta } from '@/components/plan/workout-plan-meta'
+import { AthleteAddedBadge } from '@/components/plan/athlete-added-badge'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import {
   PLAN_WORKOUT_ITEM_CLASS,
@@ -52,6 +53,9 @@ function AthleteWorkoutItem({
           <p className="min-w-0 truncate text-xs font-medium leading-snug group-hover:text-brand">{workout.title}</p>
           <StravaSyncedIndicator workout={workout} variant="icon" />
         </div>
+        {workout.selfLogged && workout.status !== 'COMPLETED' && (
+          <AthleteAddedBadge className="mt-0.5" />
+        )}
         <WorkoutPlanMeta workout={workout} />
       </div>
     </WorkoutModalTrigger>

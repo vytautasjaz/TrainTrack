@@ -22,41 +22,46 @@ The previous local-first PWA (Vite + Dexie) lives in [`legacy/`](legacy/) for re
 | Races     | Add target races                            | Countdown & goals                             |
 | Progress  | —                                           | Volume charts, completion %                   |
 
-## Quick start
+## Quick start (local testing)
 
-### 1. Start PostgreSQL
+Uses **Docker Postgres** on port `5433` — no Supabase required.
+
+```bash
+npm run db:setup-local   # start Docker DB, switch .env, push schema, seed
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) and sign in as **Coach Alex** or **Jordan Lee**.
+
+### Switch database
+
+| Command | What it does |
+| -------- | ------------- |
+| `npm run env:local` | Use local Docker Postgres (`env/local.env` → `.env`) |
+| `npm run env:supabase` | Use Supabase (`/.env.supabase` → `.env`) |
+| `npm run db:up` | Start Docker Postgres |
+| `npm run db:setup-local` | Full local setup (Docker + schema + seed) |
+
+Your Supabase settings are kept in **`.env.supabase`** (gitignored). Template: `env/supabase.env.example`.
+
+**Production (Vercel)** still uses Supabase via dashboard env vars — not affected by local switching.
+
+### Manual setup
 
 ```bash
 docker compose up -d
+cp env/local.env .env
+npm install
+npm run db:push
+npm run db:seed
+npm run dev
 ```
 
-### 2. Configure environment
-
-```bash
-cp .env.example .env
-```
-
-Default `DATABASE_URL`:
+Default local `DATABASE_URL`:
 
 ```
 postgresql://traintrack:traintrack@localhost:5433/traintrack?schema=public
 ```
-
-### 3. Install & migrate
-
-```bash
-npm install
-npm run db:push
-npm run db:seed
-```
-
-### 4. Run dev server
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) and sign in as **Coach Alex** or **Jordan Lee** (demo users from seed).
 
 ## Demo login
 

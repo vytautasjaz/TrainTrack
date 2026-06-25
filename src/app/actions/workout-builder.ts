@@ -5,10 +5,11 @@ import { redirect } from 'next/navigation'
 import { Prisma, SessionType, WorkoutType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
-import { requireSession, resolveAthleteId } from '@/lib/session'
+import { requireAthleteSession, requireSession, resolveAthleteId } from '@/lib/session'
 import { builderPayloadSchema } from '@/lib/workout-builder/schema'
 import { isSimpleSessionType } from '@/lib/workout-builder/session-modes'
 import { estimateDurationMinutes } from '@/lib/workout-builder/utils'
+import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 
 function requireCoach() {
   return requireSession().then((session) => {
@@ -88,10 +89,12 @@ export async function saveRecoveryDay(payload: SaveRecoveryDayPayload) {
         data: { coachNotes: payload.coachNotes ?? null },
       })
     } else {
+      const sortOrder = await getNextWorkoutSortOrder(athleteId, date)
       await prisma.workout.create({
         data: {
           athleteId,
           date,
+          sortOrder,
           type: WorkoutType.RECOVERY,
           sessionType: SessionType.RECOVERY_RUN,
           title: 'Recovery',
@@ -110,12 +113,16 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete selected')
 
+  const scheduledDate = parseDateOnly(payload.scheduledDate)
+  const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
+
   if (isSimpleSessionType(payload.sessionType)) {
     await prisma.workout.create({
       data: {
         athleteId,
         templateId: payload.templateId,
-        date: parseDateOnly(payload.scheduledDate),
+        date: scheduledDate,
+        sortOrder,
         type: payload.sportType,
         sessionType: payload.sessionType,
         title: payload.title,
@@ -138,7 +145,8 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
       data: {
         athleteId,
         templateId: payload.templateId,
-        date: parseDateOnly(payload.scheduledDate),
+        date: scheduledDate,
+        sortOrder,
         type: data.sportType,
         sessionType: data.sessionType,
         title: data.title,
@@ -149,6 +157,51 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
       },
     })
   }
+
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
+}
+
+const ATHLETE_ADD_SPORT_TYPES: WorkoutType[] = [
+  WorkoutType.RUN,
+  WorkoutType.BIKE,
+  WorkoutType.SWIM,
+  WorkoutType.STRENGTH,
+  WorkoutType.HYROX,
+  WorkoutType.TRIATHLON,
+]
+
+export type AthleteCreateWorkoutPayload = Pick<
+  CreateWorkoutModalPayload,
+  'title' | 'sportType' | 'sessionType' | 'scheduledDate' | 'plannedDistance' | 'plannedDuration'
+>
+
+export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkoutPayload) {
+  const session = await requireAthleteSession()
+
+  if (!ATHLETE_ADD_SPORT_TYPES.includes(payload.sportType)) {
+    throw new Error('Invalid sport type')
+  }
+  if (!isSimpleSessionType(payload.sessionType)) {
+    throw new Error('Athletes can only add simple workouts')
+  }
+
+  const scheduledDate = parseDateOnly(payload.scheduledDate)
+  const sortOrder = await getNextWorkoutSortOrder(session.athleteId, scheduledDate)
+
+  await prisma.workout.create({
+    data: {
+      athleteId: session.athleteId,
+      date: scheduledDate,
+      sortOrder,
+      type: payload.sportType,
+      sessionType: payload.sessionType,
+      title: payload.title,
+      plannedDistance: payload.plannedDistance,
+      plannedDuration: payload.plannedDuration,
+      selfLogged: true,
+    },
+  })
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
@@ -193,6 +246,7 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
       type: data.sportType,
       sessionType: data.sessionType,
       date: parseDateOnly(data.scheduledDate),
+      sortOrder: await getNextWorkoutSortOrder(athleteId, parseDateOnly(data.scheduledDate)),
       plannedDuration: estimatedDuration || undefined,
       coachNotes: data.structure.coachNotes,
       structure,

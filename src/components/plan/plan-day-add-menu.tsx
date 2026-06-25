@@ -47,6 +47,7 @@ export function PlanDayAddMenu({
   dayNote,
   recoveryWorkout,
 }: PlanDayAddMenuProps) {
+  const canAddWorkout = !isCoach
   const [menuOpen, setMenuOpen] = useState(false)
   const [workoutOpen, setWorkoutOpen] = useState(false)
   const [noteOpen, setNoteOpen] = useState(false)
@@ -66,11 +67,17 @@ export function PlanDayAddMenu({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [menuOpen])
 
-  if (!isCoach && !canAddNote) return null
+  if (!isCoach && !canAddNote && !canAddWorkout) return null
+
+  const showAthleteMenu = canAddWorkout && canAddNote
 
   function handleAddClick() {
-    if (isCoach) {
+    if (isCoach || showAthleteMenu) {
       setMenuOpen((open) => !open)
+      return
+    }
+    if (canAddWorkout) {
+      setWorkoutOpen(true)
       return
     }
     setNoteOpen(true)
@@ -100,8 +107,16 @@ export function PlanDayAddMenu({
           'flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted/50 hover:text-brand',
           menuOpen && 'bg-muted/50 text-brand',
         )}
-        aria-label={isCoach ? `Add to ${dateKey}` : `Add note on ${dateKey}`}
-        aria-expanded={isCoach ? menuOpen : undefined}
+        aria-label={
+          isCoach
+            ? `Add to ${dateKey}`
+            : showAthleteMenu
+              ? `Add to ${dateKey}`
+              : canAddWorkout
+                ? `Add workout on ${dateKey}`
+                : `Add note on ${dateKey}`
+        }
+        aria-expanded={isCoach || showAthleteMenu ? menuOpen : undefined}
       >
         <Plus className="h-4 w-4" />
       </button>
@@ -118,8 +133,20 @@ export function PlanDayAddMenu({
         </div>
       )}
 
-      {isCoach && (
-        <AddWorkoutModal open={workoutOpen} onOpenChange={setWorkoutOpen} date={dateKey} />
+      {!isCoach && showAthleteMenu && menuOpen && (
+        <div className="absolute right-0 top-full z-50 mt-1 min-w-[9.5rem] overflow-hidden rounded-lg border border-border/80 bg-card py-1 shadow-lg">
+          <MenuItem label="Workout" onClick={openWorkout} />
+          <MenuItem label="Note" onClick={openNote} />
+        </div>
+      )}
+
+      {(isCoach || canAddWorkout) && (
+        <AddWorkoutModal
+          open={workoutOpen}
+          onOpenChange={setWorkoutOpen}
+          date={dateKey}
+          athleteMode={canAddWorkout}
+        />
       )}
       {canAddNote && (
         <DayNoteModal

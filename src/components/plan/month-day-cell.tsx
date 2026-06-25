@@ -30,7 +30,7 @@ type MonthDayCellProps = {
 }
 
 export function MonthDayCell({
-  dateKey: _dateKey,
+  dateKey,
   dayNumber,
   workouts,
   dayNote,
@@ -68,12 +68,34 @@ export function MonthDayCell({
           : 'border-transparent bg-muted/30 text-muted-foreground',
         isRaceDay && inMonth && raceDayMonthClass(),
         isRecovery && inMonth && !isRaceDay && recoveryDayMonthClass(),
-        isToday && inMonth && !isRecovery && !isRaceDay && 'border-brand/50 ring-1 ring-inset ring-brand/40',
-        isToday && inMonth && isRaceDay && 'border-amber-500/60 ring-1 ring-inset ring-amber-500/45',
-        isToday && inMonth && isRecovery && !isRaceDay && 'border-violet-500/50 ring-1 ring-inset ring-violet-500/40',
-        isSelected && inMonth && !isRecovery && !isRaceDay && 'border-brand bg-brand/[0.04] ring-1 ring-inset ring-brand/30',
-        isSelected && inMonth && isRaceDay && 'border-amber-500 bg-amber-500/[0.1] ring-1 ring-inset ring-amber-500/35',
-        isSelected && inMonth && isRecovery && !isRaceDay && 'border-violet-500 bg-violet-500/[0.08] ring-1 ring-inset ring-violet-500/30',
+        isToday &&
+          inMonth &&
+          !isRecovery &&
+          !isRaceDay &&
+          'border-brand/50 bg-brand/10',
+        isToday && inMonth && isRaceDay && 'border-amber-500/70 bg-amber-500/20',
+        isToday &&
+          inMonth &&
+          isRecovery &&
+          !isRaceDay &&
+          'border-violet-500/60 bg-violet-500/18',
+        isSelected &&
+          inMonth &&
+          !isToday &&
+          !isRecovery &&
+          !isRaceDay &&
+          'border-brand bg-brand/[0.06]',
+        isSelected &&
+          inMonth &&
+          !isToday &&
+          isRaceDay &&
+          'border-amber-500 bg-amber-500/[0.12]',
+        isSelected &&
+          inMonth &&
+          !isToday &&
+          isRecovery &&
+          !isRaceDay &&
+          'border-violet-500 bg-violet-500/10',
       )}
     >
       {dayNote && inMonth && compactOnDesktop && (
@@ -92,9 +114,12 @@ export function MonthDayCell({
       >
         <span
           className={cn(
-            'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] leading-none',
-            compactOnDesktop && 'lg:h-5 lg:w-5 lg:text-[10px]',
-            isToday && inMonth && 'bg-primary font-semibold text-primary-foreground',
+            'text-[11px] font-semibold leading-none tabular-nums',
+            compactOnDesktop && 'lg:text-xs',
+            isToday && inMonth && !isRecovery && !isRaceDay && 'text-brand',
+            isToday && inMonth && isRaceDay && 'text-amber-800 dark:text-amber-100',
+            isToday && inMonth && isRecovery && !isRaceDay && 'text-violet-800 dark:text-violet-100',
+            isSelected && inMonth && !isToday && 'text-brand',
           )}
         >
           {dayNumber}
