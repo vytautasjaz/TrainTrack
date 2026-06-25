@@ -17,6 +17,12 @@ type PwaClientState = {
   ios: boolean
 }
 
+const serverPwaState: PwaClientState = {
+  standalone: false,
+  dismissed: false,
+  ios: false,
+}
+
 function isStandalone() {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
@@ -28,18 +34,23 @@ function isIos() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent)
 }
 
-function getClientPwaState(): PwaClientState {
-  return {
-    standalone: isStandalone(),
-    dismissed: localStorage.getItem(DISMISS_KEY) === '1',
-    ios: isIos(),
-  }
-}
+let cachedSnapshot = serverPwaState
 
-const serverPwaState: PwaClientState = {
-  standalone: false,
-  dismissed: false,
-  ios: false,
+function readPwaState(): PwaClientState {
+  const standalone = isStandalone()
+  const dismissed = localStorage.getItem(DISMISS_KEY) === '1'
+  const ios = isIos()
+
+  if (
+    cachedSnapshot.standalone === standalone &&
+    cachedSnapshot.dismissed === dismissed &&
+    cachedSnapshot.ios === ios
+  ) {
+    return cachedSnapshot
+  }
+
+  cachedSnapshot = { standalone, dismissed, ios }
+  return cachedSnapshot
 }
 
 function subscribePwa(onStoreChange: () => void) {
@@ -52,7 +63,7 @@ function subscribePwa(onStoreChange: () => void) {
 }
 
 export function PwaProvider() {
-  const clientPwa = useSyncExternalStore(subscribePwa, getClientPwaState, () => serverPwaState)
+  const clientPwa = useSyncExternalStore(subscribePwa, readPwaState, () => serverPwaState)
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
   const [dismissed, setDismissed] = useState(false)
 
@@ -72,6 +83,7 @@ export function PwaProvider() {
 
   function dismiss() {
     localStorage.setItem(DISMISS_KEY, '1')
+    cachedSnapshot = { ...cachedSnapshot, dismissed: true }
     setDismissed(true)
   }
 
