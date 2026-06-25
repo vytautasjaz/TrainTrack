@@ -40,12 +40,37 @@ type AddWorkoutModalProps = {
 }
 
 export function AddWorkoutModal({ open, onOpenChange, date, sport }: AddWorkoutModalProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-x-hidden overflow-y-auto">
+        {open ? (
+          <AddWorkoutForm
+            key={`${date}-${sport ?? 'all'}`}
+            date={date}
+            sport={sport}
+            onClose={() => onOpenChange(false)}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+type AddWorkoutFormProps = {
+  date: string
+  sport?: WorkoutType
+  onClose: () => void
+}
+
+function AddWorkoutForm({ date, sport, onClose }: AddWorkoutFormProps) {
   const sportLabel = sport ? WORKOUT_TYPE_LABELS[sport] : null
-  const [sportType, setSportType] = useState<WorkoutType>(sport ?? WorkoutType.RUN)
-  const [title, setTitle] = useState('')
-  const [sessionType, setSessionType] = useState<SessionType>(SessionType.EASY_RUN)
-  const [plannedDistance, setPlannedDistance] = useState<string>('')
-  const [plannedDuration, setPlannedDuration] = useState<string>('')
+  const initialSport = sport ?? WorkoutType.RUN
+  const initialSession = SessionType.EASY_RUN
+  const [sportType, setSportType] = useState<WorkoutType>(initialSport)
+  const [title, setTitle] = useState(() => defaultWorkoutTitle(initialSession, initialSport))
+  const [sessionType, setSessionType] = useState<SessionType>(initialSession)
+  const [plannedDistance, setPlannedDistance] = useState('')
+  const [plannedDuration, setPlannedDuration] = useState('')
   const [coachNotes, setCoachNotes] = useState('')
   const [structure, setStructure] = useState<WorkoutStructure>(emptyStructure())
   const [templates, setTemplates] = useState<WorkoutTemplatePickerItem[]>([])
@@ -53,28 +78,16 @@ export function AddWorkoutModal({ open, onOpenChange, date, sport }: AddWorkoutM
   const [isPending, startTransition] = useTransition()
   const titleCustomizedRef = useRef(false)
 
+  useEffect(() => {
+    getCoachTemplatesForPicker().then(setTemplates).catch(() => setTemplates([]))
+  }, [])
+
   const isSimple = isSimpleSessionType(sessionType)
   const sessionOptions = sessionTypesForSport(sportType)
   const defaultTitle = defaultWorkoutTitle(sessionType, sportType)
   const visibleTemplates = sport
     ? templates.filter((t) => t.type === sport)
     : templates
-
-  useEffect(() => {
-    if (!open) return
-    const initialSport = sport ?? WorkoutType.RUN
-    const initialSession = SessionType.EASY_RUN
-    setSportType(initialSport)
-    setSessionType(initialSession)
-    setTitle(defaultWorkoutTitle(initialSession, initialSport))
-    titleCustomizedRef.current = false
-    setPlannedDistance('')
-    setPlannedDuration('')
-    setCoachNotes('')
-    setStructure(emptyStructure())
-    setSelectedTemplateId('')
-    getCoachTemplatesForPicker().then(setTemplates).catch(() => setTemplates([]))
-  }, [open, sport])
 
   function syncTitleIfDefault(nextSession: SessionType, nextSport: WorkoutType) {
     if (!titleCustomizedRef.current) {
@@ -153,21 +166,20 @@ export function AddWorkoutModal({ open, onOpenChange, date, sport }: AddWorkoutM
         structure: isSimple ? undefined : { ...structure, coachNotes: coachNotes.trim() || structure.coachNotes },
         templateId: selectedTemplateId || undefined,
       })
-      onOpenChange(false)
+      onClose()
     })
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-x-hidden overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {sportLabel ? `Add ${sportLabel} workout` : 'Add workout'}
-          </DialogTitle>
-          <DialogDescription>{date}</DialogDescription>
-        </DialogHeader>
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          {sportLabel ? `Add ${sportLabel} workout` : 'Add workout'}
+        </DialogTitle>
+        <DialogDescription>{date}</DialogDescription>
+      </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="min-w-0 space-y-3">
+      <form onSubmit={handleSubmit} className="min-w-0 space-y-3">
           {visibleTemplates.length > 0 && (
             <label className="block text-sm">
               <span className="text-muted-foreground">Start from template</span>
@@ -288,7 +300,7 @@ export function AddWorkoutModal({ open, onOpenChange, date, sport }: AddWorkoutM
           )}
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
               Cancel
             </Button>
             <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
@@ -296,7 +308,6 @@ export function AddWorkoutModal({ open, onOpenChange, date, sport }: AddWorkoutM
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+    </>
   )
 }

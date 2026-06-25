@@ -9,7 +9,7 @@ import {
   createDefaultWarmupBlock,
   DEFAULT_WU_CD_KM,
 } from '@/lib/workout-builder/default-structure'
-import { createBlock, newBlockId, normalizeOrders } from '@/lib/workout-builder/utils'
+import { createBlock, normalizeOrders } from '@/lib/workout-builder/utils'
 import type { WorkoutStructure } from '@/lib/workout-builder/types'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'

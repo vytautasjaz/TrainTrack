@@ -245,7 +245,6 @@ export function getWeekDays(anchor: Date) {
 
 export async function getProgressStats(athleteId: string) {
   const today = new Date()
-  const monthStart = startOfMonth(today)
   const monthEnd = endOfMonth(today)
   const rangeStart = startOfWeek(addDays(today, -7 * 7), { weekStartsOn: 1 })
 

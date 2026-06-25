@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -58,9 +58,10 @@ export function WorkoutDetailModal({
   const [logOnlyMode, setLogOnlyMode] = useState(false)
   const athleteLogFlow = !isCoach
 
-  useEffect(() => {
-    if (!open) setLogOnlyMode(false)
-  }, [open])
+  function handleOpenChange(next: boolean) {
+    if (!next) setLogOnlyMode(false)
+    onOpenChange(next)
+  }
 
   const showWorkoutDetails = isCoach || !logOnlyMode
   const canEditStatus =
@@ -74,7 +75,7 @@ export function WorkoutDetailModal({
 
   if (workout.type === WorkoutType.RECOVERY) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <div className="flex items-start justify-between gap-3 pr-6">
@@ -149,7 +150,7 @@ export function WorkoutDetailModal({
           open && !isCoach && Boolean(result?.coachReply && !result?.coachReplyReadAt)
         }
       />
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start justify-between gap-3 pr-6">

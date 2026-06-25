@@ -30,7 +30,7 @@ type MonthDayCellProps = {
 }
 
 export function MonthDayCell({
-  dateKey,
+  dateKey: _dateKey,
   dayNumber,
   workouts,
   dayNote,
