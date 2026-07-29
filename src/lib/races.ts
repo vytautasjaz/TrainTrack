@@ -1,4 +1,4 @@
-import { RaceType, SessionType, WorkoutStatus, WorkoutType } from '@prisma/client'
+import { RaceType, SessionType, WorkoutStatus, WorkoutType, RacePriority, RaceIntent } from '@prisma/client'
 import { toDateKey } from '@/lib/dates'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 
@@ -9,7 +9,10 @@ export type RaceRecord = {
   location: string | null
   type: RaceType
   sport: WorkoutType
+  priority: RacePriority
+  intent: RaceIntent
   goal: string | null
+  url: string | null
 }
 
 /** Sports that can be assigned when scheduling a race on the plan. */
@@ -47,9 +50,12 @@ export function raceToPlanWorkoutDetail(race: RaceRecord): PlanWorkoutDetail {
     status: WorkoutStatus.PLANNED,
     description: null,
     plannedDistance: null,
+    plannedDistanceMeters: null,
     plannedDuration: null,
+    swimEnvironment: null,
     coachNotes: race.goal,
     structure: null,
+    swimStructure: null,
     isRace: true,
     raceId: race.id,
     raceType: race.type,
@@ -65,6 +71,7 @@ export function mergeRacesIntoByDate(
 ): Map<string, PlanWorkoutDetail[]> {
   const merged = new Map(byDate)
   for (const race of races) {
+    if (race.intent === 'WATCHING') continue
     const detail = raceToPlanWorkoutDetail(race)
     const list = merged.get(detail.dateKey) ?? []
     merged.set(detail.dateKey, [...list, detail])

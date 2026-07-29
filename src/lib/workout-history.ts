@@ -1,4 +1,4 @@
-import type { WorkoutStatus, WorkoutType, SessionType } from '@prisma/client'
+import type { WorkoutStatus, WorkoutType, SessionType, AthleteLogType } from '@prisma/client'
 import { toDateKey } from '@/lib/dates'
 
 export type WorkoutCompletionSource = 'strava' | 'manual' | 'self_logged'
@@ -21,6 +21,7 @@ export type WorkoutHistoryItem = {
     coachReply: string | null
     coachReplyReadAt: string | null
     stravaActivityUrl: string | null
+    logType: AthleteLogType | null
     completedAt: Date
   }
 }
@@ -62,9 +63,12 @@ export function toPlanWorkoutDetailFromHistory(item: WorkoutHistoryItem) {
     status: item.status,
     description: null,
     plannedDistance: item.plannedDistance,
+    plannedDistanceMeters: null,
     plannedDuration: item.plannedDuration,
+    swimEnvironment: null,
     coachNotes: null,
     structure: null,
+    swimStructure: null,
     selfLogged: item.selfLogged,
     result: {
       actualDistance: item.result.actualDistance,
@@ -74,6 +78,7 @@ export function toPlanWorkoutDetailFromHistory(item: WorkoutHistoryItem) {
       coachReply: item.result.coachReply,
       coachReplyReadAt: item.result.coachReplyReadAt,
       stravaActivityUrl: item.result.stravaActivityUrl,
+      logType: item.result.logType,
     },
   }
 }
@@ -96,6 +101,7 @@ export function toWorkoutHistoryItem(w: {
     coachReply: string | null
     coachReplyReadAt?: Date | null
     stravaActivityUrl: string | null
+    logType: AthleteLogType | null
     completedAt: Date
   } | null
 }): WorkoutHistoryItem | null {
@@ -119,6 +125,7 @@ export function toWorkoutHistoryItem(w: {
       coachReply: w.result.coachReply ?? null,
       coachReplyReadAt: w.result.coachReplyReadAt?.toISOString() ?? null,
       stravaActivityUrl: w.result.stravaActivityUrl,
+      logType: w.result.logType ?? null,
       completedAt: w.result.completedAt,
     },
   }

@@ -11,6 +11,7 @@ import {
 } from '@/lib/workout-history'
 import { formatDistance, formatDuration } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { WORKOUT_CARD_CLASS } from '@/lib/workout-display'
 
 type HistoryWorkoutCardProps = {
   workout: WorkoutHistoryItem
@@ -38,7 +39,8 @@ export function HistoryWorkoutCard({
       workout={toPlanWorkoutDetailFromHistory(workout)}
       isCoach={isCoach}
       className={cn(
-        'flex w-full items-start justify-between gap-2 rounded-xl border border-border/60 bg-card text-left transition hover:border-brand/30 hover:shadow-sm',
+        WORKOUT_CARD_CLASS,
+        'flex w-full items-start justify-between gap-2',
         compact ? 'px-2 py-1.5' : 'px-3 py-2.5',
         className,
       )}

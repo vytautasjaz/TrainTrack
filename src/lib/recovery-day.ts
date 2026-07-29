@@ -38,11 +38,18 @@ export function recoveryDayStripClass(isToday = false): string {
   if (isToday) {
     return 'bg-violet-600 text-violet-50 shadow-sm ring-2 ring-violet-400/40'
   }
-  return 'bg-violet-500/15 text-violet-800 shadow-[var(--shadow-card)] dark:text-violet-200'
+  return 'bg-violet-500/15 text-violet-800 dark:text-violet-200'
 }
 
 export function recoveryDayMonthClass(): string {
   return 'border-violet-500/40 bg-violet-500/[0.12] ring-1 ring-inset ring-violet-500/20'
+}
+
+export const RECOVERY_DAY_DEFAULT_NOTE = 'Recovery Day'
+
+export function formatRecoveryDayNote(coachNotes?: string | null): string {
+  const trimmed = coachNotes?.trim()
+  return trimmed || RECOVERY_DAY_DEFAULT_NOTE
 }
 
 export const RECOVERY_DAY_COLORS = {

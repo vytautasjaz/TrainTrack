@@ -4,11 +4,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSession } from '@/lib/session'
-
-function safeRedirectPath(raw: string | null): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/dashboard'
-  return raw
-}
+import { safeRedirectPath } from '@/lib/safe-redirect'
 
 async function requireCoachOwnsAthlete(coachId: string, athleteId: string) {
   const athlete = await prisma.athlete.findFirst({
@@ -40,7 +36,7 @@ export async function switchAthlete(formData: FormData) {
   if (session.role !== 'COACH') throw new Error('Coach only')
 
   const athleteId = formData.get('athleteId') as string
-  const redirectTo = safeRedirectPath(formData.get('redirectTo') as string | null)
+  const redirectTo = safeRedirectPath(formData.get('redirectTo') as string | null, '/training')
 
   await requireCoachOwnsAthlete(session.userId, athleteId)
 

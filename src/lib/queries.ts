@@ -1,10 +1,23 @@
 import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 import { prisma } from '@/lib/prisma'
-import { todayDateOnly, toDateKey } from '@/lib/dates'
+import { addDateOnlyDays, todayDateOnly, toDateKey } from '@/lib/dates'
 import type { DayNoteData } from '@/lib/day-notes'
-import { WorkoutStatus } from '@prisma/client'
+import { AthleteStatus, WorkoutStatus } from '@prisma/client'
 import { buildProgressStats } from '@/lib/progress-stats'
 import { WORKOUT_LIST_ORDER_BY } from '@/lib/workout-sort'
+
+export const DEFAULT_PLANNING_LEAD_DAYS = 3
+export const MIN_PLANNING_LEAD_DAYS = 1
+export const MAX_PLANNING_LEAD_DAYS = 30
+
+export function clampPlanningLeadDays(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_PLANNING_LEAD_DAYS
+  return Math.min(MAX_PLANNING_LEAD_DAYS, Math.max(MIN_PLANNING_LEAD_DAYS, Math.floor(value)))
+}
+
+export const WORKOUT_PLAN_INCLUDE = {
+  result: true,
+} as const
 
 export async function getAthleteDashboard(athleteId: string) {
   const today = todayDateOnly()
@@ -14,26 +27,36 @@ export async function getAthleteDashboard(athleteId: string) {
   const monthStart = startOfMonth(today)
   const monthEnd = endOfMonth(today)
 
-  const [todayWorkouts, upcomingWorkouts, nextRace, weekWorkouts, monthWorkouts] =
+  const [todayWorkouts, upcomingWorkouts, nextRace, pendingRaceFollowUps, weekWorkouts, monthWorkouts] =
     await Promise.all([
       prisma.workout.findMany({
         where: { athleteId, date: today },
-        include: { result: true },
+        include: WORKOUT_PLAN_INCLUDE,
         orderBy: WORKOUT_LIST_ORDER_BY,
       }),
       prisma.workout.findMany({
         where: { athleteId, date: { gt: today } },
-        include: { result: true },
+        include: WORKOUT_PLAN_INCLUDE,
         orderBy: { date: 'asc' },
         take: 5,
       }),
       prisma.race.findFirst({
-        where: { athleteId, date: { gte: today } },
+        where: { athleteId, intent: 'PLANNED', date: { gte: today } },
         orderBy: { date: 'asc' },
+      }),
+      prisma.race.findMany({
+        where: {
+          athleteId,
+          intent: 'PLANNED',
+          date: { lt: today },
+          outcome: null,
+        },
+        orderBy: { date: 'desc' },
+        take: 5,
       }),
       prisma.workout.findMany({
         where: { athleteId, date: { gte: weekStart, lte: weekEnd } },
-        include: { result: true },
+        include: WORKOUT_PLAN_INCLUDE,
       }),
       prisma.workout.findMany({
         where: {
@@ -41,7 +64,7 @@ export async function getAthleteDashboard(athleteId: string) {
           date: { gte: monthStart, lte: monthEnd },
           status: WorkoutStatus.COMPLETED,
         },
-        include: { result: true },
+        include: WORKOUT_PLAN_INCLUDE,
       }),
     ])
 
@@ -70,6 +93,7 @@ export async function getAthleteDashboard(athleteId: string) {
     todayWorkouts,
     upcomingWorkouts,
     nextRace,
+    pendingRaceFollowUps,
     weekPlanned,
     weekCompleted,
     weekDistance,
@@ -117,10 +141,24 @@ export async function getUnreadCoachFeedbackCount(coachId: string) {
 }
 
 export async function getCoachDashboard(coachId: string) {
+  const today = todayDateOnly()
+  const coach = await prisma.user.findUnique({
+    where: { id: coachId },
+    select: { planningLeadDays: true },
+  })
+  const planningLeadDays = clampPlanningLeadDays(
+    coach?.planningLeadDays ?? DEFAULT_PLANNING_LEAD_DAYS,
+  )
+  const horizonDate = addDateOnlyDays(today, planningLeadDays)
+
   const athletes = await prisma.athlete.findMany({
     where: { coachId },
     include: {
-      races: { where: { date: { gte: new Date() } }, orderBy: { date: 'asc' }, take: 1 },
+      races: {
+        where: { intent: 'PLANNED', date: { gte: new Date() } },
+        orderBy: { date: 'asc' },
+        take: 1,
+      },
       workouts: {
         where: {
           date: {
@@ -128,11 +166,42 @@ export async function getCoachDashboard(coachId: string) {
             lte: endOfWeek(new Date(), { weekStartsOn: 1 }),
           },
         },
-        include: { result: true },
+        include: WORKOUT_PLAN_INCLUDE,
       },
     },
     orderBy: { name: 'asc' },
   })
+
+  const activeAthletes = athletes.filter((a) => a.status === AthleteStatus.ACTIVE)
+  const coverage =
+    activeAthletes.length > 0
+      ? await prisma.workout.groupBy({
+          by: ['athleteId'],
+          where: {
+            athleteId: { in: activeAthletes.map((a) => a.id) },
+            date: { gte: today },
+          },
+          _max: { date: true },
+        })
+      : []
+  const coverageByAthlete = new Map(
+    coverage.map((row) => [row.athleteId, row._max.date ? toDateKey(row._max.date) : null]),
+  )
+  const horizonKey = toDateKey(horizonDate)
+
+  const planningWarnings = activeAthletes
+    .map((athlete) => {
+      const lastPlannedKey = coverageByAthlete.get(athlete.id) ?? null
+      const needsPlan = !lastPlannedKey || lastPlannedKey < horizonKey
+      if (!needsPlan) return null
+      return {
+        athleteId: athlete.id,
+        athleteName: athlete.name,
+        avatarUrl: athlete.avatarUrl,
+        lastPlannedKey,
+      }
+    })
+    .filter((row): row is NonNullable<typeof row> => row != null)
 
   const recentFeedback = await prisma.workoutResult.findMany({
     where: {
@@ -150,6 +219,8 @@ export async function getCoachDashboard(coachId: string) {
   return {
     athletes,
     recentFeedback: recentFeedback.filter((r) => r.athleteNotes?.trim()),
+    planningLeadDays,
+    planningWarnings,
   }
 }
 
@@ -182,7 +253,11 @@ export async function getAthleteForCoach(coachId: string, athleteId: string) {
 
 export async function getRacesForRange(athleteId: string, start: Date, end: Date) {
   return prisma.race.findMany({
-    where: { athleteId, date: { gte: start, lte: end } },
+    where: {
+      athleteId,
+      intent: 'PLANNED',
+      date: { gte: start, lte: end },
+    },
     orderBy: [{ date: 'asc' }, { name: 'asc' }],
   })
 }
@@ -196,7 +271,7 @@ export async function getPlanWorkouts(athleteId: string, anchor: Date) {
 export async function getPlanWorkoutsInRange(athleteId: string, start: Date, end: Date) {
   return prisma.workout.findMany({
     where: { athleteId, date: { gte: start, lte: end } },
-    include: { result: true, template: true },
+    include: { ...WORKOUT_PLAN_INCLUDE, template: true },
     orderBy: WORKOUT_LIST_ORDER_BY,
   })
 }
@@ -207,7 +282,7 @@ export async function getMonthWorkouts(athleteId: string, year: number, month: n
 
   return prisma.workout.findMany({
     where: { athleteId, date: { gte: start, lte: end } },
-    include: { result: true },
+    include: WORKOUT_PLAN_INCLUDE,
     orderBy: { date: 'asc' },
   })
 }
@@ -251,7 +326,7 @@ export async function getProgressStats(athleteId: string) {
 
   const workouts = await prisma.workout.findMany({
     where: { athleteId, date: { gte: rangeStart, lte: monthEnd } },
-    include: { result: true },
+    include: WORKOUT_PLAN_INCLUDE,
     orderBy: { date: 'asc' },
   })
 
@@ -279,7 +354,7 @@ export async function getWorkoutHistory(athleteId: string, limit = 100) {
       status: WorkoutStatus.COMPLETED,
       result: { isNot: null },
     },
-    include: { result: true },
+    include: WORKOUT_PLAN_INCLUDE,
     orderBy: [{ date: 'desc' }, { updatedAt: 'desc' }],
     take: limit,
   })
@@ -297,7 +372,7 @@ export async function getCompletedWorkoutsInRange(
       result: { isNot: null },
       date: { gte: start, lte: end },
     },
-    include: { result: true },
+    include: WORKOUT_PLAN_INCLUDE,
     orderBy: [{ date: 'asc' }, { title: 'asc' }],
   })
 }

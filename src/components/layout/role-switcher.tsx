@@ -3,6 +3,9 @@ import type { SessionContext } from '@/lib/session'
 import { getCoachAthletes } from '@/lib/session'
 import { switchAthlete, switchUser } from '@/app/actions/session'
 import { Badge } from '@/components/ui/badge'
+import { Select } from '@/components/ui/select'
+import { Caption } from '@/components/ui/typography'
+import { RedirectToCurrentPath } from '@/components/layout/redirect-to-current-path'
 import { cn } from '@/lib/utils'
 
 type RoleSwitcherProps = {
@@ -10,7 +13,10 @@ type RoleSwitcherProps = {
   layout?: 'sidebar' | 'inline'
 }
 
-export async function RoleSwitcher({ session, layout = 'inline' }: RoleSwitcherProps) {
+export async function RoleSwitcher({
+  session,
+  layout = 'inline',
+}: RoleSwitcherProps) {
   const users = await prisma.user.findMany({ orderBy: { name: 'asc' } })
   const athletes =
     session.role === 'COACH' ? await getCoachAthletes(session.userId) : []
@@ -26,9 +32,7 @@ export async function RoleSwitcher({ session, layout = 'inline' }: RoleSwitcherP
       )}
     >
       {isSidebar && (
-        <p className="px-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Demo account
-        </p>
+        <p className="px-1 text-label">Demo account</p>
       )}
 
       <Badge className={cn('bg-brand-soft text-brand', isSidebar && 'w-fit')}>
@@ -37,23 +41,20 @@ export async function RoleSwitcher({ session, layout = 'inline' }: RoleSwitcherP
 
       <form action={switchUser} className={cn(isSidebar ? 'space-y-2' : 'flex items-center gap-1.5')}>
         {isSidebar && (
-          <label className="block px-1 text-xs text-muted-foreground">Switch user</label>
+          <Caption className="block px-1">Switch user</Caption>
         )}
         <div className={cn(isSidebar ? 'space-y-2' : 'flex items-center gap-1.5')}>
-          <select
+          <Select
             name="userId"
             defaultValue={session.userId}
-            className={cn(
-              'input-field py-1.5 text-xs',
-              isSidebar ? 'w-full' : 'max-w-[160px]',
-            )}
+            className={cn('py-1.5 text-caption', isSidebar ? 'w-full' : 'max-w-[160px]')}
           >
             {users.map((u) => (
               <option key={u.id} value={u.id}>
                 {u.name}
               </option>
             ))}
-          </select>
+          </Select>
           <button
             type="submit"
             className={cn(
@@ -68,24 +69,22 @@ export async function RoleSwitcher({ session, layout = 'inline' }: RoleSwitcherP
 
       {session.role === 'COACH' && athletes.length > 0 && (
         <form action={switchAthlete} className={cn(isSidebar ? 'space-y-2' : 'flex items-center gap-1.5')}>
+          <RedirectToCurrentPath fallback="/training" />
           {isSidebar && (
-            <label className="block px-1 text-xs text-muted-foreground">View as athlete</label>
+            <Caption className="block px-1">Athlete for plan</Caption>
           )}
           <div className={cn(isSidebar ? 'space-y-2' : 'flex items-center gap-1.5')}>
-            <select
+            <Select
               name="athleteId"
               defaultValue={session.athleteId ?? athletes[0]?.id}
-              className={cn(
-                'input-field py-1.5 text-xs',
-                isSidebar ? 'w-full' : 'max-w-[140px]',
-              )}
+              className={cn('py-1.5 text-caption', isSidebar ? 'w-full' : 'max-w-[140px]')}
             >
               {athletes.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
                 </option>
               ))}
-            </select>
+            </Select>
             <button
               type="submit"
               className={cn(
@@ -93,7 +92,7 @@ export async function RoleSwitcher({ session, layout = 'inline' }: RoleSwitcherP
                 isSidebar ? 'w-full px-3 py-2' : 'px-2.5 py-1',
               )}
             >
-              View
+              Switch athlete
             </button>
           </div>
         </form>

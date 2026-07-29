@@ -7,9 +7,14 @@ import { LogManualWorkoutModal } from '@/components/history/log-manual-workout-m
 
 type HistoryLogToolbarProps = {
   canLogWorkout: boolean
+  /** Shorter label on small screens so controls fit one row. */
+  compactOnMobile?: boolean
 }
 
-export function HistoryLogToolbar({ canLogWorkout }: HistoryLogToolbarProps) {
+export function HistoryLogToolbar({
+  canLogWorkout,
+  compactOnMobile = false,
+}: HistoryLogToolbarProps) {
   const [logOpen, setLogOpen] = useState(false)
 
   if (!canLogWorkout) return null
@@ -20,11 +25,18 @@ export function HistoryLogToolbar({ canLogWorkout }: HistoryLogToolbarProps) {
         type="button"
         variant="secondary"
         size="sm"
-        className="gap-1.5"
+        className="shrink-0 gap-1 px-2.5 sm:gap-1.5 sm:px-3"
         onClick={() => setLogOpen(true)}
       >
         <Plus className="h-4 w-4" />
-        Log workout
+        {compactOnMobile ? (
+          <>
+            <span className="lg:hidden">Log</span>
+            <span className="hidden lg:inline">Log workout</span>
+          </>
+        ) : (
+          'Log workout'
+        )}
       </Button>
       <LogManualWorkoutModal open={logOpen} onOpenChange={setLogOpen} />
     </>

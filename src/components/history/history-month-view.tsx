@@ -2,13 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import { format, isSameMonth } from 'date-fns'
-import type { WorkoutHistoryItem } from '@/lib/workout-history'
+import { WORKOUT_TYPE_ICONS, WORKOUT_TYPE_DOT_CLASS, WORKOUT_DAY_CARD_CLASS } from '@/lib/workout-display'
 import { isStravaSynced } from '@/lib/plan-workout'
-import { toPlanWorkoutDetailFromHistory } from '@/lib/workout-history'
+import { toPlanWorkoutDetailFromHistory, type WorkoutHistoryItem } from '@/lib/workout-history'
 import { HistoryWorkoutCard } from '@/components/history/history-workout-card'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
-import { WORKOUT_TYPE_ICONS, WORKOUT_TYPE_DOT_CLASS } from '@/lib/workout-display'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { todayDateKey } from '@/lib/dates'
 import { cn } from '@/lib/utils'
@@ -154,7 +153,7 @@ export function HistoryMonthView({
 
         {showSelectedPanel && (
           <div className="min-w-0 overflow-hidden">
-            <section className="flex min-h-0 w-full min-w-0 flex-col rounded-2xl border border-border/70 bg-card p-4 shadow-[var(--shadow-card)] landscape:max-lg:p-2 lg:min-h-[20rem]">
+            <section className={cn('flex min-h-0 w-full min-w-0 flex-col p-4 landscape:max-lg:p-2 lg:min-h-[20rem]', WORKOUT_DAY_CARD_CLASS)}>
             <h3 className="text-sm font-semibold landscape:max-lg:text-xs">{selectedLabel}</h3>
             <div className="mt-2 flex-1 space-y-1.5 overflow-y-auto landscape:max-lg:mt-1 lg:mt-3 lg:space-y-2">
               {selectedWorkouts.length === 0 ? (

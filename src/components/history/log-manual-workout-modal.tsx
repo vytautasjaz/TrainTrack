@@ -3,6 +3,10 @@
 import { useTransition } from 'react'
 import { WorkoutType } from '@prisma/client'
 import { Button } from '@/components/ui/button'
+import { FormField } from '@/components/ui/form-field'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -46,83 +50,59 @@ export function LogManualWorkoutModal({ open, onOpenChange }: LogManualWorkoutMo
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-3">
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Date</span>
-            <input
+          <FormField label="Date">
+            <Input
               name="date"
               type="date"
               required
               defaultValue={todayDateKey()}
               max={todayDateKey()}
-              className="input-field mt-1"
             />
-          </label>
+          </FormField>
 
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Sport</span>
-            <select name="type" required defaultValue={WorkoutType.RUN} className="input-field mt-1">
+          <FormField label="Sport">
+            <Select name="type" required defaultValue={WorkoutType.RUN}>
               {WORKOUT_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {WORKOUT_TYPE_LABELS[t]}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </FormField>
 
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Title</span>
-            <input
-              name="title"
-              placeholder="e.g. Evening run"
-              className="input-field mt-1"
-            />
-          </label>
+          <FormField label="Title">
+            <Input name="title" placeholder="e.g. Evening run" />
+          </FormField>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block text-sm">
-              <span className="text-muted-foreground">Distance (km)</span>
-              <input
+            <FormField label="Distance (km)">
+              <Input
                 name="actualDistance"
                 type="number"
                 step="0.1"
                 min={0}
                 placeholder="Optional"
-                className="input-field mt-1"
               />
-            </label>
-            <label className="block text-sm">
-              <span className="text-muted-foreground">Duration (min)</span>
-              <input
-                name="actualDuration"
-                type="number"
-                min={0}
-                placeholder="Optional"
-                className="input-field mt-1"
-              />
-            </label>
+            </FormField>
+            <FormField label="Duration (min)">
+              <Input name="actualDuration" type="number" min={0} placeholder="Optional" />
+            </FormField>
           </div>
 
-          <label className="block text-sm">
-            <span className="text-muted-foreground">RPE (1–10)</span>
-            <input
+          <FormField label="RPE (1–10)">
+            <Input
               name="rpe"
               type="number"
               min={1}
               max={10}
               placeholder="Optional"
-              className="input-field mt-1 max-w-[8rem]"
+              className="max-w-[8rem]"
             />
-          </label>
+          </FormField>
 
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Notes</span>
-            <textarea
-              name="athleteNotes"
-              rows={3}
-              placeholder="How did it feel?"
-              className="input-field mt-1"
-            />
-          </label>
+          <FormField label="Notes">
+            <Textarea name="athleteNotes" rows={3} placeholder="How did it feel?" />
+          </FormField>
 
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>

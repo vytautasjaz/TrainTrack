@@ -1,47 +1,18 @@
 'use client'
 
-import { useEffect, useRef, useState, useTransition } from 'react'
-import { SessionType, WorkoutType } from '@prisma/client'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import { WorkoutBlockBuilder } from '@/components/plan/workout-block-builder'
-import {
-  createAthleteWorkoutFromModal,
-  createWorkoutFromModal,
-  getCoachTemplatesForPicker,
-  type WorkoutTemplatePickerItem,
-} from '@/app/actions/workout-builder'
-import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import {
-  createDefaultStructuredWorkout,
-  defaultWorkoutTitle,
-  isDefaultWorkoutTitle,
-} from '@/lib/workout-builder/default-structure'
-import {
-  getSessionTypeLabel,
-  isSimpleSessionType,
-  sessionTypesForSport,
-  SIMPLE_SESSION_TYPES,
-} from '@/lib/workout-builder/session-modes'
-import type { WorkoutStructure } from '@/lib/workout-builder/types'
-import { emptyStructure, parseStructure } from '@/lib/workout-builder/utils'
-
-const WORKOUT_TYPES = (Object.keys(WORKOUT_TYPE_LABELS) as WorkoutType[]).filter(
-  (t) => t !== WorkoutType.RECOVERY && t !== WorkoutType.REST,
-)
+/**
+ * @deprecated Use WorkoutEditorDialog. Kept as a thin wrapper for any leftover imports.
+ */
+import { WorkoutEditorDialog } from '@/components/workout-editor/workout-editor-dialog'
+import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import type { WorkoutType } from '@prisma/client'
 
 type AddWorkoutModalProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   date: string
   sport?: WorkoutType
-  /** Athlete self-add: simpler form, marked selfLogged on save. */
+  workout?: PlanWorkoutDetail | null
   athleteMode?: boolean
 }
 
@@ -50,297 +21,20 @@ export function AddWorkoutModal({
   onOpenChange,
   date,
   sport,
+  workout = null,
   athleteMode = false,
 }: AddWorkoutModalProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-x-hidden overflow-y-auto">
-        {open ? (
-          <AddWorkoutForm
-            key={`${date}-${sport ?? 'all'}-${athleteMode ? 'athlete' : 'coach'}`}
-            date={date}
-            sport={sport}
-            athleteMode={athleteMode}
-            onClose={() => onOpenChange(false)}
-          />
-        ) : null}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
-type AddWorkoutFormProps = {
-  date: string
-  sport?: WorkoutType
-  athleteMode?: boolean
-  onClose: () => void
-}
-
-function AddWorkoutForm({ date, sport, athleteMode = false, onClose }: AddWorkoutFormProps) {
-  const sportLabel = sport ? WORKOUT_TYPE_LABELS[sport] : null
-  const initialSport = sport ?? WorkoutType.RUN
-  const initialSession = SessionType.EASY_RUN
-  const [sportType, setSportType] = useState<WorkoutType>(initialSport)
-  const [title, setTitle] = useState(() => defaultWorkoutTitle(initialSession, initialSport))
-  const [sessionType, setSessionType] = useState<SessionType>(initialSession)
-  const [plannedDistance, setPlannedDistance] = useState('')
-  const [plannedDuration, setPlannedDuration] = useState('')
-  const [coachNotes, setCoachNotes] = useState('')
-  const [structure, setStructure] = useState<WorkoutStructure>(emptyStructure())
-  const [templates, setTemplates] = useState<WorkoutTemplatePickerItem[]>([])
-  const [selectedTemplateId, setSelectedTemplateId] = useState('')
-  const [isPending, startTransition] = useTransition()
-  const titleCustomizedRef = useRef(false)
-
-  useEffect(() => {
-    if (athleteMode) return
-    getCoachTemplatesForPicker().then(setTemplates).catch(() => setTemplates([]))
-  }, [athleteMode])
-
-  const isSimple = isSimpleSessionType(sessionType)
-  const sessionOptions = sessionTypesForSport(sportType).filter(
-    (t) => !athleteMode || SIMPLE_SESSION_TYPES.includes(t),
-  )
-  const defaultTitle = defaultWorkoutTitle(sessionType, sportType)
-  const visibleTemplates = sport
-    ? templates.filter((t) => t.type === sport)
-    : templates
-
-  function syncTitleIfDefault(nextSession: SessionType, nextSport: WorkoutType) {
-    if (!titleCustomizedRef.current) {
-      setTitle(defaultWorkoutTitle(nextSession, nextSport))
-    }
-  }
-
-  function applyTemplate(template: WorkoutTemplatePickerItem) {
-    setSportType(template.type)
-    setSessionType(template.sessionType)
-    setTitle(template.title)
-    titleCustomizedRef.current = true
-    setPlannedDistance(template.distanceKm != null ? String(template.distanceKm) : '')
-    setPlannedDuration(template.durationMin != null ? String(template.durationMin) : '')
-    setCoachNotes(template.notes ?? '')
-    if (template.structure) {
-      setStructure(parseStructure(template.structure))
-    } else if (!isSimpleSessionType(template.sessionType)) {
-      setStructure(createDefaultStructuredWorkout(template.sessionType))
-    } else {
-      setStructure(emptyStructure())
-    }
-  }
-
-  function handleTemplateChange(templateId: string) {
-    setSelectedTemplateId(templateId)
-    if (!templateId) return
-    const template = templates.find((t) => t.id === templateId)
-    if (template) applyTemplate(template)
-  }
-
-  function handleSportChange(next: WorkoutType) {
-    const options = sessionTypesForSport(next).filter(
-      (t) => !athleteMode || SIMPLE_SESSION_TYPES.includes(t),
-    )
-    let nextSession = sessionType
-    if (!options.includes(sessionType)) {
-      nextSession = options[0] ?? SessionType.EASY_RUN
-      setSessionType(nextSession)
-      if (!isSimpleSessionType(nextSession)) {
-        setStructure(createDefaultStructuredWorkout(nextSession))
-      }
-    }
-    setSportType(next)
-    setSelectedTemplateId('')
-    syncTitleIfDefault(nextSession, next)
-  }
-
-  function handleSessionTypeChange(next: SessionType) {
-    const prevDefault = defaultWorkoutTitle(sessionType, sportType)
-    if (title.trim() === prevDefault || !titleCustomizedRef.current) {
-      titleCustomizedRef.current = false
-      setTitle(defaultWorkoutTitle(next, sportType))
-    }
-    setSessionType(next)
-    if (!isSimpleSessionType(next)) {
-      setStructure(createDefaultStructuredWorkout(next))
-    }
-  }
-
-  function handleTitleChange(value: string) {
-    setTitle(value)
-    titleCustomizedRef.current = !isDefaultWorkoutTitle(value, sessionType, sportType)
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const finalTitle = title.trim() || defaultWorkoutTitle(sessionType, sportType)
-    startTransition(async () => {
-      if (athleteMode) {
-        await createAthleteWorkoutFromModal({
-          title: finalTitle,
-          sportType,
-          sessionType,
-          scheduledDate: date,
-          plannedDistance: plannedDistance ? parseFloat(plannedDistance) : undefined,
-          plannedDuration: plannedDuration ? parseInt(plannedDuration, 10) : undefined,
-        })
-      } else {
-        await createWorkoutFromModal({
-          title: finalTitle,
-          sportType,
-          sessionType,
-          scheduledDate: date,
-          plannedDistance: plannedDistance ? parseFloat(plannedDistance) : undefined,
-          plannedDuration: plannedDuration ? parseInt(plannedDuration, 10) : undefined,
-          coachNotes: coachNotes.trim() || undefined,
-          structure: isSimple ? undefined : { ...structure, coachNotes: coachNotes.trim() || structure.coachNotes },
-          templateId: selectedTemplateId || undefined,
-        })
-      }
-      onClose()
-    })
-  }
+  const resolvedSport = workout?.type ?? sport
+  if (!resolvedSport) return null
 
   return (
-    <>
-      <DialogHeader>
-        <DialogTitle>
-          {sportLabel ? `Add ${sportLabel} workout` : 'Add workout'}
-        </DialogTitle>
-        <DialogDescription>
-          {athleteMode ? `Add a workout to ${date}` : date}
-        </DialogDescription>
-      </DialogHeader>
-
-      <form onSubmit={handleSubmit} className="min-w-0 space-y-3">
-          {!athleteMode && visibleTemplates.length > 0 && (
-            <label className="block text-sm">
-              <span className="text-muted-foreground">Start from template</span>
-              <select
-                value={selectedTemplateId}
-                onChange={(e) => handleTemplateChange(e.target.value)}
-                className="input-field mt-1"
-              >
-                <option value="">None — build from scratch</option>
-                {visibleTemplates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-
-          {!sport ? (
-            <label className="block text-sm">
-              <span className="text-muted-foreground">Sport</span>
-              <select
-                value={sportType}
-                onChange={(e) => handleSportChange(e.target.value as WorkoutType)}
-                className="input-field mt-1"
-              >
-                {WORKOUT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {WORKOUT_TYPE_LABELS[t]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Workout type</span>
-            <select
-              value={sessionType}
-              onChange={(e) => handleSessionTypeChange(e.target.value as SessionType)}
-              className="input-field mt-1"
-            >
-              {sessionOptions.map((t) => (
-                <option key={t} value={t}>
-                  {getSessionTypeLabel(t, sportType)}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Workout name</span>
-            <input
-              value={title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder={defaultTitle}
-              required
-              autoFocus={visibleTemplates.length === 0}
-              className="input-field mt-1"
-            />
-            <span className="mt-1 block text-[11px] text-muted-foreground">
-              Defaults to workout type ({defaultTitle}). Edit to use a custom name.
-            </span>
-          </label>
-
-          {isSimple ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <label className="block text-sm">
-                <span className="text-muted-foreground">Distance (km)</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min={0}
-                  value={plannedDistance}
-                  onChange={(e) => setPlannedDistance(e.target.value)}
-                  placeholder="Optional"
-                  className="input-field mt-1"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="text-muted-foreground">Duration (min)</span>
-                <input
-                  type="number"
-                  min={0}
-                  value={plannedDuration}
-                  onChange={(e) => setPlannedDuration(e.target.value)}
-                  placeholder="Optional"
-                  className="input-field mt-1"
-                />
-              </label>
-            </div>
-          ) : (
-            <>
-              <WorkoutBlockBuilder structure={structure} onChange={setStructure} />
-              <label className="block text-sm">
-                <span className="text-muted-foreground">Coach comment</span>
-                <textarea
-                  value={coachNotes}
-                  onChange={(e) => setCoachNotes(e.target.value)}
-                  rows={2}
-                  placeholder="Optional notes for the athlete"
-                  className="input-field mt-1"
-                />
-              </label>
-            </>
-          )}
-
-          {!athleteMode && isSimple && (
-            <label className="block text-sm">
-              <span className="text-muted-foreground">Coach comment</span>
-              <textarea
-                value={coachNotes}
-                onChange={(e) => setCoachNotes(e.target.value)}
-                rows={2}
-                placeholder="Optional notes for the athlete"
-                className="input-field mt-1"
-              />
-            </label>
-          )}
-
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
-              {isPending ? 'Saving…' : athleteMode ? 'Add workout' : 'Add to plan'}
-            </Button>
-          </div>
-        </form>
-    </>
+    <WorkoutEditorDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      date={date}
+      sport={resolvedSport}
+      workout={workout}
+      athleteMode={athleteMode}
+    />
   )
 }

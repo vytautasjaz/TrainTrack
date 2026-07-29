@@ -3,6 +3,9 @@
 import { useState, useTransition } from 'react'
 import type { AthleteStatus } from '@prisma/client'
 import { Button } from '@/components/ui/button'
+import { FormField, FormMessage, FormSection } from '@/components/ui/form-field'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -63,46 +66,46 @@ export function CoachEditAthleteModal({
         <DialogHeader>
           <DialogTitle>Edit athlete</DialogTitle>
           <DialogDescription>
-            Status, default sport rows, training paces, and heart rate zones.
+            Active means you are writing a training plan for them. Inactive athletes are
+            skipped for plan-ahead reminders.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-5">
           <input type="hidden" name="athleteId" value={athlete.id} />
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block space-y-1 sm:col-span-2">
-              <span className="text-xs font-medium text-muted-foreground">Name</span>
-              <input
+            <FormField label="Name" className="sm:col-span-2">
+              <Input
                 name="name"
                 type="text"
                 required
                 maxLength={120}
                 defaultValue={athlete.name}
-                className="input-field"
               />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Status</span>
-              <select name="status" defaultValue={athlete.status} className="input-field">
+            </FormField>
+            <FormField
+              label="Status"
+              hint="Active = currently coaching with a program. Use Inactive when you pause planning."
+            >
+              <Select name="status" defaultValue={athlete.status}>
                 {ATHLETE_STATUS_OPTIONS.map(({ value, label }) => (
                   <option key={value} value={value}>
                     {label}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </FormField>
           </div>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Default sport rows</p>
-            <p className="text-xs text-muted-foreground">
-              Sports shown in the training planner. Others can be added per week from the planner.
-            </p>
+          <FormSection
+            title="Default sport rows"
+            description="Sports shown in the training planner. Others can be added per week from the planner."
+          >
             <div className="grid gap-2 sm:grid-cols-2">
               {CONFIGURABLE_PLAN_SPORTS.map((sport) => (
                 <label
                   key={sport}
-                  className="flex cursor-pointer items-center gap-2 rounded-xl border border-border/60 px-3 py-2 text-sm"
+                  className="flex cursor-pointer items-center gap-2 rounded-xl border border-border/60 px-3 py-2 text-body"
                 >
                   <input
                     type="checkbox"
@@ -111,56 +114,48 @@ export function CoachEditAthleteModal({
                     defaultChecked={normalizePlanSportRows(athlete.planSportRows).includes(sport)}
                     className="h-4 w-4 rounded border-border"
                   />
-                  <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', WORKOUT_TYPE_COLORS[sport])}>
+                  <span className={cn('rounded-full px-2 py-0.5 text-caption font-medium', WORKOUT_TYPE_COLORS[sport])}>
                     {WORKOUT_TYPE_LABELS[sport]}
                   </span>
                 </label>
               ))}
             </div>
-          </div>
+          </FormSection>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Training paces</p>
-            <p className="text-xs text-muted-foreground">Min/km (e.g. 5:30)</p>
+          <FormSection title="Training paces" description="Min/km (e.g. 5:30)">
             <div className="grid gap-3 sm:grid-cols-2">
               {PACE_ZONE_FIELDS.map(({ key, name, label }) => (
-                <label key={key} className="block space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">{label}</span>
-                  <input
+                <FormField key={key} label={label}>
+                  <Input
                     name={name}
                     type="text"
                     inputMode="decimal"
                     placeholder="5:30"
                     defaultValue={formatPaceMinPerKm(athlete.preferences[key])}
-                    className="input-field"
                   />
-                </label>
+                </FormField>
               ))}
             </div>
-          </div>
+          </FormSection>
 
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Heart rate zones</p>
-            <p className="text-xs text-muted-foreground">Bpm limits for each zone</p>
+          <FormSection title="Heart rate zones" description="Bpm limits for each zone">
             <div className="grid gap-3 sm:grid-cols-2">
               {HR_ZONE_FIELDS.map(({ key, name, label, placeholder }) => (
-                <label key={key} className="block space-y-1">
-                  <span className="text-xs font-medium text-muted-foreground">{label}</span>
-                  <input
+                <FormField key={key} label={label}>
+                  <Input
                     name={name}
                     type="number"
                     min={1}
                     max={250}
                     placeholder={placeholder}
                     defaultValue={athlete.preferences[key] ?? ''}
-                    className="input-field"
                   />
-                </label>
+                </FormField>
               ))}
             </div>
-          </div>
+          </FormSection>
 
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && <FormMessage variant="error">{error}</FormMessage>}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>

@@ -4,17 +4,18 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import * as React from 'react'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/30 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-[6px] text-sm font-medium shadow-none transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        default: 'bg-brand text-brand-foreground hover:bg-brand/90',
-        secondary: 'bg-muted/80 text-foreground hover:bg-muted',
-        outline: 'border border-border/70 bg-transparent hover:bg-muted/50',
+        default: 'bg-foreground text-background hover:bg-foreground/90',
+        secondary: 'border border-border bg-card text-foreground hover:bg-muted/50',
+        outline: 'border border-border bg-transparent hover:bg-muted/50',
         ghost: 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
         link: 'text-muted-foreground underline-offset-4 hover:text-foreground hover:underline',
         destructive: 'text-destructive hover:bg-destructive/10',
-        hero: 'bg-hero text-hero-foreground hover:bg-hero/90',
+        hero: 'bg-hero text-hero-foreground border border-border hover:bg-muted/40',
+        brand: 'bg-brand text-brand-foreground hover:bg-brand/90',
       },
       size: {
         default: 'h-9 px-3.5',

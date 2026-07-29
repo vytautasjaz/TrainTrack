@@ -1,184 +1,278 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { WorkoutStatus } from '@prisma/client'
+import { AthleteLogTypeValues } from '@/lib/athlete-log-type'
+import type { AthleteLogType } from '@prisma/client'
 import { Button } from '@/components/ui/button'
+import { Caption } from '@/components/ui/typography'
+import { FormField } from '@/components/ui/form-field'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { AthleteLogStatusPicker } from '@/components/plan/athlete-log-status-picker'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import { completeWorkout } from '@/app/actions/workouts'
+import { resolveAthleteLogType } from '@/lib/plan-workout'
+import {
+  completeWorkout,
+  rescheduleWorkout,
+  unlogWorkout,
+  updateStravaWorkoutComment,
+} from '@/app/actions/workouts'
+import {
+  StravaDetachButton,
+  StravaLinkPicker,
+} from '@/components/plan/strava-activity-picker'
 
 type HomeWorkoutCompleteSectionProps = {
   workout: PlanWorkoutDetail
-  logOnlyMode: boolean
-  onLogModeChange: (active: boolean) => void
   onClose: () => void
 }
 
-function WorkoutStatsFields({ workout }: { workout: PlanWorkoutDetail }) {
+function AdjustedWorkoutFields({ workout }: { workout: PlanWorkoutDetail }) {
   const result = workout.result
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <label className="block text-sm">
-        <span className="text-muted-foreground">Actual distance (km)</span>
-        <input
-          name="actualDistance"
-          type="number"
-          step="0.1"
-          defaultValue={result?.actualDistance ?? workout.plannedDistance ?? undefined}
-          className="input-field mt-1"
-        />
-      </label>
-      <label className="block text-sm">
-        <span className="text-muted-foreground">Actual duration (min)</span>
-        <input
-          name="actualDuration"
-          type="number"
-          defaultValue={result?.actualDuration ?? workout.plannedDuration ?? undefined}
-          className="input-field mt-1"
-        />
-      </label>
-      <label className="block text-sm">
-        <span className="text-muted-foreground">RPE (1–10)</span>
-        <input
-          name="rpe"
-          type="number"
-          min={1}
-          max={10}
-          defaultValue={result?.rpe ?? 6}
-          className="input-field mt-1"
-        />
-      </label>
-    </div>
-  )
-}
-
-function AthleteNotesField({
-  workout,
-  skipped,
-}: {
-  workout: PlanWorkoutDetail
-  skipped: boolean
-}) {
-  const result = workout.result
-
-  return (
-    <label className="block text-sm">
-      <span className="text-muted-foreground">
-        {skipped ? 'Comment for coach' : 'Comments'}
-      </span>
-      <textarea
-        name="athleteNotes"
-        defaultValue={result?.athleteNotes ?? ''}
-        rows={3}
-        placeholder={
-          skipped ? 'Why are you skipping this workout?' : 'How did it feel?'
-        }
-        className="input-field mt-1"
-      />
-    </label>
+    <>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <FormField label="Distance (km)">
+          <Input
+            name="actualDistance"
+            type="number"
+            step="0.1"
+            defaultValue={result?.actualDistance ?? workout.plannedDistance ?? undefined}
+            placeholder={workout.plannedDistance != null ? String(workout.plannedDistance) : undefined}
+          />
+        </FormField>
+        <FormField label="Duration (min)">
+          <Input
+            name="actualDuration"
+            type="number"
+            defaultValue={result?.actualDuration ?? workout.plannedDuration ?? undefined}
+            placeholder={workout.plannedDuration != null ? String(workout.plannedDuration) : undefined}
+          />
+        </FormField>
+      </div>
+      <FormField label="Date">
+        <Input name="rescheduledDate" type="date" defaultValue={workout.dateKey} required />
+      </FormField>
+    </>
   )
 }
 
 function LogWorkoutForm({
   workout,
-  isEditing,
+  logType,
   onClose,
-  onSaved,
 }: {
   workout: PlanWorkoutDetail
-  isEditing: boolean
+  logType: typeof AthleteLogTypeValues[keyof typeof AthleteLogTypeValues]
   onClose: () => void
-  onSaved: () => void
 }) {
-  const initialStatus =
-    workout.status === WorkoutStatus.SKIPPED
-      ? WorkoutStatus.SKIPPED
-      : WorkoutStatus.COMPLETED
-  const [status, setStatus] = useState<WorkoutStatus>(initialStatus)
   const [isSaving, startSave] = useTransition()
   const router = useRouter()
-  const isLogged = status === WorkoutStatus.COMPLETED
+  const skipped = logType === AthleteLogTypeValues.SKIPPED
+  const adjusted = logType === AthleteLogTypeValues.ADJUSTED
 
   function handleSaveDetails(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData(e.currentTarget)
     formData.set('workoutId', workout.id)
-    formData.set('status', status)
+    formData.set('logType', logType)
+
+    const rescheduledDate = (formData.get('rescheduledDate') as string | null)?.trim()
+    const dateChanged = adjusted && Boolean(rescheduledDate && rescheduledDate !== workout.dateKey)
+
     startSave(async () => {
-      await completeWorkout(formData)
-      router.refresh()
-      if (isEditing) {
-        onSaved()
+      if (dateChanged) {
+        await rescheduleWorkout(formData)
       } else {
-        onClose()
+        await completeWorkout(formData)
       }
+      router.refresh()
+      onClose()
     })
   }
 
   return (
-    <form onSubmit={handleSaveDetails} className="space-y-4">
-      <label className="block text-sm">
-        <span className="text-muted-foreground">Status</span>
-        <select
-          name="status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value as WorkoutStatus)}
-          className="input-field mt-1"
-        >
-          <option value={WorkoutStatus.COMPLETED}>Logged</option>
-          <option value={WorkoutStatus.SKIPPED}>Skipped</option>
-        </select>
-      </label>
-      {isLogged && (
+    <form key={logType} onSubmit={handleSaveDetails} className="space-y-4 border-t border-border/50 pb-4 pt-4">
+      {skipped ? (
+        <FormField label="Comment for coach">
+          <Textarea
+            name="athleteNotes"
+            defaultValue={workout.result?.athleteNotes ?? ''}
+            rows={3}
+            placeholder="Why are you skipping this workout?"
+          />
+        </FormField>
+      ) : adjusted ? (
         <>
-          <p className="text-sm text-muted-foreground">
-            Add your stats and comments if Strava didn&apos;t sync this workout.
-          </p>
-          <WorkoutStatsFields workout={workout} />
+          <Caption>
+            Update distance or duration, or pick a new date to move this workout.
+          </Caption>
+          <AdjustedWorkoutFields workout={workout} />
+          <FormField label="Comment for coach">
+            <Textarea
+              name="athleteNotes"
+              defaultValue={workout.result?.athleteNotes ?? ''}
+              rows={3}
+              placeholder="What did you change?"
+            />
+          </FormField>
         </>
+      ) : (
+        <FormField label="Comments">
+          <Textarea
+            name="athleteNotes"
+            defaultValue={workout.result?.athleteNotes ?? ''}
+            rows={3}
+            placeholder="How did it feel?"
+          />
+        </FormField>
       )}
-      {!isLogged && (
-        <p className="text-sm text-muted-foreground">
-          Let your coach know why you&apos;re skipping this workout.
-        </p>
-      )}
-      <AthleteNotesField workout={workout} skipped={!isLogged} />
       <Button type="submit" variant="secondary" size="sm" disabled={isSaving}>
-        {isSaving ? 'Saving…' : isEditing ? 'Update' : 'Save'}
+        {isSaving ? 'Saving…' : 'Save'}
       </Button>
     </form>
   )
 }
 
-export function HomeWorkoutCompleteSection({
+function StravaCommentForm({
   workout,
-  logOnlyMode,
-  onLogModeChange,
   onClose,
-}: HomeWorkoutCompleteSectionProps) {
-  const isCompleted = workout.status === WorkoutStatus.COMPLETED
-  const isSkipped = workout.status === WorkoutStatus.SKIPPED
-  const isLogged = isCompleted || isSkipped
+}: {
+  workout: PlanWorkoutDetail
+  onClose: () => void
+}) {
+  const router = useRouter()
+  const [isSaving, startSave] = useTransition()
+  const stravaDescription = workout.result?.stravaActivityDescription?.trim() || ''
+  const savedNotes = workout.result?.athleteNotes?.trim() || ''
+  const [notes, setNotes] = useState(savedNotes)
 
-  if (logOnlyMode) {
-    return (
-      <LogWorkoutForm
-        workout={workout}
-        isEditing={isLogged}
-        onClose={onClose}
-        onSaved={() => onLogModeChange(false)}
-      />
-    )
-  }
+  useEffect(() => {
+    setNotes(workout.result?.athleteNotes?.trim() || '')
+  }, [workout.id, workout.result?.athleteNotes])
 
-  if (isLogged) {
-    return null
+  function handleSave(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const formData = new FormData()
+    formData.set('workoutId', workout.id)
+    formData.set('athleteNotes', notes)
+    startSave(async () => {
+      await updateStravaWorkoutComment(formData)
+      router.refresh()
+      onClose()
+    })
   }
 
   return (
-    <Button type="button" variant="secondary" size="sm" onClick={() => onLogModeChange(true)}>
-      Done
-    </Button>
+    <form onSubmit={handleSave} className="space-y-3 border-t border-border/50 pb-4 pt-4">
+      <FormField label="Comment for coach (optional)">
+        <Textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+          placeholder="Write your own comment, or leave empty"
+        />
+      </FormField>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="submit" variant="secondary" size="sm" disabled={isSaving}>
+          {isSaving ? 'Saving…' : notes.trim() ? 'Share comment' : 'Clear comment'}
+        </Button>
+        {savedNotes && notes.trim() !== savedNotes ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={isSaving}
+            onClick={() => setNotes(savedNotes)}
+          >
+            Reset
+          </Button>
+        ) : null}
+        {stravaDescription && notes !== stravaDescription ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={isSaving}
+            onClick={() => setNotes(stravaDescription)}
+          >
+            Use Strava description
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="border-t border-border/40 pt-3">
+        <StravaDetachButton workoutId={workout.id} onDetached={onClose} />
+      </div>
+    </form>
+  )
+}
+
+export function HomeWorkoutCompleteSection({ workout, onClose }: HomeWorkoutCompleteSectionProps) {
+  const router = useRouter()
+  const stravaUrl = workout.result?.stravaActivityUrl ?? null
+  const stravaLocked = Boolean(stravaUrl)
+  const savedLogType = resolveAthleteLogType(workout)
+
+  const [selectedLogType, setSelectedLogType] = useState<AthleteLogType | null>(savedLogType)
+  const [showForm, setShowForm] = useState(savedLogType !== null)
+  const [isUnlogging, startUnlog] = useTransition()
+
+  useEffect(() => {
+    const saved = resolveAthleteLogType(workout)
+    setSelectedLogType(saved)
+    setShowForm(saved !== null)
+  }, [workout.id, workout.status, workout.result?.logType, workout.rescheduledFromDateKey])
+
+  function handleSelect(type: AthleteLogType) {
+    if (selectedLogType === type) {
+      const shouldUnlog = savedLogType === type && !stravaLocked
+      setSelectedLogType(null)
+      setShowForm(false)
+      if (shouldUnlog) {
+        const formData = new FormData()
+        formData.set('workoutId', workout.id)
+        startUnlog(async () => {
+          await unlogWorkout(formData)
+          router.refresh()
+        })
+      }
+      return
+    }
+
+    setSelectedLogType(type)
+    setShowForm(true)
+  }
+
+  return (
+    <div className="shrink-0 border-t border-border/50 bg-card pt-2">
+      <AthleteLogStatusPicker
+        value={selectedLogType}
+        onChange={handleSelect}
+        disabled={stravaLocked || isUnlogging}
+        stravaUrl={stravaUrl}
+      />
+
+      {stravaLocked ? <StravaCommentForm workout={workout} onClose={onClose} /> : null}
+
+      {!stravaLocked ? (
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/40 px-0 pb-2 pt-3">
+          <StravaLinkPicker
+            workoutId={workout.id}
+            onLinked={() => {
+              router.refresh()
+              onClose()
+            }}
+          />
+        </div>
+      ) : null}
+
+      {showForm && selectedLogType && !stravaLocked ? (
+        <LogWorkoutForm workout={workout} logType={selectedLogType} onClose={onClose} />
+      ) : null}
+    </div>
   )
 }

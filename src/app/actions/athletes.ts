@@ -81,6 +81,22 @@ export async function getAthleteCoachProfile(athleteId: string): Promise<{
   }
 }
 
+export async function updateAthleteStatusByCoach(athleteId: string, status: AthleteStatus) {
+  const session = await requireSession()
+  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!VALID_STATUSES.has(status)) throw new Error('Invalid status')
+
+  await requireCoachOwnsAthlete(session.userId, athleteId)
+
+  await prisma.athlete.update({
+    where: { id: athleteId },
+    data: { status },
+  })
+
+  revalidateAthletePaths(athleteId)
+  revalidatePath('/settings/preferences')
+}
+
 export async function updateAthleteProfileByCoach(formData: FormData) {
   const session = await requireSession()
   if (session.role !== 'COACH') throw new Error('Coach only')

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { GripVertical } from 'lucide-react'
 import { reorderDayWorkouts } from '@/app/actions/workouts'
 import { RacePlanItem } from '@/components/plan/race-plan-item'
+import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import { TrainingWorkoutCard } from '@/components/training/training-workout-card'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { cn } from '@/lib/utils'
@@ -14,7 +15,6 @@ type TrainingDayWorkoutListProps = {
   raceWorkouts: PlanWorkoutDetail[]
   isCoach: boolean
   reorderEnabled: boolean
-  showEmpty: boolean
 }
 
 export function TrainingDayWorkoutList({
@@ -23,12 +23,20 @@ export function TrainingDayWorkoutList({
   raceWorkouts,
   isCoach,
   reorderEnabled,
-  showEmpty,
 }: TrainingDayWorkoutListProps) {
+  const dnd = usePlanWeekDnd()
   const [ordered, setOrdered] = useState(workouts)
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  const workoutsSyncKey = workouts
+    .map((w) => `${w.id}:${w.status}:${w.result?.logType ?? ''}`)
+    .join('|')
+
+  useEffect(() => {
+    setOrdered(workouts)
+  }, [workoutsSyncKey, workouts])
 
   function handleReorder(dragId: string, targetId: string) {
     if (dragId === targetId) return
@@ -47,7 +55,7 @@ export function TrainingDayWorkoutList({
   }
 
   return (
-    <div className={cn('space-y-2 p-3', isPending && 'opacity-80')}>
+    <div className={cn('space-y-4 px-3 pb-3 pt-1', isPending && 'opacity-80')}>
       {raceWorkouts.map((w) => (
         <RacePlanItem key={w.id} workout={w} isCoach={isCoach} compact tableCell />
       ))}
@@ -55,11 +63,11 @@ export function TrainingDayWorkoutList({
         <div
           key={w.id}
           className={cn(
-            'flex items-stretch gap-1',
+            reorderEnabled && 'flex items-stretch gap-1',
             dropTargetId === w.id &&
               draggedId &&
               draggedId !== w.id &&
-              'rounded-xl ring-2 ring-brand/30',
+              'ring-2 ring-inset ring-foreground/20',
             draggedId === w.id && 'opacity-50',
           )}
           onDragOver={(e) => {
@@ -84,28 +92,33 @@ export function TrainingDayWorkoutList({
               draggable
               onDragStart={(e) => {
                 setDraggedId(w.id)
-                e.dataTransfer.effectAllowed = 'move'
+                dnd?.setDragWorkout({
+                  id: w.id,
+                  sport: w.type,
+                  dateKey: w.dateKey,
+                })
+                e.dataTransfer.effectAllowed = 'copyMove'
                 e.dataTransfer.setData('text/plain', w.id)
               }}
               onDragEnd={() => {
                 setDraggedId(null)
                 setDropTargetId(null)
+                dnd?.setDragWorkout(null)
               }}
               className="mt-3 shrink-0 cursor-grab touch-none self-start rounded-md p-1 text-muted-foreground/40 hover:bg-muted/60 hover:text-muted-foreground active:cursor-grabbing"
-              aria-label={`Drag to reorder ${w.title}`}
+              aria-label={`Drag to reorder or save ${w.title}`}
               onClick={(e) => e.stopPropagation()}
             >
               <GripVertical className="h-4 w-4" />
             </button>
           )}
-          <TrainingWorkoutCard workout={w} isCoach={isCoach} className="min-w-0 flex-1" />
+          <TrainingWorkoutCard
+            workout={w}
+            isCoach={isCoach}
+            className={cn('min-w-0', reorderEnabled && 'flex-1')}
+          />
         </div>
       ))}
-      {showEmpty && (
-        <p className="rounded-xl bg-muted/40 px-3 py-6 text-center text-sm text-muted-foreground">
-          No workouts scheduled.
-        </p>
-      )}
     </div>
   )
 }

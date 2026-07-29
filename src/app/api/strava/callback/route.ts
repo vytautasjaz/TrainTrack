@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { exchangeStravaCode } from '@/lib/strava/client'
 import { isStravaConfigured } from '@/lib/strava/config'
+import { applyStravaAvatarToAthlete } from '@/lib/strava/avatar'
 import { UserRole } from '@prisma/client'
 
 export async function GET(request: NextRequest) {
@@ -65,6 +66,15 @@ export async function GET(request: NextRequest) {
         scope: grantedScopes,
       },
     })
+
+    await applyStravaAvatarToAthlete(user.athleteProfile.id, token.athlete)
+
+    try {
+      const { syncStravaActivitiesForUser } = await import('@/lib/strava/sync')
+      await syncStravaActivitiesForUser(userId, user.athleteProfile.id)
+    } catch (err) {
+      console.warn('Initial Strava sync after connect skipped:', err)
+    }
 
     preferencesUrl.searchParams.set('connected', '1')
     return NextResponse.redirect(preferencesUrl)

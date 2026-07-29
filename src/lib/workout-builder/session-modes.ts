@@ -14,6 +14,36 @@ export function isSimpleSessionType(sessionType: SessionType): boolean {
   return SIMPLE_SESSION_TYPES.includes(sessionType)
 }
 
+/** Run/bike (and tri) workouts can optionally use the block builder from the plan modal. */
+export function sportSupportsWorkoutBuilder(
+  sportType: WorkoutType = SportEnum.RUN,
+): boolean {
+  return (
+    sportType === SportEnum.RUN ||
+    sportType === SportEnum.BIKE ||
+    sportType === SportEnum.TRIATHLON
+  )
+}
+
+/** Simple form: distance/duration/notes — no interval block builder. */
+export function usesSimpleWorkoutForm(
+  sessionType: SessionType,
+  sportType: WorkoutType = SportEnum.RUN,
+): boolean {
+  if (isSimpleSessionType(sessionType)) return true
+  if (sportType === SportEnum.STRENGTH) return true
+  if (sessionType === 'STRENGTH') return true
+  return false
+}
+
+/** Strength-style simple form: duration + description only (no distance, no structure). */
+export function usesDescriptionOnlyForm(
+  sessionType: SessionType,
+  sportType: WorkoutType,
+): boolean {
+  return sportType === SportEnum.STRENGTH || sessionType === 'STRENGTH'
+}
+
 const ENDURANCE_SESSION_TYPES: SessionType[] = [
   'EASY_RUN',
   'RECOVERY_RUN',
@@ -35,6 +65,35 @@ export function getSessionTypeLabel(
   sessionType: SessionType,
   sportType: WorkoutType = SportEnum.RUN,
 ): string {
+  if (sportType === SportEnum.BIKE) {
+    switch (sessionType) {
+      case 'EASY_RUN':
+        return 'Easy Ride'
+      case 'RECOVERY_RUN':
+        return 'Recovery Ride'
+      case 'LONG_RUN':
+        return 'Long Ride'
+      case 'INTERVALS':
+        return 'Intervals'
+      case 'VO2_MAX':
+        return 'VO₂ Max'
+      case 'TEMPO':
+        return 'Tempo Ride'
+      case 'THRESHOLD':
+        return 'Threshold'
+      case 'RACE_PACE':
+        return 'Race Simulation'
+      case 'HILL_REPEATS':
+        return 'Hill Repeats'
+      case 'BRICK':
+        return 'Brick'
+      case 'CUSTOM':
+        return 'Custom'
+      default:
+        break
+    }
+  }
+
   const sportLabel = WORKOUT_TYPE_LABELS[sportType]
 
   switch (sessionType) {
@@ -87,7 +146,6 @@ export function sessionTypesForSport(sportType: WorkoutType): SessionType[] {
         'BRICK',
         'STRENGTH',
         'CROSS_TRAINING',
-        'CUSTOM',
       ]
     case SportEnum.STRENGTH:
       return ['STRENGTH', 'CROSS_TRAINING', 'CUSTOM']

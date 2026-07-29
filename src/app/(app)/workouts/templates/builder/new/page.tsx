@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation'
-import { SessionType, WorkoutType } from '@prisma/client'
-import { WorkoutBuilder } from '@/components/workout-builder/workout-builder'
+import { WorkoutType } from '@prisma/client'
+import { WorkoutEditorPage } from '@/components/workout-editor/workout-editor-page'
 import { getSession } from '@/lib/session'
-import { buildPreset } from '@/lib/workout-builder/presets'
-import { defaultBuilderWorkout } from '@/lib/workout-builder/utils'
+import { todayDateKey } from '@/lib/dates'
 
 type NewTemplateBuilderPageProps = {
   searchParams: Promise<{
@@ -18,19 +17,13 @@ export default async function NewTemplateBuilderPage({ searchParams }: NewTempla
 
   const params = await searchParams
   const sport = (params.sport as WorkoutType) || WorkoutType.RUN
-  const sessionType = (params.sessionType as SessionType) || SessionType.CUSTOM
 
-  let initial = defaultBuilderWorkout(sport, sessionType)
-
-  if (sessionType !== SessionType.CUSTOM) {
-    const preset = buildPreset(sessionType)
-    initial = {
-      ...initial,
-      title: preset.title,
-      sportType: preset.sportType,
-      structure: preset.structure,
-    }
-  }
-
-  return <WorkoutBuilder mode="template" initial={initial} fallbackHref="/workouts" />
+  return (
+    <WorkoutEditorPage
+      mode="template"
+      sportType={sport}
+      date={todayDateKey()}
+      fallbackHref="/workouts"
+    />
+  )
 }

@@ -2,6 +2,8 @@
 
 import type { AthleteStatus } from '@prisma/client'
 import { switchAthlete } from '@/app/actions/session'
+import { Select } from '@/components/ui/select'
+import { Caption } from '@/components/ui/typography'
 import { athleteStatusLabel } from '@/lib/athlete-status'
 
 type CoachAthleteSelectProps = {
@@ -20,13 +22,13 @@ export function CoachAthleteSelect({
   return (
     <form action={switchAthlete} className="flex items-center gap-2">
       <input type="hidden" name="redirectTo" value={redirectTo} />
-      <label className="flex items-center gap-2 text-xs text-muted-foreground">
+      <label className="flex items-center gap-2 text-caption">
         <span className="hidden sm:inline">Athlete</span>
-        <select
+        <Select
           name="athleteId"
           defaultValue={selectedAthleteId}
           onChange={(e) => e.currentTarget.form?.requestSubmit()}
-          className="input-field max-w-[11rem] py-1.5 text-xs sm:max-w-[14rem]"
+          className="max-w-[11rem] py-1.5 text-caption sm:max-w-[14rem]"
           aria-label="Select athlete"
         >
           {athletes.map((athlete) => (
@@ -35,7 +37,7 @@ export function CoachAthleteSelect({
               {athlete.status !== 'ACTIVE' ? ` (${athleteStatusLabel(athlete.status)})` : ''}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
     </form>
   )

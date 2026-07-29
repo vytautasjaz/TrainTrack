@@ -15,10 +15,16 @@ import {
 } from '@/lib/constants'
 import { formatDistance, formatDuration } from '@/lib/utils'
 import { StructuredWorkoutView } from '@/components/workout-builder/structured-workout-view'
+import { IncludeItemsSummary } from '@/components/workout-editor/include-items-summary'
 import { CoachReplyBlock } from '@/components/plan/coach-reply-block'
 import { MarkCoachReplyReadOnView } from '@/components/athlete/mark-coach-reply-read-on-view'
 import { parseStructure } from '@/lib/workout-builder/utils'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
+import { FormField } from '@/components/ui/form-field'
 import { completeWorkout, deleteWorkout, updateWorkout } from '@/app/actions/workouts'
+import { WORKOUT_PLAN_INCLUDE } from '@/lib/queries'
 import { WorkoutStatus } from '@prisma/client'
 
 const WORKOUT_TYPES = Object.keys(WORKOUT_TYPE_LABELS) as WorkoutType[]
@@ -34,7 +40,7 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
   const { id } = await params
   const workout = await prisma.workout.findUnique({
     where: { id },
-    include: { result: true, athlete: true, template: true },
+    include: { ...WORKOUT_PLAN_INCLUDE, athlete: true, template: true },
   })
 
   if (!workout) notFound()
@@ -78,7 +84,9 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
               deleteAction={deleteWorkout}
               deleteId={workout.id}
               deleteIdField="workoutId"
-              deleteConfirmMessage={`Remove "${workout.title}" from the plan?`}
+              deleteConfirmTitle="Remove workout?"
+              deleteConfirmMessage={`“${workout.title}” will be removed from the plan.`}
+              redirectTo="/training"
             />
           </div>
         )}
@@ -95,6 +103,17 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
         </Card>
       )}
 
+      {structure.includeItems && structure.includeItems.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Include</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <IncludeItemsSummary items={structure.includeItems} />
+          </CardContent>
+        </Card>
+      ) : null}
+
       {isCoach && (
         <Card>
           <CardHeader>
@@ -103,42 +122,40 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
           <CardContent>
             <form action={updateWorkout} className="grid gap-3 sm:grid-cols-2">
               <input type="hidden" name="workoutId" value={workout.id} />
-              <input name="title" defaultValue={workout.title} required className="input-field sm:col-span-2" />
-              <input name="date" type="date" defaultValue={dateValue} required className="input-field" />
-              <select name="type" defaultValue={workout.type} required className="input-field">
+              <Input name="title" defaultValue={workout.title} required className="sm:col-span-2" />
+              <Input name="date" type="date" defaultValue={dateValue} required />
+              <Select name="type" defaultValue={workout.type} required>
                 {WORKOUT_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {WORKOUT_TYPE_LABELS[t]}
                   </option>
                 ))}
-              </select>
-              <input
+              </Select>
+              <Input
                 name="plannedDistance"
                 type="number"
                 step="0.1"
                 defaultValue={workout.plannedDistance ?? undefined}
                 placeholder="Distance (km)"
-                className="input-field"
               />
-              <input
+              <Input
                 name="plannedDuration"
                 type="number"
                 defaultValue={workout.plannedDuration ?? undefined}
                 placeholder="Duration (min)"
-                className="input-field"
               />
-              <textarea
+              <Textarea
                 name="description"
                 defaultValue={workout.description ?? ''}
                 placeholder="Description"
-                className="input-field sm:col-span-2"
+                className="sm:col-span-2"
                 rows={2}
               />
-              <textarea
+              <Textarea
                 name="coachNotes"
                 defaultValue={workout.coachNotes ?? ''}
                 placeholder="Coach notes"
-                className="input-field sm:col-span-2"
+                className="sm:col-span-2"
                 rows={2}
               />
               <Button type="submit" variant="secondary" size="sm" className="sm:col-span-2 w-fit">
@@ -196,7 +213,27 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
         </Card>
       )}
 
-      {session.role === 'ATHLETE' && (
+      {result?.stravaActivityUrl && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Strava activity</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>
+              {session.role === 'ATHLETE'
+                ? 'Stats were imported from Strava and can\'t be edited here.'
+                : 'This workout was completed via Strava.'}
+            </p>
+            <Button variant="secondary" size="sm" asChild>
+              <a href={result.stravaActivityUrl} target="_blank" rel="noreferrer">
+                View on Strava
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {session.role === 'ATHLETE' && !result?.stravaActivityUrl && (
         <Card>
           <CardHeader>
             <CardTitle>Log workout</CardTitle>
@@ -205,59 +242,50 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
             <form action={completeWorkout} className="space-y-3">
               <input type="hidden" name="workoutId" value={workout.id} />
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="block text-sm">
-                  <span className="text-muted-foreground">Actual distance (km)</span>
-                  <input
+                <FormField label="Actual distance (km)">
+                  <Input
                     name="actualDistance"
                     type="number"
                     step="0.1"
                     defaultValue={result?.actualDistance ?? workout.plannedDistance ?? undefined}
-                    className="input-field mt-1"
                   />
-                </label>
-                <label className="block text-sm">
-                  <span className="text-muted-foreground">Actual duration (min)</span>
-                  <input
+                </FormField>
+                <FormField label="Actual duration (min)">
+                  <Input
                     name="actualDuration"
                     type="number"
                     defaultValue={result?.actualDuration ?? workout.plannedDuration ?? undefined}
-                    className="input-field mt-1"
                   />
-                </label>
-                <label className="block text-sm">
-                  <span className="text-muted-foreground">RPE (1–10)</span>
-                  <input
+                </FormField>
+                <FormField label="RPE (1–10)">
+                  <Input
                     name="rpe"
                     type="number"
                     min={1}
                     max={10}
                     defaultValue={result?.rpe ?? 6}
-                    className="input-field mt-1"
                   />
-                </label>
-                <label className="block text-sm">
-                  <span className="text-muted-foreground">Status</span>
-                  <select
-                    name="status"
-                    defaultValue={workout.status}
-                    className="input-field mt-1"
+                </FormField>
+                <FormField label="Status">
+                  <Select
+                    name="logType"
+                    defaultValue={
+                      workout.status === WorkoutStatus.SKIPPED ? 'SKIPPED' : 'COMPLETED'
+                    }
                   >
-                    <option value={WorkoutStatus.COMPLETED}>Completed</option>
-                    <option value={WorkoutStatus.SKIPPED}>Skipped</option>
-                    <option value={WorkoutStatus.PLANNED}>Planned</option>
-                  </select>
-                </label>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="SKIPPED">Skipped</option>
+                  </Select>
+                </FormField>
               </div>
-              <label className="block text-sm">
-                <span className="text-muted-foreground">Notes</span>
-                <textarea
+              <FormField label="Notes">
+                <Textarea
                   name="athleteNotes"
                   defaultValue={result?.athleteNotes ?? ''}
                   rows={3}
                   placeholder="How did it feel?"
-                  className="input-field mt-1"
                 />
-              </label>
+              </FormField>
               <Button type="submit" variant="secondary" size="sm">
                 Save feedback
               </Button>

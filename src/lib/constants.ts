@@ -2,7 +2,11 @@ import {
   WorkoutStatus,
   WorkoutType,
   RaceType,
+  RacePriority,
+  RaceIntent,
+  RaceOutcome,
   UserRole,
+  AthleteLogType,
 } from '@prisma/client'
 
 export const WORKOUT_TYPE_LABELS: Record<WorkoutType, string> = {
@@ -22,6 +26,13 @@ export const WORKOUT_STATUS_LABELS: Record<WorkoutStatus, string> = {
   SKIPPED: 'Skipped',
 }
 
+export const ATHLETE_LOG_TYPE_LABELS: Record<AthleteLogType, string> = {
+  COMPLETED: 'Completed',
+  SKIPPED: 'Skipped',
+  ADJUSTED: 'Adjusted',
+  RESCHEDULED: 'Rescheduled',
+}
+
 export const RACE_TYPE_LABELS: Record<RaceType, string> = {
   MARATHON: 'Marathon',
   HALF_MARATHON: 'Half Marathon',
@@ -29,6 +40,33 @@ export const RACE_TYPE_LABELS: Record<RaceType, string> = {
   TRIATHLON: 'Triathlon',
   CYCLING: 'Cycling Event',
   OTHER: 'Other',
+}
+
+export const RACE_PRIORITY_LABELS: Record<RacePriority, string> = {
+  A: 'Goal',
+  B: 'Important',
+  C: 'Training',
+}
+
+export const RACE_INTENT_LABELS: Record<RaceIntent, string> = {
+  PLANNED: 'Planned',
+  WATCHING: 'Watching',
+}
+
+export const RACE_OUTCOME_LABELS: Record<RaceOutcome, string> = {
+  FINISHED: 'Finished',
+  DID_NOT_START: 'Did not start',
+  DNF: 'DNF',
+  DISMISSED: 'Skipped log',
+}
+
+export const RACE_TYPE_DISTANCE_LABELS: Record<RaceType, string> = {
+  MARATHON: '42.2 km',
+  HALF_MARATHON: '21.1 km',
+  HYROX: 'HYROX',
+  TRIATHLON: 'Triathlon',
+  CYCLING: 'Cycling',
+  OTHER: 'Race',
 }
 
 export const WORKOUT_TYPE_COLORS: Record<WorkoutType, string> = {
@@ -59,4 +97,4 @@ export const SPORT_ROW_ORDER: WorkoutType[] = [
   WorkoutType.REST,
 ]
 
-export { UserRole, WorkoutType, WorkoutStatus, RaceType }
+export { UserRole, WorkoutType, WorkoutStatus, RaceType, RacePriority, RaceIntent, RaceOutcome, AthleteLogType }

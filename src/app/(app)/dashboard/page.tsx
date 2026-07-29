@@ -8,16 +8,19 @@ import { daysUntil, formatDistance, formatDuration, percent } from '@/lib/utils'
 import { createAthlete } from '@/app/actions/workouts'
 import { CoachAthleteCard } from '@/components/coach/coach-athlete-card'
 import { CoachFeedbackList, type CoachFeedbackItem } from '@/components/coach/coach-feedback-list'
+import { CoachPlanningWarnings } from '@/components/coach/coach-planning-warnings'
 import {
   AthleteCoachReplyList,
   type AthleteCoachReplyItem,
 } from '@/components/athlete/athlete-coach-reply-list'
+import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { MetricChip } from '@/components/ui/metric-chip'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatCard } from '@/components/ui/stat-card'
 import { PageHeader } from '@/components/ui/page-header'
 import { AthleteDashboardWorkouts } from '@/components/dashboard/athlete-dashboard-workouts'
+import { AthleteRaceFollowUp } from '@/components/dashboard/athlete-race-follow-up'
 import { toPlanWorkoutDetail } from '@/lib/plan-workout'
 
 function formatTodayLabel() {
@@ -33,7 +36,8 @@ export default async function DashboardPage() {
   if (!session) redirect('/')
 
   if (session.role === 'COACH') {
-    const { athletes, recentFeedback } = await getCoachDashboard(session.userId)
+    const { athletes, recentFeedback, planningLeadDays, planningWarnings } =
+      await getCoachDashboard(session.userId)
     const feedbackItems: CoachFeedbackItem[] = recentFeedback.map((r) => ({
       id: r.id,
       athleteNotes: r.athleteNotes!.trim(),
@@ -52,8 +56,13 @@ export default async function DashboardPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          title="Coach dashboard"
-          description="Athletes overview and recent feedback"
+          title="Athletes"
+          description="Roster and feedback"
+        />
+
+        <CoachPlanningWarnings
+          warnings={planningWarnings}
+          planningLeadDays={planningLeadDays}
         />
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -68,6 +77,7 @@ export default async function DashboardPage() {
                   id: athlete.id,
                   name: athlete.name,
                   status: athlete.status,
+                  avatarUrl: athlete.avatarUrl,
                   races: athlete.races,
                 }}
                 compliance={compliance}
@@ -102,11 +112,11 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent>
             <form action={createAthlete} className="flex gap-2">
-              <input
+              <Input
                 name="name"
                 placeholder="Athlete name"
                 required
-                className="input-field flex-1"
+                className="flex-1"
               />
               <Button type="submit" variant="secondary" size="sm">
                 Create
@@ -140,37 +150,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <section className="card-elevated overflow-hidden p-5 sm:p-6">
-        <div className="space-y-1 text-center">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Today
-          </p>
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{session.name}</h1>
-          <p className="text-sm text-muted-foreground">{formatTodayLabel()}</p>
-        </div>
-
-        <div className="mt-5 flex flex-col items-center sm:mt-6">
-          <ProgressRing
-            value={data.weekCompleted}
-            max={Math.max(data.weekPlanned, 1)}
-            size={180}
-            stroke={12}
-            tone="light"
-            label={<span className="metric-hero-value text-brand">{weekPct}%</span>}
-            sublabel={
-              <span className="mt-1 text-xs font-medium text-muted-foreground">
-                {data.weekCompleted} / {data.weekPlanned} workouts
-              </span>
-            }
-          />
-        </div>
-
-        <div className="mt-5 flex justify-around gap-2 border-t border-border/50 pt-5 sm:mt-6 sm:pt-6">
-          <MetricChip icon={Route} value={formatDistance(data.weekDistance)} label="Distance" />
-          <MetricChip icon={Timer} value={formatDuration(data.weekDuration)} label="Duration" />
-          <MetricChip icon={Footprints} value={String(data.weekCompleted)} label="Completed" />
-        </div>
-      </section>
+      <PageHeader
+        title={session.name}
+        description={formatTodayLabel()}
+      />
 
       {coachReplyItems.length > 0 && (
         <section className="card-elevated p-5 sm:p-6">
@@ -179,40 +162,100 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <StatCard
-          label="Monthly volume"
-          value={formatDistance(data.monthDistance)}
-          hint={`${data.monthWorkoutsCompleted} workouts done`}
-          icon={TrendingUp}
-          layout="row"
-          variant="flat"
+      {data.pendingRaceFollowUps.length > 0 && (
+        <AthleteRaceFollowUp
+          races={data.pendingRaceFollowUps.map((race) => ({
+            id: race.id,
+            name: race.name,
+            date: race.date,
+            location: race.location,
+            type: race.type,
+            goal: race.goal,
+          }))}
         />
-        {data.nextRace ? (
-          <StatCard
-            label="Next race"
-            value={`${daysUntil(data.nextRace.date)}d`}
-            hint={data.nextRace.name}
-            icon={Flag}
-            layout="row"
-            variant="flat"
-          />
-        ) : (
-          <StatCard
-            label="Next race"
-            value="—"
-            hint="None scheduled"
-            icon={Flag}
-            layout="row"
-            variant="flat"
-          />
-        )}
-      </div>
+      )}
 
-      <AthleteDashboardWorkouts
-        todayWorkouts={data.todayWorkouts.map(toPlanWorkoutDetail)}
-        upcomingWorkouts={data.upcomingWorkouts.map(toPlanWorkoutDetail)}
-      />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.9fr)] lg:items-start lg:gap-8">
+        <div className="min-w-0">
+          <AthleteDashboardWorkouts
+            todayWorkouts={data.todayWorkouts.map(toPlanWorkoutDetail)}
+            upcomingWorkouts={data.upcomingWorkouts.map(toPlanWorkoutDetail)}
+          />
+        </div>
+
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-4">
+          <h2 className="text-lg font-semibold leading-tight tracking-tight">This week</h2>
+
+          <div className="card-elevated overflow-hidden p-5">
+            <div className="flex flex-col items-center gap-5">
+              <ProgressRing
+                value={data.weekCompleted}
+                max={Math.max(data.weekPlanned, 1)}
+                size={140}
+                stroke={10}
+                tone="light"
+                label={
+                  <span className="text-2xl font-bold tabular-nums text-foreground">
+                    {weekPct}%
+                  </span>
+                }
+                sublabel={
+                  <span className="mt-1 text-xs font-medium text-muted-foreground">
+                    {data.weekCompleted} / {data.weekPlanned} workouts
+                  </span>
+                }
+              />
+              <div className="flex w-full justify-around gap-2 border-t border-border/50 pt-5">
+                <MetricChip
+                  icon={Route}
+                  value={formatDistance(data.weekDistance)}
+                  label="Distance"
+                />
+                <MetricChip
+                  icon={Timer}
+                  value={formatDuration(data.weekDuration)}
+                  label="Duration"
+                />
+                <MetricChip
+                  icon={Footprints}
+                  value={String(data.weekCompleted)}
+                  label="Completed"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <StatCard
+              label="Monthly volume"
+              value={formatDistance(data.monthDistance)}
+              hint={`${data.monthWorkoutsCompleted} workouts done`}
+              icon={TrendingUp}
+              layout="row"
+              variant="flat"
+            />
+            {data.nextRace ? (
+              <StatCard
+                label="Next race"
+                value={`${daysUntil(data.nextRace.date)}d`}
+                hint={data.nextRace.name}
+                icon={Flag}
+                layout="row"
+                variant="flat"
+              />
+            ) : (
+              <StatCard
+                label="Next race"
+                value="—"
+                hint="None scheduled"
+                icon={Flag}
+                layout="row"
+                variant="flat"
+              />
+            )}
+          </div>
+        </aside>
+      </div>
     </div>
   )
 }

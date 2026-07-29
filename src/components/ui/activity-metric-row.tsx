@@ -21,17 +21,17 @@ export function ActivityMetricRow({
   return (
     <div
       className={cn(
-        'flex items-center gap-3 rounded-2xl border border-border/50 bg-card px-3 py-3.5',
+        'flex items-center gap-3 rounded-[6px] border border-border bg-card px-3 py-3.5 shadow-none',
         className,
       )}
     >
       <div
         className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-soft',
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] bg-muted',
           iconClassName,
         )}
       >
-        <Icon className="h-5 w-5 text-brand" strokeWidth={2} />
+        <Icon className="h-5 w-5 text-muted-foreground" strokeWidth={2} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-xs font-medium text-muted-foreground">{label}</p>

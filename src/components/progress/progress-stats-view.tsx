@@ -20,7 +20,10 @@ import { MetricChip } from '@/components/ui/metric-chip'
 import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatCard } from '@/components/ui/stat-card'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
+import { chartColors } from '@/lib/chart-colors'
 import type { ProgressSportBucket, ProgressStats } from '@/lib/progress-stats'
+import { PillSelect, PillSelectItem } from '@/components/ui/pill-select'
+import { Caption } from '@/components/ui/typography'
 import { cn, formatDistance, formatDuration, percent } from '@/lib/utils'
 
 type ProgressStatsViewProps = {
@@ -29,10 +32,6 @@ type ProgressStatsViewProps = {
 }
 
 type MetricMode = 'distance' | 'duration' | 'workouts'
-
-const CHART_PLANNED = 'hsl(215 16% 65%)'
-const CHART_COMPLETED = '#e84855'
-const CHART_COMPLETION = '#22c55e'
 
 const tooltipStyle = {
   backgroundColor: 'var(--color-card)',
@@ -105,7 +104,7 @@ export function ProgressStatsView({ stats, className }: ProgressStatsViewProps) 
   return (
     <div className={cn('space-y-6', className)}>
       <div className="card-elevated flex flex-col items-center p-6">
-        <p className="text-sm font-medium text-muted-foreground">This month</p>
+        <Caption className="font-medium">This month</Caption>
         <div className="mt-4">
           <ProgressRing
             value={month.completedDistance}
@@ -114,7 +113,7 @@ export function ProgressStatsView({ stats, className }: ProgressStatsViewProps) 
             stroke={11}
             tone="light"
             label={
-              <span className="text-3xl font-bold tabular-nums text-brand">
+              <span className="text-metric-hero text-brand">
                 {formatDistance(month.completedDistance)}
               </span>
             }
@@ -140,25 +139,22 @@ export function ProgressStatsView({ stats, className }: ProgressStatsViewProps) 
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <PillSelect>
         {sportOptions.map((option) => (
-          <button
+          <PillSelectItem
             key={option.id}
-            type="button"
+            selected={sport === option.id}
+            activeClassName={
+              option.id === 'ALL'
+                ? 'pill-select-item-brand'
+                : WORKOUT_TYPE_COLORS[option.id as WorkoutType]
+            }
             onClick={() => setSport(option.id)}
-            className={cn(
-              'rounded-full px-3 py-1.5 text-xs font-semibold transition',
-              sport === option.id
-                ? option.id === 'ALL'
-                  ? 'bg-brand text-brand-foreground shadow-sm'
-                  : WORKOUT_TYPE_COLORS[option.id as WorkoutType]
-                : 'bg-muted/60 text-muted-foreground hover:bg-muted',
-            )}
           >
             {option.label}
-          </button>
+          </PillSelectItem>
         ))}
-      </div>
+      </PillSelect>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <StatCard
@@ -201,7 +197,7 @@ export function ProgressStatsView({ stats, className }: ProgressStatsViewProps) 
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <CardTitle>Planned vs completed</CardTitle>
-                <p className="text-xs text-muted-foreground">Last 8 weeks · {metricLabel}</p>
+                <p className="text-caption">Last 8 weeks · {metricLabel}</p>
               </div>
               <div className="flex rounded-xl bg-muted/50 p-1">
                 {(
@@ -259,13 +255,13 @@ export function ProgressStatsView({ stats, className }: ProgressStatsViewProps) 
                   />
                   <Bar
                     dataKey="planned"
-                    fill={CHART_PLANNED}
+                    fill={chartColors.planned}
                     radius={[6, 6, 0, 0]}
                     maxBarSize={28}
                   />
                   <Bar
                     dataKey="completed"
-                    fill={CHART_COMPLETED}
+                    fill={chartColors.brand}
                     radius={[6, 6, 0, 0]}
                     maxBarSize={28}
                   />
@@ -306,9 +302,9 @@ export function ProgressStatsView({ stats, className }: ProgressStatsViewProps) 
                   <Line
                     type="monotone"
                     dataKey="completion"
-                    stroke={CHART_COMPLETION}
+                    stroke={chartColors.success}
                     strokeWidth={2.5}
-                    dot={{ r: 4, fill: CHART_COMPLETION, strokeWidth: 0 }}
+                    dot={{ r: 4, fill: chartColors.success, strokeWidth: 0 }}
                     activeDot={{ r: 6 }}
                   />
                 </LineChart>

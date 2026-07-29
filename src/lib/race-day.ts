@@ -38,7 +38,7 @@ export function raceDayStripClass(isToday = false): string {
   if (isToday) {
     return 'bg-amber-600 text-amber-50 shadow-sm ring-2 ring-amber-400/50'
   }
-  return 'bg-amber-500/20 text-amber-950 shadow-[var(--shadow-card)] dark:text-amber-100'
+  return 'bg-amber-500/20 text-amber-950 dark:text-amber-100'
 }
 
 export function raceDayMonthClass(): string {

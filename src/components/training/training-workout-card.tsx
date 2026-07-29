@@ -1,167 +1,117 @@
-'use client'
+"use client";
 
-import { WorkoutStatus } from '@prisma/client'
-import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
-import { AthleteAddedBadge } from '@/components/plan/athlete-added-badge'
-import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
-import { CompletionSourceBadge } from '@/components/history/completion-source-badge'
-import { getWorkoutPlanDescriptionLines, type PlanWorkoutDetail } from '@/lib/plan-workout'
-import { getWorkoutCompletionSource } from '@/lib/workout-history'
-import { formatDistance, formatDuration } from '@/lib/utils'
-import { cn } from '@/lib/utils'
-import { CheckCircle2, XCircle } from 'lucide-react'
+import { useState } from "react";
+import { WorkoutModalTrigger } from "@/components/plan/workout-modal-trigger";
+import {
+  AthleteWorkoutQuickActions,
+  useOptimisticWorkoutStatus,
+} from "@/components/plan/athlete-workout-quick-actions";
+import { DeletePlanWorkoutButton } from "@/components/plan/delete-plan-workout-button";
+import { CopyPlanWorkoutButton } from "@/components/plan/copy-plan-workout-button";
+import { EditPlanWorkoutButton } from "@/components/plan/edit-plan-workout-button";
+import { usePlanWeekDnd } from "@/components/plan/plan-week-dnd";
+import { PlanWorkoutDataCard } from "@/components/plan/plan-workout-data-card";
+import {
+  athleteHasQuickLogActions,
+  type PlanWorkoutDetail,
+} from "@/lib/plan-workout";
+import { cn } from "@/lib/utils";
 
 type TrainingWorkoutCardProps = {
-  workout: PlanWorkoutDetail
-  isCoach: boolean
-  compact?: boolean
-  detailed?: boolean
-  className?: string
-}
-
-function MetricInline({
-  label,
-  value,
-  compact,
-}: {
-  label: string
-  value: string
-  compact?: boolean
-}) {
-  return (
-    <div className="text-left">
-      <p className={cn('font-bold tabular-nums leading-none', compact ? 'text-xs' : 'text-sm')}>
-        {value}
-      </p>
-      <p className="mt-0.5 text-[10px] text-muted-foreground">{label}</p>
-    </div>
-  )
-}
+  workout: PlanWorkoutDetail;
+  isCoach: boolean;
+  compact?: boolean;
+  detailed?: boolean;
+  className?: string;
+};
 
 export function TrainingWorkoutCard({
   workout,
   isCoach,
-  compact = false,
-  detailed = false,
   className,
 }: TrainingWorkoutCardProps) {
-  const isCompleted = workout.status === WorkoutStatus.COMPLETED
-  const isSkipped = workout.status === WorkoutStatus.SKIPPED
-  const descriptionLines = detailed ? getWorkoutPlanDescriptionLines(workout) : []
-  const showCoachNotes =
-    detailed &&
-    Boolean(workout.coachNotes?.trim()) &&
-    Boolean(workout.description?.trim() || workout.structure)
+  const dnd = usePlanWeekDnd();
+  const [dragging, setDragging] = useState(false);
+  const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout);
 
-  const completionSource =
-    isCompleted && workout.result
-      ? getWorkoutCompletionSource({
-          selfLogged: workout.selfLogged ?? false,
-          result: workout.result,
-        })
-      : null
-
-  const showAthleteAddedBadge =
-    workout.selfLogged && workout.status !== WorkoutStatus.COMPLETED
-
-  const distanceValue =
-    isCompleted && workout.result?.actualDistance != null
-      ? formatDistance(workout.result.actualDistance)
-      : workout.plannedDistance != null
-        ? formatDistance(workout.plannedDistance)
-        : '—'
-
-  const durationValue =
-    isCompleted && workout.result?.actualDuration != null
-      ? formatDuration(workout.result.actualDuration)
-      : workout.plannedDuration != null
-        ? formatDuration(workout.plannedDuration)
-        : '—'
-
-  const rpeValue = workout.result?.rpe != null ? `${workout.result.rpe}/10` : '—'
+  const showQuickActions = athleteHasQuickLogActions(workout, isCoach);
+  const showCoachDelete = isCoach && !workout.isRace;
+  const canDrag = isCoach && !workout.isRace && Boolean(dnd);
+  const reserveActions = showCoachDelete || showQuickActions;
 
   return (
-    <WorkoutModalTrigger
-      workout={workout}
-      isCoach={isCoach}
-      className={cn(
-        'group block w-full rounded-2xl border border-border/50 bg-card text-left transition hover:border-brand/30 hover:shadow-[var(--shadow-card)]',
-        compact ? 'p-2.5' : 'p-3.5',
-        isSkipped && 'opacity-75',
-        className,
-      )}
-    >
-      <div className="flex min-w-0 items-center gap-2.5">
-        <WorkoutSportIcon
-          type={workout.type}
-          isRace={workout.isRace}
-          size="sm"
-          className="shrink-0"
-        />
-        {isCompleted && (
-          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-success" aria-hidden />
-        )}
-        {isSkipped && (
-          <XCircle className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-        )}
-        <p
-          className={cn(
-            'min-w-0 flex-1 font-semibold leading-snug group-hover:text-brand',
-            compact ? 'text-xs' : 'text-sm',
-            isSkipped && 'line-through text-muted-foreground',
-          )}
+    <div className={cn("py-3", className, dragging && "opacity-50")}>
+      <div className="group/card relative min-w-0">
+        <WorkoutModalTrigger
+          workout={workout}
+          isCoach={isCoach}
+          nestedInteractive={isCoach && !workout.isRace}
+          className="block w-full min-w-0"
+          title={canDrag ? `${workout.title} — drag to move` : undefined}
+          draggable={canDrag}
+          onDragStart={(e) => {
+            if (!dnd) return;
+            setDragging(true);
+            dnd.setDragWorkout({
+              id: workout.id,
+              sport: workout.type,
+              dateKey: workout.dateKey,
+            });
+            e.dataTransfer.effectAllowed = "copyMove";
+            e.dataTransfer.setData("text/plain", workout.id);
+          }}
+          onDragEnd={() => {
+            setDragging(false);
+            dnd?.setDragWorkout(null);
+          }}
         >
-          {workout.title}
-        </p>
+          <PlanWorkoutDataCard
+            workout={workout}
+            density="list"
+            status={status}
+            editable={isCoach && !workout.isRace}
+            hideCompletedBadge={showQuickActions}
+            actions={
+              reserveActions ? (
+                <span
+                  className={cn(
+                    "inline-block",
+                    showQuickActions ? "w-14" : "w-7",
+                  )}
+                  aria-hidden
+                />
+              ) : null
+            }
+          />
+        </WorkoutModalTrigger>
+
+        {showCoachDelete ? (
+          <div className="absolute right-2 top-2 z-10 flex flex-col items-center gap-0.5 opacity-50 transition group-hover/card:opacity-100">
+            <EditPlanWorkoutButton workout={workout} />
+            <CopyPlanWorkoutButton
+              workoutId={workout.id}
+              workoutTitle={workout.title}
+              sourceDateKey={workout.dateKey}
+            />
+            <DeletePlanWorkoutButton
+              workoutId={workout.id}
+              workoutTitle={workout.title}
+            />
+          </div>
+        ) : null}
+
+        {showQuickActions ? (
+          <div className="absolute right-2 top-2 z-10 opacity-60 transition group-hover/card:opacity-100">
+            <AthleteWorkoutQuickActions
+              workout={workout}
+              isCoach={isCoach}
+              size="sm"
+              displayStatus={status}
+              onDisplayStatusChange={setOptimisticStatus}
+            />
+          </div>
+        ) : null}
       </div>
-
-      {completionSource && (
-        <div className="mt-1.5">
-          <CompletionSourceBadge source={completionSource} />
-        </div>
-      )}
-
-      {showAthleteAddedBadge && (
-        <div className="mt-1.5">
-          <AthleteAddedBadge forCoach={isCoach} />
-        </div>
-      )}
-
-      <div
-        className={cn(
-          'mt-2 flex flex-wrap items-start gap-x-5 gap-y-2',
-          compact && 'mt-1.5 gap-x-4',
-        )}
-      >
-        <MetricInline label="Distance" value={distanceValue} compact={compact} />
-        <MetricInline label="Duration" value={durationValue} compact={compact} />
-        <MetricInline label="RPE" value={rpeValue} compact={compact} />
-      </div>
-
-      {detailed && descriptionLines.length > 0 && (
-        <div className="mt-2 space-y-0.5">
-          {descriptionLines.map((line, index) => (
-            <p
-              key={`${workout.id}-desc-${index}`}
-              className={cn('leading-snug text-muted-foreground', compact ? 'text-[10px]' : 'text-xs')}
-            >
-              {line}
-            </p>
-          ))}
-        </div>
-      )}
-
-      {showCoachNotes && (
-        <p className={cn('mt-2 text-muted-foreground', compact ? 'text-[10px]' : 'text-xs')}>
-          Coach: {workout.coachNotes}
-        </p>
-      )}
-
-      {(detailed || !compact) && workout.result?.athleteNotes && (
-        <p className="mt-1 line-clamp-2 text-xs italic text-muted-foreground">
-          &ldquo;{workout.result.athleteNotes}&rdquo;
-        </p>
-      )}
-    </WorkoutModalTrigger>
-  )
+    </div>
+  );
 }

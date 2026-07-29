@@ -2,6 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
+import { Caption } from '@/components/ui/typography'
+import { FormField, FormMessage } from '@/components/ui/form-field'
+import { Input } from '@/components/ui/input'
 import { HR_ZONE_FIELDS, type AthletePreferences } from '@/lib/athlete-preferences'
 import { updateHrZones } from '@/app/actions/preferences'
 
@@ -31,28 +34,26 @@ export function HrZonesForm({ preferences }: HrZonesFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <Caption>
         Set your max and resting heart rate, then the upper limit (bpm) for each zone. Zone 5 is
         everything above Zone 4 up to max HR.
-      </p>
+      </Caption>
       <div className="grid gap-3 sm:grid-cols-2">
         {HR_ZONE_FIELDS.map(({ key, name, label, placeholder }) => (
-          <label key={key} className="block space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">{label}</span>
-            <input
+          <FormField key={key} label={label}>
+            <Input
               name={name}
               type="number"
               min={1}
               max={250}
               placeholder={placeholder}
               defaultValue={preferences[key] ?? ''}
-              className="input-field"
             />
-          </label>
+          </FormField>
         ))}
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {saved && !error && <p className="text-sm text-green-600">HR zones saved.</p>}
+      {error && <FormMessage variant="error">{error}</FormMessage>}
+      {saved && !error && <FormMessage variant="success">HR zones saved.</FormMessage>}
       <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
         {isPending ? 'Saving…' : 'Save HR zones'}
       </Button>

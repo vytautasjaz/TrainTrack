@@ -2,11 +2,7 @@
 
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
-import {
-  DAY_NOTE_COLORS,
-  getDayNoteLabel,
-  type DayNoteData,
-} from '@/lib/day-notes'
+import { getDayNoteDisplayText, isDayNoteUnavailable, type DayNoteData } from '@/lib/day-notes'
 import { DayNoteModal } from '@/components/plan/day-note-modal'
 import { cn } from '@/lib/utils'
 
@@ -16,7 +12,21 @@ type DayNoteSectionProps = {
   canEdit: boolean
   athleteId?: string
   compact?: boolean
+  /** Show full note text with wrapping (week table). */
+  showFullText?: boolean
   hideEmptyAdd?: boolean
+}
+
+function noteTextClass(unavailable: boolean, showFullText: boolean, compact: boolean) {
+  return cn(
+    'min-w-0 text-xs leading-snug',
+    showFullText ? 'whitespace-pre-wrap break-words' : 'truncate',
+    !showFullText && compact && 'landscape:max-lg:text-[8px] landscape:max-lg:leading-tight',
+    unavailable
+      ? 'text-red-600 dark:text-red-400'
+      : 'text-foreground',
+    unavailable && 'italic',
+  )
 }
 
 export function DayNoteSection({
@@ -25,6 +35,7 @@ export function DayNoteSection({
   canEdit,
   athleteId,
   compact = false,
+  showFullText = false,
   hideEmptyAdd = false,
 }: DayNoteSectionProps) {
   const [open, setOpen] = useState(false)
@@ -43,29 +54,16 @@ export function DayNoteSection({
   ) : null
 
   if (note) {
-    const colors = DAY_NOTE_COLORS[note.status]
+    const displayText = getDayNoteDisplayText(note)
+    const unavailable = isDayNoteUnavailable(note.status)
 
     if (compact) {
-      const className =
-        'group flex w-full items-start gap-1 rounded-lg px-0.5 py-0.5 text-left landscape:max-lg:gap-0.5 lg:gap-1.5 lg:px-1'
+      const className = cn(
+        'group w-full rounded-lg px-0.5 py-0.5 text-left landscape:max-lg:px-0 lg:px-1',
+      )
 
       const content = (
-        <>
-          <span
-            className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full landscape:max-lg:mt-0.5"
-            style={{ backgroundColor: colors.dot }}
-          />
-          <div className="min-w-0">
-            <p className="min-w-0 truncate text-xs font-medium leading-snug landscape:max-lg:text-[8px] landscape:max-lg:leading-tight">
-              {getDayNoteLabel(note.status)}
-            </p>
-            {note.notes && (
-              <p className="truncate text-[10px] text-muted-foreground landscape:max-lg:text-[8px] lg:text-xs">
-                {note.notes}
-              </p>
-            )}
-          </div>
-        </>
+        <p className={noteTextClass(unavailable, showFullText, true)}>{displayText}</p>
       )
 
       return (
@@ -90,10 +88,10 @@ export function DayNoteSection({
       <>
         <div
           className={cn(
-            'rounded-xl border-l-[3px] px-3 py-2 text-sm',
+            'rounded-xl px-3 py-2 text-sm',
+            unavailable && 'bg-red-500/[0.06]',
             canEdit && 'cursor-pointer transition hover:opacity-90',
           )}
-          style={{ borderColor: colors.dot, backgroundColor: colors.bg }}
           onClick={canEdit ? () => setOpen(true) : undefined}
           onKeyDown={
             canEdit
@@ -108,8 +106,16 @@ export function DayNoteSection({
           role={canEdit ? 'button' : undefined}
           tabIndex={canEdit ? 0 : undefined}
         >
-          <p className="font-medium text-foreground">{getDayNoteLabel(note.status)}</p>
-          {note.notes && <p className="mt-0.5 text-sm text-muted-foreground">{note.notes}</p>}
+          <p
+            className={cn(
+              'whitespace-pre-wrap break-words text-sm',
+              unavailable
+                ? 'italic text-red-600 dark:text-red-400'
+                : 'text-foreground',
+            )}
+          >
+            {displayText}
+          </p>
         </div>
         {modal}
       </>
@@ -124,7 +130,7 @@ export function DayNoteSection({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="group flex w-full items-center justify-center rounded-lg transition-colors hover:bg-muted/20 min-h-[4.5rem] landscape:max-lg:min-h-0 landscape:max-lg:py-2 lg:min-h-[5rem]"
+          className="group flex w-full min-h-[4.5rem] items-center justify-center rounded-lg transition-colors hover:bg-muted/20 landscape:max-lg:min-h-0 landscape:max-lg:py-2 lg:min-h-[5rem]"
           aria-label={`Add note on ${dateKey}`}
         >
           <Plus className="h-5 w-5 shrink-0 text-muted-foreground/20 transition-colors group-hover:text-brand/40 landscape:max-lg:h-4 landscape:max-lg:w-4" />

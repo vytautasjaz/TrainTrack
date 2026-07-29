@@ -105,8 +105,8 @@ export function PwaProvider() {
 
   return (
     <div className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-[60] portrait:max-lg:block landscape:max-lg:bottom-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
-      <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card/95 p-3 shadow-[var(--shadow-float)] backdrop-blur-md">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand text-brand-foreground">
+      <div className="flex items-start gap-3 rounded-[6px] border border-border bg-card p-3 shadow-none">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] bg-foreground text-background">
           <Zap className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
@@ -123,11 +123,11 @@ export function PwaProvider() {
           )}
           <div className="mt-2 flex gap-2">
             {!clientPwa.ios && installEvent ? (
-              <Button type="button" size="sm" variant="secondary" className="h-8 rounded-xl" onClick={install}>
+              <Button type="button" size="sm" variant="secondary" className="h-8 rounded-[6px]" onClick={install}>
                 Install
               </Button>
             ) : null}
-            <Button type="button" size="sm" variant="ghost" className="h-8 rounded-xl" onClick={dismiss}>
+            <Button type="button" size="sm" variant="ghost" className="h-8 rounded-[6px]" onClick={dismiss}>
               Not now
             </Button>
           </div>

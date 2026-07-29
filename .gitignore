@@ -26,4 +26,6 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+public/uploads/avatars/*
+!public/uploads/avatars/.gitkeep
+

@@ -1,7 +1,10 @@
 'use client'
 
-import { useEffect, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { FormField } from '@/components/ui/form-field'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -12,6 +15,7 @@ import {
 import { saveRecoveryDay } from '@/app/actions/workout-builder'
 import { deleteWorkout } from '@/app/actions/workouts'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import { useCurrentPath } from '@/hooks/use-current-path'
 
 type RecoveryDayModalProps = {
   open: boolean
@@ -21,12 +25,10 @@ type RecoveryDayModalProps = {
 }
 
 export function RecoveryDayModal({ open, onOpenChange, date, workout }: RecoveryDayModalProps) {
+  const currentPath = useCurrentPath()
   const [isPending, startTransition] = useTransition()
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const isEdit = Boolean(workout)
-
-  useEffect(() => {
-    if (!open) return
-  }, [open])
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -44,63 +46,74 @@ export function RecoveryDayModal({ open, onOpenChange, date, workout }: Recovery
 
   function handleRemove() {
     if (!workout) return
-    if (!confirm('Remove recovery day from the plan?')) return
     startTransition(async () => {
       const fd = new FormData()
       fd.set('workoutId', workout.id)
+      fd.set('redirectTo', currentPath)
       await deleteWorkout(fd)
+      setConfirmOpen(false)
       onOpenChange(false)
     })
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit recovery day' : 'Mark recovery day'}</DialogTitle>
-          <DialogDescription>{date}</DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{isEdit ? 'Edit recovery day' : 'Mark recovery day'}</DialogTitle>
+            <DialogDescription>{date}</DialogDescription>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <label className="block text-sm">
-            <span className="text-muted-foreground">Coach comment</span>
-            <textarea
-              key={workout?.id ?? 'new'}
-              name="coachNotes"
-              defaultValue={workout?.coachNotes ?? ''}
-              rows={4}
-              autoFocus
-              placeholder="Optional guidance for the athlete (e.g. easy spin, foam roll, full rest)"
-              className="input-field mt-1"
-            />
-          </label>
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <FormField label="Coach comment">
+              <Textarea
+                key={workout?.id ?? 'new'}
+                name="coachNotes"
+                defaultValue={workout?.coachNotes ?? ''}
+                rows={4}
+                autoFocus
+                placeholder="Optional guidance for the athlete (e.g. easy spin, foam roll, full rest)"
+              />
+            </FormField>
 
-          <div className="flex items-center justify-between gap-2 pt-1">
-            {isEdit ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                disabled={isPending}
-                onClick={handleRemove}
-              >
-                Remove
-              </Button>
-            ) : (
-              <span />
-            )}
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
-                {isPending ? 'Saving…' : isEdit ? 'Save' : 'Mark recovery day'}
-              </Button>
+            <div className="flex items-center justify-between gap-2 pt-1">
+              {isEdit ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  disabled={isPending}
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  Remove
+                </Button>
+              ) : (
+                <span />
+              )}
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
+                  {isPending ? 'Saving…' : isEdit ? 'Save' : 'Mark recovery day'}
+                </Button>
+              </div>
             </div>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="Remove recovery day?"
+        description="This recovery day will be removed from the plan."
+        confirmLabel="Remove"
+        pending={isPending}
+        onConfirm={handleRemove}
+      />
+    </>
   )
 }

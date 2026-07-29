@@ -3,6 +3,7 @@
 import type { WorkoutHistoryItem } from '@/lib/workout-history'
 import { HistoryWorkoutCard } from '@/components/history/history-workout-card'
 import { cn } from '@/lib/utils'
+import { WORKOUT_DAY_CARD_CLASS } from '@/lib/workout-display'
 
 type HistoryDay = {
   dateKey: string
@@ -40,7 +41,7 @@ export function HistoryWeekView({ days, byDate, isCoach }: HistoryWeekViewProps)
             <section
               key={day.dateKey}
               className={cn(
-                'rounded-2xl border border-border/70 bg-card shadow-[var(--shadow-card)]',
+                WORKOUT_DAY_CARD_CLASS,
                 day.isToday && 'ring-1 ring-brand/25',
               )}
             >
@@ -64,7 +65,7 @@ export function HistoryWeekView({ days, byDate, isCoach }: HistoryWeekViewProps)
       </div>
 
       {/* Landscape + desktop: full week table */}
-      <div className="hidden w-full overflow-hidden rounded-xl border border-border/80 bg-card shadow-[var(--shadow-card)] landscape:max-lg:block lg:block">
+      <div className="hidden w-full overflow-hidden rounded-[6px] border border-border bg-card shadow-none landscape:max-lg:block lg:block">
         <table className="w-full table-fixed border-collapse text-left">
           <thead>
             <tr className="border-b border-border/80 bg-muted/40">

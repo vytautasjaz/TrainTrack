@@ -2,6 +2,9 @@
 
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
+import { Caption } from '@/components/ui/typography'
+import { FormField, FormMessage } from '@/components/ui/form-field'
+import { Input } from '@/components/ui/input'
 import {
   formatPaceMinPerKm,
   PACE_ZONE_FIELDS,
@@ -35,27 +38,25 @@ export function PaceZonesForm({ preferences }: PaceZonesFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <Caption>
         Enter your target paces in min/km (e.g. 5:30). These can later be used to estimate workout
         duration from distance.
-      </p>
+      </Caption>
       <div className="grid gap-3 sm:grid-cols-2">
         {PACE_ZONE_FIELDS.map(({ key, name, label }) => (
-          <label key={key} className="block space-y-1">
-            <span className="text-xs font-medium text-muted-foreground">{label}</span>
-            <input
+          <FormField key={key} label={label}>
+            <Input
               name={name}
               type="text"
               inputMode="decimal"
               placeholder="5:30"
               defaultValue={formatPaceMinPerKm(preferences[key])}
-              className="input-field"
             />
-          </label>
+          </FormField>
         ))}
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {saved && !error && <p className="text-sm text-green-600">Paces saved.</p>}
+      {error && <FormMessage variant="error">{error}</FormMessage>}
+      {saved && !error && <FormMessage variant="success">Paces saved.</FormMessage>}
       <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
         {isPending ? 'Saving…' : 'Save paces'}
       </Button>

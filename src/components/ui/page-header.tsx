@@ -1,3 +1,5 @@
+import { PageTitle, Caption } from '@/components/ui/typography'
+
 type PageHeaderProps = {
   title: string
   description?: string
@@ -6,17 +8,15 @@ type PageHeaderProps = {
 
 export function PageHeader({ title, description, action }: PageHeaderProps) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3 landscape:max-lg:gap-1.5">
+    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 lg:items-end lg:gap-3 lg:pt-4 landscape:max-lg:gap-1.5">
       <div className="min-w-0">
-        <h1 className="text-2xl font-bold tracking-tight landscape:max-lg:text-lg">{title}</h1>
+        <PageTitle>{title}</PageTitle>
         {description && (
-          <p className="mt-1 text-sm text-muted-foreground landscape:max-lg:mt-0 landscape:max-lg:text-xs">
-            {description}
-          </p>
+          <Caption className="mt-1 landscape:max-lg:mt-0">{description}</Caption>
         )}
       </div>
       {action && (
-        <div className="flex max-w-full flex-wrap items-center justify-end gap-1 landscape:max-lg:gap-0.5">
+        <div className="flex min-w-0 items-center justify-end">
           {action}
         </div>
       )}

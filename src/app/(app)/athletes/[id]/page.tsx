@@ -1,24 +1,16 @@
 import { notFound, redirect } from 'next/navigation'
 import { Flag, Route, Timer, TrendingUp } from 'lucide-react'
 import { getSession } from '@/lib/session'
-import {
-  getAthleteDashboard,
-  getAthleteForCoach,
-  getProgressStats,
-} from '@/lib/queries'
+import { getAthleteDashboard, getAthleteForCoach, getProgressStats } from '@/lib/queries'
 import { pickAthletePreferences } from '@/lib/athlete-preferences'
-import {
-  athleteStatusBadgeClass,
-  athleteStatusLabel,
-} from '@/lib/athlete-status'
 import { PageHeader } from '@/components/ui/page-header'
-import { Badge } from '@/components/ui/badge'
 import { BackButton } from '@/components/ui/back-button'
 import { StatCard } from '@/components/ui/stat-card'
 import { CoachAthleteProfileActions } from '@/components/coach/coach-athlete-profile-actions'
+import { AthleteStatusPill } from '@/components/coach/athlete-status-pill'
 import { AthleteRacesSection } from '@/components/coach/athlete-races-section'
 import { ProgressStatsView } from '@/components/progress/progress-stats-view'
-import { daysUntil, formatDistance, formatDuration, percent, cn } from '@/lib/utils'
+import { daysUntil, formatDistance, formatDuration, percent } from '@/lib/utils'
 
 type AthleteProfilePageProps = {
   params: Promise<{ id: string }>
@@ -60,9 +52,7 @@ export default async function AthleteProfilePage({ params }: AthleteProfilePageP
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <Badge className={cn(athleteStatusBadgeClass(athlete.status))}>
-          {athleteStatusLabel(athlete.status)}
-        </Badge>
+        <AthleteStatusPill athleteId={athlete.id} status={athlete.status} />
         <BackButton />
       </div>
 

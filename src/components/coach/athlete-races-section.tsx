@@ -30,9 +30,9 @@ export function AthleteRacesSection({ athleteId, races }: AthleteRacesSectionPro
       </div>
 
       {featured && (
-        <div className="overflow-hidden rounded-3xl bg-gradient-to-br from-brand to-brand/80 text-brand-foreground shadow-[var(--shadow-float)]">
+        <div className="overflow-hidden rounded-[6px] border border-border bg-foreground text-background shadow-none">
           <div className="p-6">
-            <Badge className="bg-white/20 text-white">Next race</Badge>
+            <Badge className="rounded-[6px] border-0 bg-white/15 text-white">Next race</Badge>
             <h3 className="mt-3 text-xl font-bold">{featured.name}</h3>
             <p className="mt-1 text-4xl font-bold tabular-nums">{daysUntil(featured.date)}</p>
             <p className="text-sm opacity-90">days remaining</p>
@@ -53,16 +53,17 @@ export function AthleteRacesSection({ athleteId, races }: AthleteRacesSectionPro
               )}
             </div>
             {featured.goal && (
-              <p className="mt-3 rounded-2xl bg-white/15 px-4 py-2 text-sm">Goal: {featured.goal}</p>
+              <p className="mt-3 rounded-[6px] bg-white/10 px-4 py-2 text-sm">Goal: {featured.goal}</p>
             )}
           </div>
-          <div className="border-t border-white/20 bg-black/10 px-6 py-3">
+          <div className="border-t border-white/15 bg-black/20 px-6 py-3">
             <ItemActions
               editHref={`/races/${featured.id}/edit?returnTo=${encodeURIComponent(profilePath)}`}
               deleteAction={deleteRace}
               deleteId={featured.id}
               deleteIdField="raceId"
-              deleteConfirmMessage={`Remove "${featured.name}"?`}
+              deleteConfirmTitle="Remove race?"
+              deleteConfirmMessage={`“${featured.name}” will be removed from the calendar.`}
             />
           </div>
         </div>
@@ -87,7 +88,8 @@ export function AthleteRacesSection({ athleteId, races }: AthleteRacesSectionPro
                   deleteAction={deleteRace}
                   deleteId={race.id}
                   deleteIdField="raceId"
-                  deleteConfirmMessage={`Remove "${race.name}"?`}
+                  deleteConfirmTitle="Remove race?"
+                  deleteConfirmMessage={`“${race.name}” will be removed from the calendar.`}
                 />
               </CardContent>
             </Card>
@@ -121,7 +123,8 @@ export function AthleteRacesSection({ athleteId, races }: AthleteRacesSectionPro
                   deleteAction={deleteRace}
                   deleteId={r.id}
                   deleteIdField="raceId"
-                  deleteConfirmMessage={`Remove "${r.name}"?`}
+                  deleteConfirmTitle="Remove race?"
+                  deleteConfirmMessage={`“${r.name}” will be removed from the calendar.`}
                 />
               </li>
             ))}

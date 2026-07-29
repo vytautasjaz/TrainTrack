@@ -16,6 +16,8 @@ type SportWeekTotalsLabelProps = {
 export function SportWeekTotalsLabel({ sport, totals, className }: SportWeekTotalsLabelProps) {
   const showDistance = sportUsesPlannedDistance(sport) && totals.distanceKm > 0
   const showDuration = totals.durationMin > 0
+  const hasActualDistance = totals.actualDistanceKm > 0
+  const hasActualDuration = totals.actualDurationMin > 0
 
   if (!showDistance && !showDuration) return null
 
@@ -24,13 +26,29 @@ export function SportWeekTotalsLabel({ sport, totals, className }: SportWeekTota
       {showDistance && (
         <div className="flex items-center gap-1 text-[9px] leading-none tabular-nums lg:text-[10px]">
           <Route className="h-2.5 w-2.5 shrink-0 opacity-60" strokeWidth={2.25} />
-          <span>{formatDistance(totals.distanceKm)}</span>
+          {hasActualDistance ? (
+            <>
+              <span className="font-semibold text-foreground">{formatDistance(totals.actualDistanceKm)}</span>
+              <span className="opacity-50">/</span>
+              <span>{formatDistance(totals.distanceKm)}</span>
+            </>
+          ) : (
+            <span>{formatDistance(totals.distanceKm)}</span>
+          )}
         </div>
       )}
       {showDuration && (
         <div className="flex items-center gap-1 text-[9px] leading-none tabular-nums lg:text-[10px]">
           <Clock className="h-2.5 w-2.5 shrink-0 opacity-60" strokeWidth={2.25} />
-          <span>{formatDuration(totals.durationMin)}</span>
+          {hasActualDuration ? (
+            <>
+              <span className="font-semibold text-foreground">{formatDuration(totals.actualDurationMin)}</span>
+              <span className="opacity-50">/</span>
+              <span>{formatDuration(totals.durationMin)}</span>
+            </>
+          ) : (
+            <span>{formatDuration(totals.durationMin)}</span>
+          )}
         </div>
       )}
     </div>

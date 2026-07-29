@@ -1,8 +1,10 @@
 'use client'
 
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 type ItemActionsProps = {
   editHref?: string
@@ -11,7 +13,9 @@ type ItemActionsProps = {
   deleteId: string
   deleteIdField?: string
   deleteConfirmMessage: string
+  deleteConfirmTitle?: string
   deleteLabel?: string
+  redirectTo?: string
   children?: React.ReactNode
 }
 
@@ -22,9 +26,25 @@ export function ItemActions({
   deleteId,
   deleteIdField = 'id',
   deleteConfirmMessage,
+  deleteConfirmTitle = 'Remove this item?',
   deleteLabel = 'Remove',
+  redirectTo,
   children,
 }: ItemActionsProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [pending, startTransition] = useTransition()
+
+  function handleConfirm() {
+    if (!deleteAction) return
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.set(deleteIdField, deleteId)
+      if (redirectTo) formData.set('redirectTo', redirectTo)
+      await deleteAction(formData)
+      setConfirmOpen(false)
+    })
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-0.5">
       {editHref && (
@@ -37,23 +57,28 @@ export function ItemActions({
       )}
       {children}
       {deleteAction && (
-        <form action={deleteAction}>
-          <input type="hidden" name={deleteIdField} value={deleteId} />
+        <>
           <Button
-            type="submit"
+            type="button"
             variant="ghost"
             size="xs"
-            className="text-destructive/80 hover:bg-destructive/10 hover:text-destructive"
-            onClick={(e) => {
-              if (!window.confirm(deleteConfirmMessage)) {
-                e.preventDefault()
-              }
-            }}
+            className="text-muted-foreground hover:text-foreground"
+            aria-label={deleteLabel}
+            onClick={() => setConfirmOpen(true)}
           >
-            <Trash2 className="h-3 w-3" />
-            {deleteLabel}
+            <Trash2 className="h-3.5 w-3.5" />
+            <span className="sr-only">{deleteLabel}</span>
           </Button>
-        </form>
+          <ConfirmDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            title={deleteConfirmTitle}
+            description={deleteConfirmMessage}
+            confirmLabel={deleteLabel}
+            pending={pending}
+            onConfirm={handleConfirm}
+          />
+        </>
       )}
     </div>
   )

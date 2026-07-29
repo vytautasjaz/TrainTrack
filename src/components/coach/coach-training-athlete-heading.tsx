@@ -1,8 +1,6 @@
 import Link from 'next/link'
 import type { AthleteStatus } from '@prisma/client'
-import { Badge } from '@/components/ui/badge'
-import { athleteStatusBadgeClass, athleteStatusLabel } from '@/lib/athlete-status'
-import { cn } from '@/lib/utils'
+import { AthleteStatusPill } from '@/components/coach/athlete-status-pill'
 
 type CoachTrainingAthleteHeadingProps = {
   athleteId: string
@@ -23,11 +21,7 @@ export function CoachTrainingAthleteHeading({
       >
         {name}
       </Link>
-      {status !== 'ACTIVE' && (
-        <Badge className={cn('text-xs', athleteStatusBadgeClass(status))}>
-          {athleteStatusLabel(status)}
-        </Badge>
-      )}
+      <AthleteStatusPill athleteId={athleteId} status={status} size="sm" />
     </div>
   )
 }

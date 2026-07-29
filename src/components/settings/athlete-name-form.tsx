@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
+import { FormField, FormMessage } from '@/components/ui/form-field'
+import { Input } from '@/components/ui/input'
 import { updateAthleteName } from '@/app/actions/preferences'
 
 type AthleteNameFormProps = {
@@ -30,19 +32,11 @@ export function AthleteNameForm({ name }: AthleteNameFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <label className="block space-y-1">
-        <span className="text-xs font-medium text-muted-foreground">Display name</span>
-        <input
-          name="name"
-          type="text"
-          required
-          maxLength={120}
-          defaultValue={name}
-          className="input-field"
-        />
-      </label>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {saved && !error && <p className="text-sm text-green-600">Name saved.</p>}
+      <FormField label="Display name">
+        <Input name="name" type="text" required maxLength={120} defaultValue={name} />
+      </FormField>
+      {error && <FormMessage variant="error">{error}</FormMessage>}
+      {saved && !error && <FormMessage variant="success">Name saved.</FormMessage>}
       <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
         {isPending ? 'Saving…' : 'Save name'}
       </Button>

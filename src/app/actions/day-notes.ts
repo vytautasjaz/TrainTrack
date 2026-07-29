@@ -35,15 +35,29 @@ async function resolveDayNoteAthleteId(formData: FormData) {
 export async function upsertDayNote(formData: FormData) {
   const athleteId = await resolveDayNoteAthleteId(formData)
   const date = formData.get('date') as string
-  const status = formData.get('status') as DayNoteStatus
+  const unavailable = formData.get('unavailable') === 'on'
   const notesRaw = (formData.get('notes') as string)?.trim()
   const notes = notesRaw || null
 
-  if (!date || !status) throw new Error('Date and status are required')
+  if (!date) throw new Error('Date is required')
+
+  const parsedDate = parseDateOnly(date)
+
+  if (!notes && !unavailable) {
+    await prisma.dayNote.deleteMany({
+      where: { athleteId, date: parsedDate },
+    })
+    revalidatePath('/training')
+    revalidatePath('/dashboard')
+    revalidatePath('/plan')
+    return
+  }
+
+  const status = unavailable ? DayNoteStatus.BUSY : DayNoteStatus.AVAILABLE
 
   await prisma.dayNote.upsert({
-    where: { athleteId_date: { athleteId, date: parseDateOnly(date) } },
-    create: { athleteId, date: parseDateOnly(date), status, notes },
+    where: { athleteId_date: { athleteId, date: parsedDate } },
+    create: { athleteId, date: parsedDate, status, notes },
     update: { status, notes },
   })
 

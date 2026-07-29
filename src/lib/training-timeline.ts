@@ -1,5 +1,5 @@
 import { WorkoutStatus } from '@prisma/client'
-import { format } from 'date-fns'
+import { format, subDays } from 'date-fns'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 
 export type DayPhase = 'past' | 'today' | 'upcoming'
@@ -30,6 +30,10 @@ export type TrainingWeekStats = {
 
 export function todayKey(): string {
   return format(new Date(), 'yyyy-MM-dd')
+}
+
+export function yesterdayKey(reference = new Date()): string {
+  return format(subDays(reference, 1), 'yyyy-MM-dd')
 }
 
 export function getDayPhase(dateKey: string, reference = todayKey()): DayPhase {

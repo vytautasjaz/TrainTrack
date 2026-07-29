@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { CardTitle as TypographyCardTitle } from '@/components/ui/typography'
 import * as React from 'react'
 
 export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
@@ -15,7 +16,7 @@ export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDiv
 }
 
 export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn('text-base font-semibold leading-none', className)} {...props} />
+  return <TypographyCardTitle className={className} {...props} />
 }
 
 export function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {

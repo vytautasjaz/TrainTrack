@@ -7,9 +7,21 @@ import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
 import { requireAthleteSession, requireSession, resolveAthleteId } from '@/lib/session'
 import { builderPayloadSchema } from '@/lib/workout-builder/schema'
-import { isSimpleSessionType } from '@/lib/workout-builder/session-modes'
-import { estimateDurationMinutes } from '@/lib/workout-builder/utils'
+import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-athlete-preferences'
+import {
+  estimateStructureDurationMinutes,
+  resolvePlannedWorkoutMetrics,
+} from '@/lib/workout-builder/segment-estimation'
+import { sportUsesPlannedDistance } from '@/lib/plan-week-totals'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
+import { RECOVERY_DAY_DEFAULT_NOTE } from '@/lib/recovery-day'
+import { hasStructureContent, parseStructure } from '@/lib/workout-builder/utils'
+import { usesSimpleWorkoutForm } from '@/lib/workout-builder/session-modes'
+import { withDerivedApproxTags } from '@/lib/workout-approx-tags'
+import {
+  parseWorkoutBuilderPrefs,
+  type WorkoutBuilderPrefs,
+} from '@/lib/workout-builder/workout-builder-prefs'
 
 function requireCoach() {
   return requireSession().then((session) => {
@@ -20,6 +32,7 @@ function requireCoach() {
 
 export type CreateWorkoutModalPayload = {
   title: string
+  description?: string
   sportType: WorkoutType
   sessionType: SessionType
   scheduledDate: string
@@ -28,6 +41,9 @@ export type CreateWorkoutModalPayload = {
   coachNotes?: string
   structure?: unknown
   templateId?: string
+  tags?: string[]
+  /** When false, missing duration/distance is not filled from pace/speed zones. */
+  allowPaceEstimate?: boolean
 }
 
 export type WorkoutTemplatePickerItem = {
@@ -61,6 +77,25 @@ export async function getCoachTemplatesForPicker(): Promise<WorkoutTemplatePicke
   })
 }
 
+export async function getAthletePreferencesForWorkoutModal() {
+  const session = await requireSession()
+  const athleteId =
+    session.role === 'ATHLETE'
+      ? (await requireAthleteSession()).athleteId
+      : await resolveAthleteId(session)
+  return loadAthletePreferencesForBuilder(athleteId)
+}
+
+export async function getWorkoutBuilderPrefsForModal(): Promise<WorkoutBuilderPrefs> {
+  const session = await requireSession()
+  if (session.role !== 'COACH') return {}
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { workoutBuilderPrefs: true },
+  })
+  return parseWorkoutBuilderPrefs(user?.workoutBuilderPrefs)
+}
+
 export type SaveRecoveryDayPayload = {
   date: string
   coachNotes?: string
@@ -74,10 +109,13 @@ export async function saveRecoveryDay(payload: SaveRecoveryDayPayload) {
 
   const date = parseDateOnly(payload.date)
 
+  const coachNotes =
+    payload.coachNotes?.trim() || RECOVERY_DAY_DEFAULT_NOTE
+
   if (payload.workoutId) {
     await prisma.workout.update({
       where: { id: payload.workoutId },
-      data: { coachNotes: payload.coachNotes ?? null },
+      data: { coachNotes },
     })
   } else {
     const existing = await prisma.workout.findFirst({
@@ -86,7 +124,7 @@ export async function saveRecoveryDay(payload: SaveRecoveryDayPayload) {
     if (existing) {
       await prisma.workout.update({
         where: { id: existing.id },
-        data: { coachNotes: payload.coachNotes ?? null },
+        data: { coachNotes },
       })
     } else {
       const sortOrder = await getNextWorkoutSortOrder(athleteId, date)
@@ -98,7 +136,7 @@ export async function saveRecoveryDay(payload: SaveRecoveryDayPayload) {
           type: WorkoutType.RECOVERY,
           sessionType: SessionType.RECOVERY_RUN,
           title: 'Recovery',
-          coachNotes: payload.coachNotes,
+          coachNotes,
         },
       })
     }
@@ -115,8 +153,28 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
 
   const scheduledDate = parseDateOnly(payload.scheduledDate)
   const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
+  const structure = parseStructure(payload.structure)
+  const hasIncludeItems = (structure.includeItems?.length ?? 0) > 0
+  const saveStructure = hasStructureContent(structure) || hasIncludeItems
+  const athletePreferences = await loadAthletePreferencesForBuilder(athleteId)
+  const metrics = resolvePlannedWorkoutMetrics({
+    plannedDistance: payload.plannedDistance,
+    plannedDuration: payload.plannedDuration,
+    structure: saveStructure ? structure : null,
+    preferences: athletePreferences,
+    sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
+    sessionType: payload.sessionType,
+    sportType: payload.sportType,
+    allowPaceEstimate: payload.allowPaceEstimate,
+  })
+  const tags = withDerivedApproxTags(payload.tags, {
+    hadDuration: Boolean(payload.plannedDuration),
+    hadDistance: Boolean(payload.plannedDistance),
+    resolvedDuration: metrics.plannedDuration,
+    resolvedDistance: metrics.plannedDistance,
+  })
 
-  if (isSimpleSessionType(payload.sessionType)) {
+  if (!saveStructure) {
     await prisma.workout.create({
       data: {
         athleteId,
@@ -126,21 +184,22 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
         type: payload.sportType,
         sessionType: payload.sessionType,
         title: payload.title,
-        plannedDistance: payload.plannedDistance,
-        plannedDuration: payload.plannedDuration,
+        description: payload.description?.trim() || null,
+        plannedDistance: metrics.plannedDistance ?? null,
+        plannedDuration: metrics.plannedDuration ?? null,
         coachNotes: payload.coachNotes,
+        tags,
       },
     })
   } else {
     const data = builderPayloadSchema.parse({
-      title: payload.title,
+      title: payload.title.trim() || ' ',
       sportType: payload.sportType,
       sessionType: payload.sessionType,
       scheduledDate: payload.scheduledDate,
-      tags: [],
+      tags,
       structure: payload.structure,
     })
-    const estimatedDuration = estimateDurationMinutes(data.structure)
     await prisma.workout.create({
       data: {
         athleteId,
@@ -149,17 +208,100 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
         sortOrder,
         type: data.sportType,
         sessionType: data.sessionType,
-        title: data.title,
-        plannedDuration: estimatedDuration || payload.plannedDuration || undefined,
-        plannedDistance: payload.plannedDistance,
+        title: payload.title,
+        description: payload.description?.trim() || null,
+        plannedDuration: metrics.plannedDuration ?? null,
+        plannedDistance: metrics.plannedDistance ?? null,
         coachNotes: data.structure.coachNotes ?? payload.coachNotes,
         structure: data.structure as Prisma.InputJsonValue,
+        tags: data.tags,
       },
     })
   }
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
+}
+
+export async function updateWorkoutFromModal(
+  payload: CreateWorkoutModalPayload & { workoutId: string },
+) {
+  const session = await requireCoach()
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete selected')
+
+  const existing = await prisma.workout.findFirst({
+    where: { id: payload.workoutId, athleteId },
+  })
+  if (!existing) throw new Error('Workout not found')
+
+  const scheduledDate = parseDateOnly(payload.scheduledDate)
+  const structure = parseStructure(payload.structure)
+  const hasIncludeItems = (structure.includeItems?.length ?? 0) > 0
+  const saveStructure = hasStructureContent(structure) || hasIncludeItems
+  const athletePreferences = await loadAthletePreferencesForBuilder(athleteId)
+  const metrics = resolvePlannedWorkoutMetrics({
+    plannedDistance: payload.plannedDistance,
+    plannedDuration: payload.plannedDuration,
+    structure: saveStructure ? structure : null,
+    preferences: athletePreferences,
+    sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
+    sessionType: payload.sessionType,
+    sportType: payload.sportType,
+    allowPaceEstimate: payload.allowPaceEstimate,
+  })
+  const tags = withDerivedApproxTags(payload.tags, {
+    hadDuration: Boolean(payload.plannedDuration),
+    hadDistance: Boolean(payload.plannedDistance),
+    resolvedDuration: metrics.plannedDuration,
+    resolvedDistance: metrics.plannedDistance,
+  })
+
+  if (!saveStructure) {
+    await prisma.workout.update({
+      where: { id: payload.workoutId },
+      data: {
+        date: scheduledDate,
+        type: payload.sportType,
+        sessionType: payload.sessionType,
+        title: payload.title,
+        description: payload.description?.trim() || null,
+        plannedDistance: metrics.plannedDistance ?? null,
+        plannedDuration: metrics.plannedDuration ?? null,
+        coachNotes: payload.coachNotes,
+        structure: Prisma.DbNull,
+        tags,
+      },
+    })
+  } else {
+    const data = builderPayloadSchema.parse({
+      title: payload.title.trim() || ' ',
+      sportType: payload.sportType,
+      sessionType: payload.sessionType,
+      scheduledDate: payload.scheduledDate,
+      tags,
+      structure: payload.structure,
+    })
+    await prisma.workout.update({
+      where: { id: payload.workoutId },
+      data: {
+        date: scheduledDate,
+        type: data.sportType,
+        sessionType: data.sessionType,
+        title: payload.title,
+        description: payload.description?.trim() || null,
+        plannedDuration: metrics.plannedDuration ?? null,
+        plannedDistance: metrics.plannedDistance ?? null,
+        coachNotes: data.structure.coachNotes ?? payload.coachNotes,
+        structure: data.structure as Prisma.InputJsonValue,
+        tags: data.tags,
+      },
+    })
+  }
+
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
+  revalidatePath(`/workouts/${payload.workoutId}`)
 }
 
 const ATHLETE_ADD_SPORT_TYPES: WorkoutType[] = [
@@ -174,7 +316,9 @@ const ATHLETE_ADD_SPORT_TYPES: WorkoutType[] = [
 export type AthleteCreateWorkoutPayload = Pick<
   CreateWorkoutModalPayload,
   'title' | 'sportType' | 'sessionType' | 'scheduledDate' | 'plannedDistance' | 'plannedDuration'
->
+> & {
+  description?: string
+}
 
 export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkoutPayload) {
   const session = await requireAthleteSession()
@@ -182,12 +326,25 @@ export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkou
   if (!ATHLETE_ADD_SPORT_TYPES.includes(payload.sportType)) {
     throw new Error('Invalid sport type')
   }
-  if (!isSimpleSessionType(payload.sessionType)) {
+  if (!usesSimpleWorkoutForm(payload.sessionType, payload.sportType)) {
     throw new Error('Athletes can only add simple workouts')
+  }
+  if (!payload.description?.trim()) {
+    throw new Error('Description is required')
   }
 
   const scheduledDate = parseDateOnly(payload.scheduledDate)
   const sortOrder = await getNextWorkoutSortOrder(session.athleteId, scheduledDate)
+  const athletePreferences = await loadAthletePreferencesForBuilder(session.athleteId)
+  const metrics = resolvePlannedWorkoutMetrics({
+    plannedDistance: payload.plannedDistance,
+    plannedDuration: payload.plannedDuration,
+    structure: null,
+    preferences: athletePreferences,
+    sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
+    sessionType: payload.sessionType,
+    sportType: payload.sportType,
+  })
 
   await prisma.workout.create({
     data: {
@@ -197,8 +354,9 @@ export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkou
       type: payload.sportType,
       sessionType: payload.sessionType,
       title: payload.title,
-      plannedDistance: payload.plannedDistance,
-      plannedDuration: payload.plannedDuration,
+      description: payload.description?.trim() || undefined,
+      plannedDistance: metrics.plannedDistance,
+      plannedDuration: metrics.plannedDuration,
       selfLogged: true,
     },
   })
@@ -215,7 +373,10 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
   const data = builderPayloadSchema.parse(payload)
   if (!data.scheduledDate) throw new Error('Scheduled date is required')
 
-  const estimatedDuration = data.estimatedDuration ?? estimateDurationMinutes(data.structure)
+  const athletePreferences = await loadAthletePreferencesForBuilder(athleteId)
+  const estimatedDuration =
+    data.estimatedDuration ??
+    estimateStructureDurationMinutes(data.structure, athletePreferences, data.sportType)
   const structure = data.structure as Prisma.InputJsonValue
 
   if (workoutId) {
@@ -268,7 +429,9 @@ export async function saveTemplateBuilder(payload: unknown, templateId?: string)
   const session = await requireCoach()
 
   const parsed = builderPayloadSchema.omit({ scheduledDate: true }).parse(payload)
-  const estimatedDuration = parsed.estimatedDuration ?? estimateDurationMinutes(parsed.structure)
+  const estimatedDuration =
+    parsed.estimatedDuration ??
+    estimateStructureDurationMinutes(parsed.structure, undefined, parsed.sportType)
   const structure = parsed.structure as Prisma.InputJsonValue
 
   if (templateId) {

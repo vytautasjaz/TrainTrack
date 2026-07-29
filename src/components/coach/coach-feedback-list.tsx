@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react'
 import { MessageSquare, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FormField } from '@/components/ui/form-field'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog,
   DialogContent,
@@ -123,17 +125,15 @@ function CoachFeedbackCard({ item }: { item: CoachFeedbackItem }) {
             <blockquote className="rounded-xl bg-muted/50 px-3 py-2 text-sm italic text-muted-foreground">
               &ldquo;{item.athleteNotes}&rdquo;
             </blockquote>
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Your reply</span>
-              <textarea
+            <FormField label="Your reply">
+              <Textarea
                 name="coachReply"
                 required
                 rows={4}
                 autoFocus
                 placeholder="Write a response…"
-                className="input-field"
               />
-            </label>
+            </FormField>
             {error && <p className="text-sm text-destructive">{error}</p>}
             <div className="flex justify-end gap-2">
               <Button type="button" variant="ghost" size="sm" onClick={() => setReplyOpen(false)}>

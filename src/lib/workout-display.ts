@@ -22,6 +22,11 @@ export const PLAN_TABLE_CELL_HOVER_CLASS =
 /** Marker class for workout rows inside week table cells */
 export const PLAN_WORKOUT_ITEM_CLASS = 'plan-workout-item'
 
+/** Borderless workout list item surfaces */
+export const WORKOUT_CARD_CLASS = 'workout-card-interactive'
+export const WORKOUT_CARD_MUTED_CLASS = 'workout-card-muted'
+export const WORKOUT_DAY_CARD_CLASS = 'workout-day-card'
+
 export const WORKOUT_TYPE_ICONS: Record<WorkoutType, LucideIcon> = {
   RUN: Footprints,
   BIKE: Bike,

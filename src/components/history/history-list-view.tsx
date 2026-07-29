@@ -42,7 +42,7 @@ export function HistoryListView({ days, byDate, isCoach }: HistoryListViewProps)
                 'flex min-w-[3.25rem] shrink-0 flex-col items-center rounded-2xl px-2 py-2 transition',
                 day.isToday
                   ? 'bg-brand text-brand-foreground shadow-sm'
-                  : 'bg-card shadow-[var(--shadow-card)]',
+                  : 'border border-border bg-card',
               )}
             >
               <p

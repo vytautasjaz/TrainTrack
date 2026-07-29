@@ -16,7 +16,20 @@ export function todayDateOnly(): Date {
   return parseDateOnly(todayDateKey())
 }
 
+/** Add calendar days to a UTC date-only value (PostgreSQL DATE safe). */
+export function addDateOnlyDays(date: Date, days: number): Date {
+  const next = new Date(date.getTime())
+  next.setUTCDate(next.getUTCDate() + days)
+  return next
+}
+
 /** Stable YYYY-MM-DD key for a DB date field returned by Prisma. */
 export function toDateKey(date: Date): string {
   return date.toISOString().slice(0, 10)
+}
+
+/** Human-readable label for a YYYY-MM-DD date key. */
+export function formatDateKey(dateKey: string): string {
+  const [y, m, d] = dateKey.split('-').map(Number)
+  return format(new Date(y, m - 1, d), 'EEE, MMM d')
 }

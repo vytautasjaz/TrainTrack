@@ -3,29 +3,22 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
-import { Button } from '@/components/ui/button'
-import { AddWorkoutModal } from '@/components/plan/add-workout-modal'
+import { WorkoutEditorDialog } from '@/components/workout-editor/workout-editor-dialog'
 import { DraggableWorkoutItem } from '@/components/plan/draggable-workout-item'
 import { RacePlanItem } from '@/components/plan/race-plan-item'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
+import {
+  AthleteWorkoutQuickActions,
+  useOptimisticWorkoutStatus,
+} from '@/components/plan/athlete-workout-quick-actions'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import { WorkoutPlanMeta } from '@/components/plan/workout-plan-meta'
-import { AthleteAddedBadge } from '@/components/plan/athlete-added-badge'
-import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
+import { athleteHasQuickLogActions, type PlanWorkoutDetail } from '@/lib/plan-workout'
+import { PlanWorkoutDataCard } from '@/components/plan/plan-workout-data-card'
 import {
   PLAN_WORKOUT_ITEM_CLASS,
-  RACE_PLAN_DOT_CLASS,
 } from '@/lib/workout-display'
 import { cn } from '@/lib/utils'
-
-function planItemDot(workout: PlanWorkoutDetail) {
-  if (workout.isRace) return RACE_PLAN_DOT_CLASS
-  if (workout.status === 'COMPLETED') return 'bg-green-500'
-  if (workout.status === 'SKIPPED') return 'bg-red-400'
-  return 'bg-muted-foreground/40'
-}
 
 function AthleteWorkoutItem({
   workout,
@@ -34,31 +27,47 @@ function AthleteWorkoutItem({
   workout: PlanWorkoutDetail
   tableCell?: boolean
 }) {
+  const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout)
+  const showQuickActions = athleteHasQuickLogActions(workout, false)
+
   if (workout.isRace) {
     return <RacePlanItem workout={workout} isCoach={false} compact tableCell={tableCell} />
   }
 
   return (
-    <WorkoutModalTrigger
-      workout={workout}
-      isCoach={false}
-      className={cn(
-        'group flex w-full items-start gap-1.5 rounded-md px-1 py-0.5',
-        tableCell ? PLAN_WORKOUT_ITEM_CLASS : 'hover:bg-muted/40',
-      )}
-    >
-      <span className={cn('mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full', planItemDot(workout))} />
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-1">
-          <p className="min-w-0 truncate text-xs font-medium leading-snug group-hover:text-brand">{workout.title}</p>
-          <StravaSyncedIndicator workout={workout} variant="icon" />
-        </div>
-        {workout.selfLogged && workout.status !== 'COMPLETED' && (
-          <AthleteAddedBadge className="mt-0.5" />
+    <div className="group/card relative w-full min-w-0">
+      <WorkoutModalTrigger
+        workout={workout}
+        isCoach={false}
+        className={cn(
+          'block w-full min-w-0',
+          tableCell ? PLAN_WORKOUT_ITEM_CLASS : undefined,
         )}
-        <WorkoutPlanMeta workout={workout} />
-      </div>
-    </WorkoutModalTrigger>
+      >
+        <PlanWorkoutDataCard
+          workout={workout}
+          density="week"
+          status={status}
+          hideCompletedBadge={showQuickActions}
+          actions={
+            showQuickActions ? (
+              <span className="inline-block w-[2.75rem]" aria-hidden />
+            ) : null
+          }
+        />
+      </WorkoutModalTrigger>
+      {showQuickActions ? (
+        <div className="absolute right-1 top-1 z-10 opacity-60 transition group-hover/card:opacity-100">
+          <AthleteWorkoutQuickActions
+            workout={workout}
+            isCoach={false}
+            size="xs"
+            displayStatus={status}
+            onDisplayStatusChange={setOptimisticStatus}
+          />
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -85,24 +94,36 @@ export function AddWorkoutCell({
   const sportLabel = WORKOUT_TYPE_LABELS[sport]
   const hasWorkouts = workouts.length > 0
 
-  const canDrop =
+  const canDropPlan =
     dragEnabled &&
-    dnd?.dragWorkout &&
-    dnd.dragWorkout.sport === sport &&
-    dnd.dragWorkout.dateKey !== date
+    dnd?.dragItem?.kind === 'plan' &&
+    dnd.dragItem.sport === sport &&
+    dnd.dragItem.dateKey !== date
+
+  const canDropTemplate =
+    dragEnabled &&
+    dnd?.dragItem?.kind === 'template' &&
+    dnd.dragItem.sport === sport
+
+  const canDrop = Boolean(canDropPlan || canDropTemplate)
+  const isDraggingSomething = Boolean(dnd?.dragItem)
 
   function handleDragOver(e: React.DragEvent) {
     if (!canDrop) return
     e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
+    e.dataTransfer.dropEffect = canDropTemplate ? 'copy' : 'move'
     setIsOver(true)
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     setIsOver(false)
-    if (!canDrop || !dnd?.dragWorkout) return
-    dnd.moveWorkoutToCell(dnd.dragWorkout.id, date)
+    if (!canDrop || !dnd?.dragItem) return
+    if (dnd.dragItem.kind === 'plan') {
+      dnd.moveWorkoutToCell(dnd.dragItem.id, date)
+      return
+    }
+    dnd.scheduleTemplateToCell(dnd.dragItem.templateId, date)
   }
 
   const tableCell = layout === 'table'
@@ -110,10 +131,10 @@ export function AddWorkoutCell({
   const cellClass = cn(
     'flex w-full flex-col rounded-lg transition-colors',
     tableCell
-      ? 'h-full min-h-[5rem] px-1 py-2 landscape:max-lg:min-h-0 landscape:max-lg:px-0.5 landscape:max-lg:py-0.5 lg:min-h-[5rem]'
+      ? 'min-h-[5rem] px-1 py-2 landscape:max-lg:min-h-0 landscape:max-lg:px-0.5 landscape:max-lg:py-0.5 lg:min-h-[5rem]'
       : 'min-h-[4rem] px-1 py-2',
     canDrop && isOver && 'bg-brand/10 ring-2 ring-inset ring-brand/30',
-    canDrop && !isOver && dnd?.dragWorkout && 'ring-1 ring-inset ring-brand/15',
+    canDrop && !isOver && isDraggingSomething && 'ring-1 ring-inset ring-brand/15',
   )
 
   if (hasWorkouts) {
@@ -138,21 +159,6 @@ export function AddWorkoutCell({
             ),
           )}
         </div>
-        {isCoach && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            className="mt-1.5 w-fit text-muted-foreground/60 hover:text-brand"
-            onClick={() => setOpen(true)}
-          >
-            <Plus className="h-3 w-3" />
-            Add
-          </Button>
-        )}
-        {isCoach && (
-          <AddWorkoutModal open={open} onOpenChange={setOpen} date={date} sport={sport} />
-        )}
       </div>
     )
   }
@@ -169,15 +175,17 @@ export function AddWorkoutCell({
         onDrop={handleDrop}
         className={cn(
           'group flex w-full items-center justify-center rounded-lg transition-colors hover:bg-muted/20',
-          layout === 'table' ? 'min-h-[4.5rem]' : 'min-h-[3.5rem]',
+          layout === 'table'
+            ? 'h-full min-h-[4.5rem] landscape:max-lg:min-h-[2.5rem] landscape:max-lg:py-2 lg:min-h-[5rem]'
+            : 'min-h-[3.5rem]',
           canDrop && isOver && 'bg-brand/10 ring-2 ring-inset ring-brand/30',
-          canDrop && !isOver && dnd?.dragWorkout && 'ring-1 ring-inset ring-brand/15',
+          canDrop && !isOver && isDraggingSomething && 'ring-1 ring-inset ring-brand/15',
         )}
         aria-label={`Add ${sportLabel} workout on ${date}`}
       >
         <Plus className="h-5 w-5 shrink-0 text-muted-foreground/20 transition-colors group-hover:text-brand/40" />
       </button>
-      <AddWorkoutModal open={open} onOpenChange={setOpen} date={date} sport={sport} />
+      <WorkoutEditorDialog open={open} onOpenChange={setOpen} date={date} sport={sport} />
     </>
   )
 }

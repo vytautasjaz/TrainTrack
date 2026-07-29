@@ -7,6 +7,7 @@ export type BlockType =
   | 'FREE_TEXT'
   | 'RECOVERY'
   | 'REST'
+  | 'PROGRESSIVE'
 
 export type DurationMode = 'time' | 'distance'
 
@@ -24,6 +25,10 @@ export type TargetType =
 
 export type WorkoutSection = 'warmup' | 'mainSet' | 'cooldown'
 
+export type IncludePlacementHint = 'anywhere' | 'before_main' | 'inside_main' | 'after_main'
+
+export type WorkoutIncludeKind = 'strides' | 'drill' | 'hill_sprint' | 'pickup' | 'custom'
+
 export type Segment = {
   mode: DurationMode
   value: number
@@ -38,10 +43,19 @@ export type Target = {
   value?: string
 }
 
+/** Step interval for progressive ramps (e.g. every 1 km or every 5 min). */
+export type ProgressiveStepEvery = {
+  mode: DurationMode
+  value: number
+  unit: SegmentUnit
+}
+
 export type WorkoutBlock = {
   id: string
   order: number
   type: BlockType
+  /** Display title; overrides inferred smart labels when set. */
+  name?: string
   repetitions?: number
   work?: Segment
   recovery?: Segment
@@ -50,8 +64,25 @@ export type WorkoutBlock = {
   distance?: number
   distanceUnit?: 'km' | 'm'
   targets?: Target[]
+  /** Progressive ramp: start intensity (lower). */
+  startIntensity?: Target
+  /** Progressive ramp: end intensity (higher). */
+  endIntensity?: Target
+  /** Progressive ramp: increase intensity every this distance/time. */
+  stepEvery?: ProgressiveStepEvery
   notes?: string
   text?: string
+}
+
+export type WorkoutIncludeItem = {
+  id: string
+  title: string
+  kind: WorkoutIncludeKind
+  repetitions: number
+  work: Segment
+  recovery?: Segment
+  notes?: string
+  placementHint?: IncludePlacementHint
 }
 
 export type WorkoutStructure = {
@@ -59,6 +90,7 @@ export type WorkoutStructure = {
   mainSet: WorkoutBlock[]
   cooldown: WorkoutBlock[]
   coachNotes?: string
+  includeItems?: WorkoutIncludeItem[]
 }
 
 export type BuilderWorkout = {
@@ -80,6 +112,7 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   FREE_TEXT: 'Free text',
   RECOVERY: 'Recovery',
   REST: 'Rest',
+  PROGRESSIVE: 'Progressive',
 }
 
 export const TARGET_TYPE_LABELS: Record<TargetType, string> = {

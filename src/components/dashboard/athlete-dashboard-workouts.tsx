@@ -6,7 +6,8 @@ import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import { TrainingWorkoutCard } from '@/components/training/training-workout-card'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import { formatDistance, formatDuration } from '@/lib/utils'
+import { formatDistance, formatDuration, cn } from '@/lib/utils'
+import { WORKOUT_DAY_CARD_CLASS } from '@/lib/workout-display'
 import { parseDateOnly } from '@/lib/dates'
 
 type AthleteDashboardWorkoutsProps = {
@@ -50,7 +51,7 @@ export function AthleteDashboardWorkouts({
           action={
             <Link
               href="/training"
-              className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-brand"
+              className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
             >
               View plan
               <ChevronRight className="h-3.5 w-3.5" />
@@ -63,22 +64,28 @@ export function AthleteDashboardWorkouts({
               <p className="text-sm text-muted-foreground">Rest day — nothing scheduled.</p>
             </div>
           ) : (
-            todayWorkouts.map((workout) => (
-              <TrainingWorkoutCard key={workout.id} workout={workout} isCoach={false} />
-            ))
+            <div className={cn(WORKOUT_DAY_CARD_CLASS, 'space-y-2 p-3')}>
+              {todayWorkouts.map((workout) => (
+                <TrainingWorkoutCard
+                  key={workout.id}
+                  workout={workout}
+                  isCoach={false}
+                />
+              ))}
+            </div>
           )}
         </div>
       </section>
 
       <section>
         <SectionHeader title="Upcoming" />
-        <div className="space-y-2">
+        <div className={cn(WORKOUT_DAY_CARD_CLASS, 'divide-y divide-border/40')}>
           {upcomingWorkouts.map((workout) => (
             <WorkoutModalTrigger
               key={workout.id}
               workout={workout}
               isCoach={false}
-              className="flex w-full items-center gap-3 rounded-2xl border border-border/40 bg-muted/30 px-3 py-3 text-left transition hover:bg-muted/50"
+              className="flex w-full items-center gap-3 px-3 py-3 text-left"
             >
               <WorkoutSportIcon type={workout.type} isRace={workout.isRace} size="sm" />
               <div className="min-w-0 flex-1">

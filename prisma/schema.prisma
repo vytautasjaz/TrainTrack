@@ -29,6 +29,13 @@ enum WorkoutStatus {
   SKIPPED
 }
 
+enum AthleteLogType {
+  COMPLETED
+  SKIPPED
+  ADJUSTED
+  RESCHEDULED
+}
+
 enum SessionType {
   EASY_RUN
   RECOVERY_RUN
@@ -56,6 +63,24 @@ enum RaceType {
   OTHER
 }
 
+enum RacePriority {
+  A
+  B
+  C
+}
+
+enum RaceIntent {
+  PLANNED
+  WATCHING
+}
+
+enum RaceOutcome {
+  FINISHED
+  DID_NOT_START
+  DNF
+  DISMISSED
+}
+
 enum DayNoteStatus {
   NEEDS_COACH
   AVAILABLE
@@ -69,11 +94,20 @@ enum AthleteStatus {
   ARCHIVED
 }
 
+enum SwimEnvironment {
+  POOL
+  OPEN_WATER
+}
+
 model User {
   id        String   @id @default(cuid())
   name      String
   email     String   @unique
   role      UserRole
+  /** Coach: warn on dashboard when an active athlete has no plan this many days ahead. */
+  planningLeadDays Int @default(3)
+  /** Coach: workout builder add-block presets (order, labels, seeds) per sport. */
+  workoutBuilderPrefs Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -92,6 +126,8 @@ model StravaConnection {
   expiresAt       DateTime
   scope           String
   lastSyncedAt    DateTime?
+  /** When true, app load / login may auto-sync (debounced). Manual sync always available. */
+  autoSyncEnabled Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -104,6 +140,7 @@ model Athlete {
   userId    String?       @unique
   name      String
   status    AthleteStatus @default(ACTIVE)
+  avatarUrl String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
@@ -113,6 +150,18 @@ model Athlete {
   paceTempoMinPerKm       Float?
   paceThresholdMinPerKm   Float?
   paceVo2MaxMinPerKm      Float?
+
+  // Bike speed zones (km/h)
+  bikeSpeedRecoveryKph    Float?
+  bikeSpeedEasyKph        Float?
+  bikeSpeedTempoKph       Float?
+  bikeSpeedThresholdKph   Float?
+  bikeSpeedVo2MaxKph      Float?
+  /** Functional Threshold Power (watts) for %FTP targets. */
+  bikeFtpWatts            Int?
+
+  // Critical swim speed (seconds per 100m, e.g. 95 = 1:35/100)
+  swimCssSecPer100m       Float?
 
   // Heart rate zones (bpm)
   hrMax       Int?
@@ -163,20 +212,30 @@ model AthleteWeekHiddenPlanSportRow {
 }
 
 model Race {
-  id        String      @id @default(cuid())
+  id        String       @id @default(cuid())
   athleteId String
   name      String
-  date      DateTime    @db.Date
+  date      DateTime     @db.Date
   location  String?
   type      RaceType
-  sport     WorkoutType @default(RUN)
+  sport     WorkoutType  @default(RUN)
+  priority  RacePriority @default(C)
+  intent    RaceIntent   @default(PLANNED)
   goal      String?
+  url       String?
+  /** Set when athlete logs how the race went (or dismisses the prompt). */
+  outcome      RaceOutcome?
+  resultTime   String?
+  resultNotes  String?
+  resultLoggedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
 
   @@index([athleteId, date])
+  @@index([athleteId, intent, date])
+  @@index([athleteId, outcome, date])
 }
 
 model WorkoutTemplate {
@@ -190,6 +249,9 @@ model WorkoutTemplate {
   distanceKm  Float?
   notes       String?
   structure   Json?
+  swimEnvironment       SwimEnvironment?
+  swimStructure         Json?
+  plannedDistanceMeters Int?
   tags        String[]     @default([])
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -213,16 +275,24 @@ model Workout {
   plannedDuration Int?
   coachNotes      String?
   structure       Json?
+  swimEnvironment       SwimEnvironment?
+  swimStructure         Json?
+  plannedDistanceMeters Int?
   tags            String[]      @default([])
   status          WorkoutStatus @default(PLANNED)
   sortOrder       Int           @default(0)
   selfLogged      Boolean       @default(false)
+  isRescheduleGhost Boolean     @default(false)
+  rescheduledFromId String?       @unique
+  rescheduledFromDate DateTime?   @db.Date
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  athlete  Athlete          @relation(fields: [athleteId], references: [id], onDelete: Cascade)
-  template WorkoutTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
-  result   WorkoutResult?
+  athlete         Athlete          @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  template        WorkoutTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  result          WorkoutResult?
+  rescheduledFrom Workout?         @relation("WorkoutReschedule", fields: [rescheduledFromId], references: [id], onDelete: SetNull)
+  rescheduledCopy Workout?         @relation("WorkoutReschedule")
 
   @@index([athleteId, date])
   @@index([date])
@@ -241,6 +311,11 @@ model WorkoutResult {
   feedbackDismissedAt DateTime?
   stravaActivityId String?  @unique
   stravaActivityUrl String?
+  /** Strava activity title (display context). */
+  stravaActivityName String?
+  /** Strava activity description — suggested coach comment; not shared until athlete opts in. */
+  stravaActivityDescription String?
+  logType          AthleteLogType?
   completedAt      DateTime @default(now())
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

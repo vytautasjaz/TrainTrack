@@ -1,17 +1,9 @@
 'use client'
 
-import { Flag } from 'lucide-react'
-import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
+import { MonthWorkoutChip } from '@/components/plan/month-workout-chip'
+import { useDayDropTarget } from '@/components/plan/use-day-drop-target'
 import type { DayNoteData } from '@/lib/day-notes'
-import { DAY_NOTE_COLORS } from '@/lib/day-notes'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import {
-  WORKOUT_TYPE_DOT_CLASS,
-  WORKOUT_TYPE_ICONS,
-  RACE_PLAN_DOT_CLASS,
-} from '@/lib/workout-display'
-import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import { dayHasRecovery, recoveryDayMonthClass } from '@/lib/recovery-day'
 import { dayHasRace, raceDayMonthClass } from '@/lib/race-day'
 import { cn } from '@/lib/utils'
@@ -27,6 +19,10 @@ type MonthDayCellProps = {
   isSelected: boolean
   onSelect: () => void
   compactOnDesktop?: boolean
+  /** Desktop cell content: micro cards (roomy) or sport icons (with day panel). */
+  desktopWorkoutDisplay?: 'micro' | 'icons'
+  /** Accept library / plan workout drops (coach desktop). */
+  dropEnabled?: boolean
 }
 
 export function MonthDayCell({
@@ -40,15 +36,22 @@ export function MonthDayCell({
   isSelected,
   onSelect,
   compactOnDesktop = false,
+  desktopWorkoutDisplay = 'micro',
+  dropEnabled = false,
 }: MonthDayCellProps) {
   const isRecovery = dayHasRecovery(workouts)
   const isRaceDay = dayHasRace(workouts)
+  const { dropHighlightClass, dropProps, isDragging } = useDayDropTarget({
+    dateKey,
+    enabled: dropEnabled && inMonth,
+  })
+  const desktopIcons = desktopWorkoutDisplay === 'icons'
 
   return (
     <div
       role="button"
       tabIndex={inMonth ? 0 : undefined}
-      onClick={inMonth ? onSelect : undefined}
+      onClick={inMonth && !isDragging ? onSelect : undefined}
       onKeyDown={
         inMonth
           ? (e) => {
@@ -59,10 +62,14 @@ export function MonthDayCell({
             }
           : undefined
       }
+      {...dropProps}
       className={cn(
         'relative flex h-full w-full min-w-0 flex-col rounded-lg border text-left transition',
         'min-h-[3.75rem] overflow-hidden p-1.5',
-        compactOnDesktop && 'lg:flex lg:h-full lg:min-h-[4.25rem] lg:flex-col lg:gap-0.5 lg:rounded-md lg:p-1 lg:pb-0.5',
+        compactOnDesktop &&
+          'lg:flex lg:h-full lg:flex-col lg:gap-0.5 lg:rounded-md lg:p-1 lg:pb-0.5',
+        compactOnDesktop && desktopIcons && 'lg:min-h-[4.25rem]',
+        compactOnDesktop && !desktopIcons && 'lg:min-h-[5.5rem]',
         inMonth
           ? 'cursor-pointer border-border/60 bg-card hover:border-brand/40'
           : 'border-transparent bg-muted/30 text-muted-foreground',
@@ -72,7 +79,7 @@ export function MonthDayCell({
           inMonth &&
           !isRecovery &&
           !isRaceDay &&
-          'border-brand/50 bg-brand/10',
+          'border-border bg-muted/70',
         isToday && inMonth && isRaceDay && 'border-amber-500/70 bg-amber-500/20',
         isToday &&
           inMonth &&
@@ -96,16 +103,9 @@ export function MonthDayCell({
           isRecovery &&
           !isRaceDay &&
           'border-violet-500 bg-violet-500/10',
+        dropHighlightClass,
       )}
     >
-      {dayNote && inMonth && compactOnDesktop && (
-        <span
-          className="absolute left-0.5 top-0.5 z-10 hidden h-1.5 w-1.5 rounded-full ring-1 ring-card lg:block"
-          style={{ backgroundColor: DAY_NOTE_COLORS[dayNote.status].dot }}
-          title="Day note"
-        />
-      )}
-
       <div
         className={cn(
           'flex shrink-0 items-center gap-0.5',
@@ -116,7 +116,7 @@ export function MonthDayCell({
           className={cn(
             'text-[11px] font-semibold leading-none tabular-nums',
             compactOnDesktop && 'lg:text-xs',
-            isToday && inMonth && !isRecovery && !isRaceDay && 'text-brand',
+            isToday && inMonth && !isRecovery && !isRaceDay && 'text-foreground',
             isToday && inMonth && isRaceDay && 'text-amber-800 dark:text-amber-100',
             isToday && inMonth && isRecovery && !isRaceDay && 'text-violet-800 dark:text-violet-100',
             isSelected && inMonth && !isToday && 'text-brand',
@@ -124,13 +124,6 @@ export function MonthDayCell({
         >
           {dayNumber}
         </span>
-        {dayNote && inMonth && (
-          <span
-            className={cn('h-1.5 w-1.5 shrink-0 rounded-full', compactOnDesktop && 'lg:hidden')}
-            style={{ backgroundColor: DAY_NOTE_COLORS[dayNote.status].dot }}
-            title="Day note"
-          />
-        )}
       </div>
 
       {/* Mobile / tablet: workout indicators in cell */}
@@ -138,119 +131,63 @@ export function MonthDayCell({
         <div className={cn('mt-0.5 min-w-0 flex-1', compactOnDesktop && 'lg:hidden')}>
           <div className="flex flex-wrap gap-0.5 md:hidden">
             {workouts.slice(0, 5).map((w) => (
-              <WorkoutModalTrigger
-                key={w.id}
-                workout={w}
-                isCoach={isCoach}
-                className="relative rounded-full"
-              >
-                <span
-                  className={cn(
-                    'block h-2 w-2 rounded-full',
-                    w.isRace ? RACE_PLAN_DOT_CLASS : WORKOUT_TYPE_DOT_CLASS[w.type],
-                  )}
-                  aria-label={`${WORKOUT_TYPE_LABELS[w.type]}: ${w.title}`}
-                />
-                <StravaSyncedIndicator workout={w} variant="dot" />
-              </WorkoutModalTrigger>
+              <MonthWorkoutChip key={w.id} workout={w} isCoach={isCoach} variant="dot" />
             ))}
             {workouts.length > 5 && (
-              <span className="text-[8px] leading-none text-muted-foreground">+{workouts.length - 5}</span>
+              <span className="text-[8px] leading-none text-muted-foreground">
+                +{workouts.length - 5}
+              </span>
             )}
           </div>
 
           <div className="hidden flex-wrap gap-0.5 md:flex">
-            {workouts.slice(0, 4).map((w) => {
-              if (w.isRace) {
-                return (
-                  <WorkoutModalTrigger
-                    key={w.id}
-                    workout={w}
-                    isCoach={isCoach}
-                    className="relative rounded-md p-0.5 text-amber-600 transition hover:bg-amber-500/15"
-                    aria-label={w.title}
-                  >
-                    <Flag className="h-3 w-3 fill-amber-500/25" />
-                  </WorkoutModalTrigger>
-                )
-              }
-              const Icon = WORKOUT_TYPE_ICONS[w.type]
-              return (
-                <WorkoutModalTrigger
-                  key={w.id}
-                  workout={w}
-                  isCoach={isCoach}
-                  className={cn(
-                    'relative rounded-md p-0.5 text-muted-foreground transition hover:bg-muted/50 hover:text-brand',
-                    w.status === 'COMPLETED' && 'text-green-600',
-                    w.status === 'SKIPPED' && 'text-red-400',
-                  )}
-                  aria-label={w.title}
-                >
-                  <Icon className="h-3 w-3" />
-                  <StravaSyncedIndicator workout={w} variant="dot" />
-                </WorkoutModalTrigger>
-              )
-            })}
+            {workouts.slice(0, 4).map((w) => (
+              <MonthWorkoutChip key={w.id} workout={w} isCoach={isCoach} variant="icon" />
+            ))}
             {workouts.length > 4 && (
-              <span className="self-center text-[9px] text-muted-foreground">+{workouts.length - 4}</span>
+              <span className="self-center text-[9px] text-muted-foreground">
+                +{workouts.length - 4}
+              </span>
             )}
           </div>
         </div>
       )}
 
-      {/* Desktop: sport icons in cell */}
+      {/* Desktop: micro cards or sport icons */}
       {compactOnDesktop && inMonth && (
         <div
           className={cn(
-            'hidden lg:flex lg:flex-1 lg:items-center lg:justify-center lg:px-0.5',
+            'hidden lg:flex lg:min-w-0 lg:flex-1 lg:px-0.5',
+            desktopIcons
+              ? 'lg:items-center lg:justify-center'
+              : 'lg:flex-col lg:justify-start lg:gap-0.5',
             workouts.length === 0 && 'min-h-0',
-            workouts.length > 0 && workouts.length <= 2 && 'min-h-5',
-            workouts.length > 2 && 'min-h-[2.625rem]',
           )}
         >
-          {workouts.length > 0 && (
+          {workouts.length > 0 && desktopIcons ? (
             <div className="flex flex-wrap items-center justify-center gap-0.5">
-              {workouts.slice(0, 4).map((w) => {
-                if (w.isRace) {
-                  return (
-                    <WorkoutModalTrigger
-                      key={w.id}
-                      workout={w}
-                      isCoach={isCoach}
-                      className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded-sm bg-amber-500/15 text-amber-600 transition hover:bg-amber-500/25"
-                      aria-label={`Race: ${w.title}`}
-                    >
-                      <Flag className="h-2.5 w-2.5 fill-amber-500/25" strokeWidth={2} />
-                    </WorkoutModalTrigger>
-                  )
-                }
-                const Icon = WORKOUT_TYPE_ICONS[w.type]
-                return (
-                  <WorkoutModalTrigger
-                    key={w.id}
-                    workout={w}
-                    isCoach={isCoach}
-                    className={cn(
-                      'relative flex h-5 w-5 shrink-0 items-center justify-center rounded-sm transition',
-                      'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-brand',
-                      w.status === 'COMPLETED' && 'bg-green-500/15 text-green-600',
-                      w.status === 'SKIPPED' && 'bg-red-500/15 text-red-400',
-                    )}
-                    aria-label={`${WORKOUT_TYPE_LABELS[w.type]}: ${w.title}`}
-                  >
-                    <Icon className="h-2.5 w-2.5" strokeWidth={2} />
-                    <StravaSyncedIndicator workout={w} variant="dot" />
-                  </WorkoutModalTrigger>
-                )
-              })}
+              {workouts.slice(0, 4).map((w) => (
+                <MonthWorkoutChip key={w.id} workout={w} isCoach={isCoach} variant="tile" />
+              ))}
               {workouts.length > 4 && (
                 <span className="text-[7px] font-medium leading-none text-muted-foreground">
                   +{workouts.length - 4}
                 </span>
               )}
             </div>
-          )}
+          ) : null}
+          {workouts.length > 0 && !desktopIcons ? (
+            <div className="flex min-w-0 flex-col gap-1">
+              {workouts.slice(0, 3).map((w) => (
+                <MonthWorkoutChip key={w.id} workout={w} isCoach={isCoach} variant="micro" />
+              ))}
+              {workouts.length > 3 && (
+                <span className="text-[7px] font-medium leading-none text-muted-foreground">
+                  +{workouts.length - 3}
+                </span>
+              )}
+            </div>
+          ) : null}
         </div>
       )}
     </div>

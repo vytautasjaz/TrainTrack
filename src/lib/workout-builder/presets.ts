@@ -1,5 +1,7 @@
 import { SessionType, WorkoutType } from '@prisma/client'
-import { createBlock, emptyStructure } from './utils'
+import { createSmartBlock } from './smart-blocks'
+import { emptyStructure } from './utils'
+import { getSessionTypeLabel } from './session-modes'
 import type { WorkoutStructure } from './types'
 
 type PresetConfig = {
@@ -8,142 +10,109 @@ type PresetConfig = {
   structure: WorkoutStructure
 }
 
-export function buildPreset(sessionType: SessionType): PresetConfig {
+/** Build a sport-aware starter structure. Never force RUN when called for BIKE. */
+export function buildPreset(
+  sessionType: SessionType,
+  sportType: WorkoutType = WorkoutType.RUN,
+): PresetConfig {
   const structure = emptyStructure()
+  const title = getSessionTypeLabel(sessionType, sportType)
+
+  const mapSessionToSmart = (): Parameters<typeof createSmartBlock>[0] | null => {
+    switch (sessionType) {
+      case 'EASY_RUN':
+        return 'EASY_RUN'
+      case 'RECOVERY_RUN':
+        return 'RECOVERY'
+      case 'LONG_RUN':
+        return 'EASY_RUN'
+      case 'TEMPO':
+        return 'TEMPO'
+      case 'THRESHOLD':
+        return 'THRESHOLD'
+      case 'VO2_MAX':
+        return 'VO2_MAX'
+      case 'INTERVALS':
+        return 'VO2_MAX'
+      case 'RACE_PACE':
+        return 'RACE_PACE'
+      case 'HILL_REPEATS':
+        return 'HILL_REPEATS'
+      default:
+        return null
+    }
+  }
+
+  const smartKind = mapSessionToSmart()
+  if (smartKind) {
+    if (sessionType === 'LONG_RUN') {
+      const block = createSmartBlock('EASY_RUN', 0, sportType)
+      if (sportType === WorkoutType.BIKE) {
+        block.time = 180
+      } else {
+        block.durationType = 'distance'
+        block.distance = 20
+        block.distanceUnit = 'km'
+      }
+      structure.mainSet = [block]
+    } else if (
+      sessionType === 'THRESHOLD' ||
+      sessionType === 'VO2_MAX' ||
+      sessionType === 'INTERVALS' ||
+      sessionType === 'HILL_REPEATS' ||
+      sessionType === 'TEMPO' ||
+      sessionType === 'RACE_PACE'
+    ) {
+      structure.warmup = [createSmartBlock('WARM_UP', 0, sportType)]
+      structure.mainSet = [createSmartBlock(smartKind, 0, sportType)]
+      structure.cooldown = [createSmartBlock('COOL_DOWN', 0, sportType)]
+    } else {
+      structure.mainSet = [createSmartBlock(smartKind, 0, sportType)]
+    }
+    return { title, sportType, structure }
+  }
 
   switch (sessionType) {
-    case 'EASY_RUN':
-      structure.mainSet = [
-        createBlock('CONTINUOUS', 0),
-      ]
-      structure.mainSet[0].time = 60
-      structure.mainSet[0].targets = [{ type: 'rpe', value: 'Easy' }]
-      return { title: 'Easy Run', sportType: WorkoutType.RUN, structure }
-
-    case 'RECOVERY_RUN':
-      structure.mainSet = [createBlock('CONTINUOUS', 0)]
-      structure.mainSet[0].time = 40
-      structure.mainSet[0].targets = [{ type: 'rpe', value: 'Very easy' }]
-      return { title: 'Recovery Run', sportType: WorkoutType.RECOVERY, structure }
-
-    case 'LONG_RUN':
-      structure.mainSet = [createBlock('CONTINUOUS', 0)]
-      structure.mainSet[0].durationType = 'distance'
-      structure.mainSet[0].distance = 18
-      structure.mainSet[0].distanceUnit = 'km'
-      structure.mainSet[0].targets = [{ type: 'pace', value: 'Easy' }]
-      return { title: 'Long Run', sportType: WorkoutType.RUN, structure }
-
-    case 'TEMPO':
-      structure.warmup = [createBlock('CONTINUOUS', 0)]
-      structure.warmup[0].time = 15
-      structure.mainSet = [createBlock('CONTINUOUS', 0)]
-      structure.mainSet[0].time = 25
-      structure.mainSet[0].targets = [{ type: 'pace', value: 'Tempo' }]
-      structure.cooldown = [createBlock('CONTINUOUS', 0)]
-      structure.cooldown[0].time = 10
-      return { title: 'Tempo Run', sportType: WorkoutType.RUN, structure }
-
-    case 'THRESHOLD':
-      structure.warmup = [createBlock('CONTINUOUS', 0)]
-      structure.warmup[0].time = 15
-      structure.mainSet = [createBlock('CONTINUOUS', 0)]
-      structure.mainSet[0].time = 20
-      structure.mainSet[0].targets = [{ type: 'heartRateZone', value: 'Zone 4' }]
-      structure.cooldown = [createBlock('CONTINUOUS', 0)]
-      structure.cooldown[0].time = 10
-      return { title: 'Threshold', sportType: WorkoutType.RUN, structure }
-
-    case 'VO2_MAX':
-      structure.warmup = [createBlock('CONTINUOUS', 0)]
-      structure.warmup[0].time = 15
-      structure.mainSet = [createBlock('INTERVAL', 0)]
-      structure.cooldown = [createBlock('CONTINUOUS', 0)]
-      structure.cooldown[0].time = 10
-      return { title: 'VO2 Max Intervals', sportType: WorkoutType.RUN, structure }
-
-    case 'INTERVALS':
-      structure.warmup = [createBlock('CONTINUOUS', 0)]
-      structure.warmup[0].time = 15
-      structure.mainSet = [createBlock('INTERVAL', 0)]
-      structure.cooldown = [createBlock('CONTINUOUS', 0)]
-      structure.cooldown[0].time = 10
-      return { title: 'Intervals', sportType: WorkoutType.RUN, structure }
-
     case 'FARTLEK':
-      structure.warmup = [createBlock('CONTINUOUS', 0)]
-      structure.warmup[0].time = 10
-      structure.mainSet = [
-        createBlock('FREE_TEXT', 0),
-      ]
-      structure.mainSet[0].text = 'Alternate 3 min hard / 2 min easy for 30 min'
-      structure.cooldown = [createBlock('CONTINUOUS', 0)]
-      structure.cooldown[0].time = 10
-      return { title: 'Fartlek', sportType: WorkoutType.RUN, structure }
-
-    case 'RACE_PACE':
-      structure.warmup = [createBlock('CONTINUOUS', 0)]
-      structure.warmup[0].time = 15
-      structure.mainSet = [createBlock('CONTINUOUS', 0)]
-      structure.mainSet[0].durationType = 'distance'
-      structure.mainSet[0].distance = 8
-      structure.mainSet[0].targets = [{ type: 'pace', value: 'Race pace' }]
-      structure.cooldown = [createBlock('CONTINUOUS', 0)]
-      structure.cooldown[0].time = 10
-      return { title: 'Race Pace', sportType: WorkoutType.RUN, structure }
-
-    case 'HILL_REPEATS':
-      structure.warmup = [createBlock('CONTINUOUS', 0)]
-      structure.warmup[0].time = 15
-      structure.mainSet = [createBlock('REPETITION', 0)]
-      structure.mainSet[0].repetitions = 8
-      structure.mainSet[0].work = {
-        mode: 'time',
-        value: 60,
-        unit: 'sec',
-        description: 'hill',
-      }
-      structure.cooldown = [createBlock('CONTINUOUS', 0)]
-      structure.cooldown[0].time = 10
-      return { title: 'Hill Repeats', sportType: WorkoutType.RUN, structure }
+      structure.warmup = [createSmartBlock('WARM_UP', 0, sportType)]
+      structure.mainSet = [createSmartBlock('COACH_NOTES', 0, sportType)]
+      structure.mainSet[0]!.text = 'Alternate 3 min hard / 2 min easy for 30 min'
+      structure.cooldown = [createSmartBlock('COOL_DOWN', 0, sportType)]
+      return { title, sportType, structure }
 
     case 'BRICK':
       structure.mainSet = [
-        createBlock('CONTINUOUS', 0),
-        createBlock('CONTINUOUS', 1),
+        createSmartBlock('EASY_RUN', 0, WorkoutType.BIKE),
+        createSmartBlock('EASY_RUN', 1, WorkoutType.RUN),
       ]
-      structure.mainSet[0].durationType = 'distance'
-      structure.mainSet[0].distance = 40
-      structure.mainSet[0].distanceUnit = 'km'
-      structure.mainSet[0].targets = [{ type: 'power', value: 'Bike steady' }]
-      structure.mainSet[1].durationType = 'distance'
-      structure.mainSet[1].distance = 5
-      structure.mainSet[1].distanceUnit = 'km'
-      structure.mainSet[1].targets = [{ type: 'pace', value: 'Run off bike' }]
-      return { title: 'Brick', sportType: WorkoutType.BIKE, structure }
+      structure.mainSet[0]!.targets = [{ type: 'power', value: 'Bike steady' }]
+      structure.mainSet[1]!.durationType = 'distance'
+      structure.mainSet[1]!.distance = 5
+      structure.mainSet[1]!.distanceUnit = 'km'
+      structure.mainSet[1]!.targets = [{ type: 'pace', value: 'Run off bike' }]
+      return { title, sportType: WorkoutType.BIKE, structure }
 
     case 'STRENGTH':
-      structure.mainSet = [createBlock('FREE_TEXT', 0)]
-      structure.mainSet[0].text = 'Strength session — add exercises and sets'
-      return { title: 'Strength', sportType: WorkoutType.STRENGTH, structure }
+      structure.mainSet = [createSmartBlock('COACH_NOTES', 0, sportType)]
+      structure.mainSet[0]!.text = 'Strength session — add exercises and sets'
+      return { title, sportType: WorkoutType.STRENGTH, structure }
 
     case 'CROSS_TRAINING':
-      structure.mainSet = [createBlock('CONTINUOUS', 0)]
-      structure.mainSet[0].time = 45
-      structure.mainSet[0].targets = [{ type: 'rpe', value: 'Moderate' }]
-      return { title: 'Cross Training', sportType: WorkoutType.RECOVERY, structure }
+      structure.mainSet = [createSmartBlock('EASY_RUN', 0, sportType)]
+      structure.mainSet[0]!.durationType = 'time'
+      structure.mainSet[0]!.time = 45
+      structure.mainSet[0]!.targets = [{ type: 'rpe', value: 'Moderate' }]
+      return { title, sportType: WorkoutType.RECOVERY, structure }
 
     case 'HYROX':
-      structure.warmup = [createBlock('CONTINUOUS', 0)]
-      structure.warmup[0].time = 10
-      structure.mainSet = [createBlock('FREE_TEXT', 0)]
-      structure.mainSet[0].text = 'HYROX simulation — add stations and efforts'
-      structure.cooldown = [createBlock('CONTINUOUS', 0)]
-      structure.cooldown[0].time = 10
-      return { title: 'HYROX Session', sportType: WorkoutType.HYROX, structure }
+      structure.warmup = [createSmartBlock('WARM_UP', 0, sportType)]
+      structure.mainSet = [createSmartBlock('COACH_NOTES', 0, sportType)]
+      structure.mainSet[0]!.text = 'HYROX simulation — add stations and efforts'
+      structure.cooldown = [createSmartBlock('COOL_DOWN', 0, sportType)]
+      return { title, sportType: WorkoutType.HYROX, structure }
 
     case 'CUSTOM':
     default:
-      return { title: '', sportType: WorkoutType.RUN, structure }
+      return { title: title || '', sportType, structure: emptyStructure() }
   }
 }

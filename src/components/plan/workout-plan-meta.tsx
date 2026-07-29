@@ -2,11 +2,16 @@ import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { getWorkoutPlanDescriptionLines } from '@/lib/plan-workout'
 import { RACE_TYPE_LABELS } from '@/lib/constants'
 import { formatDistance, formatDuration } from '@/lib/utils'
+import { formatSwimDistance } from '@/lib/swim-workout/format'
 import { cn } from '@/lib/utils'
 
 function workoutMetrics(w: PlanWorkoutDetail) {
   const parts: string[] = []
-  if (w.plannedDistance) parts.push(formatDistance(w.plannedDistance))
+  if (w.type === 'SWIM' && w.plannedDistanceMeters) {
+    parts.push(formatSwimDistance(w.plannedDistanceMeters))
+  } else if (w.plannedDistance) {
+    parts.push(formatDistance(w.plannedDistance))
+  }
   if (w.plannedDuration) parts.push(formatDuration(w.plannedDuration))
   return parts.join(' · ')
 }

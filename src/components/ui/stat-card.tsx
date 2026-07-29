@@ -25,11 +25,11 @@ export function StatCard({
   return (
     <div
       className={cn(
-        'rounded-2xl p-4',
+        'rounded-[6px] p-4 shadow-none',
         variant === 'default' && 'card-elevated',
-        variant === 'flat' && 'bg-muted/50',
-        variant === 'brand' && 'bg-brand text-brand-foreground shadow-[var(--shadow-card)]',
-        variant === 'dark' && 'bg-hero text-hero-foreground shadow-[var(--shadow-card)]',
+        variant === 'flat' && 'border border-border bg-muted/40',
+        variant === 'brand' && 'border border-border bg-foreground text-background',
+        variant === 'dark' && 'border border-border bg-hero text-hero-foreground',
         isRow && 'flex items-center gap-3 p-3',
         className,
       )}
@@ -37,14 +37,14 @@ export function StatCard({
       {Icon && isRow && (
         <div
           className={cn(
-            'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
-            variant === 'default' || variant === 'flat' ? 'bg-brand-soft' : 'bg-white/15',
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px]',
+            variant === 'default' || variant === 'flat' ? 'bg-muted' : 'bg-white/15',
           )}
         >
           <Icon
             className={cn(
               'h-5 w-5',
-              variant === 'default' || variant === 'flat' ? 'text-brand' : 'opacity-90',
+              variant === 'default' || variant === 'flat' ? 'text-muted-foreground' : 'opacity-90',
             )}
             strokeWidth={2}
           />
@@ -67,7 +67,7 @@ export function StatCard({
             <Icon
               className={cn(
                 'h-4 w-4 shrink-0',
-                variant === 'default' || variant === 'flat' ? 'text-brand' : 'opacity-80',
+                variant === 'default' || variant === 'flat' ? 'text-muted-foreground' : 'opacity-80',
               )}
             />
           )}

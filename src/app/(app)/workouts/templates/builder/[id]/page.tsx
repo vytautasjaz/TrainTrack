@@ -1,9 +1,12 @@
 import { notFound, redirect } from 'next/navigation'
-import { WorkoutBuilder } from '@/components/workout-builder/workout-builder'
+import { WorkoutStatus, WorkoutType } from '@prisma/client'
+import { WorkoutEditorPage } from '@/components/workout-editor/workout-editor-page'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
+import { todayDateKey } from '@/lib/dates'
 import { parseStructure } from '@/lib/workout-builder/utils'
-import type { BuilderWorkout } from '@/lib/workout-builder/types'
+import { parseSwimStructure } from '@/lib/swim-workout/parse'
+import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 
 type EditTemplateBuilderPageProps = {
   params: Promise<{ id: string }>
@@ -19,23 +22,38 @@ export default async function EditTemplateBuilderPage({ params }: EditTemplateBu
   })
   if (!template) notFound()
 
-  const initial: BuilderWorkout = {
-    title: template.title,
-    sportType: template.type,
-    sessionType: template.sessionType,
-    tags: template.tags,
-    estimatedDuration: template.durationMin ?? undefined,
-    structure: parseStructure(template.structure),
-  }
+  const isSwim = template.type === WorkoutType.SWIM
+  const swimStructure = isSwim ? parseSwimStructure(template.swimStructure) : null
 
-  if (template.notes && !initial.structure.coachNotes) {
-    initial.structure.coachNotes = template.notes
+  const workout: PlanWorkoutDetail = {
+    id: template.id,
+    title: template.title,
+    dateKey: todayDateKey(),
+    type: template.type,
+    sessionType: template.sessionType,
+    status: WorkoutStatus.PLANNED,
+    description: template.description ?? null,
+    plannedDistance: isSwim
+      ? template.plannedDistanceMeters != null
+        ? template.plannedDistanceMeters / 1000
+        : null
+      : (template.distanceKm ?? null),
+    plannedDistanceMeters: template.plannedDistanceMeters ?? null,
+    plannedDuration: template.durationMin ?? null,
+    swimEnvironment: template.swimEnvironment ?? null,
+    coachNotes: template.notes ?? null,
+    structure: isSwim ? null : parseStructure(template.structure),
+    swimStructure,
+    tags: template.tags,
+    result: null,
   }
 
   return (
-    <WorkoutBuilder
+    <WorkoutEditorPage
       mode="template"
-      initial={initial}
+      sportType={template.type}
+      date={workout.dateKey}
+      workout={workout}
       entityId={template.id}
       fallbackHref="/workouts"
     />

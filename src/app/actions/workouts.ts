@@ -4,11 +4,16 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSession, resolveAthleteId, requireAthleteSession } from '@/lib/session'
-import { parseDateOnly } from '@/lib/dates'
-import { WorkoutStatus, WorkoutType, RaceType, SessionType } from '@prisma/client'
+import { parseDateOnly, toDateKey } from '@/lib/dates'
+import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome } from '@prisma/client'
+import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
 import { defaultSportForRaceType } from '@/lib/races'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
+import { safeRedirectPath } from '@/lib/safe-redirect'
+import { sportSlug } from '@/lib/workout-library/config'
+import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-athlete-preferences'
+import { resolveLibraryTemplateMetricsForAthlete } from '@/lib/workout-library/template-metrics'
 
 function parseOptionalFloat(value: FormDataEntryValue | null) {
   if (!value || value === '') return undefined
@@ -25,9 +30,133 @@ function parseOptionalString(value: FormDataEntryValue | null) {
   return str || undefined
 }
 
-export async function completeWorkout(formData: FormData) {
-  await requireSession()
+function buildWorkoutResultData({
+  actualDistance,
+  actualDuration,
+  rpe,
+  athleteNotes,
+  logType,
+}: {
+  actualDistance?: number
+  actualDuration?: number
+  rpe?: number
+  athleteNotes?: string
+  logType: ReturnType<typeof parseAthleteLogType>
+}) {
+  return {
+    ...(actualDistance !== undefined ? { actualDistance } : {}),
+    ...(actualDuration !== undefined ? { actualDuration } : {}),
+    ...(rpe !== undefined ? { rpe } : {}),
+    ...(athleteNotes !== undefined ? { athleteNotes } : {}),
+    logType,
+  }
+}
+
+function revalidateWorkoutPaths(workoutId?: string) {
+  revalidatePath('/dashboard')
+  revalidatePath('/training')
+  if (workoutId) revalidatePath(`/workouts/${workoutId}`)
+}
+
+async function cleanupLegacyRescheduleArtifacts(workout: {
+  id: string
+  athleteId: string
+  isRescheduleGhost: boolean
+  rescheduledFromId: string | null
+  rescheduledCopy: { id: string } | null
+}) {
+  if (workout.isRescheduleGhost) {
+    if (workout.rescheduledCopy) {
+      await prisma.workout.delete({ where: { id: workout.id } })
+      return workout.rescheduledCopy.id
+    }
+    await prisma.workout.update({
+      where: { id: workout.id },
+      data: { isRescheduleGhost: false },
+    })
+  }
+
+  if (workout.rescheduledFromId) {
+    const ghost = await prisma.workout.findUnique({
+      where: { id: workout.rescheduledFromId },
+      select: { id: true, isRescheduleGhost: true },
+    })
+    if (ghost?.isRescheduleGhost) {
+      await prisma.workout.delete({ where: { id: ghost.id } })
+    }
+    await prisma.workout.update({
+      where: { id: workout.id },
+      data: { rescheduledFromId: null },
+    })
+  }
+
+  if (workout.rescheduledCopy) {
+    await prisma.workout.delete({ where: { id: workout.rescheduledCopy.id } })
+    await prisma.workout.update({
+      where: { id: workout.id },
+      data: { isRescheduleGhost: false },
+    })
+  }
+
+  return workout.id
+}
+
+async function requireAthleteOwnedWorkout(workoutId: string) {
+  const session = await requireSession()
+  if (session.role !== 'ATHLETE') throw new Error('Athlete only')
+
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete profile')
+
+  const workout = await prisma.workout.findFirst({
+    where: { id: workoutId, athleteId },
+    include: { result: true },
+  })
+  if (!workout) throw new Error('Workout not found')
+
+  return workout
+}
+
+function assertNotStravaSynced(workout: { result: { stravaActivityUrl: string | null } | null }) {
+  if (workout.result?.stravaActivityUrl) {
+    throw new Error('Cannot modify a workout synced from Strava')
+  }
+}
+
+/**
+ * Athletes can add/edit a coach-facing comment on Strava-synced workouts
+ * without changing imported stats. Empty clears the comment (no coach notification).
+ */
+export async function updateStravaWorkoutComment(formData: FormData) {
   const workoutId = formData.get('workoutId') as string
+  if (!workoutId) throw new Error('Workout required')
+
+  const workout = await requireAthleteOwnedWorkout(workoutId)
+  if (!workout.result?.stravaActivityUrl) {
+    throw new Error('This workout is not synced from Strava')
+  }
+
+  const athleteNotesRaw = (formData.get('athleteNotes') as string)?.trim()
+  const athleteNotes = athleteNotesRaw || null
+
+  await prisma.workoutResult.update({
+    where: { workoutId },
+    data: {
+      athleteNotes,
+      // Re-surface on coach dashboard when athlete shares/updates a comment
+      feedbackDismissedAt: athleteNotes ? null : workout.result.feedbackDismissedAt,
+    },
+  })
+
+  revalidateWorkoutPaths(workoutId)
+}
+
+export async function completeWorkout(formData: FormData) {
+  const workoutId = formData.get('workoutId') as string
+  if (!workoutId) throw new Error('Workout required')
+
+  const workout = await requireAthleteOwnedWorkout(workoutId)
+  assertNotStravaSynced(workout)
   const actualDistance = formData.get('actualDistance')
     ? parseFloat(formData.get('actualDistance') as string)
     : undefined
@@ -35,8 +164,17 @@ export async function completeWorkout(formData: FormData) {
     ? parseInt(formData.get('actualDuration') as string, 10)
     : undefined
   const rpe = formData.get('rpe') ? parseInt(formData.get('rpe') as string, 10) : undefined
-  const athleteNotes = (formData.get('athleteNotes') as string) || undefined
-  const status = (formData.get('status') as WorkoutStatus) || WorkoutStatus.COMPLETED
+  const athleteNotesRaw = (formData.get('athleteNotes') as string)?.trim()
+  const athleteNotes = athleteNotesRaw || undefined
+  const logType = parseAthleteLogType(formData.get('logType'))
+  const status = isAthleteLogSkipped(logType) ? WorkoutStatus.SKIPPED : WorkoutStatus.COMPLETED
+  const resultData = buildWorkoutResultData({
+    actualDistance,
+    actualDuration,
+    rpe,
+    athleteNotes,
+    logType,
+  })
 
   await prisma.workout.update({
     where: { id: workoutId },
@@ -47,17 +185,114 @@ export async function completeWorkout(formData: FormData) {
     where: { workoutId },
     create: {
       workoutId,
-      actualDistance,
-      actualDuration,
-      rpe,
-      athleteNotes,
+      ...resultData,
     },
-    update: { actualDistance, actualDuration, rpe, athleteNotes },
+    update: resultData,
   })
 
-  revalidatePath('/dashboard')
-  revalidatePath('/training')
-  revalidatePath(`/workouts/${workoutId}`)
+  revalidateWorkoutPaths(workoutId)
+}
+
+export async function rescheduleWorkout(formData: FormData) {
+  const session = await requireSession()
+  if (session.role !== 'ATHLETE') throw new Error('Athlete only')
+
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete profile')
+
+  const workoutId = formData.get('workoutId') as string
+  const rescheduledDate = formData.get('rescheduledDate') as string
+  if (!workoutId || !rescheduledDate) throw new Error('Workout and date required')
+
+  const athleteNotesRaw = (formData.get('athleteNotes') as string)?.trim()
+  const athleteNotes = athleteNotesRaw || undefined
+  const newDate = parseDateOnly(rescheduledDate)
+  const actualDistance = parseOptionalFloat(formData.get('actualDistance'))
+  const actualDuration = parseOptionalInt(formData.get('actualDuration'))
+
+  const workout = await prisma.workout.findFirst({
+    where: { id: workoutId, athleteId },
+    include: { result: true, rescheduledCopy: true },
+  })
+  if (!workout) throw new Error('Workout not found')
+  assertNotStravaSynced(workout)
+
+  const activeWorkoutId = await cleanupLegacyRescheduleArtifacts(workout)
+  const activeWorkout = await prisma.workout.findFirstOrThrow({
+    where: { id: activeWorkoutId, athleteId },
+  })
+
+  const originalPlanDate = activeWorkout.rescheduledFromDate ?? activeWorkout.date
+  const movingBackToOriginal = toDateKey(originalPlanDate) === rescheduledDate
+  const sortOrder = await getNextWorkoutSortOrder(athleteId, newDate)
+
+  const resultData = {
+    logType: AthleteLogTypeValues.ADJUSTED,
+    ...(actualDistance !== undefined ? { actualDistance } : {}),
+    ...(actualDuration !== undefined ? { actualDuration } : {}),
+    ...(athleteNotes !== undefined ? { athleteNotes } : {}),
+  }
+
+  await prisma.$transaction([
+    prisma.workout.update({
+      where: { id: activeWorkout.id },
+      data: {
+        date: newDate,
+        sortOrder,
+        rescheduledFromDate: movingBackToOriginal ? null : originalPlanDate,
+        isRescheduleGhost: false,
+        rescheduledFromId: null,
+      },
+    }),
+    prisma.workoutResult.upsert({
+      where: { workoutId: activeWorkout.id },
+      create: { workoutId: activeWorkout.id, ...resultData },
+      update: resultData,
+    }),
+  ])
+
+  revalidateWorkoutPaths(activeWorkout.id)
+}
+
+export async function unlogWorkout(formData: FormData) {
+  const session = await requireSession()
+  if (session.role !== 'ATHLETE') throw new Error('Athlete only')
+
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete profile')
+
+  const workoutId = formData.get('workoutId') as string
+  if (!workoutId) throw new Error('Workout required')
+
+  const workout = await prisma.workout.findFirst({
+    where: { id: workoutId, athleteId },
+    include: { result: true, rescheduledCopy: true },
+  })
+  if (!workout) throw new Error('Workout not found')
+  assertNotStravaSynced(workout)
+
+  const activeWorkoutId = await cleanupLegacyRescheduleArtifacts(workout)
+  const activeWorkout = await prisma.workout.findFirstOrThrow({
+    where: { id: activeWorkoutId, athleteId },
+  })
+
+  const restoreDate = activeWorkout.rescheduledFromDate
+  const sortOrder = restoreDate
+    ? await getNextWorkoutSortOrder(athleteId, restoreDate)
+    : undefined
+
+  await prisma.workoutResult.deleteMany({ where: { workoutId: activeWorkout.id } })
+  await prisma.workout.update({
+    where: { id: activeWorkout.id },
+    data: {
+      status: WorkoutStatus.PLANNED,
+      ...(restoreDate
+        ? { date: restoreDate, rescheduledFromDate: null, sortOrder }
+        : {}),
+    },
+  })
+
+  revalidateWorkoutPaths(activeWorkout.id)
 }
 
 export async function markWorkoutDone(formData: FormData) {
@@ -72,8 +307,10 @@ export async function markWorkoutDone(formData: FormData) {
 
   const workout = await prisma.workout.findFirst({
     where: { id: workoutId, athleteId },
+    include: { result: true },
   })
   if (!workout) throw new Error('Workout not found')
+  assertNotStravaSynced(workout)
 
   await prisma.workout.update({
     where: { id: workoutId },
@@ -86,13 +323,12 @@ export async function markWorkoutDone(formData: FormData) {
       workoutId,
       actualDistance: workout.plannedDistance,
       actualDuration: workout.plannedDuration,
+      logType: AthleteLogTypeValues.COMPLETED,
     },
-    update: {},
+    update: { logType: AthleteLogTypeValues.COMPLETED },
   })
 
-  revalidatePath('/dashboard')
-  revalidatePath('/training')
-  revalidatePath(`/workouts/${workoutId}`)
+  revalidateWorkoutPaths(workoutId)
 }
 
 export async function markWorkoutSkipped(formData: FormData) {
@@ -107,17 +343,26 @@ export async function markWorkoutSkipped(formData: FormData) {
 
   const workout = await prisma.workout.findFirst({
     where: { id: workoutId, athleteId },
+    include: { result: true },
   })
   if (!workout) throw new Error('Workout not found')
+  assertNotStravaSynced(workout)
 
   await prisma.workout.update({
     where: { id: workoutId },
     data: { status: WorkoutStatus.SKIPPED },
   })
 
-  revalidatePath('/dashboard')
-  revalidatePath('/training')
-  revalidatePath(`/workouts/${workoutId}`)
+  await prisma.workoutResult.upsert({
+    where: { workoutId },
+    create: {
+      workoutId,
+      logType: AthleteLogTypeValues.SKIPPED,
+    },
+    update: { logType: AthleteLogTypeValues.SKIPPED },
+  })
+
+  revalidateWorkoutPaths(workoutId)
 }
 
 export async function createWorkoutFromTemplate(formData: FormData) {
@@ -135,6 +380,13 @@ export async function createWorkoutFromTemplate(formData: FormData) {
 
   const workoutDate = parseDateOnly(date)
   const sortOrder = await getNextWorkoutSortOrder(athleteId, workoutDate)
+  const preferences = await loadAthletePreferencesForBuilder(athleteId)
+  const metrics = resolveLibraryTemplateMetricsForAthlete(template, preferences)
+  const tags = [
+    ...template.tags.filter((t) => t !== 'approx:duration' && t !== 'approx:distance'),
+    ...(metrics.durationApprox ? ['approx:duration'] : []),
+    ...(metrics.distanceApprox ? ['approx:distance'] : []),
+  ]
 
   await prisma.workout.create({
     data: {
@@ -146,11 +398,14 @@ export async function createWorkoutFromTemplate(formData: FormData) {
       sessionType: template.sessionType,
       title: template.title,
       description: template.description,
-      plannedDistance: template.distanceKm,
-      plannedDuration: template.durationMin,
+      plannedDistance: metrics.distanceKm,
+      plannedDuration: metrics.durationMin,
       coachNotes: template.notes,
       structure: template.structure ?? undefined,
-      tags: template.tags,
+      swimEnvironment: template.swimEnvironment ?? undefined,
+      swimStructure: template.swimStructure ?? undefined,
+      plannedDistanceMeters: template.plannedDistanceMeters ?? undefined,
+      tags,
     },
   })
 
@@ -158,15 +413,65 @@ export async function createWorkoutFromTemplate(formData: FormData) {
   revalidatePath('/dashboard')
 }
 
+/** Copy a planned workout into the coach library as a new template. */
+export async function createTemplateFromWorkout(workoutId: string) {
+  const session = await requireSession()
+  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!workoutId) throw new Error('Workout required')
+
+  const workout = await prisma.workout.findFirst({
+    where: {
+      id: workoutId,
+      athlete: { coachId: session.userId },
+    },
+  })
+  if (!workout) throw new Error('Workout not found')
+
+  const template = await prisma.workoutTemplate.create({
+    data: {
+      coachId: session.userId,
+      title: workout.title,
+      type: workout.type,
+      sessionType: workout.sessionType,
+      description: workout.description,
+      distanceKm: workout.plannedDistance,
+      durationMin: workout.plannedDuration,
+      notes: workout.coachNotes,
+      structure: workout.structure ?? undefined,
+      swimEnvironment: workout.swimEnvironment ?? undefined,
+      swimStructure: workout.swimStructure ?? undefined,
+      plannedDistanceMeters: workout.plannedDistanceMeters ?? undefined,
+      tags: workout.tags,
+    },
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      sessionType: true,
+      distanceKm: true,
+      durationMin: true,
+      plannedDistanceMeters: true,
+    },
+  })
+
+  revalidatePath('/training')
+  revalidatePath('/workouts')
+  revalidatePath(`/workouts/library/${sportSlug(template.type)}`)
+
+  return template
+}
+
 export async function createTemplate(formData: FormData) {
   const session = await requireSession()
   if (session.role !== 'COACH') throw new Error('Coach only')
+
+  const type = formData.get('type') as WorkoutType
 
   await prisma.workoutTemplate.create({
     data: {
       coachId: session.userId,
       title: formData.get('title') as string,
-      type: formData.get('type') as WorkoutType,
+      type,
       description: (formData.get('description') as string) || undefined,
       durationMin: formData.get('durationMin')
         ? parseInt(formData.get('durationMin') as string, 10)
@@ -179,6 +484,12 @@ export async function createTemplate(formData: FormData) {
   })
 
   revalidatePath('/workouts')
+  revalidatePath(`/workouts/library/${sportSlug(type)}`)
+
+  const returnSport = formData.get('returnSport') as WorkoutType | null
+  if (returnSport) {
+    redirect(`/workouts/library/${sportSlug(returnSport)}`)
+  }
 }
 
 export async function createRace(formData: FormData) {
@@ -201,6 +512,8 @@ export async function createRace(formData: FormData) {
 
   const raceType = formData.get('type') as RaceType
   const sportRaw = formData.get('sport') as WorkoutType | null
+  const priorityRaw = (formData.get('priority') as RacePriority | null) || RacePriority.C
+  const intentRaw = (formData.get('intent') as RaceIntent | null) || RaceIntent.PLANNED
 
   await prisma.race.create({
     data: {
@@ -210,7 +523,10 @@ export async function createRace(formData: FormData) {
       location: (formData.get('location') as string) || undefined,
       type: raceType,
       sport: sportRaw || defaultSportForRaceType(raceType),
+      priority: priorityRaw,
+      intent: intentRaw,
       goal: (formData.get('goal') as string) || undefined,
+      url: parseOptionalString(formData.get('url')),
     },
   })
 
@@ -298,33 +614,93 @@ export async function reorderDayWorkouts(dateKey: string, workoutIds: string[]) 
 }
 
 export async function duplicateWorkout(formData: FormData) {
-  await requireSession()
-  const workoutId = formData.get('workoutId') as string
   const date = formData.get('date') as string
-
-  const source = await prisma.workout.findUniqueOrThrow({ where: { id: workoutId } })
-  const workoutDate = parseDateOnly(date)
-  const sortOrder = await getNextWorkoutSortOrder(source.athleteId, workoutDate)
-
-  await prisma.workout.create({
-    data: {
-      athleteId: source.athleteId,
-      templateId: source.templateId,
-      date: workoutDate,
-      sortOrder,
-      type: source.type,
-      sessionType: source.sessionType,
-      title: source.title,
-      description: source.description,
-      plannedDistance: source.plannedDistance,
-      plannedDuration: source.plannedDuration,
-      coachNotes: source.coachNotes,
-      structure: source.structure ?? undefined,
-      tags: source.tags,
-    },
+  await copyWorkoutToDates({
+    workoutId: formData.get('workoutId') as string,
+    dates: date ? [date] : [],
   })
+}
+
+/** Copy a planned workout onto one or more calendar dates (coach). */
+export async function copyWorkoutToDates(payload: {
+  workoutId: string
+  dates: string[]
+}) {
+  const session = await requireSession()
+  if (session.role !== 'COACH') throw new Error('Coach only')
+
+  const dates = [...new Set(payload.dates.map((d) => d.trim()).filter(Boolean))]
+  if (!payload.workoutId || dates.length === 0) {
+    throw new Error('Select at least one date')
+  }
+
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete selected')
+
+  const source = await prisma.workout.findFirst({
+    where: { id: payload.workoutId, athleteId },
+  })
+  if (!source) throw new Error('Workout not found')
+
+  for (const date of dates) {
+    const workoutDate = parseDateOnly(date)
+    const sortOrder = await getNextWorkoutSortOrder(source.athleteId, workoutDate)
+    await prisma.workout.create({
+      data: {
+        athleteId: source.athleteId,
+        templateId: source.templateId,
+        date: workoutDate,
+        sortOrder,
+        type: source.type,
+        sessionType: source.sessionType,
+        title: source.title,
+        description: source.description,
+        plannedDistance: source.plannedDistance,
+        plannedDuration: source.plannedDuration,
+        plannedDistanceMeters: source.plannedDistanceMeters,
+        swimEnvironment: source.swimEnvironment,
+        swimStructure: source.swimStructure ?? undefined,
+        coachNotes: source.coachNotes,
+        structure: source.structure ?? undefined,
+        tags: source.tags,
+      },
+    })
+  }
 
   revalidatePath('/training')
+  revalidatePath('/dashboard')
+}
+
+/** Unique sport types already planned per day in a month (for copy calendar). */
+export async function getAthleteDaySportsForMonth(year: number, month: number) {
+  const session = await requireSession()
+  if (session.role !== 'COACH') throw new Error('Coach only')
+
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) return {} as Record<string, WorkoutType[]>
+
+  const start = new Date(Date.UTC(year, month - 1, 1))
+  const end = new Date(Date.UTC(year, month, 0))
+
+  const workouts = await prisma.workout.findMany({
+    where: {
+      athleteId,
+      date: { gte: start, lte: end },
+    },
+    select: {
+      date: true,
+      type: true,
+    },
+    orderBy: [{ date: 'asc' }, { sortOrder: 'asc' }],
+  })
+
+  const byDay: Record<string, WorkoutType[]> = {}
+  for (const workout of workouts) {
+    const key = toDateKey(workout.date)
+    const list = byDay[key] ?? (byDay[key] = [])
+    if (!list.includes(workout.type)) list.push(workout.type)
+  }
+  return byDay
 }
 
 export async function createWorkout(formData: FormData) {
@@ -379,6 +755,63 @@ export async function updateWorkout(formData: FormData) {
   revalidatePath(`/workouts/${workoutId}`)
 }
 
+/** Quick coach edit from plan cards (title / planned distance / duration). */
+export async function patchPlanWorkoutCard(input: {
+  workoutId: string
+  title?: string
+  plannedDistance?: number | null
+  plannedDuration?: number | null
+  plannedDistanceMeters?: number | null
+}) {
+  const session = await requireSession()
+  if (session.role !== 'COACH') throw new Error('Coach only')
+
+  const workoutId = input.workoutId?.trim()
+  if (!workoutId) throw new Error('Workout required')
+
+  const existing = await prisma.workout.findFirst({
+    where: {
+      id: workoutId,
+      athlete: { coachId: session.userId },
+    },
+    select: { id: true, type: true },
+  })
+  if (!existing) throw new Error('Workout not found')
+
+  const data: {
+    title?: string
+    plannedDistance?: number | null
+    plannedDuration?: number | null
+    plannedDistanceMeters?: number | null
+  } = {}
+
+  if (input.title !== undefined) {
+    const title = input.title.trim()
+    if (!title) throw new Error('Title required')
+    data.title = title
+  }
+  if (input.plannedDistance !== undefined) {
+    data.plannedDistance = input.plannedDistance
+  }
+  if (input.plannedDuration !== undefined) {
+    data.plannedDuration = input.plannedDuration
+  }
+  if (input.plannedDistanceMeters !== undefined) {
+    data.plannedDistanceMeters = input.plannedDistanceMeters
+  }
+
+  if (Object.keys(data).length === 0) return
+
+  await prisma.workout.update({
+    where: { id: workoutId },
+    data,
+  })
+
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
+  revalidatePath(`/workouts/${workoutId}`)
+}
+
 export async function deleteWorkout(formData: FormData) {
   const session = await requireSession()
   if (session.role !== 'COACH') throw new Error('Coach only')
@@ -388,7 +821,12 @@ export async function deleteWorkout(formData: FormData) {
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
-  redirect('/training')
+  revalidatePath(`/workouts/${workoutId}`)
+
+  const redirectTo = formData.get('redirectTo') as string | null
+  if (redirectTo) {
+    redirect(safeRedirectPath(redirectTo, '/training'))
+  }
 }
 
 export async function updateTemplate(formData: FormData) {
@@ -396,6 +834,11 @@ export async function updateTemplate(formData: FormData) {
   if (session.role !== 'COACH') throw new Error('Coach only')
 
   const templateId = formData.get('templateId') as string
+
+  const template = await prisma.workoutTemplate.findFirst({
+    where: { id: templateId, coachId: session.userId },
+  })
+  if (!template) throw new Error('Template not found')
 
   await prisma.workoutTemplate.update({
     where: { id: templateId, coachId: session.userId },
@@ -410,7 +853,8 @@ export async function updateTemplate(formData: FormData) {
   })
 
   revalidatePath('/workouts')
-  redirect('/workouts')
+  revalidatePath(`/workouts/library/${sportSlug(template.type)}`)
+  redirect(`/workouts/library/${sportSlug(template.type)}`)
 }
 
 export async function deleteTemplate(formData: FormData) {
@@ -418,11 +862,51 @@ export async function deleteTemplate(formData: FormData) {
   if (session.role !== 'COACH') throw new Error('Coach only')
 
   const templateId = formData.get('templateId') as string
+  const template = await prisma.workoutTemplate.findFirst({
+    where: { id: templateId, coachId: session.userId },
+  })
+  if (!template) throw new Error('Template not found')
+
   await prisma.workoutTemplate.delete({
     where: { id: templateId, coachId: session.userId },
   })
 
   revalidatePath('/workouts')
+  revalidatePath(`/workouts/library/${sportSlug(template.type)}`)
+}
+
+export async function duplicateTemplate(formData: FormData) {
+  const session = await requireSession()
+  if (session.role !== 'COACH') throw new Error('Coach only')
+
+  const templateId = formData.get('templateId') as string
+  if (!templateId) throw new Error('Template required')
+
+  const source = await prisma.workoutTemplate.findFirst({
+    where: { id: templateId, coachId: session.userId },
+  })
+  if (!source) throw new Error('Template not found')
+
+  await prisma.workoutTemplate.create({
+    data: {
+      coachId: session.userId,
+      type: source.type,
+      sessionType: source.sessionType,
+      title: `${source.title} (copy)`,
+      description: source.description,
+      distanceKm: source.distanceKm,
+      durationMin: source.durationMin,
+      notes: source.notes,
+      structure: source.structure ?? undefined,
+      swimEnvironment: source.swimEnvironment ?? undefined,
+      swimStructure: source.swimStructure ?? undefined,
+      plannedDistanceMeters: source.plannedDistanceMeters ?? undefined,
+      tags: source.tags,
+    },
+  })
+
+  revalidatePath('/workouts')
+  revalidatePath(`/workouts/library/${sportSlug(source.type)}`)
 }
 
 export async function updateRace(formData: FormData) {
@@ -430,6 +914,8 @@ export async function updateRace(formData: FormData) {
   const raceId = formData.get('raceId') as string
   const raceType = formData.get('type') as RaceType
   const sportRaw = formData.get('sport') as WorkoutType | null
+  const priorityRaw = (formData.get('priority') as RacePriority | null) || RacePriority.C
+  const intentRaw = (formData.get('intent') as RaceIntent | null) || RaceIntent.PLANNED
   const returnTo = (formData.get('returnTo') as string) || '/races'
 
   const race = await prisma.race.update({
@@ -440,7 +926,10 @@ export async function updateRace(formData: FormData) {
       location: parseOptionalString(formData.get('location')),
       type: raceType,
       sport: sportRaw || defaultSportForRaceType(raceType),
+      priority: priorityRaw,
+      intent: intentRaw,
       goal: parseOptionalString(formData.get('goal')),
+      url: parseOptionalString(formData.get('url')),
     },
     select: { athleteId: true },
   })
@@ -450,6 +939,80 @@ export async function updateRace(formData: FormData) {
   revalidatePath('/training')
   revalidatePath(`/athletes/${race.athleteId}`)
   redirect(returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/races')
+}
+
+export async function setRaceIntent(formData: FormData) {
+  await requireSession()
+  const raceId = formData.get('raceId') as string
+  const intentRaw = formData.get('intent') as RaceIntent
+  if (intentRaw !== RaceIntent.PLANNED && intentRaw !== RaceIntent.WATCHING) {
+    throw new Error('Invalid race intent')
+  }
+
+  const race = await prisma.race.update({
+    where: { id: raceId },
+    data: { intent: intentRaw },
+    select: { athleteId: true },
+  })
+
+  revalidatePath('/races')
+  revalidatePath('/dashboard')
+  revalidatePath('/training')
+  revalidatePath(`/athletes/${race.athleteId}`)
+}
+
+export async function logRaceOutcome(formData: FormData) {
+  const session = await requireSession()
+  const raceId = formData.get('raceId') as string
+  const outcomeRaw = formData.get('outcome') as RaceOutcome
+  const allowed: RaceOutcome[] = [
+    RaceOutcome.FINISHED,
+    RaceOutcome.DID_NOT_START,
+    RaceOutcome.DNF,
+    RaceOutcome.DISMISSED,
+  ]
+  if (!allowed.includes(outcomeRaw)) {
+    throw new Error('Invalid race outcome')
+  }
+
+  const existing =
+    session.role === 'COACH'
+      ? await prisma.race.findFirst({
+          where: { id: raceId, athlete: { coachId: session.userId } },
+          select: { id: true, athleteId: true },
+        })
+      : await prisma.race.findFirst({
+          where: {
+            id: raceId,
+            athleteId: (await resolveAthleteId(session)) ?? '',
+          },
+          select: { id: true, athleteId: true },
+        })
+
+  if (!existing) throw new Error('Race not found')
+
+  const resultTime =
+    outcomeRaw === RaceOutcome.FINISHED
+      ? parseOptionalString(formData.get('resultTime'))
+      : null
+  const resultNotes =
+    outcomeRaw === RaceOutcome.DISMISSED
+      ? null
+      : parseOptionalString(formData.get('resultNotes'))
+
+  await prisma.race.update({
+    where: { id: raceId },
+    data: {
+      outcome: outcomeRaw,
+      resultTime: outcomeRaw === RaceOutcome.FINISHED ? resultTime : null,
+      resultNotes,
+      resultLoggedAt: new Date(),
+    },
+  })
+
+  revalidatePath('/dashboard')
+  revalidatePath('/races')
+  revalidatePath(`/athletes/${existing.athleteId}`)
 }
 
 export async function logManualWorkout(formData: FormData) {

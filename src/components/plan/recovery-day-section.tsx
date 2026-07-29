@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react'
 import { RecoveryDayModal } from '@/components/plan/recovery-day-modal'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import { formatRecoveryDayNote } from '@/lib/recovery-day'
 import { cn } from '@/lib/utils'
 
 const RECOVERY_DOT = '#8b5cf6'
@@ -41,11 +42,9 @@ function RecoveryPlanCell({
         <p className="min-w-0 truncate text-xs font-medium leading-snug group-hover:text-brand landscape:max-lg:text-[8px] landscape:max-lg:leading-tight">
           Recovery
         </p>
-        {workout.coachNotes && (
-          <p className="truncate text-[10px] text-muted-foreground landscape:max-lg:text-[8px] lg:text-xs">
-            {workout.coachNotes}
-          </p>
-        )}
+        <p className="truncate text-[10px] text-muted-foreground landscape:max-lg:text-[8px] lg:text-xs">
+          {formatRecoveryDayNote(workout.coachNotes)}
+        </p>
       </div>
     </>
   )
@@ -84,10 +83,6 @@ export function RecoveryDaySection({
   ) : null
 
   if (workout) {
-    if (!workout.coachNotes && !canEdit) {
-      return null
-    }
-
     if (compact) {
       return (
         <>
@@ -110,9 +105,9 @@ export function RecoveryDaySection({
           tabIndex={canEdit ? 0 : undefined}
         >
           <p className="font-medium text-foreground">Recovery</p>
-          {workout.coachNotes && (
-            <p className="mt-0.5 text-sm text-muted-foreground">{workout.coachNotes}</p>
-          )}
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {formatRecoveryDayNote(workout.coachNotes)}
+          </p>
         </div>
         {modal}
       </>

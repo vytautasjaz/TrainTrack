@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getStravaConfig } from './config'
-import type { StravaActivity, StravaTokenResponse } from './types'
+import type { StravaActivity, StravaAthleteSummary, StravaTokenResponse } from './types'
 
 const STRAVA_API = 'https://www.strava.com/api/v3'
 const STRAVA_OAUTH = 'https://www.strava.com/oauth'
@@ -80,6 +80,20 @@ export async function getValidAccessToken(userId: string): Promise<string> {
   return refreshed.access_token
 }
 
+export async function fetchStravaAthlete(accessToken: string): Promise<StravaAthleteSummary> {
+  const response = await fetch(`${STRAVA_API}/athlete`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    next: { revalidate: 0 },
+  })
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(`Strava athlete fetch failed: ${body}`)
+  }
+
+  return response.json()
+}
+
 export async function fetchAthleteActivities(
   accessToken: string,
   options: { after?: number; before?: number; page?: number; perPage?: number } = {},
@@ -103,16 +117,35 @@ export async function fetchAthleteActivities(
   return response.json()
 }
 
+/** Detailed activity — includes description (missing from list summaries). */
+export async function fetchStravaActivity(
+  accessToken: string,
+  activityId: number,
+): Promise<StravaActivity> {
+  const response = await fetch(`${STRAVA_API}/activities/${activityId}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    next: { revalidate: 0 },
+  })
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(`Strava activity fetch failed: ${body}`)
+  }
+
+  return response.json()
+}
+
 export async function fetchAllRecentActivities(
   accessToken: string,
-  afterUnix: number,
+  options: { afterUnix: number; beforeUnix?: number },
 ): Promise<StravaActivity[]> {
   const activities: StravaActivity[] = []
   let page = 1
 
   while (page <= 10) {
     const batch = await fetchAthleteActivities(accessToken, {
-      after: afterUnix,
+      after: options.afterUnix,
+      before: options.beforeUnix,
       page,
       perPage: 50,
     })
