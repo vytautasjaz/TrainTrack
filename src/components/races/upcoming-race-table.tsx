@@ -93,7 +93,11 @@ export function UpcomingRaceTable({ races, className }: UpcomingRaceTableProps) 
                         })}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
-                        {raceDistanceLabel(race.type)}
+                        {raceDistanceLabel(race.type, {
+                          triathlonDistance: race.triathlonDistance,
+                          customDistanceKm: race.customDistanceKm,
+                          legs: race.legs,
+                        })}
                       </td>
                       <td className="px-3 py-3">
                         <PriorityBadge priority={race.priority} />

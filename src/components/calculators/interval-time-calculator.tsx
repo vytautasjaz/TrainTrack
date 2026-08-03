@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CircleDot, Flag, Timer, Zap } from 'lucide-react'
+import { CircleDot, Flag, PersonStanding, Timer, Zap } from 'lucide-react'
 import { formatPaceMinPerKmPrecise, parsePaceMinPerKm } from '@/lib/athlete-preferences'
 import {
   CalculatorHeroCard,
@@ -24,6 +24,7 @@ import { FORMAT } from '@/lib/calculators/calculator-copy'
 import { INTERVAL_PRESETS, type IntervalPresetId } from '@/lib/calculators/interval-distances'
 import {
   formatRaceTime,
+  formatRaceTimeTenths,
   intervalPaceFromTime,
   intervalTimeMinutes,
   parsePositiveFloat,
@@ -32,6 +33,7 @@ import {
 import { formatSpeedKmh, paceToSpeedKmh } from '@/lib/calculators/pace-zones'
 import { intervalFinishTimePlaceholder } from '@/lib/calculators/time-placeholders'
 import type { IntervalCalculatorState } from '@/lib/calculators/storage'
+import { IntervalTrackSchematic } from '@/components/calculators/interval-track-schematic'
 
 type IntervalTimeCalculatorProps = {
   state: IntervalCalculatorState
@@ -40,10 +42,11 @@ type IntervalTimeCalculatorProps = {
 
 /** Primary cards shown in the prediction grid. */
 const GRID_PRESETS = INTERVAL_PRESETS.filter((p) =>
-  ['200', '400', '800', '1000'].includes(p.id),
+  ['100', '200', '400', '800', '1000'].includes(p.id),
 )
 
 const GRID_ICONS = {
+  '100': PersonStanding,
   '200': CircleDot,
   '400': Zap,
   '800': Timer,
@@ -51,6 +54,7 @@ const GRID_ICONS = {
 } as const
 
 const GRID_ICON_COLORS = {
+  '100': 'bg-violet-500/15 text-violet-600',
   '200': 'bg-emerald-500/15 text-emerald-600',
   '400': 'bg-sky-500/15 text-sky-600',
   '800': 'bg-amber-500/15 text-amber-600',
@@ -72,7 +76,10 @@ const DISTANCE_SLIDER_STEP = 50
 
 function finishDisplayFromPace(distanceM: number, paceMinPerKm: number | null): string {
   if (paceMinPerKm == null) return ''
-  return formatRaceTime(intervalTimeMinutes(distanceM, paceMinPerKm))
+  const minutes = intervalTimeMinutes(distanceM, paceMinPerKm)
+  // 100 m: show tenths with comma (e.g. 0:19,5)
+  if (distanceM <= 100) return formatRaceTimeTenths(minutes)
+  return formatRaceTime(minutes)
 }
 
 function formatDistanceM(m: number): string {
@@ -92,7 +99,12 @@ export function IntervalTimeCalculator({ state, onChange }: IntervalTimeCalculat
     paceMinPerKm != null && distanceM != null
       ? intervalTimeMinutes(distanceM, paceMinPerKm)
       : null
-  const heroTimeDerived = heroTimeMinutes != null ? formatRaceTime(heroTimeMinutes) : ''
+  const heroTimeDerived =
+    heroTimeMinutes != null
+      ? distanceM != null && distanceM <= 100
+        ? formatRaceTimeTenths(heroTimeMinutes)
+        : formatRaceTime(heroTimeMinutes)
+      : ''
 
   const heroTimeDisplay = editingFinishId === 'hero' ? finishDraft : heroTimeDerived
   const heroTimeInvalid =
@@ -233,7 +245,7 @@ export function IntervalTimeCalculator({ state, onChange }: IntervalTimeCalculat
 
   return (
     <div className="space-y-4">
-      <CalculatorHeroCard title="Interval calculator">
+      <CalculatorHeroCard>
         <CalculatorHeroColumns
           columns={[
             {
@@ -366,10 +378,13 @@ export function IntervalTimeCalculator({ state, onChange }: IntervalTimeCalculat
       <CalculatorPredictionGrid
         title="Interval times"
         items={predictionItems}
+        columns={5}
         onValueChange={handleFinishChange}
         onValueFocus={handleFinishFocus}
         onValueBlur={handleFinishBlur}
       />
+
+      <IntervalTrackSchematic paceMinPerKm={paceMinPerKm} />
     </div>
   )
 }

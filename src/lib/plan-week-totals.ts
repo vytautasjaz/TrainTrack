@@ -1,6 +1,7 @@
 import { WorkoutType } from '@prisma/client'
 import type { PlanDay } from '@/lib/plan-week'
 import { formatDistance, formatDuration } from '@/lib/utils'
+import { formatSwimDistance } from '@/lib/swim-workout/format'
 
 const SPORTS_WITHOUT_PLANNED_DISTANCE = new Set<WorkoutType>([WorkoutType.STRENGTH])
 
@@ -13,6 +14,22 @@ export type SportWeekTotals = {
   durationMin: number
   actualDistanceKm: number
   actualDurationMin: number
+  /** Swim totals in meters (plannedDistanceMeters / actualDistance km→m). */
+  distanceMeters: number
+  actualDistanceMeters: number
+}
+
+function plannedSwimMeters(workout: {
+  plannedDistanceMeters: number | null
+  plannedDistance: number | null
+}): number {
+  if (workout.plannedDistanceMeters != null && workout.plannedDistanceMeters > 0) {
+    return workout.plannedDistanceMeters
+  }
+  if (workout.plannedDistance != null && workout.plannedDistance > 0) {
+    return Math.round(workout.plannedDistance * 1000)
+  }
+  return 0
 }
 
 export function sumSportWeekTotals(days: PlanDay[], sport: WorkoutType): SportWeekTotals {
@@ -20,18 +37,74 @@ export function sumSportWeekTotals(days: PlanDay[], sport: WorkoutType): SportWe
   let durationMin = 0
   let actualDistanceKm = 0
   let actualDurationMin = 0
+  let distanceMeters = 0
+  let actualDistanceMeters = 0
 
   for (const day of days) {
     for (const workout of day.workouts) {
-      if (workout.type !== sport || workout.type === WorkoutType.REST) continue
-      if (workout.plannedDistance) distanceKm += workout.plannedDistance
+      if (workout.type === WorkoutType.REST) continue
+
+      // Races contribute by sport split (triathlon → swim/bike/run), not only race.sport.
+      if (workout.isRace) {
+        const contrib =
+          workout.raceDistanceBySport &&
+          (sport === WorkoutType.RUN ||
+            sport === WorkoutType.BIKE ||
+            sport === WorkoutType.SWIM)
+            ? workout.raceDistanceBySport[sport]
+            : null
+        if (contrib) {
+          if (sport === WorkoutType.SWIM) {
+            if (contrib.plannedKm > 0) {
+              distanceMeters += Math.round(contrib.plannedKm * 1000)
+            }
+            if (contrib.actualKm != null && contrib.actualKm > 0) {
+              actualDistanceMeters += Math.round(contrib.actualKm * 1000)
+            }
+          } else {
+            if (contrib.plannedKm > 0) distanceKm += contrib.plannedKm
+            if (contrib.actualKm != null && contrib.actualKm > 0) {
+              actualDistanceKm += contrib.actualKm
+            }
+          }
+          if (contrib.plannedMin > 0) durationMin += contrib.plannedMin
+          if (contrib.actualMin != null && contrib.actualMin > 0) {
+            actualDurationMin += contrib.actualMin
+          }
+        } else if (workout.type === sport) {
+          // Race on this sport row without split metrics (e.g. HYROX) — use card fields.
+          if (workout.plannedDuration) durationMin += workout.plannedDuration
+          if (workout.result?.actualDuration) {
+            actualDurationMin += workout.result.actualDuration
+          }
+        }
+        continue
+      }
+
+      if (workout.type !== sport) continue
       if (workout.plannedDuration) durationMin += workout.plannedDuration
-      if (workout.result?.actualDistance) actualDistanceKm += workout.result.actualDistance
       if (workout.result?.actualDuration) actualDurationMin += workout.result.actualDuration
+
+      if (sport === WorkoutType.SWIM) {
+        distanceMeters += plannedSwimMeters(workout)
+        if (workout.result?.actualDistance) {
+          actualDistanceMeters += Math.round(workout.result.actualDistance * 1000)
+        }
+      } else {
+        if (workout.plannedDistance) distanceKm += workout.plannedDistance
+        if (workout.result?.actualDistance) actualDistanceKm += workout.result.actualDistance
+      }
     }
   }
 
-  return { distanceKm, durationMin, actualDistanceKm, actualDurationMin }
+  return {
+    distanceKm,
+    durationMin,
+    actualDistanceKm,
+    actualDurationMin,
+    distanceMeters,
+    actualDistanceMeters,
+  }
 }
 
 /** Total planned/actual duration across all sports for the week (excludes REST). */
@@ -42,6 +115,16 @@ export function sumWeekDurationMinutes(days: PlanDay[]): { planned: number; actu
   for (const day of days) {
     for (const workout of day.workouts) {
       if (workout.type === WorkoutType.REST) continue
+      if (workout.isRace && workout.raceDistanceBySport) {
+        for (const contrib of Object.values(workout.raceDistanceBySport)) {
+          if (!contrib) continue
+          if (contrib.plannedMin > 0) planned += contrib.plannedMin
+          if (contrib.actualMin != null && contrib.actualMin > 0) {
+            actual += contrib.actualMin
+          }
+        }
+        continue
+      }
       if (workout.plannedDuration) planned += workout.plannedDuration
       if (workout.result?.actualDuration) actual += workout.result.actualDuration
     }
@@ -50,12 +133,37 @@ export function sumWeekDurationMinutes(days: PlanDay[]): { planned: number; actu
   return { planned, actual }
 }
 
+export function sportHasPlannedDistance(sport: WorkoutType, totals: SportWeekTotals): boolean {
+  if (!sportUsesPlannedDistance(sport)) return false
+  if (sport === WorkoutType.SWIM) return totals.distanceMeters > 0
+  return totals.distanceKm > 0
+}
+
+export function formatSportWeekDistance(sport: WorkoutType, totals: SportWeekTotals): string | null {
+  if (!sportHasPlannedDistance(sport, totals)) return null
+  if (sport === WorkoutType.SWIM) return formatSwimDistance(totals.distanceMeters) || null
+  const formatted = formatDistance(totals.distanceKm)
+  return formatted === '—' ? null : formatted
+}
+
+export function formatSportWeekActualDistance(
+  sport: WorkoutType,
+  totals: SportWeekTotals,
+): string | null {
+  if (sport === WorkoutType.SWIM) {
+    if (totals.actualDistanceMeters <= 0) return null
+    return formatSwimDistance(totals.actualDistanceMeters) || null
+  }
+  if (totals.actualDistanceKm <= 0) return null
+  const formatted = formatDistance(totals.actualDistanceKm)
+  return formatted === '—' ? null : formatted
+}
+
 export function formatSportWeekTotals(sport: WorkoutType, totals: SportWeekTotals): string | null {
   const parts: string[] = []
 
-  if (sportUsesPlannedDistance(sport) && totals.distanceKm > 0) {
-    parts.push(formatDistance(totals.distanceKm))
-  }
+  const distance = formatSportWeekDistance(sport, totals)
+  if (distance) parts.push(distance)
   if (totals.durationMin > 0) {
     parts.push(formatDuration(totals.durationMin))
   }

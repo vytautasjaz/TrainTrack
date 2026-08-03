@@ -99,7 +99,7 @@ function CombinedWeeksTable({
           </div>
         )}
       </div>
-      <div className="overflow-x-auto rounded-[6px] border border-border bg-card shadow-none">
+      <div className="@container overflow-x-auto rounded-[6px] border border-foreground/15 bg-card shadow-none">
         <table className="w-full table-fixed border-collapse text-left landscape:max-lg:text-[9px] lg:text-sm">
           <colgroup>
             <col className="w-[11%]" />
@@ -113,7 +113,7 @@ function CombinedWeeksTable({
               canEditDayNotes={canEditDayNotes}
               athleteId={athleteId}
               athleteName={athleteName}
-              weekStartKey={isCoach ? block.weekStartKey : undefined}
+              weekStartKey={block.weekStartKey}
               planSportRows={planSportRows}
               weekExtraPlanSportRows={block.weekExtraPlanSportRows}
               weekHiddenPlanSportRows={block.weekHiddenPlanSportRows}
@@ -130,7 +130,7 @@ function CombinedWeeksTable({
   // Portrait: stack day views without volume/+ chrome between weeks.
   const portrait = (
     <div className="space-y-4 portrait:max-lg:block landscape:max-lg:hidden lg:hidden">
-      {weeks.map((block) => (
+      {weeks.map((block, index) => (
         <PlanTableView
           key={block.weekStartKey}
           days={block.planDays}
@@ -138,11 +138,13 @@ function CombinedWeeksTable({
           canEditDayNotes={canEditDayNotes}
           athleteId={athleteId}
           athleteName={athleteName}
-          weekStartKey={isCoach ? block.weekStartKey : undefined}
+          weekStartKey={block.weekStartKey}
           planSportRows={planSportRows}
           weekExtraPlanSportRows={block.weekExtraPlanSportRows}
           weekHiddenPlanSportRows={block.weekHiddenPlanSportRows}
           weekLabel={block.weekLabel}
+          prevWeekHref={index === 0 ? prevWeekHref : undefined}
+          nextWeekHref={index === 0 ? nextWeekHref : undefined}
           hideFooterRows
           skipDndProvider
         />
@@ -291,7 +293,7 @@ export function PlanMultiWeekTables({
             canEditDayNotes={canEditDayNotes}
             athleteId={athleteId}
             athleteName={athleteName}
-            weekStartKey={isCoach ? block.weekStartKey : undefined}
+            weekStartKey={block.weekStartKey}
             planSportRows={planSportRows}
             weekExtraPlanSportRows={block.weekExtraPlanSportRows}
             weekHiddenPlanSportRows={block.weekHiddenPlanSportRows}

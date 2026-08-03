@@ -1,6 +1,6 @@
 /**
  * Design system token map — CSS utilities and theme vars live in `src/app/globals.css`.
- * Minimal look: 6px radius, #E5E7EB borders, no shadows, ink primary.
+ * Design System v3: Inter, 8px spacing, 12px shell cards, 0px calendar workout blocks.
  */
 export const typography = {
   pageTitle: 'text-page-title',
@@ -20,9 +20,29 @@ export const surfaces = {
   workoutCard: 'workout-card-interactive',
   workoutCardMuted: 'workout-card-muted',
   workoutDayCard: 'workout-day-card',
+  workoutBlock: 'tt-workout-block',
+  workoutBlockPlanned: 'tt-workout-block-planned',
+  workoutBlockCompleted: 'tt-workout-block-completed',
+  workoutBlockSkipped: 'tt-workout-block-skipped',
+  workoutBlockAdjusted: 'tt-workout-block-adjusted',
   input: 'input-field',
   inputCompact: 'input-field-compact',
   inputCompactMono: 'input-field-compact-mono',
+} as const
+
+/** Design System v3 sport accents (CSS variables). */
+export const sportColors = {
+  run: 'var(--color-sport-run)',
+  bike: 'var(--color-sport-bike)',
+  swim: 'var(--color-sport-swim)',
+  triathlon: 'var(--color-sport-tri)',
+  race: 'var(--color-sport-race)',
+} as const
+
+export const statusColors = {
+  success: 'var(--color-success)',
+  skipped: 'var(--color-destructive)',
+  muted: 'var(--color-tt-muted)',
 } as const
 
 export const form = {

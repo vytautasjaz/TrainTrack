@@ -232,7 +232,7 @@ export function RunningTimeCalculator({ state, onChange }: RunningTimeCalculator
 
   return (
     <div className="space-y-4">
-      <CalculatorHeroCard title="Running calculator">
+      <CalculatorHeroCard>
         <CalculatorHeroColumns
           columns={[
             {

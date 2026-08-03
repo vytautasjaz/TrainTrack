@@ -2,11 +2,9 @@
 
 import { useState } from 'react'
 import { RacePlanItem } from '@/components/plan/race-plan-item'
-import { CopyPlanWorkoutButton } from '@/components/plan/copy-plan-workout-button'
-import { DeletePlanWorkoutButton } from '@/components/plan/delete-plan-workout-button'
-import { EditPlanWorkoutButton } from '@/components/plan/edit-plan-workout-button'
+import { PlanWorkoutActionsMenu } from '@/components/plan/plan-workout-actions-menu'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
-import { PlanWorkoutDataCard } from '@/components/plan/plan-workout-data-card'
+import { WorkoutBlock } from '@/components/workout-block'
 import { planWorkoutItemShellClass } from '@/components/plan/plan-workout-item-shell'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
@@ -37,7 +35,7 @@ export function DraggableWorkoutItem({
       className={planWorkoutItemShellClass(
         workout,
         cn(
-          'relative w-full min-w-0',
+          'relative w-full min-w-0 overflow-hidden',
           'group/card',
           tableCell && PLAN_WORKOUT_ITEM_CLASS,
           isDragging && 'opacity-40',
@@ -47,7 +45,6 @@ export function DraggableWorkoutItem({
       <WorkoutModalTrigger
         workout={workout}
         isCoach
-        nestedInteractive
         className={cn(PLAN_WORKOUT_ITEM_CLASS, 'block w-full min-w-0')}
         title={canDrag ? `${workout.title} — drag to move` : undefined}
         draggable={canDrag}
@@ -67,26 +64,14 @@ export function DraggableWorkoutItem({
           dnd?.setDragWorkout(null)
         }}
       >
-        <PlanWorkoutDataCard
+        <WorkoutBlock
           workout={workout}
-          density="week"
-          editable
-          actions={<span className="inline-block w-5" aria-hidden />}
+          density="md"
+          actions={<span className="inline-block w-6" aria-hidden />}
         />
       </WorkoutModalTrigger>
-      <div className="absolute right-1 top-1 z-10 flex flex-col items-center gap-0.5 opacity-50 transition group-hover/card:opacity-100">
-        <EditPlanWorkoutButton workout={workout} compact />
-        <CopyPlanWorkoutButton
-          workoutId={workout.id}
-          workoutTitle={workout.title}
-          sourceDateKey={workout.dateKey}
-          compact
-        />
-        <DeletePlanWorkoutButton
-          workoutId={workout.id}
-          workoutTitle={workout.title}
-          compact
-        />
+      <div className="absolute right-1.5 top-1.5 z-10 opacity-60 transition group-hover/card:opacity-100">
+        <PlanWorkoutActionsMenu workout={workout} compact />
       </div>
     </div>
   )

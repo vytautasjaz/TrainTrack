@@ -3,11 +3,17 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { ChevronsLeft, ChevronsRight, Moon, Sun, Zap } from 'lucide-react'
-import { useTheme } from 'next-themes'
+import { ChevronsLeft, ChevronsRight, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { ThemeToggleButton } from '@/components/theme-toggle-button'
+import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { CALCULATOR_NAV_TABS, getMainNav, PREFERENCES_NAV } from '@/lib/nav-items'
+
+export type SidebarAthleteProfile = {
+  name: string
+  avatarUrl: string | null
+}
 
 const SIDEBAR_COLLAPSED_KEY = 'tt-sidebar-collapsed'
 /** Auto-collapse icon-only sidebar below this width (still desktop lg+). */
@@ -43,17 +49,18 @@ export function AppNav({
   isCoach = false,
   dashboardNotificationCount = 0,
   sidebarFooter,
+  athleteProfile = null,
 }: {
   showPreferences?: boolean
   isCoach?: boolean
   dashboardNotificationCount?: number
   sidebarFooter?: ReactNode
+  athleteProfile?: SidebarAthleteProfile | null
 }) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { theme, setTheme } = useTheme()
   const mainNav = getMainNav(isCoach)
-  const calculatorsOpen = pathname === '/calculators' || pathname.startsWith('/calculators/')
+  const toolsOpen = pathname === '/tools' || pathname.startsWith('/tools/')
   const activeCalculatorTab = searchParams.get('tab') ?? 'running'
   const [collapsed, setCollapsed] = useState(false)
 
@@ -88,28 +95,30 @@ export function AppNav({
 
   return (
     <>
-      {/* Desktop sidebar — lg+ only (avoids sidebar on phone landscape) */}
+      {/* Desktop sidebar — dark charcoal rail (Design System v3) */}
       <aside
         className={cn(
-          'hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:max-h-dvh lg:flex-col lg:border-r lg:border-border lg:bg-card lg:py-6',
-          'lg:transition-[width] lg:duration-200',
+          'hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:max-h-dvh lg:flex-col lg:bg-sidebar lg:py-6',
+          'lg:text-sidebar-foreground lg:transition-[width] lg:duration-[var(--tt-motion-normal)]',
           collapsed ? 'lg:w-[4.5rem] lg:px-2' : 'lg:w-64 lg:px-4',
         )}
       >
         <div
           className={cn(
-            'mb-6 flex shrink-0 items-center px-2',
+            'mb-8 flex shrink-0 items-center px-2',
             collapsed ? 'justify-center' : 'gap-3',
           )}
         >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[6px] bg-foreground text-background">
-            <Zap className="h-4 w-4" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white text-sidebar">
+            <Zap className="h-4 w-4" strokeWidth={1.75} />
           </div>
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-lg font-bold tracking-tight text-foreground">TrainTrack</p>
-              <p className="text-xs text-muted-foreground">
-                {isCoach ? 'Coach' : 'Training planner'}
+              <p className="text-[15px] font-bold uppercase tracking-[0.08em] text-sidebar-foreground">
+                TrainTrack
+              </p>
+              <p className="text-xs text-white/45">
+                {isCoach ? 'Coach' : 'Athlete'}
               </p>
             </div>
           )}
@@ -118,26 +127,26 @@ export function AppNav({
           {mainNav.map(({ href, label, icon: Icon }) => {
             const active = isNavActive(pathname, href)
             const showBadge = href === '/dashboard' && dashboardNotificationCount > 0
-            const isCalculators = href === '/calculators'
+            const isTools = href === '/tools'
             return (
               <div key={href}>
                 <Link
                   href={href}
                   title={label}
                   className={cn(
-                    'flex items-center rounded-[6px] py-2.5 text-sm font-medium transition-colors',
+                    'flex items-center rounded-[10px] py-2.5 text-sm font-medium transition-colors',
                     collapsed ? 'justify-center px-2' : 'gap-3 px-3',
                     active
-                      ? 'bg-muted text-foreground'
-                      : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                      ? 'bg-white/10 text-white'
+                      : 'text-white/55 hover:bg-white/5 hover:text-white',
                   )}
                 >
                   <span className="relative shrink-0">
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4" strokeWidth={1.75} />
                     {showBadge && (
                       <span
                         className={cn(
-                          'absolute flex items-center justify-center rounded-full bg-foreground font-bold text-background',
+                          'absolute flex items-center justify-center rounded-full bg-white font-bold text-sidebar',
                           collapsed
                             ? '-right-1.5 -top-1.5 h-2 w-2'
                             : '-right-1.5 -top-1.5 h-4 min-w-4 px-1 text-[10px]',
@@ -152,8 +161,8 @@ export function AppNav({
                   </span>
                   {!collapsed && <span className="truncate">{label}</span>}
                 </Link>
-                {!collapsed && isCalculators && calculatorsOpen ? (
-                  <div className="mt-1 ml-4 space-y-0.5 border-l border-border pl-3">
+                {!collapsed && isTools && toolsOpen ? (
+                  <div className="mt-1 ml-4 space-y-0.5 border-l border-white/15 pl-3">
                     {CALCULATOR_NAV_TABS.map((tab) => {
                       const tabActive = activeCalculatorTab === tab.id
                       return (
@@ -161,10 +170,10 @@ export function AppNav({
                           key={tab.id}
                           href={tab.href}
                           className={cn(
-                            'block rounded-[6px] px-2.5 py-1.5 text-sm font-medium transition-colors',
+                            'block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors',
                             tabActive
-                              ? 'bg-muted text-foreground'
-                              : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                              ? 'bg-white/10 text-white'
+                              : 'text-white/45 hover:bg-white/5 hover:text-white',
                           )}
                         >
                           {tab.label}
@@ -177,37 +186,59 @@ export function AppNav({
             )
           })}
         </nav>
-        <div className="mt-auto shrink-0 space-y-1 border-t border-border/40 pt-3">
+        <div className="mt-auto shrink-0 space-y-1 border-t border-white/10 pt-3">
+          {athleteProfile ? (
+            collapsed ? (
+              <div className="flex justify-center py-1.5" title={athleteProfile.name}>
+                <AthleteAvatar
+                  name={athleteProfile.name}
+                  avatarUrl={athleteProfile.avatarUrl}
+                  size="sm"
+                  className="ring-2 ring-white/15"
+                />
+              </div>
+            ) : (
+              <div className="mb-1 flex items-center gap-3 px-3 py-2">
+                <AthleteAvatar
+                  name={athleteProfile.name}
+                  avatarUrl={athleteProfile.avatarUrl}
+                  size="sm"
+                  className="ring-2 ring-white/15"
+                />
+                <p className="min-w-0 truncate text-sm font-semibold text-sidebar-foreground">
+                  {athleteProfile.name}
+                </p>
+              </div>
+            )
+          ) : null}
           {showPreferences && (
             <Link
               href={PREFERENCES_NAV.href}
               title={PREFERENCES_NAV.label}
               className={cn(
-                'mt-2 flex items-center rounded-[6px] py-2.5 text-sm font-medium transition-colors',
+                'flex items-center rounded-[10px] py-2.5 text-sm font-medium transition-colors',
                 collapsed ? 'justify-center px-2' : 'gap-3 px-3',
                 pathname.startsWith('/settings')
-                  ? 'bg-muted text-foreground'
-                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                  ? 'bg-white/10 text-white'
+                  : 'text-white/55 hover:bg-white/5 hover:text-white',
               )}
             >
-              <PREFERENCES_NAV.icon className="h-4 w-4 shrink-0" />
+              <PREFERENCES_NAV.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
               {!collapsed && PREFERENCES_NAV.label}
             </Link>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          <ThemeToggleButton
+            showLabel={!collapsed}
             className={cn(
-              'mt-2 rounded-[6px]',
+              'mt-2 rounded-[10px] text-white/55 hover:bg-white/5 hover:text-white',
               collapsed ? 'w-full justify-center px-2' : 'justify-start gap-2',
             )}
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            {!collapsed && 'Toggle theme'}
-          </Button>
-          {!collapsed && sidebarFooter}
+          />
+          {!collapsed && (
+            <div className="sidebar-footer text-sidebar-foreground [&_.text-label]:text-white/40 [&_.text-caption]:text-white/40 [&_button]:bg-white/10 [&_button]:text-white [&_select]:border-white/15 [&_select]:bg-white/5 [&_select]:text-white">
+              {sidebarFooter}
+            </div>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -215,15 +246,15 @@ export function AppNav({
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-pressed={collapsed}
             className={cn(
-              'mt-2 rounded-[6px]',
+              'mt-2 rounded-[10px] text-white/55 hover:bg-white/5 hover:text-white',
               collapsed ? 'w-full justify-center px-2' : 'w-full justify-start gap-2',
             )}
             onClick={() => setSidebarCollapsed(!collapsed)}
           >
             {collapsed ? (
-              <ChevronsRight className="h-4 w-4" />
+              <ChevronsRight className="h-4 w-4" strokeWidth={1.75} />
             ) : (
-              <ChevronsLeft className="h-4 w-4" />
+              <ChevronsLeft className="h-4 w-4" strokeWidth={1.75} />
             )}
             {!collapsed && 'Collapse'}
           </Button>

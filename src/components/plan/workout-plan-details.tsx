@@ -165,7 +165,11 @@ export function WorkoutPlanDetails({
 
       {hasFootnotes && (
         <div className={cn('flex flex-wrap items-center gap-1.5', isCompact ? 'pt-0.5' : 'pt-1')}>
-          <StravaSyncedIndicator workout={workout} variant="icon" />
+          <StravaSyncedIndicator
+            workout={workout}
+            variant={isCompact ? 'mark' : 'wordmark'}
+            size={isCompact ? 'xs' : 'sm'}
+          />
           {showManualCompletionBadge && completionSource && (
             <CompletionSourceBadge source={completionSource} />
           )}

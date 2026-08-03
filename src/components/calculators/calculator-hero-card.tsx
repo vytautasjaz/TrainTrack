@@ -4,7 +4,7 @@ import { Fragment, type ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 type CalculatorHeroCardProps = {
-  title: string
+  title?: string
   action?: ReactNode
   children: ReactNode
   className?: string
@@ -16,12 +16,20 @@ export function CalculatorHeroCard({
   children,
   className,
 }: CalculatorHeroCardProps) {
+  const showHeader = Boolean(title || action)
+
   return (
     <section className={cn('card-elevated overflow-hidden', className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/40 px-5 py-4">
-        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-        {action}
-      </div>
+      {showHeader ? (
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/40 px-5 py-4">
+          {title ? (
+            <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+          ) : (
+            <span />
+          )}
+          {action}
+        </div>
+      ) : null}
       <div className="space-y-4 p-5">{children}</div>
     </section>
   )

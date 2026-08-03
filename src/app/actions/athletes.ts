@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { AthleteStatus, WorkoutType } from '@prisma/client'
-import { endOfWeek } from 'date-fns'
+import { parseDateOnly, endOfWeekDateOnly } from '@/lib/dates'
 import { prisma } from '@/lib/prisma'
 import {
   HR_ZONE_FIELDS,
@@ -14,7 +14,6 @@ import {
   type AthletePreferences,
 } from '@/lib/athlete-preferences'
 import { isConfigurablePlanSport, parsePlanSportRows } from '@/lib/plan-sports'
-import { parseDateOnly } from '@/lib/dates'
 import { requireSession } from '@/lib/session'
 
 const VALID_STATUSES = new Set<string>(Object.values(AthleteStatus))
@@ -234,7 +233,7 @@ export async function removeEmptyPlanSportRow(formData: FormData) {
   await requireCoachOwnsAthlete(session.userId, athleteId)
 
   const weekStart = parseDateOnly(weekStartKey)
-  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
+  const weekEnd = endOfWeekDateOnly(weekStart)
 
   const workoutCount = await prisma.workout.count({
     where: {

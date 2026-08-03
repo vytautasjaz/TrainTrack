@@ -36,6 +36,8 @@ export const ATHLETE_LOG_TYPE_LABELS: Record<AthleteLogType, string> = {
 export const RACE_TYPE_LABELS: Record<RaceType, string> = {
   MARATHON: 'Marathon',
   HALF_MARATHON: 'Half Marathon',
+  FIVE_K: '5 km',
+  TEN_K: '10 km',
   HYROX: 'HYROX',
   TRIATHLON: 'Triathlon',
   CYCLING: 'Cycling Event',
@@ -63,6 +65,8 @@ export const RACE_OUTCOME_LABELS: Record<RaceOutcome, string> = {
 export const RACE_TYPE_DISTANCE_LABELS: Record<RaceType, string> = {
   MARATHON: '42.2 km',
   HALF_MARATHON: '21.1 km',
+  FIVE_K: '5 km',
+  TEN_K: '10 km',
   HYROX: 'HYROX',
   TRIATHLON: 'Triathlon',
   CYCLING: 'Cycling',

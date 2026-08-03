@@ -1,6 +1,16 @@
-export type IntervalPresetId = '200' | '400' | '800' | '1000' | '1500' | '2000' | '3000' | '5000'
+export type IntervalPresetId =
+  | '100'
+  | '200'
+  | '400'
+  | '800'
+  | '1000'
+  | '1500'
+  | '2000'
+  | '3000'
+  | '5000'
 
 export const INTERVAL_PRESETS: { id: IntervalPresetId; label: string; distanceM: number }[] = [
+  { id: '100', label: '100 m', distanceM: 100 },
   { id: '200', label: '200 m', distanceM: 200 },
   { id: '400', label: '400 m', distanceM: 400 },
   { id: '800', label: '800 m', distanceM: 800 },

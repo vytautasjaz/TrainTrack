@@ -1,33 +1,33 @@
-import { cn } from '@/lib/utils'
-import type { RacePriority } from '@prisma/client'
-import { RACE_PRIORITY_LABELS } from '@/lib/constants'
+import { cn } from "@/lib/utils";
+import type { RacePriority } from "@prisma/client";
+import { RACE_PRIORITY_LABELS } from "@/lib/constants";
 
 const PRIORITY_BADGE: Record<RacePriority, string> = {
-  A: 'border-rose-300 bg-rose-50 text-rose-800',
-  B: 'border-amber-300 bg-amber-50 text-amber-900',
-  C: 'border-sky-300 bg-sky-50 text-sky-800',
-}
+  A: "border-red-300 bg-red-50 text-red-800",
+  B: "border-blue-300 bg-blue-50 text-blue-800",
+  C: "border-amber-300 bg-amber-50 text-amber-900",
+};
 
 /** Icon / text color for priority markers. */
 const PRIORITY_DOT: Record<RacePriority, string> = {
-  A: 'text-rose-600',
-  B: 'text-amber-600',
-  C: 'text-sky-600',
-}
+  A: "text-red-600",
+  B: "text-blue-600",
+  C: "text-amber-600",
+};
 
 /** Full marker chip: tinted fill + matching contour. */
 const PRIORITY_MARKER: Record<RacePriority, string> = {
-  A: 'border-rose-400 bg-rose-50 text-rose-600',
-  B: 'border-amber-400 bg-amber-50 text-amber-600',
-  C: 'border-sky-400 bg-sky-50 text-sky-600',
-}
+  A: "border-red-400 bg-red-50 text-red-600",
+  B: "border-blue-400 bg-blue-50 text-blue-600",
+  C: "border-amber-400 bg-amber-50 text-amber-700",
+};
 
 type PriorityBadgeProps = {
-  priority: RacePriority
-  className?: string
+  priority: RacePriority;
+  className?: string;
   /** Compact letter-only badge. */
-  compact?: boolean
-}
+  compact?: boolean;
+};
 
 export function PriorityBadge({
   priority,
@@ -37,20 +37,20 @@ export function PriorityBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-[6px] border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+        "inline-flex items-center rounded-[6px] border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
         PRIORITY_BADGE[priority],
         className,
       )}
     >
       {compact ? priority : `${priority} ${RACE_PRIORITY_LABELS[priority]}`}
     </span>
-  )
+  );
 }
 
 export function priorityMarkerClass(priority: RacePriority): string {
-  return PRIORITY_DOT[priority]
+  return PRIORITY_DOT[priority];
 }
 
 export function priorityMarkerSurfaceClass(priority: RacePriority): string {
-  return PRIORITY_MARKER[priority]
+  return PRIORITY_MARKER[priority];
 }

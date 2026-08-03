@@ -1,6 +1,15 @@
-import type { RaceIntent, RaceOutcome, RacePriority, RaceType } from '@prisma/client'
+import type {
+  RaceCourseType,
+  RaceIntent,
+  RaceOutcome,
+  RacePriority,
+  RaceType,
+  TriathlonDistance,
+} from '@prisma/client'
 import { RACE_OUTCOME_LABELS, RACE_TYPE_DISTANCE_LABELS, RACE_TYPE_LABELS } from '@/lib/constants'
+import { TRIATHLON_DISTANCE_LABELS } from '@/lib/race-form'
 import { daysUntil } from '@/lib/utils'
+import type { RaceLegView } from '@/lib/race-legs'
 
 export type SeasonRace = {
   id: string
@@ -8,39 +17,22 @@ export type SeasonRace = {
   date: Date
   location: string | null
   type: RaceType
+  sport?: import('@prisma/client').WorkoutType
+  courseType?: RaceCourseType | null
+  triathlonDistance?: TriathlonDistance | null
+  customDistanceKm?: number | null
   priority: RacePriority
   intent: RaceIntent
   goal: string | null
   url: string | null
+  preparationWeeks?: number | null
   outcome?: RaceOutcome | null
   resultTime?: string | null
   resultNotes?: string | null
+  stravaActivityUrl?: string | null
+  stravaActivityName?: string | null
+  legs?: RaceLegView[]
 }
-
-export type TrainingPhaseId =
-  | 'base'
-  | 'build'
-  | 'specific'
-  | 'taper'
-  | 'transition'
-
-export type TrainingPhase = {
-  id: TrainingPhaseId
-  label: string
-  /** 0–1 fraction of the year (inclusive start). */
-  start: number
-  /** 0–1 fraction of the year (exclusive end). */
-  end: number
-}
-
-/** Visual-only default season phases spanning a calendar year. */
-export const DEFAULT_TRAINING_PHASES: TrainingPhase[] = [
-  { id: 'base', label: 'Base', start: 0, end: 3 / 12 },
-  { id: 'build', label: 'Build', start: 3 / 12, end: 5 / 12 },
-  { id: 'specific', label: 'Specific', start: 5 / 12, end: 8 / 12 },
-  { id: 'taper', label: 'Taper', start: 8 / 12, end: 9 / 12 },
-  { id: 'transition', label: 'Transition', start: 9 / 12, end: 1 },
-]
 
 export const MONTH_LABELS = [
   'Jan',
@@ -138,8 +130,43 @@ export function raceOutcomeSummary(race: SeasonRace): string {
   return RACE_OUTCOME_LABELS[race.outcome]
 }
 
-export function raceDistanceLabel(type: RaceType): string {
+export function raceDistanceLabel(
+  type: RaceType,
+  extras?: {
+    triathlonDistance?: TriathlonDistance | null
+    customDistanceKm?: number | null
+    legs?: Array<{
+      kind: string
+      plannedDistanceKm?: number | null
+    }> | null
+  },
+): string {
+  if (type === 'TRIATHLON' && extras?.triathlonDistance) {
+    if (extras.triathlonDistance === 'CUSTOM' && extras.legs?.length) {
+      const swim = extras.legs.find((l) => l.kind === 'SWIM')?.plannedDistanceKm
+      const bike = extras.legs.find((l) => l.kind === 'BIKE')?.plannedDistanceKm
+      const run = extras.legs.find((l) => l.kind === 'RUN')?.plannedDistanceKm
+      const parts = [
+        swim != null && swim > 0 ? `${formatBriefKm(swim)}S` : null,
+        bike != null && bike > 0 ? `${formatBriefKm(bike)}B` : null,
+        run != null && run > 0 ? `${formatBriefKm(run)}R` : null,
+      ].filter(Boolean)
+      if (parts.length > 0) return parts.join(' / ')
+    }
+    return TRIATHLON_DISTANCE_LABELS[extras.triathlonDistance]
+  }
+  if (
+    (type === 'OTHER' || type === 'CYCLING') &&
+    extras?.customDistanceKm != null &&
+    extras.customDistanceKm > 0
+  ) {
+    return `${extras.customDistanceKm} km`
+  }
   return RACE_TYPE_DISTANCE_LABELS[type]
+}
+
+function formatBriefKm(km: number): string {
+  return km % 1 === 0 ? String(km) : km.toFixed(1).replace(/\.0$/, '')
 }
 
 export function raceTypeLabel(type: RaceType): string {

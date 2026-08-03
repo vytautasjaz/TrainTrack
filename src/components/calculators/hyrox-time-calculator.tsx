@@ -365,10 +365,11 @@ export function HyroxTimeCalculator({ state, onChange }: HyroxTimeCalculatorProp
     })
   }
 
-  const share = (minutes: number) =>
-    result.totalMin && result.totalMin > 0
-      ? Math.round((minutes / result.totalMin) * 100)
-      : 0
+  const share = (minutes: number) => {
+    if (!result.totalMin || result.totalMin <= 0) return 0
+    if (minutes <= 0) return 0
+    return Math.max(1, Math.round((minutes / result.totalMin) * 100))
+  }
 
   const racePlanSegments = useMemo(() => {
     const parts: Array<number | null> = []
@@ -512,7 +513,6 @@ export function HyroxTimeCalculator({ state, onChange }: HyroxTimeCalculatorProp
   return (
     <div className="space-y-4">
       <CalculatorHeroCard
-        title="HYROX calculator"
         action={
           <Caption className="hidden max-w-[14rem] text-right normal-case tracking-normal sm:block">
             8×1 km + stations · table view

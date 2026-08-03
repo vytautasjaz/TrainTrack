@@ -41,7 +41,7 @@ export function buildPlanTableDays(
     return {
       date,
       dateKey,
-      dayLabel: format(labelDate, 'EEE'),
+      dayLabel: format(labelDate, 'EEEE'),
       dateLabel: format(labelDate, 'd MMM'),
       isToday: dateKey === todayKey,
       workouts: byDate.get(dateKey) ?? [],

@@ -2,12 +2,16 @@ import { redirect } from 'next/navigation'
 import { Flag, Footprints, Route, Timer, TrendingUp, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getSession, resolveAthleteId } from '@/lib/session'
-import { getAthleteDashboard, getCoachDashboard } from '@/lib/queries'
+import { getAthleteDashboard, getCoachDashboard, countsTowardCompliance } from '@/lib/queries'
 import { toDateKey } from '@/lib/dates'
 import { daysUntil, formatDistance, formatDuration, percent } from '@/lib/utils'
 import { createAthlete } from '@/app/actions/workouts'
 import { CoachAthleteCard } from '@/components/coach/coach-athlete-card'
 import { CoachFeedbackList, type CoachFeedbackItem } from '@/components/coach/coach-feedback-list'
+import {
+  CoachRaceReportsList,
+  type CoachRaceReportItem,
+} from '@/components/coach/coach-race-reports-list'
 import { CoachPlanningWarnings } from '@/components/coach/coach-planning-warnings'
 import {
   AthleteCoachReplyList,
@@ -23,6 +27,18 @@ import { AthleteDashboardWorkouts } from '@/components/dashboard/athlete-dashboa
 import { AthleteRaceFollowUp } from '@/components/dashboard/athlete-race-follow-up'
 import { toPlanWorkoutDetail } from '@/lib/plan-workout'
 
+function formatGreetingName(name: string) {
+  const first = name.trim().split(/\s+/)[0] ?? name
+  return first
+}
+
+function formatGreeting() {
+  const hour = new Date().getHours()
+  if (hour < 12) return 'Good morning'
+  if (hour < 18) return 'Good afternoon'
+  return 'Good evening'
+}
+
 function formatTodayLabel() {
   return new Date().toLocaleDateString(undefined, {
     weekday: 'long',
@@ -36,7 +52,7 @@ export default async function DashboardPage() {
   if (!session) redirect('/')
 
   if (session.role === 'COACH') {
-    const { athletes, recentFeedback, planningLeadDays, planningWarnings } =
+    const { athletes, recentFeedback, recentRaceReports, planningLeadDays, planningWarnings } =
       await getCoachDashboard(session.userId)
     const feedbackItems: CoachFeedbackItem[] = recentFeedback.map((r) => ({
       id: r.id,
@@ -51,6 +67,20 @@ export default async function DashboardPage() {
         plannedDuration: r.workout.plannedDuration,
         athlete: { name: r.workout.athlete.name },
       },
+    }))
+    const raceReportItems: CoachRaceReportItem[] = recentRaceReports.map((r) => ({
+      id: r.id,
+      name: r.name,
+      date: r.date.toISOString(),
+      type: r.type,
+      outcome: r.outcome!,
+      resultTime: r.resultTime,
+      resultNotes: r.resultNotes,
+      resultLoggedAt: r.resultLoggedAt?.toISOString() ?? null,
+      stravaActivityUrl: r.stravaActivityUrl,
+      stravaActivityName: r.stravaActivityName,
+      legs: r.legs,
+      athlete: { id: r.athlete.id, name: r.athlete.name },
     }))
 
     return (
@@ -67,8 +97,10 @@ export default async function DashboardPage() {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {athletes.map((athlete) => {
-            const planned = athlete.workouts.filter((w) => w.type !== 'REST').length
-            const completed = athlete.workouts.filter((w) => w.status === 'COMPLETED').length
+            const planned = athlete.workouts.filter(countsTowardCompliance).length
+            const completed = athlete.workouts.filter(
+              (w) => countsTowardCompliance(w) && w.status === 'COMPLETED',
+            ).length
             const compliance = percent(completed, planned)
             return (
               <CoachAthleteCard
@@ -96,6 +128,15 @@ export default async function DashboardPage() {
             </Card>
           )}
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Race reports</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CoachRaceReportsList reports={raceReportItems} />
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -150,10 +191,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={session.name}
-        description={formatTodayLabel()}
-      />
+      <header className="space-y-1 pt-2 lg:pt-4">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-[34px]">
+          {formatGreeting()}, {formatGreetingName(session.name)}.
+        </h1>
+        <p className="text-sm text-muted-foreground">{formatTodayLabel()}</p>
+      </header>
 
       {coachReplyItems.length > 0 && (
         <section className="card-elevated p-5 sm:p-6">
@@ -171,6 +214,9 @@ export default async function DashboardPage() {
             location: race.location,
             type: race.type,
             goal: race.goal,
+            stravaActivityUrl: race.stravaActivityUrl,
+            stravaActivityName: race.stravaActivityName,
+            legs: 'legs' in race ? race.legs : [],
           }))}
         />
       )}
@@ -184,9 +230,13 @@ export default async function DashboardPage() {
         </div>
 
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-4">
-          <h2 className="text-lg font-semibold leading-tight tracking-tight">This week</h2>
-
-          <div className="card-elevated overflow-hidden p-5">
+          <section className="card-elevated overflow-hidden p-5">
+            <div className="mb-4 flex items-baseline justify-between gap-2">
+              <h2 className="text-lg font-semibold leading-tight tracking-tight">This week</h2>
+              <p className="text-xs font-medium text-muted-foreground">
+                {data.weekCompleted} of {data.weekPlanned} workouts
+              </p>
+            </div>
             <div className="flex flex-col items-center gap-5">
               <ProgressRing
                 value={data.weekCompleted}
@@ -197,11 +247,6 @@ export default async function DashboardPage() {
                 label={
                   <span className="text-2xl font-bold tabular-nums text-foreground">
                     {weekPct}%
-                  </span>
-                }
-                sublabel={
-                  <span className="mt-1 text-xs font-medium text-muted-foreground">
-                    {data.weekCompleted} / {data.weekPlanned} workouts
                   </span>
                 }
               />
@@ -223,37 +268,44 @@ export default async function DashboardPage() {
                 />
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="grid gap-3">
+          {data.nextRace ? (
+            <section className="card-elevated space-y-2 p-5">
+              <p className="text-label">Next race</p>
+              <p className="text-base font-semibold text-foreground">{data.nextRace.name}</p>
+              <p className="text-3xl font-bold tracking-tight text-foreground">
+                {daysUntil(data.nextRace.date)} days to go
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {new Date(data.nextRace.date).toLocaleDateString(undefined, {
+                  weekday: 'short',
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                  timeZone: 'UTC',
+                })}
+              </p>
+            </section>
+          ) : (
             <StatCard
-              label="Monthly volume"
-              value={formatDistance(data.monthDistance)}
-              hint={`${data.monthWorkoutsCompleted} workouts done`}
-              icon={TrendingUp}
+              label="Next race"
+              value="—"
+              hint="None scheduled"
+              icon={Flag}
               layout="row"
               variant="flat"
             />
-            {data.nextRace ? (
-              <StatCard
-                label="Next race"
-                value={`${daysUntil(data.nextRace.date)}d`}
-                hint={data.nextRace.name}
-                icon={Flag}
-                layout="row"
-                variant="flat"
-              />
-            ) : (
-              <StatCard
-                label="Next race"
-                value="—"
-                hint="None scheduled"
-                icon={Flag}
-                layout="row"
-                variant="flat"
-              />
-            )}
-          </div>
+          )}
+
+          <StatCard
+            label="Monthly volume"
+            value={formatDistance(data.monthDistance)}
+            hint={`${data.monthWorkoutsCompleted} workouts done`}
+            icon={TrendingUp}
+            layout="row"
+            variant="flat"
+          />
         </aside>
       </div>
     </div>

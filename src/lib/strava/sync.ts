@@ -1,6 +1,13 @@
-import { AthleteLogType, WorkoutStatus } from '@prisma/client'
+import { AthleteLogType, WorkoutStatus, WorkoutType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { addDateOnlyDays, parseDateOnly, toDateKey } from '@/lib/dates'
+import {
+  formatElapsedClock,
+  raceLegSupportsStrava,
+  raceUsesLegs,
+  triathlonLegsCreateData,
+  workoutTypeForRaceLeg,
+} from '@/lib/race-legs'
 import { fetchAllRecentActivities, fetchStravaActivity, getValidAccessToken, stravaActivityUrl } from './client'
 import { syncStravaAvatarForUser } from './avatar'
 import { mapStravaTypeToWorkoutType, workoutTypesCompatible } from './map-sport'
@@ -533,4 +540,315 @@ export async function attachStravaActivityToWorkoutForAthlete(
   }
 
   await applyActivityToWorkout(workout.id, activity, accessToken)
+}
+
+export type StravaRaceActivityPickItem = ReturnType<typeof formatActivityPreview> & {
+  linked: boolean
+  linkedToThisTarget: boolean
+}
+
+async function assertAthleteOwnsUser(userId: string, athleteId: string) {
+  const athlete = await prisma.athlete.findFirst({
+    where: { id: athleteId, userId },
+    select: { id: true },
+  })
+  if (!athlete) throw new Error('You can only link Strava to your own races')
+}
+
+async function findRaceActivityLinks(activityIds: string[]) {
+  if (activityIds.length === 0) {
+    return {
+      workoutIds: new Map<string, string>(),
+      raceIds: new Map<string, string>(),
+      legIds: new Map<string, string>(),
+    }
+  }
+  const [linkedResults, linkedRaces, linkedLegs] = await Promise.all([
+    prisma.workoutResult.findMany({
+      where: { stravaActivityId: { in: activityIds } },
+      select: { stravaActivityId: true, workoutId: true },
+    }),
+    prisma.race.findMany({
+      where: { stravaActivityId: { in: activityIds } },
+      select: { stravaActivityId: true, id: true },
+    }),
+    prisma.raceLeg.findMany({
+      where: { stravaActivityId: { in: activityIds } },
+      select: { stravaActivityId: true, id: true },
+    }),
+  ])
+  return {
+    workoutIds: new Map(linkedResults.map((r) => [r.stravaActivityId!, r.workoutId] as const)),
+    raceIds: new Map(linkedRaces.map((r) => [r.stravaActivityId!, r.id] as const)),
+    legIds: new Map(linkedLegs.map((r) => [r.stravaActivityId!, r.id] as const)),
+  }
+}
+
+function activityLinkedElsewhere(
+  activityId: string,
+  links: Awaited<ReturnType<typeof findRaceActivityLinks>>,
+  opts: { raceId?: string; legId?: string },
+): boolean {
+  if (links.workoutIds.has(activityId)) return true
+  const raceOwner = links.raceIds.get(activityId)
+  if (raceOwner && raceOwner !== opts.raceId) return true
+  const legOwner = links.legIds.get(activityId)
+  if (legOwner && legOwner !== opts.legId) return true
+  return false
+}
+
+async function fetchSameDayActivities(userId: string, dateKey: string) {
+  const connection = await prisma.stravaConnection.findUnique({ where: { userId } })
+  if (!connection) throw new Error('Strava is not connected')
+
+  const dayStart = parseDateOnly(dateKey)
+  const afterUnix = Math.floor(dayStart.getTime() / 1000) - 1
+  const beforeUnix = Math.floor(addDateOnlyDays(dayStart, 1).getTime() / 1000)
+  const accessToken = await getValidAccessToken(userId)
+  const activitiesRaw = await fetchAllRecentActivities(accessToken, {
+    afterUnix,
+    beforeUnix,
+  })
+  return activitiesRaw.filter((activity) => activityDateKey(activity) === dateKey)
+}
+
+function activityMatchesLegSport(
+  activity: StravaActivity,
+  sportFilter: WorkoutType | null,
+): boolean {
+  const activityType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+  if (!activityType) return false
+  if (!sportFilter) return true
+  return workoutTypesCompatible(sportFilter, activityType)
+}
+
+/** Same-day Strava activities for linking to a race (overall) or triathlon leg. */
+export async function listStravaActivitiesForRaceForAthlete(
+  userId: string,
+  athleteId: string,
+  raceId: string,
+  legId?: string,
+): Promise<StravaRaceActivityPickItem[]> {
+  await assertAthleteOwnsUser(userId, athleteId)
+
+  const race = await prisma.race.findFirst({
+    where: { id: raceId, athleteId },
+    include: { legs: true },
+  })
+  if (!race) throw new Error('Race not found')
+
+  let sportFilter: WorkoutType | null = race.sport
+  let currentActivityId: string | null = race.stravaActivityId
+  if (legId) {
+    const leg = race.legs.find((l) => l.id === legId)
+    if (!leg) throw new Error('Race leg not found')
+    if (!raceLegSupportsStrava(leg.kind)) {
+      throw new Error('Transitions cannot link Strava activities')
+    }
+    sportFilter = workoutTypeForRaceLeg(leg.kind)
+    currentActivityId = leg.stravaActivityId
+  }
+
+  const dateKey = toDateKey(race.date)
+  const activities = await fetchSameDayActivities(userId, dateKey)
+  const activityIds = activities.map((a) => String(a.id))
+  const links = await findRaceActivityLinks(activityIds)
+
+  return activities
+    .filter((activity) => activityMatchesLegSport(activity, sportFilter))
+    .map((activity) => {
+      const id = String(activity.id)
+      const linkedToThis =
+        currentActivityId === id ||
+        (legId ? links.legIds.get(id) === legId : links.raceIds.get(id) === raceId)
+      const linked =
+        linkedToThis ||
+        activityLinkedElsewhere(id, links, { raceId, legId })
+      return {
+        ...formatActivityPreview(activity),
+        linked,
+        linkedToThisTarget: linkedToThis,
+      }
+    })
+}
+
+async function assertActivityFreeForRace(
+  activityId: string,
+  opts: { raceId?: string; legId?: string },
+) {
+  const links = await findRaceActivityLinks([activityId])
+  if (activityLinkedElsewhere(activityId, links, opts)) {
+    throw new Error('That Strava activity is already linked elsewhere')
+  }
+}
+
+function stravaFieldsFromActivity(activity: StravaActivity) {
+  const elapsed = activity.moving_time || activity.elapsed_time
+  return {
+    stravaActivityId: String(activity.id),
+    stravaActivityUrl: stravaActivityUrl(activity.id),
+    stravaActivityName: activity.name?.trim() || null,
+    resultTime: formatElapsedClock(elapsed),
+    actualDistanceKm: activity.distance > 0 ? metersToKm(activity.distance) : null,
+    actualDurationMin: secondsToMinutes(elapsed),
+  }
+}
+
+export async function attachStravaActivityToRaceForAthlete(
+  userId: string,
+  athleteId: string,
+  raceId: string,
+  activityId: string,
+) {
+  await assertAthleteOwnsUser(userId, athleteId)
+
+  const race = await prisma.race.findFirst({
+    where: { id: raceId, athleteId },
+  })
+  if (!race) throw new Error('Race not found')
+  if (race.type === 'TRIATHLON') {
+    throw new Error('Link Strava on each triathlon leg instead')
+  }
+  if (race.stravaActivityId) {
+    throw new Error('Detach the current Strava activity before linking another')
+  }
+
+  const numericId = Number(activityId)
+  if (!Number.isFinite(numericId)) throw new Error('Invalid Strava activity')
+  await assertActivityFreeForRace(String(numericId), { raceId })
+
+  const accessToken = await getValidAccessToken(userId)
+  const activity = await fetchStravaActivity(accessToken, numericId)
+  if (activity.commute) {
+    throw new Error('Commute activities cannot be linked')
+  }
+  if (!activityMatchesLegSport(activity, race.sport)) {
+    throw new Error('That Strava activity does not match this race sport')
+  }
+  const dateKey = toDateKey(race.date)
+  if (activityDateKey(activity) !== dateKey) {
+    throw new Error('Pick a Strava activity from the same day as this race')
+  }
+
+  const fields = stravaFieldsFromActivity(activity)
+  await prisma.race.update({
+    where: { id: raceId },
+    data: {
+      stravaActivityId: fields.stravaActivityId,
+      stravaActivityUrl: fields.stravaActivityUrl,
+      stravaActivityName: fields.stravaActivityName,
+      resultTime: race.resultTime || fields.resultTime,
+    },
+  })
+}
+
+export async function unlinkStravaFromRaceForAthlete(
+  userId: string,
+  athleteId: string,
+  raceId: string,
+) {
+  await assertAthleteOwnsUser(userId, athleteId)
+  const race = await prisma.race.findFirst({
+    where: { id: raceId, athleteId },
+    select: { id: true },
+  })
+  if (!race) throw new Error('Race not found')
+
+  await prisma.race.update({
+    where: { id: raceId },
+    data: {
+      stravaActivityId: null,
+      stravaActivityUrl: null,
+      stravaActivityName: null,
+    },
+  })
+}
+
+export async function attachStravaActivityToRaceLegForAthlete(
+  userId: string,
+  athleteId: string,
+  legId: string,
+  activityId: string,
+) {
+  await assertAthleteOwnsUser(userId, athleteId)
+
+  const leg = await prisma.raceLeg.findFirst({
+    where: { id: legId, race: { athleteId } },
+    include: { race: true },
+  })
+  if (!leg) throw new Error('Race leg not found')
+
+  if (!raceLegSupportsStrava(leg.kind)) {
+    throw new Error('Transitions cannot link Strava activities')
+  }
+  if (leg.stravaActivityId) {
+    throw new Error('Detach the current Strava activity before linking another')
+  }
+
+  const numericId = Number(activityId)
+  if (!Number.isFinite(numericId)) throw new Error('Invalid Strava activity')
+  await assertActivityFreeForRace(String(numericId), { raceId: leg.raceId, legId })
+
+  const accessToken = await getValidAccessToken(userId)
+  const activity = await fetchStravaActivity(accessToken, numericId)
+  if (activity.commute) {
+    throw new Error('Commute activities cannot be linked')
+  }
+  const sport = workoutTypeForRaceLeg(leg.kind)
+  if (!activityMatchesLegSport(activity, sport)) {
+    throw new Error('That Strava activity does not match this leg')
+  }
+  const dateKey = toDateKey(leg.race.date)
+  if (activityDateKey(activity) !== dateKey) {
+    throw new Error('Pick a Strava activity from the same day as this race')
+  }
+
+  const fields = stravaFieldsFromActivity(activity)
+  await prisma.raceLeg.update({
+    where: { id: legId },
+    data: {
+      stravaActivityId: fields.stravaActivityId,
+      stravaActivityUrl: fields.stravaActivityUrl,
+      stravaActivityName: fields.stravaActivityName,
+      resultTime: leg.resultTime || fields.resultTime,
+      actualDistanceKm: fields.actualDistanceKm,
+      actualDurationMin: fields.actualDurationMin,
+    },
+  })
+}
+
+export async function unlinkStravaFromRaceLegForAthlete(
+  userId: string,
+  athleteId: string,
+  legId: string,
+) {
+  await assertAthleteOwnsUser(userId, athleteId)
+  const leg = await prisma.raceLeg.findFirst({
+    where: { id: legId, race: { athleteId } },
+    select: { id: true },
+  })
+  if (!leg) throw new Error('Race leg not found')
+
+  await prisma.raceLeg.update({
+    where: { id: legId },
+    data: {
+      stravaActivityId: null,
+      stravaActivityUrl: null,
+      stravaActivityName: null,
+      actualDistanceKm: null,
+      actualDurationMin: null,
+    },
+  })
+}
+
+export async function ensureTriathlonLegsForRace(raceId: string, type: import('@prisma/client').RaceType) {
+  if (!raceUsesLegs(type)) {
+    await prisma.raceLeg.deleteMany({ where: { raceId } })
+    return
+  }
+  const existing = await prisma.raceLeg.count({ where: { raceId } })
+  if (existing > 0) return
+  await prisma.raceLeg.createMany({
+    data: triathlonLegsCreateData().map((leg) => ({ ...leg, raceId })),
+  })
 }

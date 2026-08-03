@@ -1,9 +1,21 @@
-import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
 import { prisma } from '@/lib/prisma'
-import { addDateOnlyDays, todayDateOnly, toDateKey } from '@/lib/dates'
+import {
+  addDateOnlyDays,
+  endOfMonthDateOnly,
+  endOfWeekDateOnly,
+  startOfMonthDateOnly,
+  startOfWeekDateOnly,
+  todayDateOnly,
+  toDateKey,
+} from '@/lib/dates'
 import type { DayNoteData } from '@/lib/day-notes'
-import { AthleteStatus, WorkoutStatus } from '@prisma/client'
+import { AthleteStatus, WorkoutStatus, WorkoutType } from '@prisma/client'
 import { buildProgressStats } from '@/lib/progress-stats'
+import {
+  resolveRaceDistancesBySport,
+  sumRaceDistancesKm,
+  sumRaceDurationsMin,
+} from '@/lib/race-distance-stats'
 import { WORKOUT_LIST_ORDER_BY } from '@/lib/workout-sort'
 
 export const DEFAULT_PLANNING_LEAD_DAYS = 3
@@ -19,15 +31,20 @@ export const WORKOUT_PLAN_INCLUDE = {
   result: true,
 } as const
 
+/** Workouts that count toward weekly compliance (not rest/recovery markers or day notes). */
+export function countsTowardCompliance(workout: { type: WorkoutType }): boolean {
+  return workout.type !== WorkoutType.REST && workout.type !== WorkoutType.RECOVERY
+}
+
 export async function getAthleteDashboard(athleteId: string) {
   const today = todayDateOnly()
 
-  const weekStart = startOfWeek(today, { weekStartsOn: 1 })
-  const weekEnd = endOfWeek(today, { weekStartsOn: 1 })
-  const monthStart = startOfMonth(today)
-  const monthEnd = endOfMonth(today)
+  const weekStart = startOfWeekDateOnly(today)
+  const weekEnd = endOfWeekDateOnly(today)
+  const monthStart = startOfMonthDateOnly(today)
+  const monthEnd = endOfMonthDateOnly(today)
 
-  const [todayWorkouts, upcomingWorkouts, nextRace, pendingRaceFollowUps, weekWorkouts, monthWorkouts] =
+  const [todayWorkouts, upcomingWorkouts, nextRace, pendingRaceFollowUpsRaw, weekWorkouts, monthWorkouts, weekRaces, monthRaces] =
     await Promise.all([
       prisma.workout.findMany({
         where: { athleteId, date: today },
@@ -51,6 +68,9 @@ export async function getAthleteDashboard(athleteId: string) {
           date: { lt: today },
           outcome: null,
         },
+        include: {
+          legs: { orderBy: { sortOrder: 'asc' } },
+        },
         orderBy: { date: 'desc' },
         take: 5,
       }),
@@ -66,28 +86,83 @@ export async function getAthleteDashboard(athleteId: string) {
         },
         include: WORKOUT_PLAN_INCLUDE,
       }),
+      getRacesForRange(athleteId, weekStart, weekEnd),
+      getRacesForRange(athleteId, monthStart, monthEnd),
     ])
 
-  const weekPlanned = weekWorkouts.filter((w) => w.type !== 'REST').length
-  const weekCompleted = weekWorkouts.filter((w) => w.status === WorkoutStatus.COMPLETED).length
+  const { ensureTriathlonLegsForRace } = await import('@/lib/strava/sync')
+  const pendingRaceFollowUps = await Promise.all(
+    pendingRaceFollowUpsRaw.map(async (race) => {
+      if (race.type !== 'TRIATHLON') return race
+      if (race.legs.length > 0) return race
+      await ensureTriathlonLegsForRace(race.id, race.type)
+      const legs = await prisma.raceLeg.findMany({
+        where: { raceId: race.id },
+        orderBy: { sortOrder: 'asc' },
+      })
+      return { ...race, legs }
+    }),
+  )
 
-  const weekDistance = weekWorkouts.reduce(
-    (sum, w) => sum + (w.result?.actualDistance ?? w.plannedDistance ?? 0),
-    0,
-  )
-  const weekDuration = weekWorkouts.reduce(
-    (sum, w) => sum + (w.result?.actualDuration ?? w.plannedDuration ?? 0),
-    0,
-  )
+  const weekPlanned = weekWorkouts.filter(countsTowardCompliance).length
+  const weekCompleted = weekWorkouts.filter(
+    (w) => countsTowardCompliance(w) && w.status === WorkoutStatus.COMPLETED,
+  ).length
 
-  const monthDistance = monthWorkouts.reduce(
-    (sum, w) => sum + (w.result?.actualDistance ?? w.plannedDistance ?? 0),
-    0,
-  )
-  const monthDuration = monthWorkouts.reduce(
-    (sum, w) => sum + (w.result?.actualDuration ?? w.plannedDuration ?? 0),
-    0,
-  )
+  const weekDistance =
+    weekWorkouts.reduce(
+      (sum, w) =>
+        sum +
+        (countsTowardCompliance(w)
+          ? (w.result?.actualDistance ?? w.plannedDistance ?? 0)
+          : 0),
+      0,
+    ) +
+    weekRaces.reduce((sum, race) => {
+      const bySport = resolveRaceDistancesBySport(race)
+      // Prefer actual when any exists; otherwise planned (upcoming races in the week).
+      const actual = sumRaceDistancesKm(bySport, 'actual')
+      return sum + (actual > 0 ? actual : sumRaceDistancesKm(bySport, 'planned'))
+    }, 0)
+  const weekDuration =
+    weekWorkouts.reduce(
+      (sum, w) =>
+        sum +
+        (countsTowardCompliance(w)
+          ? (w.result?.actualDuration ?? w.plannedDuration ?? 0)
+          : 0),
+      0,
+    ) +
+    weekRaces.reduce((sum, race) => {
+      const bySport = resolveRaceDistancesBySport(race)
+      const actual = sumRaceDurationsMin(bySport, 'actual')
+      return sum + (actual > 0 ? actual : sumRaceDurationsMin(bySport, 'planned'))
+    }, 0)
+
+  const monthDistance =
+    monthWorkouts.reduce(
+      (sum, w) => sum + (w.result?.actualDistance ?? w.plannedDistance ?? 0),
+      0,
+    ) +
+    monthRaces
+      .filter((r) => r.outcome === 'FINISHED')
+      .reduce((sum, race) => {
+        const bySport = resolveRaceDistancesBySport(race)
+        const actual = sumRaceDistancesKm(bySport, 'actual')
+        return sum + (actual > 0 ? actual : sumRaceDistancesKm(bySport, 'planned'))
+      }, 0)
+  const monthDuration =
+    monthWorkouts.reduce(
+      (sum, w) => sum + (w.result?.actualDuration ?? w.plannedDuration ?? 0),
+      0,
+    ) +
+    monthRaces
+      .filter((r) => r.outcome === 'FINISHED')
+      .reduce((sum, race) => {
+        const bySport = resolveRaceDistancesBySport(race)
+        const actual = sumRaceDurationsMin(bySport, 'actual')
+        return sum + (actual > 0 ? actual : sumRaceDurationsMin(bySport, 'planned'))
+      }, 0)
 
   return {
     todayWorkouts,
@@ -130,14 +205,28 @@ export async function getUnreadCoachReplyCount(athleteId: string) {
   })
 }
 
+const UNREAD_RACE_REPORT_WHERE = {
+  outcome: { in: ['FINISHED' as const, 'DID_NOT_START' as const, 'DNF' as const] },
+  resultDismissedAt: null,
+}
+
 export async function getUnreadCoachFeedbackCount(coachId: string) {
-  return prisma.workoutResult.count({
-    where: {
-      workout: { athlete: { coachId } },
-      athleteNotes: { not: null },
-      feedbackDismissedAt: null,
-    },
-  })
+  const [workoutCount, raceCount] = await Promise.all([
+    prisma.workoutResult.count({
+      where: {
+        workout: { athlete: { coachId } },
+        athleteNotes: { not: null },
+        feedbackDismissedAt: null,
+      },
+    }),
+    prisma.race.count({
+      where: {
+        athlete: { coachId },
+        ...UNREAD_RACE_REPORT_WHERE,
+      },
+    }),
+  ])
+  return workoutCount + raceCount
 }
 
 export async function getCoachDashboard(coachId: string) {
@@ -155,15 +244,15 @@ export async function getCoachDashboard(coachId: string) {
     where: { coachId },
     include: {
       races: {
-        where: { intent: 'PLANNED', date: { gte: new Date() } },
+        where: { intent: 'PLANNED', date: { gte: today } },
         orderBy: { date: 'asc' },
         take: 1,
       },
       workouts: {
         where: {
           date: {
-            gte: startOfWeek(new Date(), { weekStartsOn: 1 }),
-            lte: endOfWeek(new Date(), { weekStartsOn: 1 }),
+            gte: startOfWeekDateOnly(today),
+            lte: endOfWeekDateOnly(today),
           },
         },
         include: WORKOUT_PLAN_INCLUDE,
@@ -203,22 +292,37 @@ export async function getCoachDashboard(coachId: string) {
     })
     .filter((row): row is NonNullable<typeof row> => row != null)
 
-  const recentFeedback = await prisma.workoutResult.findMany({
-    where: {
-      workout: { athlete: { coachId } },
-      athleteNotes: { not: null },
-      feedbackDismissedAt: null,
-    },
-    include: {
-      workout: { include: { athlete: true } },
-    },
-    orderBy: { completedAt: 'desc' },
-    take: 20,
-  })
+  const [recentFeedback, recentRaceReports] = await Promise.all([
+    prisma.workoutResult.findMany({
+      where: {
+        workout: { athlete: { coachId } },
+        athleteNotes: { not: null },
+        feedbackDismissedAt: null,
+      },
+      include: {
+        workout: { include: { athlete: true } },
+      },
+      orderBy: { completedAt: 'desc' },
+      take: 20,
+    }),
+    prisma.race.findMany({
+      where: {
+        athlete: { coachId },
+        ...UNREAD_RACE_REPORT_WHERE,
+      },
+      include: {
+        athlete: { select: { id: true, name: true } },
+        legs: { orderBy: { sortOrder: 'asc' } },
+      },
+      orderBy: { resultLoggedAt: 'desc' },
+      take: 20,
+    }),
+  ])
 
   return {
     athletes,
     recentFeedback: recentFeedback.filter((r) => r.athleteNotes?.trim()),
+    recentRaceReports,
     planningLeadDays,
     planningWarnings,
   }
@@ -246,7 +350,10 @@ export async function getAthleteForCoach(coachId: string, athleteId: string) {
   return prisma.athlete.findFirst({
     where: { id: athleteId, coachId },
     include: {
-      races: { orderBy: { date: 'asc' } },
+      races: {
+        orderBy: { date: 'asc' },
+        include: { legs: { orderBy: { sortOrder: 'asc' } } },
+      },
     },
   })
 }
@@ -259,12 +366,39 @@ export async function getRacesForRange(athleteId: string, start: Date, end: Date
       date: { gte: start, lte: end },
     },
     orderBy: [{ date: 'asc' }, { name: 'asc' }],
+    select: {
+      id: true,
+      name: true,
+      date: true,
+      location: true,
+      type: true,
+      sport: true,
+      priority: true,
+      intent: true,
+      goal: true,
+      url: true,
+      triathlonDistance: true,
+      customDistanceKm: true,
+      outcome: true,
+      resultTime: true,
+      legs: {
+        select: {
+          kind: true,
+          actualDistanceKm: true,
+          actualDurationMin: true,
+          plannedDistanceKm: true,
+          plannedTime: true,
+          resultTime: true,
+        },
+        orderBy: { sortOrder: 'asc' },
+      },
+    },
   })
 }
 
 export async function getPlanWorkouts(athleteId: string, anchor: Date) {
-  const weekStart = startOfWeek(anchor, { weekStartsOn: 1 })
-  const weekEnd = endOfWeek(anchor, { weekStartsOn: 1 })
+  const weekStart = startOfWeekDateOnly(anchor)
+  const weekEnd = endOfWeekDateOnly(anchor)
   return getPlanWorkoutsInRange(athleteId, weekStart, weekEnd)
 }
 
@@ -277,8 +411,8 @@ export async function getPlanWorkoutsInRange(athleteId: string, start: Date, end
 }
 
 export async function getMonthWorkouts(athleteId: string, year: number, month: number) {
-  const start = new Date(year, month, 1)
-  const end = endOfMonth(start)
+  const start = new Date(Date.UTC(year, month, 1))
+  const end = endOfMonthDateOnly(start)
 
   return prisma.workout.findMany({
     where: { athleteId, date: { gte: start, lte: end } },
@@ -315,36 +449,69 @@ export function groupDayNotesByDate(
 }
 
 export function getWeekDays(anchor: Date) {
-  const start = startOfWeek(anchor, { weekStartsOn: 1 })
-  return Array.from({ length: 7 }, (_, i) => addDays(start, i))
+  const start = startOfWeekDateOnly(anchor)
+  return Array.from({ length: 7 }, (_, i) => addDateOnlyDays(start, i))
 }
 
 export async function getProgressStats(athleteId: string) {
-  const today = new Date()
-  const monthEnd = endOfMonth(today)
-  const rangeStart = startOfWeek(addDays(today, -7 * 7), { weekStartsOn: 1 })
+  const today = todayDateOnly()
+  const monthEnd = endOfMonthDateOnly(today)
+  const rangeStart = startOfWeekDateOnly(addDateOnlyDays(today, -7 * 7))
 
-  const workouts = await prisma.workout.findMany({
-    where: { athleteId, date: { gte: rangeStart, lte: monthEnd } },
-    include: WORKOUT_PLAN_INCLUDE,
-    orderBy: { date: 'asc' },
+  const [workouts, races] = await Promise.all([
+    prisma.workout.findMany({
+      where: { athleteId, date: { gte: rangeStart, lte: monthEnd } },
+      include: WORKOUT_PLAN_INCLUDE,
+      orderBy: { date: 'asc' },
+    }),
+    getRacesForRange(athleteId, rangeStart, monthEnd),
+  ])
+
+  const workoutRows = workouts.map((w) => ({
+    date: w.date,
+    type: w.type,
+    status: w.status,
+    plannedDistance: w.plannedDistance,
+    plannedDuration: w.plannedDuration,
+    result: w.result
+      ? {
+          actualDistance: w.result.actualDistance,
+          actualDuration: w.result.actualDuration,
+        }
+      : null,
+  }))
+
+  const raceRows = races.flatMap((race) => {
+    const bySport = resolveRaceDistancesBySport(race)
+    const finished = race.outcome === 'FINISHED'
+    return (Object.entries(bySport) as [WorkoutType, NonNullable<(typeof bySport)[keyof typeof bySport]>][])
+      .filter(
+        ([, dist]) =>
+          dist && (dist.plannedKm > 0 || dist.plannedMin > 0 || dist.actualKm != null || dist.actualMin != null),
+      )
+      .map(([type, dist]) => ({
+        date: race.date,
+        type,
+        status: finished ? WorkoutStatus.COMPLETED : WorkoutStatus.PLANNED,
+        plannedDistance: dist.plannedKm > 0 ? dist.plannedKm : null,
+        plannedDuration: dist.plannedMin > 0 ? Math.round(dist.plannedMin) : null,
+        result:
+          dist.actualKm != null || dist.actualMin != null || finished
+            ? {
+                actualDistance:
+                  dist.actualKm ?? (finished && dist.plannedKm > 0 ? dist.plannedKm : null),
+                actualDuration:
+                  dist.actualMin != null
+                    ? Math.round(dist.actualMin)
+                    : finished && dist.plannedMin > 0
+                      ? Math.round(dist.plannedMin)
+                      : null,
+              }
+            : null,
+      }))
   })
 
-  return buildProgressStats(
-    workouts.map((w) => ({
-      date: w.date,
-      type: w.type,
-      status: w.status,
-      plannedDistance: w.plannedDistance,
-      plannedDuration: w.plannedDuration,
-      result: w.result
-        ? {
-            actualDistance: w.result.actualDistance,
-            actualDuration: w.result.actualDuration,
-          }
-        : null,
-    })),
-  )
+  return buildProgressStats([...workoutRows, ...raceRows])
 }
 
 export async function getWorkoutHistory(athleteId: string, limit = 100) {

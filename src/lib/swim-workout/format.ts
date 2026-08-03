@@ -3,7 +3,7 @@ import { isCompleteSwimSet } from './calculations'
 
 export function formatSwimDistance(meters: number | null | undefined): string {
   if (meters == null || meters <= 0) return ''
-  return `${meters.toLocaleString()} m`
+  return `${Math.round(meters)} m`
 }
 
 export function formatSwimSetSummary(set: SwimSet): string {

@@ -13,6 +13,18 @@ export const WORKOUT_TYPE_DOT_CLASS: Record<WorkoutType, string> = {
   REST: 'bg-zinc-400',
 }
 
+/** Ultra-soft wash for week-table sport label cells */
+export const WORKOUT_TYPE_CELL_TINT: Record<WorkoutType, string> = {
+  RUN: 'bg-orange-500/[0.04]',
+  BIKE: 'bg-sky-500/[0.04]',
+  SWIM: 'bg-cyan-500/[0.04]',
+  STRENGTH: 'bg-emerald-500/[0.04]',
+  HYROX: 'bg-rose-500/[0.04]',
+  TRIATHLON: 'bg-indigo-500/[0.04]',
+  RECOVERY: 'bg-violet-500/[0.04]',
+  REST: 'bg-zinc-500/[0.04]',
+}
+
 export const RACE_PLAN_DOT_CLASS = 'bg-amber-500'
 
 /** Week table cell: highlight full cell when any workout inside is hovered */

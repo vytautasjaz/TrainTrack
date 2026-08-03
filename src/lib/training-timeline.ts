@@ -61,7 +61,7 @@ export function buildTrainingDays(days: Date[]): TrainingDay[] {
     return {
       date,
       dateKey,
-      dayLabel: format(date, 'EEE'),
+      dayLabel: format(date, 'EEEE'),
       dateLabel: format(date, 'd MMM'),
       isToday: dateKey === reference,
       phase: getDayPhase(dateKey, reference),

@@ -18,7 +18,7 @@ import type { TrainingDay } from "@/lib/training-timeline";
 import { todayKey, yesterdayKey } from "@/lib/training-timeline";
 import { PlanMobileDayStack } from "@/components/plan/plan-mobile-day-stack";
 import { dayHasRecovery, recoveryDayStripClass } from "@/lib/recovery-day";
-import { dayHasRace, raceDayStripClass } from "@/lib/race-day";
+import { getDayRacePriority } from "@/lib/race-day";
 import { cn } from "@/lib/utils";
 import { useFilteredPlanDays } from "@/components/training/use-plan-sport-filter-data";
 
@@ -63,7 +63,8 @@ function WeekDayGrid({
         const dayWorkouts = (planDay?.workouts ?? []).filter(
           (w) => w.type !== "REST",
         );
-        const isRaceDay = dayHasRace(dayWorkouts);
+        const racePriority = getDayRacePriority(dayWorkouts);
+        const isRaceDay = racePriority != null;
         const isRecovery = dayHasRecovery(dayWorkouts);
         const nonRecoveryWorkouts = dayWorkouts.filter(
           (w) => w.type !== "RECOVERY",
@@ -79,21 +80,19 @@ function WeekDayGrid({
             aria-label={`Scroll to ${dayName}`}
             className={cn(
               "flex w-full min-w-0 cursor-pointer flex-col items-center rounded-xl px-0.5 py-2 transition active:scale-[0.98]",
-              isRaceDay
-                ? raceDayStripClass(day.isToday)
-                : isRecovery
-                  ? recoveryDayStripClass(day.isToday)
-                  : day.isToday
-                    ? "bg-foreground text-background"
-                    : weekend
-                      ? "border border-border/60 bg-muted/50"
-                      : "border border-border/40 bg-card",
+              isRecovery
+                ? recoveryDayStripClass(day.isToday)
+                : day.isToday
+                  ? "bg-foreground text-background"
+                  : weekend
+                    ? "border border-border/60 bg-muted/50"
+                    : "border border-border/40 bg-card",
             )}
           >
             <p
               className={cn(
                 "flex h-[2.2em] w-full items-center justify-center text-center text-[8px] font-semibold leading-[1.1] sm:text-[9px]",
-                isRaceDay || isRecovery || day.isToday
+                isRecovery || day.isToday
                   ? "opacity-90"
                   : weekend
                     ? "text-foreground/75"
@@ -107,7 +106,14 @@ function WeekDayGrid({
             </p>
             <div className="mt-0.5 flex min-h-3 justify-center gap-0.5">
               {isRaceDay ? (
-                <Flag className="h-2.5 w-2.5 fill-amber-500/30 text-amber-600 sm:h-3 sm:w-3 dark:text-amber-300" />
+                <Flag
+                  className={cn(
+                    "h-2.5 w-2.5 fill-current/30 sm:h-3 sm:w-3",
+                    racePriority === "A" && "text-red-600 dark:text-red-400",
+                    racePriority === "B" && "text-blue-600 dark:text-blue-400",
+                    racePriority === "C" && "text-amber-600 dark:text-amber-300",
+                  )}
+                />
               ) : (
                 !isRecovery &&
                 nonRecoveryWorkouts

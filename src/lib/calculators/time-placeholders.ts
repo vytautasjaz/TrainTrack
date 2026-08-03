@@ -24,6 +24,8 @@ export function intervalFinishTimePlaceholder(
   preset: IntervalPresetId | 'custom',
 ): string {
   switch (preset) {
+    case '100':
+      return '0:20,0'
     case '200':
       return '0:40'
     case '400':

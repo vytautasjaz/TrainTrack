@@ -136,7 +136,7 @@ function SelectedDayPanel({
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <p className="font-medium">{w.title}</p>
-                    <StravaSyncedIndicator workout={w} variant="badge" />
+                    <StravaSyncedIndicator workout={w} variant="wordmark" size="sm" />
                   </div>
                   {w.structure && hasStructureContent(w.structure) && (
                     <WorkoutStructureChart

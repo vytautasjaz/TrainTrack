@@ -58,9 +58,7 @@ export function defaultWorkoutTitle(
   sessionType: SessionType,
   sportType: WorkoutType = SportEnum.RUN,
 ): string {
-  const sportLabel = WORKOUT_TYPE_LABELS[sportType]
-  const typeLabel = getSessionTypeLabel(sessionType, sportType)
-  return `${sportLabel} · ${typeLabel}`
+  return getSessionTypeLabel(sessionType, sportType)
 }
 
 export function shouldSyncWorkoutTitle(
@@ -85,7 +83,12 @@ export function isDefaultWorkoutTitle(
   sessionType: SessionType,
   sportType: WorkoutType,
 ): boolean {
-  return title.trim() === defaultWorkoutTitle(sessionType, sportType)
+  const trimmed = title.trim()
+  const next = defaultWorkoutTitle(sessionType, sportType)
+  if (trimmed === next) return true
+  // Legacy auto titles used "Run · Easy Run"
+  const legacy = `${WORKOUT_TYPE_LABELS[sportType]} · ${next}`
+  return trimmed === legacy
 }
 
 export function createDefaultStructuredWorkout(

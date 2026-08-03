@@ -6,11 +6,9 @@ import {
   AthleteWorkoutQuickActions,
   useOptimisticWorkoutStatus,
 } from "@/components/plan/athlete-workout-quick-actions";
-import { DeletePlanWorkoutButton } from "@/components/plan/delete-plan-workout-button";
-import { CopyPlanWorkoutButton } from "@/components/plan/copy-plan-workout-button";
-import { EditPlanWorkoutButton } from "@/components/plan/edit-plan-workout-button";
+import { PlanWorkoutActionsMenu } from "@/components/plan/plan-workout-actions-menu";
 import { usePlanWeekDnd } from "@/components/plan/plan-week-dnd";
-import { PlanWorkoutDataCard } from "@/components/plan/plan-workout-data-card";
+import { WorkoutBlock } from "@/components/workout-block";
 import {
   athleteHasQuickLogActions,
   type PlanWorkoutDetail,
@@ -41,11 +39,10 @@ export function TrainingWorkoutCard({
 
   return (
     <div className={cn("py-3", className, dragging && "opacity-50")}>
-      <div className="group/card relative min-w-0">
+      <div className="group/card relative min-w-0 overflow-hidden">
         <WorkoutModalTrigger
           workout={workout}
           isCoach={isCoach}
-          nestedInteractive={isCoach && !workout.isRace}
           className="block w-full min-w-0"
           title={canDrag ? `${workout.title} — drag to move` : undefined}
           draggable={canDrag}
@@ -65,18 +62,17 @@ export function TrainingWorkoutCard({
             dnd?.setDragWorkout(null);
           }}
         >
-          <PlanWorkoutDataCard
+          <WorkoutBlock
             workout={workout}
-            density="list"
+            density="lg"
             status={status}
-            editable={isCoach && !workout.isRace}
             hideCompletedBadge={showQuickActions}
             actions={
               reserveActions ? (
                 <span
                   className={cn(
                     "inline-block",
-                    showQuickActions ? "w-14" : "w-7",
+                    showCoachDelete ? "w-7" : showQuickActions ? "w-14" : "w-7",
                   )}
                   aria-hidden
                 />
@@ -86,17 +82,8 @@ export function TrainingWorkoutCard({
         </WorkoutModalTrigger>
 
         {showCoachDelete ? (
-          <div className="absolute right-2 top-2 z-10 flex flex-col items-center gap-0.5 opacity-50 transition group-hover/card:opacity-100">
-            <EditPlanWorkoutButton workout={workout} />
-            <CopyPlanWorkoutButton
-              workoutId={workout.id}
-              workoutTitle={workout.title}
-              sourceDateKey={workout.dateKey}
-            />
-            <DeletePlanWorkoutButton
-              workoutId={workout.id}
-              workoutTitle={workout.title}
-            />
+          <div className="absolute right-2 top-2 z-10 opacity-60 transition group-hover/card:opacity-100">
+            <PlanWorkoutActionsMenu workout={workout} />
           </div>
         ) : null}
 

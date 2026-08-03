@@ -1,6 +1,14 @@
 import { WorkoutStatus, WorkoutType } from '@prisma/client'
-import { addDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns'
 import { SPORT_ROW_ORDER } from '@/lib/constants'
+import {
+  addDateOnlyDays,
+  endOfMonthDateOnly,
+  endOfWeekDateOnly,
+  formatDateOnly,
+  startOfMonthDateOnly,
+  startOfWeekDateOnly,
+  todayDateOnly,
+} from '@/lib/dates'
 import { percent } from '@/lib/utils'
 
 export type ProgressWorkoutRow = {
@@ -113,15 +121,15 @@ function buildSportBucket(
 }
 
 export function buildProgressStats(workouts: ProgressWorkoutRow[]): ProgressStats {
-  const today = new Date()
-  const monthStart = startOfMonth(today)
-  const monthEnd = endOfMonth(today)
+  const today = todayDateOnly()
+  const monthStart = startOfMonthDateOnly(today)
+  const monthEnd = endOfMonthDateOnly(today)
 
   const weekRanges = Array.from({ length: 8 }, (_, i) => {
-    const anchor = addDays(today, -i * 7)
-    const start = startOfWeek(anchor, { weekStartsOn: 1 })
-    const end = endOfWeek(anchor, { weekStartsOn: 1 })
-    return { start, end, label: format(start, 'd MMM') }
+    const anchor = addDateOnlyDays(today, -i * 7)
+    const start = startOfWeekDateOnly(anchor)
+    const end = endOfWeekDateOnly(anchor)
+    return { start, end, label: formatDateOnly(start, 'd MMM') }
   }).reverse()
 
   const rangeStart = weekRanges[0]?.start ?? monthStart

@@ -5,7 +5,13 @@ import { useDayDropTarget } from '@/components/plan/use-day-drop-target'
 import type { DayNoteData } from '@/lib/day-notes'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { dayHasRecovery, recoveryDayMonthClass } from '@/lib/recovery-day'
-import { dayHasRace, raceDayMonthClass } from '@/lib/race-day'
+import {
+  getDayRacePriority,
+  raceDayMonthClass,
+  RACE_PRIORITY_MONTH_SELECTED,
+  RACE_PRIORITY_MONTH_TODAY,
+  RACE_PRIORITY_MONTH_TODAY_TEXT,
+} from '@/lib/race-day'
 import { cn } from '@/lib/utils'
 
 type MonthDayCellProps = {
@@ -40,7 +46,8 @@ export function MonthDayCell({
   dropEnabled = false,
 }: MonthDayCellProps) {
   const isRecovery = dayHasRecovery(workouts)
-  const isRaceDay = dayHasRace(workouts)
+  const racePriority = getDayRacePriority(workouts)
+  const isRaceDay = racePriority != null
   const { dropHighlightClass, dropProps, isDragging } = useDayDropTarget({
     dateKey,
     enabled: dropEnabled && inMonth,
@@ -73,14 +80,14 @@ export function MonthDayCell({
         inMonth
           ? 'cursor-pointer border-border/60 bg-card hover:border-brand/40'
           : 'border-transparent bg-muted/30 text-muted-foreground',
-        isRaceDay && inMonth && raceDayMonthClass(),
+        isRaceDay && inMonth && raceDayMonthClass(racePriority),
         isRecovery && inMonth && !isRaceDay && recoveryDayMonthClass(),
         isToday &&
           inMonth &&
           !isRecovery &&
           !isRaceDay &&
           'border-border bg-muted/70',
-        isToday && inMonth && isRaceDay && 'border-amber-500/70 bg-amber-500/20',
+        isToday && inMonth && isRaceDay && RACE_PRIORITY_MONTH_TODAY[racePriority],
         isToday &&
           inMonth &&
           isRecovery &&
@@ -96,7 +103,7 @@ export function MonthDayCell({
           inMonth &&
           !isToday &&
           isRaceDay &&
-          'border-amber-500 bg-amber-500/[0.12]',
+          RACE_PRIORITY_MONTH_SELECTED[racePriority],
         isSelected &&
           inMonth &&
           !isToday &&
@@ -117,7 +124,10 @@ export function MonthDayCell({
             'text-[11px] font-semibold leading-none tabular-nums',
             compactOnDesktop && 'lg:text-xs',
             isToday && inMonth && !isRecovery && !isRaceDay && 'text-foreground',
-            isToday && inMonth && isRaceDay && 'text-amber-800 dark:text-amber-100',
+            isToday &&
+              inMonth &&
+              isRaceDay &&
+              RACE_PRIORITY_MONTH_TODAY_TEXT[racePriority],
             isToday && inMonth && isRecovery && !isRaceDay && 'text-violet-800 dark:text-violet-100',
             isSelected && inMonth && !isToday && 'text-brand',
           )}

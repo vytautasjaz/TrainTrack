@@ -14,7 +14,7 @@ import {
 import type { PlanDay } from "@/lib/plan-week";
 import { resolveCoachPlanSportRows } from "@/lib/plan-sports";
 import { dayHasRecovery, getRecoveryWorkout } from "@/lib/recovery-day";
-import { dayHasRace, raceDaySectionClass } from "@/lib/race-day";
+import { dayHasRace, getDayRacePriority, raceDaySectionClass } from "@/lib/race-day";
 import { PlanDayAddMenu } from "@/components/plan/plan-day-add-menu";
 import { DayDropSection } from "@/components/plan/day-drop-section";
 import { cn } from "@/lib/utils";
@@ -51,23 +51,24 @@ function daySectionClass(
   trainingMode?: boolean,
   hasWorkoutContent = true,
 ) {
+  const racePriority = getDayRacePriority(day.workouts)
   return cn(
     trainingMode && !hasWorkoutContent ? null : WORKOUT_DAY_CARD_CLASS,
     !trainingMode &&
-      dayHasRace(day.workouts) &&
-      raceDaySectionClass(day.isToday),
+      racePriority &&
+      raceDaySectionClass(racePriority, day.isToday),
     !trainingMode &&
       dayHasRecovery(day.workouts) &&
-      !dayHasRace(day.workouts) &&
+      !racePriority &&
       "border-violet-500/25 bg-violet-500/[0.03]",
     day.isToday &&
-      !dayHasRace(day.workouts) &&
+      !racePriority &&
       !dayHasRecovery(day.workouts) &&
       (!trainingMode || hasWorkoutContent) &&
       (trainingMode ? "ring-2 ring-foreground/15" : "ring-1 ring-foreground/20"),
     day.isToday &&
       dayHasRecovery(day.workouts) &&
-      !dayHasRace(day.workouts) &&
+      !racePriority &&
       !trainingMode &&
       "ring-1 ring-violet-500/25",
   );
@@ -155,7 +156,7 @@ export function PlanMobileDayStack({
             dateKey={day.dateKey}
             enabled={dayDropEnabled}
             id={
-              daySectionIdPrefix && !trainingMode
+              daySectionIdPrefix
                 ? `${daySectionIdPrefix}-${day.dateKey}`
                 : undefined
             }
@@ -163,16 +164,9 @@ export function PlanMobileDayStack({
               daySectionClass(day, trainingMode, hasWorkoutContent),
               trainingMode && !hasWorkoutContent && "opacity-80",
               daySectionScrollMarginClass ??
-                (daySectionIdPrefix && !trainingMode && "scroll-mt-24"),
+                (daySectionIdPrefix && "scroll-mt-24"),
             )}
           >
-            {daySectionIdPrefix && trainingMode && (
-              <div
-                id={`${daySectionIdPrefix}-${day.dateKey}`}
-                className="pointer-events-none h-0 w-full"
-                aria-hidden
-              />
-            )}
             <div
               className={cn(
                 "flex items-center justify-between gap-3 px-4",
@@ -181,7 +175,6 @@ export function PlanMobileDayStack({
                   "border-b border-border/40 py-3",
                 trainingMode && !hasWorkoutContent && "py-2",
                 !trainingMode && "border-b border-border/60 py-3",
-                !trainingMode && dayHasRace(day.workouts) && "bg-amber-500/15",
                 !trainingMode &&
                   dayHasRecovery(day.workouts) &&
                   !dayHasRace(day.workouts) &&
@@ -258,7 +251,12 @@ export function PlanMobileDayStack({
               )}
             </div>
             {showNoteRow && coachEditable && (
-              <div className="border-b border-border/60 px-3 py-2">
+              <div
+                className={cn(
+                  "border-b border-border/60 px-3 py-2",
+                  day.dayNote && "bg-yellow-100 dark:bg-yellow-500/20",
+                )}
+              >
                 <DayNoteSection
                   dateKey={day.dateKey}
                   note={day.dayNote}
@@ -350,6 +348,7 @@ export function PlanMobileDayStack({
                   className={cn(
                     "border-t border-border/40 px-3 py-2",
                     trainingMode && "px-3",
+                    day.dayNote && "bg-yellow-100 dark:bg-yellow-500/20",
                   )}
                 >
                   <DayNoteSection

@@ -32,7 +32,6 @@ export type SportEditorConfig = {
   distanceUnit: DistanceUnit
   durationUnitDefault: DurationUnit
   allowDurationUnitToggle: boolean
-  showIndoorToggle: boolean
   /** Use bike kind list instead of session types */
   useBikeKinds: boolean
   detailsKind: 'blocks' | 'swim' | 'notes'
@@ -46,8 +45,7 @@ export function getSportEditorConfig(sport: WorkoutType): SportEditorConfig {
     showDistance: sport === WorkoutType.SWIM ? true : showDistance,
     distanceUnit: sport === WorkoutType.SWIM ? 'm' : 'km',
     durationUnitDefault: sport === WorkoutType.BIKE ? 'hours' : 'min',
-    allowDurationUnitToggle: sport === WorkoutType.BIKE,
-    showIndoorToggle: sport === WorkoutType.BIKE,
+    allowDurationUnitToggle: true,
     useBikeKinds: sport === WorkoutType.BIKE,
     detailsKind:
       sport === WorkoutType.SWIM

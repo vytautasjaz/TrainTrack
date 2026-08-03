@@ -48,7 +48,18 @@ export function getWorkoutPlanMetrics(
   )
 
   const actualDuration = formatWorkoutDuration(result?.actualDuration)
-  const actualDistance = formatWorkoutDistance(workout, result?.actualDistance, null)
+  // Swim actuals are stored in km; convert to meters so cards match planned (m).
+  const actualDistanceMeters =
+    workout.type === WorkoutType.SWIM &&
+    result?.actualDistance != null &&
+    result.actualDistance > 0
+      ? Math.round(result.actualDistance * 1000)
+      : null
+  const actualDistance = formatWorkoutDistance(
+    workout,
+    result?.actualDistance,
+    actualDistanceMeters,
+  )
 
   const duration = isCompleted && actualDuration ? actualDuration : plannedDuration
   const distance = isCompleted && actualDistance ? actualDistance : plannedDistance

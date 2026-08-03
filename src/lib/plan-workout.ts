@@ -4,9 +4,12 @@ import {
   WorkoutStatus,
   WorkoutType,
   type AthleteLogType,
+  type RacePriority,
   type RaceType,
+  type RaceOutcome,
   type SwimEnvironment,
 } from '@prisma/client'
+import type { RaceDistancesBySport } from '@/lib/race-distance-stats'
 import { toDateKey } from '@/lib/dates'
 import type { WorkoutStructure } from '@/lib/workout-builder/types'
 import { formatPlanBlockSummary } from '@/lib/workout-builder/segment-estimation'
@@ -36,8 +39,12 @@ export type PlanWorkoutDetail = {
   isRace?: boolean
   raceId?: string
   raceType?: RaceType
+  racePriority?: RacePriority
+  raceOutcome?: RaceOutcome | null
   raceGoal?: string | null
   raceLocation?: string | null
+  /** Planned/actual km attributed to RUN/BIKE/SWIM (triathlon splits). */
+  raceDistanceBySport?: RaceDistancesBySport
   result: {
     actualDistance: number | null
     actualDuration: number | null

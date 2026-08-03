@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useState, useTransition, type MouseEvent } from 'react'
 import * as SelectPrimitive from '@radix-ui/react-select'
-import { BookOpen, ChevronDown, Eye, Save, Settings2 } from 'lucide-react'
+import { BookOpen, ChevronDown, Eye, LayoutGrid, ListPlus, Save, Settings2 } from 'lucide-react'
 import { SessionType, WorkoutStatus, WorkoutType } from '@prisma/client'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -17,7 +17,6 @@ import { IncludeItemsEditor } from '@/components/workout-editor/include-items-ed
 import { formatIncludeItemsForSubtitle } from '@/components/workout-editor/include-items-summary'
 import { WorkoutBlockBuilder } from '@/components/plan/workout-block-builder'
 import { WorkoutLibraryPicker } from '@/components/workout-builder/workout-library-picker'
-import { SwimEnvironmentChip } from '@/components/swim-workout/swim-environment-chip'
 import { SwimWorkoutDetailsFields } from '@/components/swim-workout/swim-workout-details-fields'
 import {
   createAthleteWorkoutFromModal,
@@ -81,10 +80,11 @@ import {
 } from '@/lib/workout-builder/segment-estimation'
 import { defaultWorkoutTitle } from '@/lib/workout-builder/default-structure'
 import { getSessionTypeLabel, sessionTypesForSport } from '@/lib/workout-builder/session-modes'
-import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
+import { WORKOUT_TYPE_LABELS, SPORT_ROW_ORDER } from '@/lib/constants'
 import { getWorkoutEditorSportTheme } from '@/lib/workout-editor/sport-theme'
 import { getSportEditorConfig, type DurationUnit, type SharedWorkoutEditorProps, type WorkoutPrimaryMetric } from '@/lib/workout-editor/types'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import { parseDateOnly } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
 function formatDistanceInputValue(km: number): string {
@@ -197,6 +197,10 @@ export function SharedWorkoutEditor({
   const [sportType, setSportType] = useState<WorkoutType>(workout?.type ?? initialSport)
   const config = useMemo(() => getSportEditorConfig(sportType), [sportType])
   const sportTheme = useMemo(() => getWorkoutEditorSportTheme(sportType), [sportType])
+  const sportOptions = useMemo(
+    () => SPORT_ROW_ORDER.filter((t) => t !== WorkoutType.REST && t !== WorkoutType.RECOVERY),
+    [],
+  )
 
   const [pending, startTransition] = useTransition()
   const [libraryOpen, setLibraryOpen] = useState(false)
@@ -205,13 +209,12 @@ export function SharedWorkoutEditor({
   const [builderPrefs, setBuilderPrefs] = useState<WorkoutBuilderPrefs | null>(null)
 
   const [sessionType, setSessionType] = useState<SessionType | null>(
-    workout?.sessionType ?? SessionType.EASY_RUN,
+    workout?.sessionType ?? null,
   )
   const [bikeKind, setBikeKind] = useState<BikeWorkoutKind | null>(() => {
     if (workout?.type === WorkoutType.BIKE) {
       return bikeKindFromTags(workout.tags ?? []) ?? 'CUSTOM'
     }
-    if (!workout && initialSport === WorkoutType.BIKE) return 'EASY'
     return null
   })
   const [environment, setEnvironment] = useState<BikeEnvironment>('outdoor')
@@ -219,8 +222,12 @@ export function SharedWorkoutEditor({
   const [subtitle, setSubtitle] = useState('')
   const [titleAuto, setTitleAuto] = useState(false)
   const [subtitleAuto, setSubtitleAuto] = useState(false)
-  const [primaryMetric, setPrimaryMetric] = useState<WorkoutPrimaryMetric>('distance')
-  const [secondaryMetricVisible, setSecondaryMetricVisible] = useState(true)
+  const [primaryMetric, setPrimaryMetric] = useState<WorkoutPrimaryMetric>(
+    getSportEditorConfig(workout?.type ?? initialSport).showDistance
+      ? 'distance'
+      : 'duration',
+  )
+  const [secondaryMetricVisible, setSecondaryMetricVisible] = useState(false)
   const [durationMin, setDurationMin] = useState(0)
   const [distanceKm, setDistanceKm] = useState(0)
   const [durationUnit, setDurationUnit] = useState<DurationUnit>(config.durationUnitDefault)
@@ -363,8 +370,8 @@ export function SharedWorkoutEditor({
       return
     }
 
-    setSessionType(SessionType.EASY_RUN)
-    setBikeKind(initialSport === WorkoutType.BIKE ? 'EASY' : null)
+    setSessionType(null)
+    setBikeKind(null)
     setEnvironment('outdoor')
     setSportType(initialSport)
     setTitle('')
@@ -374,7 +381,7 @@ export function SharedWorkoutEditor({
     setPrimaryMetric(
       getSportEditorConfig(initialSport).showDistance ? 'distance' : 'duration',
     )
-    setSecondaryMetricVisible(true)
+    setSecondaryMetricVisible(false)
     setDurationMin(0)
     setDistanceKm(0)
     setDurationInput('')
@@ -634,8 +641,12 @@ export function SharedWorkoutEditor({
   function handleDistanceSourceChange(source: 'manual' | 'auto') {
     if (source === 'manual') {
       setDistanceManual(true)
-      if (distanceInput.trim()) {
-        const value = Number.parseFloat(distanceInput.replace(/[^\d.]/g, ''))
+      const seed = distanceInput.trim() || autoDistanceInput?.replace(/[^\d.]/g, '') || ''
+      if (seed) {
+        if (!distanceInput.trim() && autoDistanceInput) {
+          setDistanceInput(seed)
+        }
+        const value = Number.parseFloat(seed.replace(/[^\d.]/g, ''))
         if (Number.isFinite(value) && value >= 0) {
           const km = config.distanceUnit === 'm' ? value / 1000 : value
           setDistanceKm(km)
@@ -657,8 +668,12 @@ export function SharedWorkoutEditor({
   function handleDurationSourceChange(source: 'manual' | 'auto') {
     if (source === 'manual') {
       setDurationManual(true)
-      if (durationInput.trim()) {
-        setDurationMin(parseDurationInput(durationInput, durationUnit))
+      const seed = durationInput.trim() || autoDurationInput || ''
+      if (seed) {
+        if (!durationInput.trim() && autoDurationInput) {
+          setDurationInput(autoDurationInput)
+        }
+        setDurationMin(parseDurationInput(seed, durationUnit))
       }
       return
     }
@@ -761,7 +776,7 @@ export function SharedWorkoutEditor({
         swimEnvironment: swimForm.swimEnvironment,
         coachNotes: coachNotes.trim() || null,
         structure: null,
-        swimStructure: detailsOpen ? swimForm.swimStructure : null,
+        swimStructure: detailsOpen ? (swimForm.swimStructure ?? null) : null,
         tags: buildTags(),
         selfLogged: workout?.selfLogged ?? false,
         rescheduledFromDateKey: workout?.rescheduledFromDateKey ?? null,
@@ -845,7 +860,7 @@ export function SharedWorkoutEditor({
           plannedDuration: durationMin > 0 ? durationMin : null,
           coachNotes: coachNotes.trim() || null,
           builderEnabled: detailsOpen && Boolean(swimForm.swimStructure),
-          swimStructure: detailsOpen ? swimForm.swimStructure : null,
+          swimStructure: detailsOpen ? (swimForm.swimStructure ?? null) : null,
           scheduledDate: date,
           templateId,
           tags: buildTags(),
@@ -1009,62 +1024,154 @@ export function SharedWorkoutEditor({
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-          <AthleteWorkoutDetailCard workout={buildAthletePreview()} showStravaLink={false} />
+          <AthleteWorkoutDetailCard workout={buildAthletePreview()} />
         </div>
         {footer}
       </div>
     )
   }
 
+  const dateLabel = date
+    ? (() => {
+        const d = parseDateOnly(date)
+        return d.toLocaleDateString('en-GB', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'UTC',
+        })
+      })()
+    : null
+
+  const intensityControl =
+    !athleteMode && sportType !== WorkoutType.SWIM ? (
+      config.useBikeKinds ? (
+        <SelectPrimitive.Root
+          value={bikeKind ?? undefined}
+          onValueChange={(value) => {
+            setBikeKind(value as BikeWorkoutKind)
+            if (titleAuto || !title.trim()) {
+              setTitleAuto(true)
+              setTitle(autoBikeTitle(environment, value as BikeWorkoutKind))
+            }
+          }}
+        >
+          <SelectPrimitive.Trigger
+            aria-label="Workout intensity"
+            className={cn(
+              'group inline-flex max-w-full items-center justify-center gap-1 bg-transparent text-center text-[20px] font-bold leading-tight outline-none',
+              bikeKind ? 'text-[#111827]' : 'text-muted-foreground/45',
+            )}
+          >
+            <span className="truncate">
+              {bikeKind ? bikeKindLabel(bikeKind) : 'Select'}
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition group-data-[state=open]:rotate-180" />
+          </SelectPrimitive.Trigger>
+          <SelectDropdownContent align="center" className="z-[210]">
+            {BIKE_WORKOUT_KINDS.map((option) => (
+              <SelectDropdownItem
+                key={option.id}
+                option={{ value: option.id, label: option.label }}
+              />
+            ))}
+          </SelectDropdownContent>
+        </SelectPrimitive.Root>
+      ) : (
+        <SelectPrimitive.Root
+          value={sessionType ?? undefined}
+          onValueChange={(value) => {
+            const next = value as SessionType
+            setSessionType(next)
+            if (titleAuto || !title.trim()) {
+              setTitleAuto(true)
+              setTitle(defaultWorkoutTitle(next, sportType))
+            }
+          }}
+        >
+          <SelectPrimitive.Trigger
+            aria-label="Workout intensity"
+            className={cn(
+              'group inline-flex max-w-full items-center justify-center gap-1 bg-transparent text-center text-[20px] font-bold leading-tight outline-none',
+              sessionType ? 'text-[#111827]' : 'text-muted-foreground/45',
+            )}
+          >
+            <span className="truncate">
+              {sessionType
+                ? getSessionTypeLabel(sessionType, sportType)
+                : 'Select'}
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition group-data-[state=open]:rotate-180" />
+          </SelectPrimitive.Trigger>
+          <SelectDropdownContent align="center" className="z-[210]">
+            {sessionOptions.map((option) => (
+              <SelectDropdownItem key={option.value} option={option} />
+            ))}
+          </SelectDropdownContent>
+        </SelectPrimitive.Root>
+      )
+    ) : null
+
+  function handleSportChange(next: WorkoutType) {
+    if (next === sportType) return
+    const prev = sportType
+    const nextConfig = getSportEditorConfig(next)
+    setSportType(next)
+    setDurationUnit(nextConfig.durationUnitDefault)
+    setPrimaryMetric(nextConfig.showDistance ? 'distance' : 'duration')
+    setSecondaryMetricVisible(false)
+    setBikeKind(null)
+    setSessionType(null)
+    setDetailsOpen(false)
+    setIncludeOpen(false)
+    setStructure(emptyStructure())
+    setIncludeItems([])
+    setSwimForm(defaultSwimWorkoutForm())
+    setTemplateId(undefined)
+    setTitleAuto(true)
+    setSubtitleAuto(true)
+    if (next === WorkoutType.SWIM || prev === WorkoutType.SWIM) {
+      setDistanceKm(0)
+      setDistanceInput('')
+      setAutoDistanceInput('')
+      setDistanceManual(true)
+    }
+    setDurationInput(
+      durationMin > 0 ? formatDurationInput(durationMin, nextConfig.durationUnitDefault) : '',
+    )
+    setAutoDurationInput('')
+  }
+
   const body = (
     <div className={cn('flex min-h-0 flex-1 flex-col', className)}>
-      <div
-        className={cn(
-          'flex flex-row items-start justify-between gap-3 border-b border-border/60 px-5 py-4 sm:px-6',
-          !embedded && 'pr-12',
-        )}
-      >
-        <div>
-          <h2 className="text-lg font-semibold">
-            {isTemplate
-              ? isEdit
-                ? 'Edit template'
-                : 'New template'
-              : isEdit
-                ? 'Edit Workout'
-                : 'Add Workout'}
-          </h2>
-          <p className="text-sm text-muted-foreground">{WORKOUT_TYPE_LABELS[sportType]}</p>
+      {isTemplate ? (
+        <div
+          className={cn(
+            'flex flex-row items-start justify-between gap-3 border-b border-border/60 px-5 py-4 sm:px-6',
+            !embedded && 'pr-12',
+          )}
+        >
+          <div>
+            <h2 className="text-lg font-semibold">
+              {isEdit ? 'Edit template' : 'New template'}
+            </h2>
+            <p className="text-sm text-muted-foreground">{WORKOUT_TYPE_LABELS[sportType]}</p>
+          </div>
         </div>
-        {!isEdit && !athleteMode && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className={cn(sportTheme.sectionText, 'hover:opacity-90', sportTheme.section)}
-            onClick={() => setLibraryOpen((v) => !v)}
-          >
-            <BookOpen className="h-3.5 w-3.5" />
-            Library
-          </Button>
-        )}
-      </div>
+      ) : null}
 
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-5 sm:px-6">
-        {libraryOpen && !isEdit && !athleteMode && (
-          <WorkoutLibraryPicker
-            templates={templates}
-            selectedTemplateId={templateId ?? ''}
-            onSelect={applyTemplate}
-          />
-        )}
-
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <EditableWorkoutCardShell
           sportType={sportType}
           title={title}
           subtitle={subtitle}
           titleAuto={titleAuto}
           subtitleAuto={subtitleAuto}
+          dateLabel={!isTemplate ? dateLabel : null}
+          intensityControl={intensityControl}
+          sportOptions={!athleteMode ? sportOptions : undefined}
+          onSportChange={!athleteMode ? handleSportChange : undefined}
           primaryMetric={primaryMetric}
           durationInput={durationInput}
           distanceInput={distanceInput}
@@ -1080,18 +1187,6 @@ export function SharedWorkoutEditor({
           distanceUnit={config.distanceUnit}
           durationUnit={durationUnit}
           allowDurationUnitToggle={config.allowDurationUnitToggle}
-          isIndoor={environment === 'indoor'}
-          showIndoorToggle={config.showIndoorToggle}
-          cornerSlot={
-            sportType === WorkoutType.SWIM && !athleteMode ? (
-              <SwimEnvironmentChip
-                value={swimForm.swimEnvironment}
-                onChange={(swimEnvironment) =>
-                  setSwimForm((prev) => ({ ...prev, swimEnvironment }))
-                }
-              />
-            ) : undefined
-          }
           onTitleChange={(value) => {
             setTitle(value)
             setTitleAuto(false)
@@ -1121,10 +1216,88 @@ export function SharedWorkoutEditor({
           onDurationSourceChange={handleDurationSourceChange}
           onSecondaryMetricVisibleChange={setSecondaryMetricVisible}
           onToggleDurationUnit={toggleDurationUnit}
-          onIndoorToggle={() =>
-            setEnvironment((prev) => (prev === 'indoor' ? 'outdoor' : 'indoor'))
-          }
         />
+
+        <div className="space-y-5 px-5 py-5 sm:px-6">
+        {!athleteMode && sportType !== WorkoutType.SWIM ? (
+          <div className="flex gap-2">
+            {!isEdit ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setLibraryOpen((v) => {
+                    const next = !v
+                    if (next) {
+                      setDetailsOpen(false)
+                      setIncludeOpen(false)
+                    }
+                    return next
+                  })
+                }}
+                className={cn(
+                  'inline-flex flex-1 items-center justify-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-xs font-semibold transition',
+                  libraryOpen
+                    ? cn(sportTheme.section, sportTheme.sectionText)
+                    : 'border-border bg-card text-foreground hover:border-border/80',
+                )}
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                Library
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => {
+                setDetailsOpen((open) => {
+                  const next = !open
+                  if (next) setLibraryOpen(false)
+                  return next
+                })
+              }}
+              className={cn(
+                'inline-flex flex-1 items-center justify-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-xs font-semibold transition',
+                detailsOpen
+                  ? cn(sportTheme.section, sportTheme.sectionText)
+                  : 'border-border bg-card text-foreground hover:border-border/80',
+              )}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Build workout
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIncludeOpen((open) => {
+                  const next = !open
+                  if (next) setLibraryOpen(false)
+                  return next
+                })
+              }}
+              className={cn(
+                'inline-flex flex-1 items-center justify-center gap-1.5 rounded-[8px] border px-2.5 py-1.5 text-xs font-semibold transition',
+                includeOpen
+                  ? cn(sportTheme.section, sportTheme.sectionText)
+                  : 'border-border bg-card text-foreground hover:border-border/80',
+              )}
+            >
+              <ListPlus className="h-3.5 w-3.5" />
+              Include
+              {includeItems.length > 0 ? (
+                <span className="rounded-full bg-background/70 px-1.5 py-0.5 text-[10px] font-semibold">
+                  {includeItems.length}
+                </span>
+              ) : null}
+            </button>
+          </div>
+        ) : null}
+
+        {libraryOpen && !isEdit && !athleteMode && (
+          <WorkoutLibraryPicker
+            templates={templates}
+            selectedTemplateId={templateId ?? ''}
+            onSelect={applyTemplate}
+          />
+        )}
 
         {sportType === WorkoutType.SWIM && !athleteMode ? (
           <SegmentedControl aria-label="Swim workout mode" className="w-full">
@@ -1173,147 +1346,6 @@ export function SharedWorkoutEditor({
             </Button>
           </div>
         )}
-
-        <div
-          className={cn(
-            'grid gap-2',
-            !athleteMode && sportType !== WorkoutType.SWIM ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1',
-          )}
-        >
-          {config.useBikeKinds ? (
-            <SelectPrimitive.Root
-              value={bikeKind ?? undefined}
-              onValueChange={(value) => {
-                setBikeKind(value as BikeWorkoutKind)
-                if (titleAuto || !title.trim()) {
-                  setTitleAuto(true)
-                  setTitle(autoBikeTitle(environment, value as BikeWorkoutKind))
-                }
-              }}
-            >
-              <SelectPrimitive.Trigger
-                aria-label="Workout type"
-                className={cn(
-                  'group flex h-full min-h-[52px] w-full min-w-0 items-center justify-between gap-3 rounded-[6px] border border-border bg-card px-3 py-3 text-left transition hover:border-border/80 focus:outline-none',
-                  sportTheme.focus,
-                )}
-              >
-                <span
-                  className={cn(
-                    'truncate text-sm font-semibold',
-                    bikeKind ? 'text-foreground' : 'text-muted-foreground',
-                  )}
-                >
-                  {bikeKind ? bikeKindLabel(bikeKind) : 'Select workout type'}
-                </span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-data-[state=open]:rotate-180" />
-              </SelectPrimitive.Trigger>
-              <SelectDropdownContent align="start" className="z-[210] w-[--radix-select-trigger-width]">
-                {BIKE_WORKOUT_KINDS.map((option) => (
-                  <SelectDropdownItem
-                    key={option.id}
-                    option={{ value: option.id, label: option.label }}
-                  />
-                ))}
-              </SelectDropdownContent>
-            </SelectPrimitive.Root>
-          ) : (
-            <SelectPrimitive.Root
-              value={sessionType ?? undefined}
-              onValueChange={(value) => {
-                const next = value as SessionType
-                setSessionType(next)
-                if (titleAuto || !title.trim()) {
-                  setTitleAuto(true)
-                  setTitle(defaultWorkoutTitle(next, sportType))
-                }
-              }}
-            >
-              <SelectPrimitive.Trigger
-                aria-label="Workout type"
-                className={cn(
-                  'group flex h-full min-h-[52px] w-full min-w-0 items-center justify-between gap-3 rounded-[6px] border border-border bg-card px-3 py-3 text-left transition hover:border-border/80 focus:outline-none',
-                  sportTheme.focus,
-                )}
-              >
-                <span
-                  className={cn(
-                    'truncate text-sm font-semibold',
-                    sessionType ? 'text-foreground' : 'text-muted-foreground',
-                  )}
-                >
-                  {sessionType
-                    ? getSessionTypeLabel(sessionType, sportType)
-                    : 'Select workout type'}
-                </span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition group-data-[state=open]:rotate-180" />
-              </SelectPrimitive.Trigger>
-              <SelectDropdownContent align="start" className="z-[210] w-[--radix-select-trigger-width]">
-                {sessionOptions.map((option) => (
-                  <SelectDropdownItem key={option.value} option={option} />
-                ))}
-              </SelectDropdownContent>
-            </SelectPrimitive.Root>
-          )}
-
-          {!athleteMode && sportType !== WorkoutType.SWIM ? (
-            <>
-              <button
-                type="button"
-                onClick={() => setDetailsOpen((open) => !open)}
-                className={cn(
-                  'flex h-full min-h-[52px] w-full items-center justify-between gap-3 rounded-[6px] border border-border px-3 py-3 text-left transition',
-                  detailsOpen
-                    ? sportTheme.section
-                    : 'bg-card hover:border-border/80',
-                )}
-              >
-                <span
-                  className={cn(
-                    'truncate text-sm font-semibold',
-                    detailsOpen ? sportTheme.sectionText : 'text-foreground',
-                  )}
-                >
-                  Build workout
-                </span>
-                <ChevronDown className={cn('h-4 w-4 shrink-0 transition', detailsOpen && 'rotate-180')} />
-              </button>
-              <button
-                type="button"
-                onClick={() => setIncludeOpen((open) => !open)}
-                className={cn(
-                  'flex h-full min-h-[52px] w-full items-center justify-between gap-3 rounded-[6px] border border-border px-3 py-3 text-left transition',
-                  includeOpen
-                    ? sportTheme.section
-                    : 'bg-card hover:border-border/80',
-                )}
-              >
-                <span
-                  className={cn(
-                    'truncate text-sm font-semibold',
-                    includeOpen ? sportTheme.sectionText : 'text-foreground',
-                  )}
-                >
-                  Include
-                </span>
-                <span className="inline-flex items-center gap-2">
-                  {includeItems.length > 0 ? (
-                    <span className="rounded-full bg-background/70 px-1.5 py-0.5 text-[10px] font-semibold">
-                      {includeItems.length}
-                    </span>
-                  ) : null}
-                  <ChevronDown
-                    className={cn(
-                      'h-4 w-4 shrink-0 transition',
-                      includeOpen ? sportTheme.sectionText : 'text-muted-foreground',
-                      includeOpen && 'rotate-180',
-                    )}
-                  />
-                </span>
-              </button>
-            </>
-          ) : null}
-        </div>
 
         {!athleteMode && sportType === WorkoutType.SWIM && detailsOpen ? (
           <SwimWorkoutDetailsFields
@@ -1383,6 +1415,7 @@ export function SharedWorkoutEditor({
             />
           </FormField>
         )}
+      </div>
       </div>
 
       {footer}

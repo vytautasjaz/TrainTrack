@@ -5,11 +5,17 @@ import { prisma } from '@/lib/prisma'
 import { requireAthleteSession } from '@/lib/session'
 import {
   attachStravaActivityToWorkoutForAthlete,
+  attachStravaActivityToRaceForAthlete,
+  attachStravaActivityToRaceLegForAthlete,
+  ensureTriathlonLegsForRace,
   listStravaActivitiesForWorkoutForAthlete,
+  listStravaActivitiesForRaceForAthlete,
   maybeAutoSyncStravaActivitiesForUser,
   setStravaAutoSyncEnabledForUser,
   syncStravaActivitiesForUser,
   unlinkStravaFromWorkoutForAthlete,
+  unlinkStravaFromRaceForAthlete,
+  unlinkStravaFromRaceLegForAthlete,
 } from '@/lib/strava/sync'
 
 function revalidateStravaPaths() {
@@ -121,4 +127,60 @@ export async function attachStravaActivityToWorkout(workoutId: string, activityI
     activityId,
   )
   revalidateWorkoutPaths(workoutId)
+}
+
+function revalidateRacePaths(athleteId: string, raceId?: string) {
+  revalidateStravaPaths()
+  revalidatePath('/races')
+  revalidatePath(`/athletes/${athleteId}`)
+  if (raceId) revalidatePath(`/races/${raceId}/edit`)
+}
+
+export async function listStravaActivitiesForRace(raceId: string, legId?: string) {
+  const session = await requireAthleteSession()
+  return listStravaActivitiesForRaceForAthlete(
+    session.userId,
+    session.athleteId,
+    raceId,
+    legId,
+  )
+}
+
+export async function attachStravaActivityToRace(raceId: string, activityId: string) {
+  const session = await requireAthleteSession()
+  await attachStravaActivityToRaceForAthlete(
+    session.userId,
+    session.athleteId,
+    raceId,
+    activityId,
+  )
+  revalidateRacePaths(session.athleteId, raceId)
+}
+
+export async function unlinkStravaFromRace(raceId: string) {
+  const session = await requireAthleteSession()
+  await unlinkStravaFromRaceForAthlete(session.userId, session.athleteId, raceId)
+  revalidateRacePaths(session.athleteId, raceId)
+}
+
+export async function attachStravaActivityToRaceLeg(legId: string, activityId: string) {
+  const session = await requireAthleteSession()
+  await attachStravaActivityToRaceLegForAthlete(
+    session.userId,
+    session.athleteId,
+    legId,
+    activityId,
+  )
+  revalidateRacePaths(session.athleteId)
+}
+
+export async function unlinkStravaFromRaceLeg(legId: string) {
+  const session = await requireAthleteSession()
+  await unlinkStravaFromRaceLegForAthlete(session.userId, session.athleteId, legId)
+  revalidateRacePaths(session.athleteId)
+}
+
+/** Ensure triathlon legs exist (used after type changes). */
+export async function ensureRaceLegs(raceId: string, type: Parameters<typeof ensureTriathlonLegsForRace>[1]) {
+  await ensureTriathlonLegsForRace(raceId, type)
 }

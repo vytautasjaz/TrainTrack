@@ -160,7 +160,11 @@ export function WorkoutDetailModal({
 
           <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-3">
             <div className="space-y-4">
-              <AthleteWorkoutDetailCard workout={workout} showStravaLink={isCoach} />
+              <AthleteWorkoutDetailCard
+                workout={workout}
+                showStravaActions={!isCoach}
+                onStravaChange={() => onOpenChange(false)}
+              />
               {result?.athleteNotes?.trim() ? (
                 <section className="border-t border-border/50 pt-4 text-sm">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">

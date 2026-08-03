@@ -148,7 +148,11 @@ export function PlanWorkoutDataCard({
 
   const completedStatus = showCompletedBadge ? (
     stravaSynced ? (
-      <StravaSyncedIndicator workout={workout} variant="mark" size="xs" />
+      <StravaSyncedIndicator
+        workout={workout}
+        variant={density === 'month' || density === 'micro' ? 'mark' : 'wordmark'}
+        size={density === 'list' ? 'sm' : 'xs'}
+      />
     ) : (
       <WorkoutStatusIcon kind="completed" size="xs" aria-label="Completed" />
     )
@@ -215,29 +219,52 @@ export function PlanWorkoutDataCard({
       ) : null}
 
       {hero ? (
-        <div className={cn('flex items-baseline', subtitle ? styles.heroPad : null)}>
-          {hero.approximate ? (
-            <span className={cn('font-medium text-[#6B7280]', styles.unit)}>~</span>
-          ) : null}
-          <span className={cn('tabular-nums', styles.hero)}>{hero.value}</span>
-          {hero.unit ? <span className={styles.unit}>{hero.unit}</span> : null}
+        <div
+          className={cn(
+            'flex min-w-0 flex-wrap items-baseline gap-x-1.5',
+            subtitle ? styles.heroPad : null,
+          )}
+        >
+          <span className="inline-flex max-w-full items-baseline">
+            {hero.approximate ? (
+              <span className={cn('font-medium text-[#6B7280]', styles.unit)}>~</span>
+            ) : null}
+            <span className={cn('tabular-nums', styles.hero)}>{hero.value}</span>
+            {hero.unit ? (
+              <span className={styles.unit}>
+                {'\u00a0'}
+                {hero.unit}
+              </span>
+            ) : null}
+          </span>
           {hero.plannedValue ? (
-            <span className={cn('ml-1.5 tabular-nums font-semibold', styles.unit, 'text-[#9CA3AF]')}>/ {hero.plannedValue}{hero.plannedUnit ?? ''}</span>
+            <span
+              className={cn(
+                'tabular-nums font-semibold',
+                styles.unit,
+                'text-[#9CA3AF]',
+              )}
+            >
+              / {hero.plannedValue}
+              {hero.plannedUnit ? `\u00a0${hero.plannedUnit}` : ''}
+            </span>
           ) : null}
         </div>
       ) : null}
 
       {duration ? (
-        <div className={cn('flex items-center gap-1', styles.duration)}>
-          {hero?.kind === 'distance' ? (
-            <Clock className={cn(styles.clock, 'shrink-0 text-[#6B7280]')} aria-hidden />
-          ) : null}
-          <span className="font-semibold text-[#111827]">{duration.actual}</span>
+        <div className={cn('flex min-w-0 flex-wrap items-center gap-x-1', styles.duration)}>
+          <span className="inline-flex items-center gap-1">
+            {hero?.kind === 'distance' ? (
+              <Clock className={cn(styles.clock, 'shrink-0 text-[#6B7280]')} aria-hidden />
+            ) : null}
+            <span className="font-semibold text-[#111827]">{duration.actual}</span>
+          </span>
           {duration.planned ? (
-            <>
-              <span className="text-[#9CA3AF]">/</span>
-              <span className="text-[#9CA3AF]">{duration.planned}</span>
-            </>
+            <span className="inline-flex items-center gap-1 text-[#9CA3AF]">
+              <span>/</span>
+              <span>{duration.planned}</span>
+            </span>
           ) : null}
         </div>
       ) : null}

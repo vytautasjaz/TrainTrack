@@ -3,7 +3,7 @@ export const PACE_ZONE_FIELDS = [
   { key: 'paceEasyMinPerKm', name: 'easy', label: 'Easy' },
   { key: 'paceTempoMinPerKm', name: 'tempo', label: 'Tempo' },
   { key: 'paceThresholdMinPerKm', name: 'threshold', label: 'Threshold' },
-  { key: 'paceVo2MaxMinPerKm', name: 'vo2max', label: 'VO2 max' },
+  { key: 'paceVo2MaxMinPerKm', name: 'vo2max', label: 'VO₂ max' },
 ] as const
 
 export const BIKE_SPEED_ZONE_FIELDS = [
@@ -11,28 +11,72 @@ export const BIKE_SPEED_ZONE_FIELDS = [
   { key: 'bikeSpeedEasyKph', name: 'bikeEasy', label: 'Easy / Endurance' },
   { key: 'bikeSpeedTempoKph', name: 'bikeTempo', label: 'Tempo / Sweet Spot' },
   { key: 'bikeSpeedThresholdKph', name: 'bikeThreshold', label: 'Threshold' },
-  { key: 'bikeSpeedVo2MaxKph', name: 'bikeVo2max', label: 'VO2 max / Sprint' },
+  { key: 'bikeSpeedVo2MaxKph', name: 'bikeVo2max', label: 'VO₂ max / Sprint' },
 ] as const
 
+/** Typical %FTP placeholders when suggesting zone watts. */
+export const BIKE_POWER_ZONE_FIELDS = [
+  {
+    key: 'bikePowerRecoveryWatts',
+    name: 'bikePowerRecovery',
+    label: 'Recovery',
+    ftpPercentHint: 55,
+  },
+  {
+    key: 'bikePowerEasyWatts',
+    name: 'bikePowerEasy',
+    label: 'Easy / Endurance',
+    ftpPercentHint: 65,
+  },
+  {
+    key: 'bikePowerTempoWatts',
+    name: 'bikePowerTempo',
+    label: 'Tempo / Sweet Spot',
+    ftpPercentHint: 88,
+  },
+  {
+    key: 'bikePowerThresholdWatts',
+    name: 'bikePowerThreshold',
+    label: 'Threshold',
+    ftpPercentHint: 100,
+  },
+  {
+    key: 'bikePowerVo2MaxWatts',
+    name: 'bikePowerVo2max',
+    label: 'VO₂ max / Sprint',
+    ftpPercentHint: 115,
+  },
+] as const
+
+/** Paired speed + power rows (same intensity order). */
+export const BIKE_ZONE_ROWS = BIKE_SPEED_ZONE_FIELDS.map((speed, index) => ({
+  label: speed.label,
+  speed,
+  power: BIKE_POWER_ZONE_FIELDS[index]!,
+}))
+
 export const HR_ZONE_FIELDS = [
-  { key: 'hrMax', name: 'hrMax', label: 'Max HR', placeholder: '190' },
   { key: 'hrResting', name: 'hrResting', label: 'Resting HR', placeholder: '50' },
-  { key: 'hrZone1Max', name: 'hrZone1Max', label: 'Zone 1 max', placeholder: '120' },
-  { key: 'hrZone2Max', name: 'hrZone2Max', label: 'Zone 2 max', placeholder: '140' },
-  { key: 'hrZone3Max', name: 'hrZone3Max', label: 'Zone 3 max', placeholder: '160' },
-  { key: 'hrZone4Max', name: 'hrZone4Max', label: 'Zone 4 max', placeholder: '175' },
+  { key: 'hrMax', name: 'hrMax', label: 'Max HR', placeholder: '190' },
+  { key: 'hrZone1Max', name: 'hrZone1Max', label: 'Z1 max', placeholder: '120' },
+  { key: 'hrZone2Max', name: 'hrZone2Max', label: 'Z2 max', placeholder: '140' },
+  { key: 'hrZone3Max', name: 'hrZone3Max', label: 'Z3 max', placeholder: '160' },
+  { key: 'hrZone4Max', name: 'hrZone4Max', label: 'Z4 max', placeholder: '175' },
 ] as const
 
 export type PaceZoneKey = (typeof PACE_ZONE_FIELDS)[number]['key']
 export type BikeSpeedZoneKey = (typeof BIKE_SPEED_ZONE_FIELDS)[number]['key']
+export type BikePowerZoneKey = (typeof BIKE_POWER_ZONE_FIELDS)[number]['key']
 export type HrZoneKey = (typeof HR_ZONE_FIELDS)[number]['key']
 
 export type AthletePaceZones = Partial<Record<PaceZoneKey, number | null>>
 export type AthleteBikeSpeedZones = Partial<Record<BikeSpeedZoneKey, number | null>>
+export type AthleteBikePowerZones = Partial<Record<BikePowerZoneKey, number | null>>
 export type AthleteHrZones = Partial<Record<HrZoneKey, number | null>>
 
 export type AthletePreferences = AthletePaceZones &
   AthleteBikeSpeedZones &
+  AthleteBikePowerZones &
   AthleteHrZones & {
     bikeFtpWatts?: number | null
     swimCssSecPer100m?: number | null
@@ -321,6 +365,11 @@ export function pickAthletePreferences(athlete: {
   bikeSpeedThresholdKph?: number | null
   bikeSpeedVo2MaxKph?: number | null
   bikeFtpWatts?: number | null
+  bikePowerRecoveryWatts?: number | null
+  bikePowerEasyWatts?: number | null
+  bikePowerTempoWatts?: number | null
+  bikePowerThresholdWatts?: number | null
+  bikePowerVo2MaxWatts?: number | null
   swimCssSecPer100m?: number | null
   hrMax?: number | null
   hrResting?: number | null
@@ -341,6 +390,11 @@ export function pickAthletePreferences(athlete: {
     bikeSpeedThresholdKph: athlete.bikeSpeedThresholdKph ?? null,
     bikeSpeedVo2MaxKph: athlete.bikeSpeedVo2MaxKph ?? null,
     bikeFtpWatts: athlete.bikeFtpWatts ?? null,
+    bikePowerRecoveryWatts: athlete.bikePowerRecoveryWatts ?? null,
+    bikePowerEasyWatts: athlete.bikePowerEasyWatts ?? null,
+    bikePowerTempoWatts: athlete.bikePowerTempoWatts ?? null,
+    bikePowerThresholdWatts: athlete.bikePowerThresholdWatts ?? null,
+    bikePowerVo2MaxWatts: athlete.bikePowerVo2MaxWatts ?? null,
     swimCssSecPer100m: athlete.swimCssSecPer100m ?? null,
     hrMax: athlete.hrMax ?? null,
     hrResting: athlete.hrResting ?? null,

@@ -8,10 +8,10 @@ Versija: `0.1.0` (demo autentifikacija, be tikro login/registracijos).
 
 ## Kam skirta
 
-| Rolė | Paskirtis |
-|------|-----------|
-| **Treneris (Coach)** | Valdo atletų sąrašą, planuoja savaites, kuria workout biblioteką, seka compliance ir atsiliepimus |
-| **Atletas (Athlete)** | Mato savo planą, žymi atliktas treniruotes, seka lenktynes ir statistiką, jungia Strava |
+| Rolė                  | Paskirtis                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| **Treneris (Coach)**  | Valdo atletų sąrašą, planuoja savaites, kuria workout biblioteką, seka compliance ir atsiliepimus |
+| **Atletas (Athlete)** | Mato savo planą, žymi atliktas treniruotes, seka lenktynes ir statistiką, jungia Strava           |
 
 Sportai: **Run, Bike, Swim, Triathlon, Strength, HYROX, Recovery, Rest**.
 
@@ -28,18 +28,20 @@ Sportai: **Run, Bike, Swim, Triathlon, Strength, HYROX, Recovery, Rest**.
 ## Navigacija pagal rolę
 
 ### Atletas
+
 - **Home** — šiandienos / artimiausios treniruotės, savaitės progress, apimtis, kita lenktynė, trenerio atsakymai
 - **Training** — pagrindinis kalendorius / planas
 - **Races** — sezono lenktynės
 - **Stats** — apimtis, completion, tendencijos
-- **Calculators** — tempo / intervalų / triathlon / HYROX / splits skaičiuoklės
+- **Tools** — tempo / intervalų / triathlon / HYROX / splits skaičiuoklės
 - **Preferences** — zonos, profilis, Strava
 
 ### Treneris
+
 - **Athletes** — atletų rosters, compliance, planning warnings, feedback eilė
 - **Training** — pasirinkto atleto planas
 - **Library** — workout šablonų biblioteka
-- **Calculators** — tos pačios skaičiuoklės
+- **Tools** — tos pačios skaičiuoklės
 - **Preferences** — planavimo lead dienos, builder nustatymai; pasirinkto atleto zonos
 
 Treneris perjungia atletą per athlete bar / role switcher — visas Training / Stats / Races kontekstas seka pasirinktą atletą.
@@ -52,13 +54,14 @@ Treneris perjungia atletą per athlete bar / role switcher — visas Training / 
 
 Vienas hub’as vietoj senų Plan / History:
 
-| Vaizdas | Kas rodoma |
-|---------|------------|
-| **List** | Chronologinis treniruočių sąrašas (nuo vakar → šiandien → ateitis), infinite scroll; mobiliajame — default |
-| **Week** | Savaitės lentelė pagal sportus; mobiliajame portrait — prašymas pasukti ekraną, landscape — lentelė; desktop — default |
-| **Month** | Mėnesio kalendorius (1–3 mėn.) |
+| Vaizdas   | Kas rodoma                                                                                                             |
+| --------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **List**  | Chronologinis treniruočių sąrašas (nuo vakar → šiandien → ateitis), infinite scroll; mobiliajame — default             |
+| **Week**  | Savaitės lentelė pagal sportus; mobiliajame portrait — prašymas pasukti ekraną, landscape — lentelė; desktop — default |
+| **Month** | Mėnesio kalendorius (1–3 mėn.)                                                                                         |
 
 **Treneris gali:**
+
 - Pridėti / redaguoti / kopijuoti / perkelti / ištrinti treniruotes
 - Vilkti iš bibliotekos ant dienos
 - DnD tarp dienų
@@ -66,6 +69,7 @@ Vienas hub’as vietoj senų Plan / History:
 - Konfigūruoti sportų eilutes plane (`planSportRows`, per-week overrides)
 
 **Atletas gali:**
+
 - Peržiūrėti struktūruotą planą
 - Pažymėti **completed / skipped**
 - Koreguoti faktinius duomenis, reschedule
@@ -99,15 +103,15 @@ Vienas hub’as vietoj senų Plan / History:
 - Apimtis pagal sportą, completion rate, tendencijos (~8 sav. → mėnesio pabaiga)
 - Atletas mato savo; treneris — pasirinkto atleto (arba per `/athletes/[id]`)
 
-### 6. Calculators
+### 6. Tools
 
-| Tab | Funkcija |
-|-----|----------|
-| Running | Laiko / tempo skaičiavimas |
-| Interval | Intervalų laikai |
-| Triathlon | Multi-sport finish estimate |
-| HYROX | Stočių planas + detailed race plan |
-| Splits | Nuotolio / tempo / greičio split’ai (run pace arba bike km/h) |
+| Tab                  | Funkcija                                                      |
+| -------------------- | ------------------------------------------------------------- |
+| Running Calculator   | Laiko / tempo skaičiavimas                                    |
+| Interval Calculator  | Intervalų laikai                                              |
+| Triathlon Calculator | Multi-sport finish estimate                                   |
+| HYROX Calculator     | Stočių planas + detailed race plan                            |
+| Splits Calculator    | Nuotolio / tempo / greičio split’ai (run pace arba bike km/h) |
 
 Dažnai prefill’ina iš atleto zonų; būsena saugoma localStorage.
 
@@ -158,15 +162,15 @@ Lenktynės + Stats sezono kontekste
 
 ## Techninė santrauka
 
-| Sritis | Sprendimas |
-|--------|------------|
-| Frontend | Next.js 15 App Router, React 19, Tailwind v4 |
-| Duomenys | Prisma, PostgreSQL (Docker local arba Supabase) |
-| Auth | Demo cookie sesija (dar ne production auth) |
-| Integracijos | Strava OAuth + sync |
-| PWA | manifest, service worker, install prompt |
-| Tema | Light / dark (`next-themes`) |
-| Chart’ai | Recharts |
+| Sritis       | Sprendimas                                      |
+| ------------ | ----------------------------------------------- |
+| Frontend     | Next.js 15 App Router, React 19, Tailwind v4    |
+| Duomenys     | Prisma, PostgreSQL (Docker local arba Supabase) |
+| Auth         | Demo cookie sesija (dar ne production auth)     |
+| Integracijos | Strava OAuth + sync                             |
+| PWA          | manifest, service worker, install prompt        |
+| Tema         | Light / dark (`next-themes`)                    |
+| Chart’ai     | Recharts                                        |
 
 ### Pagrindiniai duomenų objektai
 

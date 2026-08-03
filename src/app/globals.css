@@ -6,41 +6,60 @@
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --color-background: #f9fafb;
-  --color-foreground: #111827;
+  /* Design System v3 neutrals */
+  --color-background: #f8f8f6;
+  --color-foreground: #111318;
   --color-card: #ffffff;
-  --color-card-foreground: #111827;
-  --color-muted: #f3f4f6;
+  --color-card-foreground: #111318;
+  --color-muted: #f3f3f1;
   --color-muted-foreground: #6b7280;
-  --color-border: #e5e7eb;
-  --color-primary: #111827;
+  --color-border: #eaeaea;
+  --color-primary: #111318;
   --color-primary-foreground: #ffffff;
   --color-brand: #e84855;
   --color-brand-foreground: #ffffff;
   --color-brand-soft: #fff0f1;
   --color-brand-muted: #ffd4d8;
   --color-hero: #ffffff;
-  --color-hero-foreground: #111827;
-  --color-accent: #f3f4f6;
-  --color-accent-foreground: #111827;
+  --color-hero-foreground: #111318;
+  --color-accent: #f3f3f1;
+  --color-accent-foreground: #111318;
   --color-destructive: #ef4444;
-  --color-success: #22c55e;
+  --color-success: #2fbf71;
   --color-chart-brand: #e84855;
-  --color-chart-planned: hsl(215 16% 65%);
-  --color-chart-success: #22c55e;
-  --color-sport-swim: #06b6d4;
-  --color-sport-bike: #0ea5e9;
-  --color-sport-run: #f97316;
-  /* Minimal 6px radius scale */
-  --radius-sm: 0.375rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.375rem;
-  --radius-xl: 0.375rem;
-  --radius-2xl: 0.375rem;
-  --radius-3xl: 0.5rem;
+  --color-chart-planned: #a1a1aa;
+  --color-chart-success: #2fbf71;
+  --color-sport-swim: #18b7c9;
+  --color-sport-bike: #3b82f6;
+  --color-sport-run: #ff6b35;
+  --color-sport-tri: #7c5cff;
+  --color-sport-race: #f5a623;
+  --color-sidebar: #111318;
+  --color-sidebar-foreground: #f4f6fb;
+  --color-tt-muted: #a1a1aa;
+  --color-tt-completed-bg: #f0faf4;
+  --color-tt-completed-border: #86d39a;
+  --color-tt-skipped-bg: #fdf2f2;
+  --color-tt-skipped-border: #f5a3a3;
+  --color-tt-adjusted-bg: #fffbeb;
+  /* DS v3: shell cards 12px; calendar workout blocks use radius-none */
+  --radius-none: 0;
+  --radius-sm: 0.625rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 0.75rem;
+  --radius-workout: 0;
   --shadow-card: 0 0 #0000;
   --shadow-float: 0 0 #0000;
-  --shadow-nav: 0 -1px 0 rgb(17 24 39 / 0.08);
+  --shadow-nav: 0 -1px 0 rgb(17 19 24 / 0.08);
+  --tt-space-4: 0.25rem;
+  --tt-space-8: 0.5rem;
+  --tt-space-16: 1rem;
+  --tt-space-24: 1.5rem;
+  --tt-motion-fast: 160ms;
+  --tt-motion-normal: 180ms;
 }
 
 .dark {
@@ -100,7 +119,7 @@ body {
 }
 
 .card-elevated {
-  @apply rounded-[6px] border border-border bg-card shadow-none;
+  @apply rounded-md border border-border bg-card shadow-none;
 }
 
 .workout-card-interactive {
@@ -112,7 +131,32 @@ body {
 }
 
 .workout-day-card {
-  @apply rounded-[6px] border border-border bg-card shadow-none;
+  @apply rounded-md border border-border bg-card shadow-none;
+}
+
+/* Workout Block (calendar-native, radius 0) */
+.tt-workout-block {
+  @apply relative w-full min-w-0 overflow-hidden border text-left shadow-none;
+  border-radius: var(--radius-workout);
+}
+
+.tt-workout-block-planned {
+  @apply border-border bg-card;
+}
+
+.tt-workout-block-completed {
+  border-color: var(--color-tt-completed-border);
+  background: var(--color-tt-completed-bg);
+}
+
+.tt-workout-block-skipped {
+  border-color: var(--color-tt-skipped-border);
+  background: var(--color-tt-skipped-bg);
+}
+
+.tt-workout-block-adjusted {
+  border-color: var(--color-sport-race);
+  background: var(--color-tt-adjusted-bg);
 }
 
 /* ——— Typography scale ——— */
@@ -574,3 +618,28 @@ input[type='number'] {
   color: #b91c1c;
 }
 
+
+/* Season planner: keep horizontal scrollbar below content (not overlaying lanes). */
+.season-planner-scroller {
+  scrollbar-width: thin;
+  scrollbar-color: #9ca3af #ececea;
+}
+
+.season-planner-scroller::-webkit-scrollbar {
+  height: 12px;
+}
+
+.season-planner-scroller::-webkit-scrollbar-track {
+  background: #ececea;
+  border-top: 1px solid var(--color-border);
+}
+
+.season-planner-scroller::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 6px;
+  border: 2px solid #ececea;
+}
+
+.season-planner-scroller::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}

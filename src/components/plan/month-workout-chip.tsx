@@ -4,14 +4,12 @@ import { useRef, useState, type ReactNode } from 'react'
 import { Flag } from 'lucide-react'
 import { WorkoutDetailModal } from '@/components/plan/workout-detail-modal'
 import { RaceDetailModal } from '@/components/plan/race-detail-modal'
-import { PlanWorkoutDataCard } from '@/components/plan/plan-workout-data-card'
+import { WorkoutBlock } from '@/components/workout-block'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import {
-  WORKOUT_TYPE_ICONS,
-  RACE_PLAN_DOT_CLASS,
-} from '@/lib/workout-display'
+import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
+import { PLANNER_PRIORITY_DOT } from '@/lib/season-planner'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import { cn } from '@/lib/utils'
 
@@ -75,7 +73,7 @@ export function MonthWorkoutChip({ workout, isCoach, variant }: MonthWorkoutChip
             dragging && 'opacity-40',
           )}
         >
-          <PlanWorkoutDataCard workout={workout} density="micro" />
+          <WorkoutBlock workout={workout} density="xs" />
         </button>
         <WorkoutDetailModal
           workout={workout}
@@ -91,11 +89,13 @@ export function MonthWorkoutChip({ workout, isCoach, variant }: MonthWorkoutChip
   let className: string
 
   if (workout.isRace) {
+    const priority = workout.racePriority ?? 'C'
+    const priorityDot = PLANNER_PRIORITY_DOT[priority]
     if (variant === 'dot') {
       body = (
         <>
           <span
-            className={cn('block h-2 w-2 rounded-full', RACE_PLAN_DOT_CLASS)}
+            className={cn('block h-2 w-2 rounded-full', priorityDot)}
             aria-hidden
           />
           <StravaSyncedIndicator workout={workout} variant="dot" />
@@ -103,13 +103,21 @@ export function MonthWorkoutChip({ workout, isCoach, variant }: MonthWorkoutChip
       )
       className = 'relative rounded-full'
     } else if (variant === 'icon') {
-      body = <Flag className="h-3 w-3 fill-amber-500/25" />
-      className =
-        'relative rounded-[6px] p-0.5 text-amber-600 transition hover:bg-amber-500/15'
+      body = <Flag className="h-3 w-3 fill-current/25" />
+      className = cn(
+        'relative rounded-[6px] p-0.5 transition',
+        priority === 'A' && 'text-red-600 hover:bg-red-500/15',
+        priority === 'B' && 'text-blue-600 hover:bg-blue-500/15',
+        priority === 'C' && 'text-amber-600 hover:bg-amber-500/15',
+      )
     } else {
-      body = <Flag className="h-2.5 w-2.5 fill-amber-500/25" strokeWidth={2} />
-      className =
-        'relative flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] bg-amber-500/15 text-amber-600 transition hover:bg-amber-500/25'
+      body = <Flag className="h-2.5 w-2.5 fill-current/25" strokeWidth={2} />
+      className = cn(
+        'relative flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] transition',
+        priority === 'A' && 'bg-red-500/15 text-red-600 hover:bg-red-500/25',
+        priority === 'B' && 'bg-blue-500/15 text-blue-600 hover:bg-blue-500/25',
+        priority === 'C' && 'bg-amber-500/15 text-amber-600 hover:bg-amber-500/25',
+      )
     }
   } else {
     const Icon = WORKOUT_TYPE_ICONS[workout.type]

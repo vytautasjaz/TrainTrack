@@ -1,27 +1,20 @@
 'use client'
 
-import Link from 'next/link'
-import { ChevronRight } from 'lucide-react'
-import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
-import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
+import { useState } from 'react'
+import { format } from 'date-fns'
+import { WorkoutDetailModal } from '@/components/plan/workout-detail-modal'
+import { RaceDetailModal } from '@/components/plan/race-detail-modal'
+import { TrainingListWorkoutRow } from '@/components/training/training-list-workout-row'
 import { TrainingWorkoutCard } from '@/components/training/training-workout-card'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import { formatDistance, formatDuration, cn } from '@/lib/utils'
-import { WORKOUT_DAY_CARD_CLASS } from '@/lib/workout-display'
+import { buildPlanTableDays } from '@/lib/plan-week'
 import { parseDateOnly } from '@/lib/dates'
+import { WORKOUT_DAY_CARD_CLASS } from '@/lib/workout-display'
+import { cn } from '@/lib/utils'
 
 type AthleteDashboardWorkoutsProps = {
   todayWorkouts: PlanWorkoutDetail[]
   upcomingWorkouts: PlanWorkoutDetail[]
-}
-
-function formatUpcomingDate(dateKey: string) {
-  return parseDateOnly(dateKey).toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    timeZone: 'UTC',
-  })
 }
 
 function SectionHeader({
@@ -39,37 +32,44 @@ function SectionHeader({
   )
 }
 
+function workoutsToPlanDays(workouts: PlanWorkoutDetail[]) {
+  const byDate = new Map<string, PlanWorkoutDetail[]>()
+  for (const workout of workouts) {
+    if (workout.type === 'REST' || workout.type === 'RECOVERY') continue
+    const list = byDate.get(workout.dateKey) ?? []
+    list.push(workout)
+    byDate.set(workout.dateKey, list)
+  }
+  const dates = [...byDate.keys()]
+    .sort()
+    .map((dateKey) => parseDateOnly(dateKey))
+  return buildPlanTableDays(dates, byDate)
+}
+
 export function AthleteDashboardWorkouts({
   todayWorkouts,
   upcomingWorkouts,
 }: AthleteDashboardWorkoutsProps) {
+  const upcomingDays = workoutsToPlanDays(upcomingWorkouts)
+  const [selected, setSelected] = useState<PlanWorkoutDetail | null>(null)
+
   return (
     <div className="space-y-8">
       <section>
-        <SectionHeader
-          title="Today's workout"
-          action={
-            <Link
-              href="/training"
-              className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
-            >
-              View plan
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          }
-        />
+        <SectionHeader title="Today's workout" />
         <div className="space-y-3">
           {todayWorkouts.length === 0 ? (
-            <div className="rounded-2xl bg-muted/50 px-4 py-10 text-center">
+            <div className="card-elevated px-4 py-10 text-center">
               <p className="text-sm text-muted-foreground">Rest day — nothing scheduled.</p>
             </div>
           ) : (
-            <div className={cn(WORKOUT_DAY_CARD_CLASS, 'space-y-2 p-3')}>
+            <div className={cn(WORKOUT_DAY_CARD_CLASS, 'space-y-1 p-1')}>
               {todayWorkouts.map((workout) => (
                 <TrainingWorkoutCard
                   key={workout.id}
                   workout={workout}
                   isCoach={false}
+                  className="py-2"
                 />
               ))}
             </div>
@@ -79,33 +79,58 @@ export function AthleteDashboardWorkouts({
 
       <section>
         <SectionHeader title="Upcoming" />
-        <div className={cn(WORKOUT_DAY_CARD_CLASS, 'divide-y divide-border/40')}>
-          {upcomingWorkouts.map((workout) => (
-            <WorkoutModalTrigger
-              key={workout.id}
-              workout={workout}
-              isCoach={false}
-              className="flex w-full items-center gap-3 px-3 py-3 text-left"
-            >
-              <WorkoutSportIcon type={workout.type} isRace={workout.isRace} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium leading-snug text-muted-foreground">
-                  {formatUpcomingDate(workout.dateKey)}
-                </p>
-                <p className="mt-0.5 truncate text-sm font-semibold leading-snug">{workout.title}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {formatDistance(workout.plannedDistance)} ·{' '}
-                  {formatDuration(workout.plannedDuration)}
-                </p>
+        {upcomingDays.length === 0 ? (
+          <div className="card-elevated px-4 py-8 text-center">
+            <p className="text-sm text-muted-foreground">No upcoming workouts.</p>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {upcomingDays.map((day) => (
+              <div key={day.dateKey} className="space-y-2">
+                <div className="flex items-center gap-2 px-0.5">
+                  <p
+                    className={cn(
+                      'text-[11px] font-semibold uppercase tracking-wide text-muted-foreground',
+                      day.isToday && 'text-foreground',
+                    )}
+                  >
+                    {format(day.date, 'EEEE d MMM')}
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  {day.workouts.map((workout) => (
+                    <TrainingListWorkoutRow
+                      key={workout.id}
+                      workout={workout}
+                      isCoach={false}
+                      onOpen={() => setSelected(workout)}
+                    />
+                  ))}
+                </div>
               </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40" />
-            </WorkoutModalTrigger>
-          ))}
-          {upcomingWorkouts.length === 0 && (
-            <p className="py-4 text-center text-sm text-muted-foreground">Nothing scheduled ahead.</p>
-          )}
-        </div>
+            ))}
+          </div>
+        )}
       </section>
+
+      {selected?.isRace ? (
+        <RaceDetailModal
+          workout={selected}
+          open
+          onOpenChange={(open) => {
+            if (!open) setSelected(null)
+          }}
+        />
+      ) : selected ? (
+        <WorkoutDetailModal
+          workout={selected}
+          isCoach={false}
+          open
+          onOpenChange={(open) => {
+            if (!open) setSelected(null)
+          }}
+        />
+      ) : null}
     </div>
   )
 }

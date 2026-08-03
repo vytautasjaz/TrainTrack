@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 
 type StravaSyncedIndicatorProps = {
   workout: PlanWorkoutDetail
-  /** `wordmark` = full STRAVA logo (list rows); `mark` = circled A (cards). */
+  /** `wordmark` = horizontal STRAVA (week/list/large cards); `mark` = circled A (small cards only). */
   variant?: 'badge' | 'icon' | 'dot' | 'mark' | 'wordmark'
   /** Size for mark circle / wordmark height. */
   size?: WorkoutStatusIconSize
@@ -25,7 +25,7 @@ const INNER_MARK_CLASS: Record<WorkoutStatusIconSize, string> = {
 }
 
 const WORDMARK_CLASS: Record<WorkoutStatusIconSize, string> = {
-  xs: 'h-2.5 w-auto',
+  xs: 'h-2 w-auto',
   sm: 'h-3 w-auto',
   md: 'h-3.5 w-auto',
   lg: 'h-4 w-auto',

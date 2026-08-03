@@ -4,13 +4,26 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ItemActions } from '@/components/ui/item-actions'
 import { AddRaceButton } from '@/components/races/add-race-modal'
-import { RACE_TYPE_LABELS } from '@/lib/constants'
+import { RACE_OUTCOME_LABELS, RACE_TYPE_LABELS } from '@/lib/constants'
 import { daysUntil } from '@/lib/utils'
 import { deleteRace } from '@/app/actions/workouts'
+import { RaceLegsSummary } from '@/components/races/race-legs-fields'
 
 type AthleteRacesSectionProps = {
   athleteId: string
-  races: Race[]
+  races: Array<
+    Race & {
+      legs?: import('@/lib/race-legs').RaceLegView[]
+    }
+  >
+}
+
+function raceResultLabel(race: Race): string | null {
+  if (!race.outcome || race.outcome === 'DISMISSED') return null
+  if (race.outcome === 'FINISHED') {
+    return race.resultTime || RACE_OUTCOME_LABELS.FINISHED
+  }
+  return RACE_OUTCOME_LABELS[race.outcome]
 }
 
 export function AthleteRacesSection({ athleteId, races }: AthleteRacesSectionProps) {
@@ -110,24 +123,51 @@ export function AthleteRacesSection({ athleteId, races }: AthleteRacesSectionPro
         <div>
           <h3 className="mb-3 text-sm font-semibold text-muted-foreground">Past races</h3>
           <ul className="space-y-2">
-            {past.map((r) => (
-              <li
-                key={r.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
-              >
-                <span>
-                  {r.name} · {r.date.toLocaleDateString()}
-                </span>
-                <ItemActions
-                  editHref={`/races/${r.id}/edit?returnTo=${encodeURIComponent(profilePath)}`}
-                  deleteAction={deleteRace}
-                  deleteId={r.id}
-                  deleteIdField="raceId"
-                  deleteConfirmTitle="Remove race?"
-                  deleteConfirmMessage={`“${r.name}” will be removed from the calendar.`}
-                />
-              </li>
-            ))}
+            {past.map((r) => {
+              const result = raceResultLabel(r)
+              return (
+                <li
+                  key={r.id}
+                  className="flex flex-wrap items-start justify-between gap-2 rounded-2xl bg-muted/50 px-4 py-3 text-sm"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-muted-foreground">
+                      {r.name} · {r.date.toLocaleDateString()}
+                      {result ? (
+                        <span className="ml-1.5 font-medium text-foreground">· {result}</span>
+                      ) : null}
+                    </p>
+                    {r.resultNotes?.trim() ? (
+                      <p className="mt-1 text-sm leading-relaxed text-foreground">
+                        &ldquo;{r.resultNotes.trim()}&rdquo;
+                      </p>
+                    ) : null}
+                    {'legs' in r && Array.isArray(r.legs) && r.legs.length > 0 ? (
+                      <div className="mt-2">
+                        <RaceLegsSummary legs={r.legs} showPlan />
+                      </div>
+                    ) : r.stravaActivityUrl ? (
+                      <a
+                        href={r.stravaActivityUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-1 inline-block text-xs text-[#FC4C02] hover:underline"
+                      >
+                        {r.stravaActivityName || 'Strava'}
+                      </a>
+                    ) : null}
+                  </div>
+                  <ItemActions
+                    editHref={`/races/${r.id}/edit?returnTo=${encodeURIComponent(profilePath)}`}
+                    deleteAction={deleteRace}
+                    deleteId={r.id}
+                    deleteIdField="raceId"
+                    deleteConfirmTitle="Remove race?"
+                    deleteConfirmMessage={`“${r.name}” will be removed from the calendar.`}
+                  />
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

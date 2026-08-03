@@ -13,34 +13,17 @@ import {
   fetchTrainingTableDays,
   type TrainingTableDayDto,
 } from '@/app/actions/training-table'
-import { WorkoutStatusIcon } from '@/components/ui/workout-status-icon'
-import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
-import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
-import { WorkoutCardDiagram } from '@/components/plan/workout-card-diagram'
 import { WorkoutDetailModal } from '@/components/plan/workout-detail-modal'
 import { RaceDetailModal } from '@/components/plan/race-detail-modal'
-import {
-  AthleteWorkoutQuickActions,
-  useOptimisticWorkoutStatus,
-} from '@/components/plan/athlete-workout-quick-actions'
+import { DayDropSection } from '@/components/plan/day-drop-section'
+import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
+import { TrainingListWorkoutRow } from '@/components/training/training-list-workout-row'
 import type { PlanDay } from '@/lib/plan-week'
-import {
-  athleteHasQuickLogActions,
-  isStravaSynced,
-  type PlanWorkoutDetail,
-} from '@/lib/plan-workout'
-import { getWorkoutPlanMetrics } from '@/lib/workout-plan-metrics'
-import { getSessionTypeLabel } from '@/lib/workout-builder/session-modes'
-import { getSessionIntensity } from '@/lib/workout-builder/session-intensity'
-import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
+import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { useFilteredPlanDays } from '@/components/training/use-plan-sport-filter-data'
 import { addDateOnlyDays, parseDateOnly, toDateKey } from '@/lib/dates'
 import { yesterdayKey } from '@/lib/training-timeline'
 import { cn } from '@/lib/utils'
-import {
-  isWorkoutCardCompleted,
-  isWorkoutCardSkipped,
-} from '@/lib/workout-card'
 
 const CHUNK_DAYS = 14
 const DAY_SECTION_ID = 'training-table-day'
@@ -64,16 +47,6 @@ function toPlanDays(days: TrainingTableDayDto[]): PlanDay[] {
   }))
 }
 
-function workoutSubtitle(workout: PlanWorkoutDetail): string {
-  if (workout.isRace) return 'Race'
-  const sport = WORKOUT_TYPE_LABELS[workout.type]
-  const intensity = getSessionIntensity(workout.sessionType)?.label
-  if (intensity) return `${sport} · ${intensity}`
-  const session = getSessionTypeLabel(workout.sessionType, workout.type)
-  if (session.toLowerCase().includes(sport.toLowerCase())) return session
-  return `${sport} · ${session}`
-}
-
 function mergeDays(
   existing: TrainingTableDayDto[],
   incoming: TrainingTableDayDto[],
@@ -92,106 +65,6 @@ function getBottomInset() {
   const rect = bottomNav.getBoundingClientRect()
   if (rect.height === 0 || rect.bottom <= 0) return 16
   return window.innerHeight - rect.top + 8
-}
-
-function TableWorkoutRow({
-  workout,
-  isCoach,
-  onOpen,
-}: {
-  workout: PlanWorkoutDetail
-  isCoach: boolean
-  onOpen: () => void
-}) {
-  const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout)
-  const metrics = getWorkoutPlanMetrics(workout, status)
-  const completed = isWorkoutCardCompleted(status)
-  const skipped = isWorkoutCardSkipped(status)
-  const isRace = Boolean(workout.isRace)
-  const showQuickActions = athleteHasQuickLogActions(workout, isCoach)
-  const stravaSynced = isStravaSynced(workout)
-
-  return (
-    <div
-      className={cn(
-        'flex w-full items-center gap-2 rounded-[6px] border px-3 py-2.5 transition sm:gap-3 sm:px-3.5 sm:py-3',
-        isRace
-          ? 'border-amber-300/70 bg-amber-50/70'
-          : completed
-            ? 'border-[#86D39A]/70 bg-[#F3FAF5]'
-            : skipped
-              ? 'border-[#F5A3A3]/70 bg-[#FDF2F2]'
-              : 'border-border/70 bg-card',
-      )}
-    >
-      <button
-        type="button"
-        onClick={onOpen}
-        className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left sm:grid-cols-[minmax(0,1.35fr)_minmax(4.5rem,0.55fr)_auto] sm:gap-4"
-      >
-        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
-          <WorkoutSportIcon type={workout.type} isRace={isRace} size="sm" />
-          <div className="min-w-0">
-            <p className="truncate text-[14px] font-semibold leading-snug text-[#111827]">
-              {workout.title}
-            </p>
-            <p className="mt-0.5 truncate text-[12px] leading-snug text-[#6B7280]">
-              {workoutSubtitle(workout)}
-            </p>
-          </div>
-        </div>
-
-        <div className="hidden min-w-0 justify-center sm:flex">
-          <WorkoutCardDiagram
-            workout={workout}
-            completed={completed}
-            skipped={skipped}
-            density="week"
-            className="max-w-[7.5rem]"
-          />
-        </div>
-
-        <div className="flex shrink-0 items-center gap-3 sm:gap-5">
-          <div className="flex flex-col items-end sm:hidden">
-            <p className="text-[12px] font-semibold tabular-nums text-[#111827]">
-              {metrics.distance ?? '—'}
-            </p>
-            <p className="text-[11px] tabular-nums text-muted-foreground">
-              {metrics.duration ?? '—'}
-            </p>
-          </div>
-          <div className="hidden w-[5.25rem] text-right sm:block">
-            <p className="text-[13px] font-semibold tabular-nums text-[#111827]">
-              {metrics.distance ?? '—'}
-            </p>
-          </div>
-          <div className="hidden w-[4.75rem] text-right sm:block">
-            <p className="text-[13px] font-semibold tabular-nums text-[#111827]">
-              {metrics.duration ?? '—'}
-            </p>
-          </div>
-        </div>
-      </button>
-
-      <div className="flex w-[4.75rem] shrink-0 items-center justify-end sm:w-[5.75rem] sm:justify-center">
-        {showQuickActions ? (
-          <AthleteWorkoutQuickActions
-            workout={workout}
-            isCoach={isCoach}
-            size="sm"
-            displayStatus={status}
-            onDisplayStatusChange={setOptimisticStatus}
-          />
-        ) : stravaSynced ? (
-          <StravaSyncedIndicator workout={workout} variant="wordmark" size="sm" />
-        ) : (
-          <span className="inline-flex rounded-md p-1">
-            <WorkoutStatusIcon status={status} size="sm" />
-          </span>
-        )}
-      </div>
-    </div>
-  )
 }
 
 export function TrainingTableView({
@@ -393,20 +266,37 @@ export function TrainingTableView({
 
   const planDays = useMemo(() => toPlanDays(days), [days])
   const filteredDays = useFilteredPlanDays(planDays)
+  const dnd = usePlanWeekDnd()
+  const showEmptyDropDays =
+    isCoach && dnd?.dragItem?.kind === 'plan'
 
-  const daysWithWorkouts = filteredDays
-    .map((day) => ({
+  const displayDays = useMemo(() => {
+    const mapped = filteredDays.map((day) => ({
       ...day,
-      workouts: day.workouts.filter((w) => w.type !== 'REST' && w.type !== 'RECOVERY'),
+      workouts: day.workouts.filter(
+        (w) => w.type !== 'REST' && w.type !== 'RECOVERY',
+      ),
     }))
-    .filter((day) => day.workouts.length > 0)
+    if (!showEmptyDropDays) {
+      return mapped.filter((day) => day.workouts.length > 0)
+    }
+    // While dragging, fill empty days between first/last workout days so
+    // coaches can drop onto rest days without exploding the list.
+    const withWorkouts = mapped.filter((day) => day.workouts.length > 0)
+    if (withWorkouts.length === 0) return mapped
+    const firstKey = withWorkouts[0]!.dateKey
+    const lastKey = withWorkouts[withWorkouts.length - 1]!.dateKey
+    return mapped.filter(
+      (day) => day.dateKey >= firstKey && day.dateKey <= lastKey,
+    )
+  }, [filteredDays, showEmptyDropDays])
 
   useLayoutEffect(() => {
     if (hasScrolledToInitial.current || listHeight == null) return
     const yesterday = yesterdayKey()
-    const targetKey = daysWithWorkouts.some((d) => d.dateKey === yesterday)
+    const targetKey = displayDays.some((d) => d.dateKey === yesterday)
       ? yesterday
-      : daysWithWorkouts.find((d) => d.isToday)?.dateKey
+      : displayDays.find((d) => d.isToday)?.dateKey
     if (!targetKey) return
 
     const container = scrollRef.current
@@ -418,7 +308,7 @@ export function TrainingTableView({
       (target.getBoundingClientRect().top - container.getBoundingClientRect().top)
     container.scrollTop = Math.max(0, top)
     hasScrolledToInitial.current = true
-  }, [listHeight, daysWithWorkouts])
+  }, [listHeight, displayDays])
 
   return (
     <>
@@ -435,17 +325,19 @@ export function TrainingTableView({
             </p>
           ) : null}
 
-          {daysWithWorkouts.length === 0 ? (
+          {displayDays.length === 0 ? (
             <p className="rounded-[6px] border border-dashed border-border/70 bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
               No workouts from today onward yet. Scroll down for later days, or
               pull up for earlier ones.
             </p>
           ) : (
-            daysWithWorkouts.map((day) => (
-              <section
+            displayDays.map((day) => (
+              <DayDropSection
                 key={day.dateKey}
                 id={`${DAY_SECTION_ID}-${day.dateKey}`}
-                className="space-y-2"
+                dateKey={day.dateKey}
+                enabled={isCoach}
+                className="space-y-2 rounded-[8px]"
               >
                 {day.isToday ? (
                   <div
@@ -472,16 +364,22 @@ export function TrainingTableView({
                 </div>
 
                 <div className="space-y-1.5">
-                  {day.workouts.map((workout) => (
-                    <TableWorkoutRow
-                      key={workout.id}
-                      workout={workout}
-                      isCoach={isCoach}
-                      onOpen={() => setSelected(workout)}
-                    />
-                  ))}
+                  {day.workouts.length === 0 ? (
+                    <div className="rounded-[6px] border border-dashed border-brand/30 bg-brand/[0.03] px-3 py-5 text-center text-xs text-muted-foreground">
+                      Drop workout here
+                    </div>
+                  ) : (
+                    day.workouts.map((workout) => (
+                      <TrainingListWorkoutRow
+                        key={workout.id}
+                        workout={workout}
+                        isCoach={isCoach}
+                        onOpen={() => setSelected(workout)}
+                      />
+                    ))
+                  )}
                 </div>
-              </section>
+              </DayDropSection>
             ))
           )}
 

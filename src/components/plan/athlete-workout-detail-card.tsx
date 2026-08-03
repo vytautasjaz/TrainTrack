@@ -1,19 +1,41 @@
 'use client'
 
-import { Clock, ExternalLink, Flame, Home, Link2, X } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import type { ReactNode } from 'react'
+import { useEffect, useState } from 'react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { Clock, ExternalLink, Link2, MoreHorizontal, Unlink, X } from 'lucide-react'
+import { WorkoutType } from '@prisma/client'
 import { DialogClose } from '@/components/ui/dialog'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import { SwimWorkoutBuilder } from '@/components/swim-workout/swim-workout-builder'
+import {
+  StravaDetachButton,
+  StravaLinkPicker,
+} from '@/components/plan/strava-activity-picker'
+import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
+import {
+  WorkoutStatusIcon,
+  workoutStatusKindFromLogType,
+} from '@/components/ui/workout-status-icon'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import {
-  getWorkoutCardDuration,
-  getWorkoutCardHero,
+  isStravaSynced,
+  resolveAthleteLogType,
+} from '@/lib/plan-workout'
+import { isStravaConnected } from '@/app/actions/strava'
+import {
+  approxMetricsFromTags,
+  durationUnitFromTags,
+  primaryMetricFromTags,
+  secondaryMetricVisibleFromTags,
+} from '@/lib/workout-approx-tags'
+import {
+  formatWorkoutCardDurationParts,
   getWorkoutCardSubtitle,
 } from '@/lib/workout-card'
-import { bikeEnvironmentFromTags } from '@/lib/bike-workout/defaults'
-import { getWorkoutEditorSportTheme } from '@/lib/workout-editor/sport-theme'
-import { getSessionIntensity } from '@/lib/workout-builder/session-intensity'
+import { getWorkoutPlanMetrics } from '@/lib/workout-plan-metrics'
+import { bikeKindFromTags, bikeKindLabel, bikePrimaryMetricFromTags } from '@/lib/bike-workout/defaults'
+import { getSessionTypeLabel } from '@/lib/workout-builder/session-modes'
 import {
   buildAthleteStructureDisplay,
   type PhaseBlockDisplay,
@@ -21,16 +43,46 @@ import {
 import { smartBlockAccentDisplay } from '@/lib/workout-builder/smart-blocks'
 import { hasStructureContent } from '@/lib/workout-builder/utils'
 import { hasSwimStructureContent } from '@/lib/swim-workout/calculations'
-import { swimEnvironmentShortLabel } from '@/lib/swim-workout/ui'
+import { getSportEditorConfig } from '@/lib/workout-editor/types'
 import { parseDateOnly } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
 function formatWorkoutDate(dateKey: string) {
-  return parseDateOnly(dateKey).toLocaleDateString(undefined, {
+  return parseDateOnly(dateKey).toLocaleDateString('en-GB', {
     weekday: 'long',
-    month: 'long',
     day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
   })
+}
+
+function heroGradientClass(sportType: WorkoutType) {
+  switch (sportType) {
+    case WorkoutType.RUN:
+      return 'from-white to-orange-100'
+    case WorkoutType.BIKE:
+      return 'from-white to-sky-100'
+    case WorkoutType.SWIM:
+      return 'from-white to-cyan-100'
+    case WorkoutType.STRENGTH:
+      return 'from-white to-emerald-100'
+    case WorkoutType.HYROX:
+      return 'from-white to-rose-100'
+    case WorkoutType.TRIATHLON:
+      return 'from-white to-violet-100'
+    default:
+      return 'from-white to-slate-100'
+  }
+}
+
+function splitDistanceDisplay(distance: string): { value: string; unit: string } {
+  const trimmed = distance.trim()
+  const match = trimmed.match(/^(.+?)\s+(km|m)$/i)
+  if (match) {
+    return { value: match[1]!, unit: match[2]!.toLowerCase() }
+  }
+  return { value: trimmed, unit: '' }
 }
 
 function timelineSubtitle(block: PhaseBlockDisplay) {
@@ -109,27 +161,171 @@ function WorkoutDetailTimelineRow({ block }: { block: PhaseBlockDisplay }) {
   )
 }
 
+function ReadOnlyMetricColumn({
+  label,
+  icon,
+  value,
+  unit,
+  approximate,
+  planned,
+  isPrimary,
+}: {
+  label: string
+  icon: ReactNode
+  value: string | null
+  unit: string | null
+  approximate?: boolean
+  planned?: string | null
+  isPrimary: boolean
+}) {
+  return (
+    <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center">
+      <div className="inline-flex h-4 shrink-0 items-center justify-center gap-1.5 text-foreground">
+        {icon}
+        <span className="text-[10px] font-bold uppercase tracking-wide">{label}</span>
+      </div>
+
+      <div className="mt-1.5 flex h-8 w-full shrink-0 items-center justify-center gap-0.5">
+        {approximate && value ? (
+          <span
+            className={cn(
+              'font-semibold leading-none text-muted-foreground',
+              isPrimary ? 'text-xl' : 'text-sm',
+            )}
+          >
+            ~
+          </span>
+        ) : null}
+        <span
+          className={cn(
+            'tabular-nums leading-none tracking-tight text-[#111827]',
+            isPrimary ? 'text-[32px] font-bold' : 'text-[18px] font-bold',
+            !value && 'text-muted-foreground/40',
+          )}
+        >
+          {value || '—'}
+        </span>
+        {unit ? (
+          <span
+            className={cn(
+              'font-semibold leading-none tracking-tight text-[#111827]',
+              isPrimary ? 'text-base' : 'text-[11px]',
+            )}
+          >
+            {unit}
+          </span>
+        ) : null}
+      </div>
+
+      {planned ? (
+        <p className="mt-1 text-[11px] font-medium tabular-nums text-[#9CA3AF]">
+          / {planned}
+        </p>
+      ) : (
+        <div className="mt-1.5 h-4 shrink-0" aria-hidden />
+      )}
+    </div>
+  )
+}
+
 type AthleteWorkoutDetailCardProps = {
   workout: PlanWorkoutDetail
   className?: string
-  /** When false, hide the standalone Strava link (athlete modal shows it in the log section). */
-  showStravaLink?: boolean
+  /** Athlete can link / detach Strava from the hero ⋮ menu. */
+  showStravaActions?: boolean
+  onStravaChange?: () => void
 }
 
 export function AthleteWorkoutDetailCard({
   workout,
   className,
-  showStravaLink = true,
+  showStravaActions = false,
+  onStravaChange,
 }: AthleteWorkoutDetailCardProps) {
-  const theme = getWorkoutEditorSportTheme(workout.type)
-  const hero = getWorkoutCardHero(workout, workout.status)
-  const secondary = getWorkoutCardDuration(workout, workout.status)
+  const [stravaConnected, setStravaConnected] = useState(false)
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [detachOpen, setDetachOpen] = useState(false)
+
+  useEffect(() => {
+    if (!showStravaActions) return
+    let cancelled = false
+    void isStravaConnected()
+      .then((value) => {
+        if (!cancelled) setStravaConnected(value)
+      })
+      .catch(() => {
+        if (!cancelled) setStravaConnected(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [showStravaActions])
+
+  const config = getSportEditorConfig(workout.type)
+  const metrics = getWorkoutPlanMetrics(workout, workout.status)
   const subtitle = getWorkoutCardSubtitle(workout)
-  const sessionIntensity = getSessionIntensity(workout.sessionType)
-  const isIndoor =
-    workout.type === 'BIKE' && bikeEnvironmentFromTags(workout.tags) === 'indoor'
-  const swimEnv = workout.type === 'SWIM' ? workout.swimEnvironment : null
   const hasSwimStructure = hasSwimStructureContent(workout.swimStructure)
+  const approx = approxMetricsFromTags(workout.tags)
+  const stravaSynced = isStravaSynced(workout)
+  const stravaUrl = workout.result?.stravaActivityUrl ?? null
+  const logType = resolveAthleteLogType(workout)
+  const statusKind = logType ? workoutStatusKindFromLogType(logType) : null
+
+  const showMenu =
+    Boolean(stravaUrl) ||
+    (showStravaActions && (stravaConnected || stravaSynced))
+
+  const primary =
+    primaryMetricFromTags(workout.tags) ??
+    (workout.type === WorkoutType.BIKE
+      ? bikePrimaryMetricFromTags(workout.tags)
+      : null) ??
+    (config.showDistance ? 'distance' : 'duration')
+  const secondaryVisible = secondaryMetricVisibleFromTags(workout.tags)
+
+  const distanceOnCard =
+    config.showDistance && (primary === 'distance' || secondaryVisible)
+  const durationOnCard = primary === 'duration' || !config.showDistance || secondaryVisible
+  const distanceIsPrimary = primary === 'distance' && config.showDistance
+  const durationIsPrimary = !distanceIsPrimary
+
+  const durationUnit =
+    durationUnitFromTags(workout.tags) ?? config.durationUnitDefault
+
+  const distanceParts = metrics.distance ? splitDistanceDisplay(metrics.distance) : null
+  const plannedDistanceParts = metrics.plannedDistance
+    ? splitDistanceDisplay(metrics.plannedDistance)
+    : null
+
+  const durationMinutes =
+    workout.status === 'COMPLETED' &&
+    workout.result?.actualDuration != null &&
+    workout.result.actualDuration > 0
+      ? Math.round(workout.result.actualDuration)
+      : workout.plannedDuration != null && workout.plannedDuration > 0
+        ? Math.round(workout.plannedDuration)
+        : null
+  const durationParts =
+    durationMinutes != null
+      ? formatWorkoutCardDurationParts(durationMinutes, durationUnit)
+      : null
+  const plannedDurationParts =
+    metrics.showPlannedComparison &&
+    workout.plannedDuration != null &&
+    workout.plannedDuration > 0
+      ? formatWorkoutCardDurationParts(Math.round(workout.plannedDuration), durationUnit)
+      : null
+
+  const bikeKind =
+    workout.type === WorkoutType.BIKE ? bikeKindFromTags(workout.tags ?? []) : null
+  const intensityLabel =
+    workout.type === WorkoutType.SWIM
+      ? null
+      : bikeKind
+        ? bikeKindLabel(bikeKind)
+        : workout.sessionType
+          ? getSessionTypeLabel(workout.sessionType, workout.type)
+          : null
 
   const structureDisplay =
     !hasSwimStructure &&
@@ -143,138 +339,190 @@ export function AthleteWorkoutDetailCard({
         })
       : null
 
-  const PrimaryIcon = hero?.kind === 'duration' ? Clock : Link2
   const dateLabel = formatWorkoutDate(workout.dateKey)
-  const heroGradient =
-    workout.type === 'RUN'
-      ? 'from-white to-orange-100'
-      : workout.type === 'BIKE'
-        ? 'from-white to-sky-100'
-        : workout.type === 'SWIM'
-          ? 'from-white to-cyan-100'
-          : 'from-white to-emerald-100'
+  const showMetricsRow =
+    Boolean(intensityLabel) || distanceOnCard || durationOnCard
 
   return (
     <div className={cn('space-y-5', className)}>
-      {/* Borderless hero — soft sport wash, no outlined frame */}
       <div
         className={cn(
-          'relative -mx-5 -mt-3 space-y-4 rounded-none border-0 border-b border-black/20 bg-gradient-to-b px-5 pb-6 pt-6',
-          heroGradient,
+          'relative -mx-5 -mt-3 rounded-none border-0 border-b border-black/20 bg-gradient-to-b px-5 pb-6 pt-5',
+          heroGradientClass(workout.type),
         )}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-1 items-start gap-3">
-            <WorkoutSportIcon
-              type={workout.type}
-              isRace={workout.isRace}
-              size="md"
-              className="shrink-0"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-[17px] font-semibold leading-snug text-[#111827]">
-                  {workout.title}
-                </h2>
-                {sessionIntensity ? (
-                  <Badge className={cn('gap-1', sessionIntensity.className)}>
-                    <Flame className="h-3 w-3" aria-hidden />
-                    {sessionIntensity.label}
-                  </Badge>
-                ) : null}
-              </div>
-              <p className="mt-0.5 text-[13px] leading-snug text-[#6B7280]">{dateLabel}</p>
-            </div>
-          </div>
-          <DialogClose className="-mr-1 -mt-0.5 shrink-0 rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-1 sm:right-4">
+          {stravaSynced ? (
+            <StravaSyncedIndicator workout={workout} variant="mark" size="xs" />
+          ) : null}
+          {statusKind && statusKind !== 'planned' ? (
+            <WorkoutStatusIcon kind={statusKind} size="xs" />
+          ) : null}
+
+          {showMenu ? (
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <button
+                  type="button"
+                  aria-label="Workout actions"
+                  className="rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content
+                  align="end"
+                  sideOffset={6}
+                  className="z-[220] min-w-[12.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
+                >
+                  {stravaUrl ? (
+                    <DropdownMenu.Item
+                      onSelect={() => {
+                        window.open(stravaUrl, '_blank', 'noopener,noreferrer')
+                      }}
+                      className="flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-foreground/[0.04]"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 text-[#FC4C02]" />
+                      View on Strava
+                    </DropdownMenu.Item>
+                  ) : null}
+                  {showStravaActions && stravaConnected && !stravaSynced ? (
+                    <DropdownMenu.Item
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        setLinkOpen(true)
+                      }}
+                      className="flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-foreground/[0.04]"
+                    >
+                      <Link2 className="h-3.5 w-3.5 text-[#FC4C02]" />
+                      Link Strava activity
+                    </DropdownMenu.Item>
+                  ) : null}
+                  {showStravaActions && stravaSynced ? (
+                    <DropdownMenu.Item
+                      onSelect={(e) => {
+                        e.preventDefault()
+                        setDetachOpen(true)
+                      }}
+                      className="flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-foreground/[0.04]"
+                    >
+                      <Unlink className="h-3.5 w-3.5 text-muted-foreground" />
+                      Detach Strava activity
+                    </DropdownMenu.Item>
+                  ) : null}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+          ) : null}
+
+          <DialogClose className="rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </DialogClose>
         </div>
 
-        {hero ? (
-          <div className="flex items-start gap-2.5">
-            <span
-              className={cn(
-                'mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border',
-                theme.controlOn,
-              )}
-              aria-hidden
-            >
-              <PrimaryIcon className="h-4 w-4" />
-            </span>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex min-w-0 items-baseline gap-1">
-                {hero.approximate ? (
-                  <span className="text-[28px] font-medium leading-none text-muted-foreground">
-                    ~
-                  </span>
-                ) : null}
-                <span className="text-[34px] font-bold leading-none tracking-tight text-[#111827] tabular-nums">
-                  {hero.value}
-                </span>
-                {hero.unit ? (
-                  <span className="text-[18px] font-medium leading-none text-[#111827]">
-                    {hero.unit}
-                  </span>
-                ) : null}
-              </div>
-
-              {secondary ? (
-                <div className="mt-2 flex items-center gap-1.5 text-[14px] font-medium">
-                  <Clock className="h-3.5 w-3.5 shrink-0 text-[#6B7280]" aria-hidden />
-                  <span className="tabular-nums text-[#111827]">{secondary.actual}</span>
-                  {secondary.planned ? (
-                    <>
-                      <span className="text-[#9CA3AF]">/</span>
-                      <span className="tabular-nums text-[#9CA3AF]">{secondary.planned}</span>
-                    </>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {subtitle ? (
-                <p className="mt-2 text-[13px] leading-snug text-[#6B7280]">{subtitle}</p>
-              ) : null}
-            </div>
-          </div>
-        ) : subtitle ? (
-          <p className="text-[13px] leading-snug text-[#6B7280]">{subtitle}</p>
+        {showStravaActions ? (
+          <>
+            <StravaLinkPicker
+              workoutId={workout.id}
+              hideTrigger
+              open={linkOpen}
+              onOpenChange={setLinkOpen}
+              onLinked={onStravaChange}
+            />
+            <StravaDetachButton
+              workoutId={workout.id}
+              hideTrigger
+              open={detachOpen}
+              onOpenChange={setDetachOpen}
+              onDetached={onStravaChange}
+            />
+          </>
         ) : null}
 
-        {(isIndoor || swimEnv) && (
-          <div className="flex flex-wrap items-center gap-2">
-            {isIndoor ? (
-              <span
-                className={cn(
-                  'inline-flex h-8 items-center gap-1.5 rounded-[6px] border px-2.5 text-[11px] font-medium',
-                  theme.controlOn,
-                )}
-                title="Indoor"
-                aria-label="Indoor"
-              >
-                <Home className="h-3.5 w-3.5" />
-                Indoor
-              </span>
-            ) : null}
-            {swimEnv ? (
-              <span
-                className="inline-flex items-center gap-1.5 rounded-full border border-sky-400/40 bg-white/80 px-2.5 py-1 text-[11px] font-medium text-sky-800"
-                aria-label={`Environment: ${swimEnvironmentShortLabel(swimEnv)}`}
-              >
-                <span
-                  className={cn(
-                    'h-1.5 w-1.5 rounded-full',
-                    swimEnv === 'POOL' ? 'bg-sky-500' : 'bg-cyan-600',
-                  )}
-                  aria-hidden
-                />
-                {swimEnvironmentShortLabel(swimEnv)}
-              </span>
+        <p className="mb-2.5 pr-20 text-[13px] leading-snug text-[#6B7280]">{dateLabel}</p>
+
+        <div className="flex items-start gap-3">
+          <WorkoutSportIcon
+            type={workout.type}
+            isRace={workout.isRace}
+            size="md"
+            className="mt-0.5 shrink-0"
+          />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5 pr-8">
+            <h2 className="text-[17px] font-semibold leading-snug text-[#111827]">
+              {workout.title}
+            </h2>
+            {subtitle ? (
+              <p className="text-[13px] leading-snug text-[#6B7280]">{subtitle}</p>
             ) : null}
           </div>
-        )}
+        </div>
+
+        {showMetricsRow ? (
+          <div className="mt-[18px] flex min-w-0 items-stretch overflow-hidden">
+            {intensityLabel ? (
+              <>
+                <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-2 text-center">
+                  <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Intensity
+                  </span>
+                  <div className="mt-1.5 flex h-8 w-full shrink-0 items-center justify-center overflow-hidden">
+                    <span className="truncate text-[20px] font-bold leading-tight text-[#111827]">
+                      {intensityLabel}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-4 shrink-0" aria-hidden />
+                </div>
+                {(distanceOnCard || durationOnCard) && (
+                  <div className="w-px shrink-0 self-stretch bg-foreground/20" />
+                )}
+              </>
+            ) : null}
+
+            {distanceOnCard ? (
+              <>
+                <ReadOnlyMetricColumn
+                  label="Distance"
+                  icon={<Link2 className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                  value={distanceParts?.value ?? null}
+                  unit={distanceParts?.unit || config.distanceUnit}
+                  approximate={approx.distance}
+                  planned={
+                    metrics.showPlannedComparison && plannedDistanceParts
+                      ? `${plannedDistanceParts.value}${
+                          plannedDistanceParts.unit
+                            ? ` ${plannedDistanceParts.unit}`
+                            : ''
+                        }`
+                      : null
+                  }
+                  isPrimary={distanceIsPrimary}
+                />
+                {durationOnCard ? (
+                  <div className="w-px shrink-0 self-stretch bg-foreground/20" />
+                ) : null}
+              </>
+            ) : null}
+
+            {durationOnCard ? (
+              <ReadOnlyMetricColumn
+                label="Time"
+                icon={<Clock className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                value={durationParts?.value ?? null}
+                unit={durationParts?.unit ?? null}
+                approximate={approx.duration}
+                planned={
+                  metrics.showPlannedComparison && plannedDurationParts
+                    ? `${plannedDurationParts.value} ${plannedDurationParts.unit}`
+                    : null
+                }
+                isPrimary={durationIsPrimary}
+              />
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {hasSwimStructure && workout.swimStructure ? (
@@ -312,18 +560,6 @@ export function AthleteWorkoutDetailCard({
             {workout.coachNotes.trim()}
           </p>
         </section>
-      ) : null}
-
-      {showStravaLink && workout.result?.stravaActivityUrl ? (
-        <a
-          href={workout.result.stravaActivityUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-[#FC4C02] hover:underline"
-        >
-          View on Strava
-          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-        </a>
       ) : null}
     </div>
   )

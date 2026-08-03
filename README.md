@@ -35,12 +35,12 @@ Open [http://localhost:3000](http://localhost:3000) and sign in as **Coach Alex*
 
 ### Switch database
 
-| Command | What it does |
-| -------- | ------------- |
-| `npm run env:local` | Use local Docker Postgres (`env/local.env` → `.env`) |
-| `npm run env:supabase` | Use Supabase (`/.env.supabase` → `.env`) |
-| `npm run db:up` | Start Docker Postgres |
-| `npm run db:setup-local` | Full local setup (Docker + schema + seed) |
+| Command                  | What it does                                         |
+| ------------------------ | ---------------------------------------------------- |
+| `npm run env:local`      | Use local Docker Postgres (`env/local.env` → `.env`) |
+| `npm run env:supabase`   | Use Supabase (`/.env.supabase` → `.env`)             |
+| `npm run db:up`          | Start Docker Postgres                                |
+| `npm run db:setup-local` | Full local setup (Docker + schema + seed)            |
 
 Your Supabase settings are kept in **`.env.supabase`** (gitignored). Template: `env/supabase.env.example`.
 

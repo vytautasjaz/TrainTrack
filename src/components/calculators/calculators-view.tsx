@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { CalculatorDefaults } from '@/lib/calculators/prefill'
 import {
@@ -16,12 +16,10 @@ import { TriathlonTimeCalculator } from '@/components/calculators/triathlon-time
 import { IntervalTimeCalculator } from '@/components/calculators/interval-time-calculator'
 import { HyroxTimeCalculator } from '@/components/calculators/hyrox-time-calculator'
 import { SplitsCalculator } from '@/components/calculators/splits-calculator'
-import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
-import { Caption } from '@/components/ui/typography'
+import { PageHeader } from '@/components/ui/page-header'
 
 type CalculatorsViewProps = {
   defaults: CalculatorDefaults
-  zone3PaceLabel: string | null
 }
 
 function parseCalculatorTab(value: string | null): CalculatorTab | null {
@@ -37,7 +35,7 @@ function parseCalculatorTab(value: string | null): CalculatorTab | null {
   return null
 }
 
-export function CalculatorsView({ defaults, zone3PaceLabel }: CalculatorsViewProps) {
+export function CalculatorsView({ defaults }: CalculatorsViewProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -82,16 +80,6 @@ export function CalculatorsView({ defaults, zone3PaceLabel }: CalculatorsViewPro
     setState((prev) => (prev.activeTab === tabFromUrl ? prev : { ...prev, activeTab: tabFromUrl }))
   }, [hydrated, tabFromUrl])
 
-  const setActiveTab = useCallback(
-    (activeTab: CalculatorTab) => {
-      setState((prev) => ({ ...prev, activeTab }))
-      const params = new URLSearchParams(searchParams.toString())
-      params.set('tab', activeTab)
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-    },
-    [pathname, router, searchParams],
-  )
-
   const setRunning = useCallback((running: CalculatorPersistedState['running']) => {
     setState((prev) => ({ ...prev, running }))
   }, [])
@@ -112,43 +100,16 @@ export function CalculatorsView({ defaults, zone3PaceLabel }: CalculatorsViewPro
     setState((prev) => ({ ...prev, splits }))
   }, [])
 
-  const resetToDefaults = useCallback(() => {
-    setState((prev) => ({
-      ...buildInitialCalculatorState(defaults),
-      activeTab: prev.activeTab,
-    }))
-  }, [defaults])
+  const pageTitle = useMemo(
+    () =>
+      CALCULATOR_NAV_TABS.find((tab) => tab.id === state.activeTab)?.label ??
+      'Running Calculator',
+    [state.activeTab],
+  )
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SegmentedControl aria-label="Calculator type">
-          {CALCULATOR_NAV_TABS.map(({ id, label }) => (
-            <SegmentedControlItem
-              key={id}
-              active={state.activeTab === id}
-              onClick={() => setActiveTab(id)}
-            >
-              {label}
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
-
-        <button
-          type="button"
-          onClick={resetToDefaults}
-          className="text-caption font-medium transition hover:text-brand"
-        >
-          Reset
-        </button>
-      </div>
-
-      {zone3PaceLabel && (
-        <Caption>
-          Pre-filled from your Zone 3 pace:{' '}
-          <span className="font-medium text-foreground">{zone3PaceLabel}/km</span>
-        </Caption>
-      )}
+      <PageHeader title={pageTitle} />
 
       {state.activeTab === 'running' ? (
         <RunningTimeCalculator state={state.running} onChange={setRunning} />

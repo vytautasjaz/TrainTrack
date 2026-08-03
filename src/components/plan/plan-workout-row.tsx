@@ -6,7 +6,7 @@ import {
   useOptimisticWorkoutStatus,
 } from '@/components/plan/athlete-workout-quick-actions'
 import { RacePlanItem } from '@/components/plan/race-plan-item'
-import { PlanWorkoutDataCard } from '@/components/plan/plan-workout-data-card'
+import { WorkoutBlock } from '@/components/workout-block'
 import { planWorkoutItemShellClass } from '@/components/plan/plan-workout-item-shell'
 import { athleteHasQuickLogActions, type PlanWorkoutDetail } from '@/lib/plan-workout'
 import { PLAN_WORKOUT_ITEM_CLASS } from '@/lib/workout-display'
@@ -29,20 +29,18 @@ export function PlanWorkoutRow({ workout, isCoach }: PlanWorkoutRowProps) {
     <div
       className={planWorkoutItemShellClass(
         workout,
-        cn('group/card relative w-full min-w-0'),
+        cn('group/card relative w-full min-w-0 overflow-hidden'),
       )}
     >
       <WorkoutModalTrigger
         workout={workout}
         isCoach={isCoach}
-        nestedInteractive={isCoach && !workout.isRace}
         className={cn(PLAN_WORKOUT_ITEM_CLASS, 'block w-full min-w-0')}
       >
-        <PlanWorkoutDataCard
+        <WorkoutBlock
           workout={workout}
-          density="week"
+          density="md"
           status={status}
-          editable={isCoach && !workout.isRace}
           hideCompletedBadge={showQuickActions}
           actions={
             showQuickActions ? (

@@ -128,7 +128,7 @@ export function TrainingWorkoutListCardBody({
               {intensity.label}
             </Badge>
           ) : null}
-          <StravaSyncedIndicator workout={workout} variant="icon" />
+          <StravaSyncedIndicator workout={workout} variant="wordmark" size="sm" />
         </div>
 
         {display ? <SideMetricsStack metrics={display.metrics} /> : null}

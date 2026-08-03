@@ -14,7 +14,7 @@ import {
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { athleteHasQuickLogActions, type PlanWorkoutDetail } from '@/lib/plan-workout'
-import { PlanWorkoutDataCard } from '@/components/plan/plan-workout-data-card'
+import { WorkoutBlock } from '@/components/workout-block'
 import {
   PLAN_WORKOUT_ITEM_CLASS,
 } from '@/lib/workout-display'
@@ -35,7 +35,7 @@ function AthleteWorkoutItem({
   }
 
   return (
-    <div className="group/card relative w-full min-w-0">
+    <div className="group/card relative w-full min-w-0 overflow-hidden">
       <WorkoutModalTrigger
         workout={workout}
         isCoach={false}
@@ -44,9 +44,9 @@ function AthleteWorkoutItem({
           tableCell ? PLAN_WORKOUT_ITEM_CLASS : undefined,
         )}
       >
-        <PlanWorkoutDataCard
+        <WorkoutBlock
           workout={workout}
-          density="week"
+          density="md"
           status={status}
           hideCompletedBadge={showQuickActions}
           actions={

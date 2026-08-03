@@ -1,10 +1,12 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import { WorkoutType } from "@prisma/client";
 import { AddWorkoutCell } from "@/components/plan/add-workout-cell";
 import { PlanMobileDayStack } from "@/components/plan/plan-mobile-day-stack";
 import { PlanWorkoutCell } from "@/components/plan/plan-workout-row";
 import { PlanWeekDndProvider } from "@/components/plan/plan-week-dnd";
+import { PlanWeekDayStrip } from "@/components/plan/week-day-strip";
 import {
   WORKOUT_TYPE_COLORS,
   WORKOUT_TYPE_LABELS,
@@ -25,13 +27,8 @@ import {
   dayHasRecovery,
   getRecoveryWorkout,
   recoveryDayCellClass,
-  recoveryDayHeaderClass,
 } from "@/lib/recovery-day";
-import {
-  dayHasRace,
-  raceDayCellClass,
-  raceDayHeaderClass,
-} from "@/lib/race-day";
+import { getDayRacePriority, raceDayCellClass } from "@/lib/race-day";
 import { CalendarPeriodNav } from "@/components/plan/calendar-period-nav";
 import { cn, formatDuration } from "@/lib/utils";
 import { DayNoteSection } from "@/components/plan/day-note-section";
@@ -39,11 +36,16 @@ import { RecoveryDaySection } from "@/components/plan/recovery-day-section";
 import { PlanDayAddMenu } from "@/components/plan/plan-day-add-menu";
 import {
   PLAN_TABLE_CELL_HOVER_CLASS,
+  WORKOUT_TYPE_CELL_TINT,
+  WORKOUT_TYPE_DOT_CLASS,
+  WORKOUT_TYPE_ICONS,
 } from "@/lib/workout-display";
 import { Clock } from "lucide-react";
 import { filterPlanSportRows } from "@/lib/plan-sport-filter";
 import { useFilteredPlanDays } from "@/components/training/use-plan-sport-filter-data";
 import { useOptionalPlanSportFilter } from "@/components/training/plan-sport-filter-context";
+
+const PORTRAIT_DAY_SECTION_ID = "plan-week-day";
 
 type PlanTableViewProps = {
   days: PlanDay[];
@@ -73,16 +75,31 @@ const COACH_SPORT_ROWS_FALLBACK = SPORT_ROW_ORDER.filter(
   (t) => t !== WorkoutType.REST && t !== WorkoutType.RECOVERY,
 );
 
+/** Week table horizontal rules */
+const PLAN_TABLE_LINE = "border-foreground/12";
+const PLAN_TABLE_LINE_STRONG = "border-foreground/18";
+/** Soft vertical guidelines between day columns (light, low-contrast). */
+const PLAN_TABLE_VLINE = "border-r border-black/[0.07] dark:border-white/12";
+const PLAN_TABLE_VLINE_HEADER = "border-r border-white/18";
+
 function dayHeaderClass(day: PlanDay) {
-  if (dayHasRace(day.workouts)) return raceDayHeaderClass(day.isToday);
-  if (dayHasRecovery(day.workouts)) return recoveryDayHeaderClass(day.isToday);
-  return day.isToday ? "bg-muted text-foreground" : "text-muted-foreground";
+  if (dayHasRecovery(day.workouts)) {
+    return cn(
+      "bg-violet-500/25 text-violet-100",
+      day.isToday && "font-bold ring-1 ring-inset ring-violet-300/35",
+    );
+  }
+  if (day.isToday) {
+    return "bg-white/10 font-bold text-white";
+  }
+  return "text-sidebar-foreground/75";
 }
 
 function dayColumnClass(day: PlanDay) {
-  if (dayHasRace(day.workouts)) return raceDayCellClass(day.isToday);
-  if (dayHasRecovery(day.workouts)) return recoveryDayCellClass(day.isToday);
-  return day.isToday ? "bg-muted/60" : "";
+  const racePriority = getDayRacePriority(day.workouts)
+  if (racePriority) return raceDayCellClass(racePriority, day.isToday)
+  if (dayHasRecovery(day.workouts)) return recoveryDayCellClass(day.isToday)
+  return day.isToday ? "bg-muted/60" : ""
 }
 
 function workoutsForSport(day: PlanDay, sport: WorkoutType) {
@@ -102,11 +119,15 @@ function DayHeaderRow({
   return (
     <tr
       className={cn(
-        "border-b border-border/80 bg-muted/40",
-        emphasizeTop && "border-t-2 border-t-border",
+        "border-b border-white/10 bg-sidebar text-sidebar-foreground",
+        emphasizeTop && "border-t-2 border-t-white/20",
       )}
     >
-      <Cell className="border-r border-border/80 bg-muted/40 px-1 py-1.5 text-left text-[9px] font-medium text-muted-foreground landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-xs">
+      <Cell
+        className={cn(
+          "border-r border-white/18 bg-sidebar px-1 py-1.5 text-left text-[9px] font-medium text-sidebar-foreground/65 landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-xs",
+        )}
+      >
         Sport
       </Cell>
       {days.map((day) => (
@@ -114,13 +135,25 @@ function DayHeaderRow({
           key={day.dateKey}
           className={cn(
             "px-0.5 py-1.5 text-center align-top landscape:max-lg:px-px lg:px-1 lg:py-2",
+            PLAN_TABLE_VLINE_HEADER,
             dayHeaderClass(day),
           )}
         >
-          <div className="text-[9px] font-medium landscape:max-lg:leading-tight lg:text-xs">
-            {day.dayLabel}
+          <div
+            className={cn(
+              "text-[9px] landscape:max-lg:leading-tight lg:text-xs",
+              day.isToday ? "font-bold" : "font-medium",
+            )}
+          >
+            <span className="@min-[920px]:hidden">{day.dayLabel.slice(0, 3)}</span>
+            <span className="hidden @min-[920px]:inline">{day.dayLabel}</span>
           </div>
-          <div className="font-normal tabular-nums landscape:max-lg:text-[8px] lg:text-xs">
+          <div
+            className={cn(
+              "tabular-nums opacity-50 landscape:max-lg:text-[8px] lg:text-xs",
+              day.isToday ? "font-bold" : "font-normal",
+            )}
+          >
             {day.dateLabel}
           </div>
         </Cell>
@@ -139,8 +172,13 @@ function NoteTableRow({
   athleteId?: string;
 }) {
   return (
-    <tr className="border-b border-border/60 bg-muted/10">
-      <th className="border-r border-border/80 bg-muted/20 px-1 py-1 text-left align-top text-[8px] font-medium text-muted-foreground landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-[10px]">
+    <tr className={cn("border-b bg-muted/10", PLAN_TABLE_LINE)}>
+      <th
+        className={cn(
+          "bg-muted/20 px-1 py-1 text-left align-top text-[8px] font-medium text-muted-foreground landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-[10px]",
+          PLAN_TABLE_VLINE,
+        )}
+      >
         Note
       </th>
       {days.map((day) => (
@@ -148,7 +186,10 @@ function NoteTableRow({
           key={day.dateKey}
           className={cn(
             "p-0.5 align-top landscape:max-lg:px-px lg:p-1.5",
-            dayColumnClass(day),
+            PLAN_TABLE_VLINE,
+            day.dayNote
+              ? "bg-yellow-100 dark:bg-yellow-500/20"
+              : dayColumnClass(day),
           )}
         >
           <DayNoteSection
@@ -174,8 +215,13 @@ function RecoveryTableRow({
   isCoach: boolean;
 }) {
   return (
-    <tr className="border-b border-border/60 bg-muted/10">
-      <th className="border-r border-border/80 bg-muted/20 px-1 py-1 text-left align-top text-[8px] font-medium text-muted-foreground landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-[10px]">
+    <tr className={cn("border-b bg-muted/10", PLAN_TABLE_LINE)}>
+      <th
+        className={cn(
+          "bg-muted/20 px-1 py-1 text-left align-top text-[8px] font-medium text-muted-foreground landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-[10px]",
+          PLAN_TABLE_VLINE,
+        )}
+      >
         Recovery
       </th>
       {days.map((day) => (
@@ -183,6 +229,7 @@ function RecoveryTableRow({
           key={day.dateKey}
           className={cn(
             "p-0.5 align-top landscape:max-lg:px-px lg:p-1.5",
+            PLAN_TABLE_VLINE,
             dayColumnClass(day),
           )}
         >
@@ -214,8 +261,13 @@ function VolumeTableRow({
   const showDayAdd = isCoach || canEditDayNotes;
 
   return (
-    <tr className="border-t border-border/80">
-      <th className="border-r border-border/80 bg-muted/20 p-0 text-left align-top">
+    <tr className={cn("border-t", PLAN_TABLE_LINE_STRONG)}>
+      <th
+        className={cn(
+          "bg-muted/20 p-0 text-left align-top",
+          PLAN_TABLE_VLINE,
+        )}
+      >
         <div className="flex w-full items-center px-1.5 py-1 landscape:max-lg:px-1 landscape:max-lg:py-0.5 lg:px-2 lg:py-1.5">
           <span className="min-w-0 flex-1 text-[8px] font-semibold leading-none text-muted-foreground lg:text-[10px]">
             Weekly volume
@@ -245,6 +297,7 @@ function VolumeTableRow({
           key={day.dateKey}
           className={cn(
             "p-0.5 landscape:max-lg:px-px lg:p-1",
+            PLAN_TABLE_VLINE,
             showDayAdd && "h-px align-top",
             dayColumnClass(day),
           )}
@@ -291,32 +344,53 @@ function SportTableRows({
       {sportRows.map((sport) => {
         const totals = sumSportWeekTotals(days, sport);
 
+        const SportIcon = WORKOUT_TYPE_ICONS[sport];
+        const sportIconColor = WORKOUT_TYPE_COLORS[sport].replace(/bg-\S+\s*/g, "").trim();
+
         return (
-          <tr key={sport} className="border-b border-border/60">
-            <th className="border-r border-border/80 bg-muted/20 p-0 text-left align-top">
+          <tr key={sport} className={cn("border-b", PLAN_TABLE_LINE)}>
+            <th
+              className={cn(
+                "relative p-0 text-left align-top",
+                PLAN_TABLE_VLINE,
+                WORKOUT_TYPE_CELL_TINT[sport],
+              )}
+            >
               <div
-                className={cn(
-                  "flex w-full items-center justify-between gap-1 px-1.5 py-1 landscape:max-lg:px-1 landscape:max-lg:py-0.5 lg:px-2 lg:py-1.5",
-                  WORKOUT_TYPE_COLORS[sport],
-                )}
-              >
-                <span className="min-w-0 flex-1 text-[8px] font-semibold leading-none lg:text-[10px]">
-                  {WORKOUT_TYPE_LABELS[sport]}
-                </span>
-                {isCoach &&
-                  athleteId &&
-                  weekStartKey &&
-                  canRemovePlanSportRow(sport, typesInWeek) && (
-                    <RemovePlanSportRowButton
-                      athleteId={athleteId}
-                      weekStartKey={weekStartKey}
-                      sport={sport}
-                      className="hidden shrink-0 lg:inline-flex"
-                    />
-                  )}
-              </div>
-              <div className="px-1.5 py-1 landscape:max-lg:px-1 lg:px-2 lg:py-1.5">
-                <SportWeekTotalsLabel sport={sport} totals={totals} />
+                className={cn("absolute inset-y-0 left-0 w-[3px]", WORKOUT_TYPE_DOT_CLASS[sport])}
+                aria-hidden
+              />
+              <div className="flex min-w-0 flex-col gap-1 py-1.5 pl-[calc(0.375rem+3px)] pr-1.5 landscape:max-lg:py-1 landscape:max-lg:pl-[calc(0.25rem+3px)] landscape:max-lg:pr-1 lg:gap-1.5 lg:py-2 lg:pl-[calc(0.5rem+3px)] lg:pr-2">
+                  <div className="flex items-center justify-between gap-1">
+                    <span
+                      className={cn(
+                        "inline-flex min-w-0 items-center gap-1",
+                        sportIconColor,
+                      )}
+                      title={WORKOUT_TYPE_LABELS[sport]}
+                    >
+                      <SportIcon
+                        className="h-3.5 w-3.5 shrink-0"
+                        strokeWidth={2.25}
+                        aria-hidden
+                      />
+                      <span className="truncate text-[8px] font-semibold leading-none lg:text-[10px]">
+                        {WORKOUT_TYPE_LABELS[sport]}
+                      </span>
+                    </span>
+                    {isCoach &&
+                      athleteId &&
+                      weekStartKey &&
+                      canRemovePlanSportRow(sport, typesInWeek) && (
+                        <RemovePlanSportRowButton
+                          athleteId={athleteId}
+                          weekStartKey={weekStartKey}
+                          sport={sport}
+                          className="hidden shrink-0 lg:inline-flex"
+                        />
+                      )}
+                  </div>
+                  <SportWeekTotalsLabel sport={sport} totals={totals} />
               </div>
             </th>
             {days.map((day) => {
@@ -327,6 +401,7 @@ function SportTableRows({
                   key={day.dateKey}
                   className={cn(
                     "p-0.5 align-top landscape:max-lg:px-px lg:p-1",
+                    PLAN_TABLE_VLINE,
                     emptyCoachCell && "h-px",
                     PLAN_TABLE_CELL_HOVER_CLASS,
                     dayColumnClass(day),
@@ -409,6 +484,80 @@ function PlanTableViewInner({
   const showEmptyWorkoutsRow =
     !isCoach && sportRows.length === 0 && !showRecoveryRow;
 
+  const daySectionPrefix = `${PORTRAIT_DAY_SECTION_ID}-${weekStartKey ?? "week"}`;
+  const todayKey = days.find((d) => d.isToday)?.dateKey ?? days[0]?.dateKey ?? null;
+  const [activeDateKey, setActiveDateKey] = useState<string | null>(todayKey);
+  const [stripStickyTop, setStripStickyTop] = useState(52);
+  const didScrollToToday = useRef(false);
+  const portraitRootRef = useRef<HTMLDivElement>(null);
+  const dayStripRef = useRef<HTMLDivElement>(null);
+
+  const scrollToDay = useCallback(
+    (dateKey: string, behavior: ScrollBehavior = "smooth") => {
+      setActiveDateKey(dateKey);
+
+      const root = portraitRootRef.current;
+      const target =
+        root?.querySelector<HTMLElement>(
+          `[data-plan-day-section="${dateKey}"]`,
+        ) ??
+        document.getElementById(`${daySectionPrefix}-${dateKey}`);
+      if (!target) return false;
+
+      // Prefer window scroll with sticky chrome + day-strip offset — scrollIntoView
+      // often lands under sticky headers on mobile Safari.
+      const chrome = document.querySelector<HTMLElement>(
+        "[data-app-sticky-chrome]",
+      );
+      const offset =
+        (chrome?.getBoundingClientRect().height ?? 0) +
+        (dayStripRef.current?.getBoundingClientRect().height ?? 0) +
+        8;
+      const top =
+        window.scrollY + target.getBoundingClientRect().top - offset;
+      window.scrollTo({ top: Math.max(0, top), behavior });
+      return true;
+    },
+    [daySectionPrefix],
+  );
+
+  useEffect(() => {
+    setActiveDateKey(todayKey);
+    didScrollToToday.current = false;
+  }, [todayKey, weekStartKey]);
+
+  useEffect(() => {
+    const updateStripTop = () => {
+      const chrome = document.querySelector<HTMLElement>("[data-app-sticky-chrome]");
+      setStripStickyTop(Math.ceil(chrome?.getBoundingClientRect().height ?? 52));
+    };
+    updateStripTop();
+    window.addEventListener("resize", updateStripTop);
+    const chrome = document.querySelector("[data-app-sticky-chrome]");
+    const observer = chrome ? new ResizeObserver(updateStripTop) : null;
+    if (chrome && observer) observer.observe(chrome);
+    return () => {
+      window.removeEventListener("resize", updateStripTop);
+      observer?.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!todayKey || didScrollToToday.current) return;
+    const run = () => {
+      if (
+        typeof window !== "undefined" &&
+        window.matchMedia("(orientation: landscape)").matches
+      ) {
+        return;
+      }
+      if (scrollToDay(todayKey, "auto")) {
+        didScrollToToday.current = true;
+      }
+    };
+    requestAnimationFrame(() => requestAnimationFrame(run));
+  }, [todayKey, days, scrollToDay]);
+
   const bodyRows = (
     <>
       {tableFragment === "tbody-row" && (
@@ -431,8 +580,13 @@ function PlanTableViewInner({
         weekStartKey={weekStartKey}
       />
       {showEmptyWorkoutsRow && (
-        <tr className="border-b border-border/60">
-          <th className="border-r border-border/80 bg-muted/20 px-1 py-1 text-left align-top landscape:max-lg:px-0.5 lg:px-3 lg:py-2" />
+        <tr className={cn("border-b", PLAN_TABLE_LINE)}>
+          <th
+            className={cn(
+              "bg-muted/20 px-1 py-1 text-left align-top landscape:max-lg:px-0.5 lg:px-3 lg:py-2",
+              PLAN_TABLE_VLINE,
+            )}
+          />
           <td
             colSpan={days.length}
             className="px-3 py-8 text-center text-sm text-muted-foreground"
@@ -470,8 +624,27 @@ function PlanTableViewInner({
 
   return (
     <>
-      {/* Portrait mobile: stacked days */}
-      <div className="portrait:max-lg:block landscape:max-lg:hidden lg:hidden">
+      {/* Portrait mobile: day picker + stacked day cards */}
+      <div
+        ref={portraitRootRef}
+        className="portrait:max-lg:block landscape:max-lg:hidden lg:hidden"
+      >
+        <div
+          ref={dayStripRef}
+          data-week-day-strip
+          className="sticky z-20 -mx-4 mb-3 border-b border-border/50 bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80"
+          style={{ top: stripStickyTop }}
+        >
+          <PlanWeekDayStrip
+            days={days}
+            activeDateKey={activeDateKey}
+            onDaySelect={(dateKey) => {
+              requestAnimationFrame(() => scrollToDay(dateKey, "smooth"));
+            }}
+            prevWeekHref={prevWeekHref}
+            nextWeekHref={nextWeekHref}
+          />
+        </div>
         {isCoach && athleteId && athleteName && weekStartKey && (
           <div className="mb-2 flex flex-wrap items-center justify-end gap-1">
             <EditDefaultPlanSportsButton
@@ -498,6 +671,8 @@ function PlanTableViewInner({
           dragEnabled={dragEnabled}
           trainingMode={!isCoach}
           headerAddMenu={isCoach || canEditDayNotes}
+          daySectionIdPrefix={daySectionPrefix}
+          daySectionScrollMarginClass="scroll-mt-[7.5rem]"
         />
       </div>
 
@@ -535,7 +710,7 @@ function PlanTableViewInner({
             )}
           </div>
         )}
-        <div className="overflow-x-auto rounded-[6px] border border-border bg-card shadow-none">
+        <div className="@container overflow-x-auto rounded-[6px] border border-foreground/15 bg-card shadow-none">
           <table className="w-full table-fixed border-collapse text-left landscape:max-lg:text-[9px] lg:text-sm">
             <colgroup>
               <col className="w-[11%]" />

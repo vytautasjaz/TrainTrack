@@ -30,6 +30,8 @@ export type StructureChartModel = {
 }
 
 const MAX_INTERVAL_STRIPES = 24
+const MAX_PROGRESSIVE_STEPS = 16
+const MIN_PROGRESSIVE_STEPS = 4
 
 const KIND_INTENSITY: Record<StructureChartSegmentKind, number> = {
   rest: 0.14,
@@ -162,6 +164,82 @@ function intensityForKind(
   return KIND_INTENSITY[kind]
 }
 
+/** Start → end intensity for progressive ramp chart (0–1). */
+function progressiveIntensityRange(block: WorkoutBlock): { start: number; end: number } {
+  const startTarget = block.startIntensity ?? block.targets?.[0]
+  const endTarget = block.endIntensity
+  const start = intensityFromTargets(startTarget ? [startTarget] : undefined)
+  const end = intensityFromTargets(endTarget ? [endTarget] : undefined)
+
+  if (start != null && end != null) {
+    // Ensure rising visual even if values are equal / inverted.
+    if (end >= start) return { start, end: end === start ? Math.min(0.98, start + 0.12) : end }
+    return { start: end, end: start }
+  }
+  if (start != null) return { start, end: Math.min(0.98, start + 0.22) }
+  if (end != null) return { start: Math.max(0.22, end - 0.22), end }
+
+  const mid = KIND_INTENSITY.work
+  return { start: mid * 0.72, end: mid }
+}
+
+function progressiveStepCount(block: WorkoutBlock, totalWeight: number): number {
+  const step = block.stepEvery
+  if (step && step.value > 0) {
+    if (step.mode === 'distance') {
+      const distKm =
+        block.distance != null && block.distance > 0
+          ? block.distanceUnit === 'm'
+            ? block.distance / 1000
+            : block.distance
+          : null
+      const stepKm = step.unit === 'm' ? step.value / 1000 : step.value
+      if (distKm != null && distKm > 0 && stepKm > 0) {
+        return Math.max(2, Math.min(MAX_PROGRESSIVE_STEPS, Math.ceil(distKm / stepKm)))
+      }
+    }
+    if (step.mode === 'time') {
+      const mins = block.time != null && block.time > 0 ? block.time : totalWeight
+      const stepMin = step.unit === 'sec' ? step.value / 60 : step.value
+      if (mins > 0 && stepMin > 0) {
+        return Math.max(2, Math.min(MAX_PROGRESSIVE_STEPS, Math.ceil(mins / stepMin)))
+      }
+    }
+  }
+
+  // Default visual: roughly one bar every ~4–5 minutes, clamped.
+  return Math.max(
+    MIN_PROGRESSIVE_STEPS,
+    Math.min(MAX_PROGRESSIVE_STEPS, Math.round(totalWeight / 4.5) || 6),
+  )
+}
+
+function expandProgressiveBlock(
+  block: WorkoutBlock,
+  section: 'warmup' | 'mainSet' | 'cooldown',
+): StructureChartSegment[] {
+  const weight = blockDurationWeight(block)
+  if (weight <= 0) return []
+
+  const kind = segmentKindForBlock(block, section)
+  const { start, end } = progressiveIntensityRange(block)
+  const steps = progressiveStepCount(block, weight)
+  const stepWeight = weight / steps
+  const segments: StructureChartSegment[] = []
+
+  for (let i = 0; i < steps; i++) {
+    const t = steps === 1 ? 1 : i / (steps - 1)
+    const intensity = start + (end - start) * t
+    segments.push({
+      kind,
+      weight: stepWeight,
+      intensity: Math.min(0.98, Math.max(0.12, intensity)),
+    })
+  }
+
+  return segments
+}
+
 function recoveryIntensity(block: WorkoutBlock): number {
   const description = block.recovery?.description?.toLowerCase() ?? ''
   if (description.includes('walk') || description.includes('stand')) return 0.16
@@ -173,6 +251,10 @@ function expandBlock(
   block: WorkoutBlock,
   section: 'warmup' | 'mainSet' | 'cooldown',
 ): StructureChartSegment[] {
+  if (block.type === 'PROGRESSIVE') {
+    return expandProgressiveBlock(block, section)
+  }
+
   if (block.type === 'INTERVAL') {
     const reps = block.repetitions ?? 1
     const { work, recovery } = intervalRepMinutes(block)

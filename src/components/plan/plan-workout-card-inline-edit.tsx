@@ -250,7 +250,7 @@ export function PlanWorkoutCardInlineEdit({
       ) : null}
 
       {hero || heroValue ? (
-        <div className={cn('flex items-baseline gap-0.5', heroPadClassName)}>
+        <div className={cn('flex items-baseline', heroPadClassName)}>
           {hero?.approximate ? (
             <span className={cn('font-medium text-[#6B7280]', unitClassName)}>~</span>
           ) : null}
@@ -270,7 +270,12 @@ export function PlanWorkoutCardInlineEdit({
             style={{ width: contentWidthCh(heroValue || '0', 2) }}
             className={cn(inputShell, 'px-0 tabular-nums', heroClassName)}
           />
-          {heroUnitLabel ? <span className={unitClassName}>{heroUnitLabel}</span> : null}
+          {heroUnitLabel ? (
+            <span className={unitClassName}>
+              {'\u00a0'}
+              {heroUnitLabel}
+            </span>
+          ) : null}
         </div>
       ) : null}
 

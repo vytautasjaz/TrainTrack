@@ -241,7 +241,6 @@ export function SplitsCalculator({ state, onChange }: SplitsCalculatorProps) {
   return (
     <div className="space-y-4">
       <CalculatorHeroCard
-        title="Splits calculator"
         action={
           <Caption className="max-w-[16rem] text-right normal-case tracking-normal">
             Pace or speed · distance · finish · splits

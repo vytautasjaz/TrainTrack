@@ -5,9 +5,16 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSession, resolveAthleteId, requireAthleteSession } from '@/lib/session'
 import { parseDateOnly, toDateKey } from '@/lib/dates'
-import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome } from '@prisma/client'
+import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
 import { defaultSportForRaceType } from '@/lib/races'
+import {
+  raceLegSupportsStrava,
+  raceUsesLegs,
+  triathlonLegsCreateData,
+  TRIATHLON_LEG_ORDER,
+} from '@/lib/race-legs'
+import { ensureTriathlonLegsForRace } from '@/lib/strava/sync'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 import { safeRedirectPath } from '@/lib/safe-redirect'
@@ -28,6 +35,58 @@ function parseOptionalInt(value: FormDataEntryValue | null) {
 function parseOptionalString(value: FormDataEntryValue | null) {
   const str = (value as string)?.trim()
   return str || undefined
+}
+
+function parseRaceCourseType(value: FormDataEntryValue | null): RaceCourseType | null {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw) return null
+  return (Object.values(RaceCourseType) as string[]).includes(raw)
+    ? (raw as RaceCourseType)
+    : null
+}
+
+function parseTriathlonDistance(value: FormDataEntryValue | null): TriathlonDistance | null {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw) return null
+  return (Object.values(TriathlonDistance) as string[]).includes(raw)
+    ? (raw as TriathlonDistance)
+    : null
+}
+
+function parseCustomDistanceKm(value: FormDataEntryValue | null): number | null {
+  if (!value || value === '') return null
+  const n = parseFloat(value as string)
+  if (!Number.isFinite(n) || n <= 0) return null
+  return Math.round(n * 10) / 10
+}
+
+/** Swim: meters field → km; bike/run: km field. */
+function parseLegPlannedDistanceKm(
+  formData: FormData,
+  kind: (typeof TRIATHLON_LEG_ORDER)[number],
+): number | null {
+  if (kind === 'SWIM') {
+    const raw = formData.get('legPlannedDistanceM_SWIM')
+    if (!raw || raw === '') return null
+    const meters = parseFloat(raw as string)
+    if (!Number.isFinite(meters) || meters <= 0) return null
+    return Math.round((meters / 1000) * 1000) / 1000
+  }
+  if (kind === 'BIKE' || kind === 'RUN') {
+    return parseCustomDistanceKm(formData.get(`legPlannedDistanceKm_${kind}`))
+  }
+  return null
+}
+
+function sumTriCustomDistanceKm(formData: FormData): number | null {
+  let sum = 0
+  for (const kind of TRIATHLON_LEG_ORDER) {
+    if (!raceLegSupportsStrava(kind)) continue
+    const km = parseLegPlannedDistanceKm(formData, kind)
+    if (km != null) sum += km
+  }
+  if (sum <= 0) return null
+  return Math.round(sum * 10) / 10
 }
 
 function buildWorkoutResultData({
@@ -514,8 +573,24 @@ export async function createRace(formData: FormData) {
   const sportRaw = formData.get('sport') as WorkoutType | null
   const priorityRaw = (formData.get('priority') as RacePriority | null) || RacePriority.C
   const intentRaw = (formData.get('intent') as RaceIntent | null) || RaceIntent.PLANNED
+  const courseType = parseRaceCourseType(formData.get('courseType'))
+  const triathlonDistance =
+    raceType === RaceType.TRIATHLON ? parseTriathlonDistance(formData.get('triathlonDistance')) : null
+  const isTriCustom = triathlonDistance === TriathlonDistance.CUSTOM
+  const customDistanceKm = isTriCustom
+    ? sumTriCustomDistanceKm(formData)
+    : parseCustomDistanceKm(formData.get('customDistanceKm'))
+  const prepRaw = formData.get('preparationWeeks')
+  let preparationWeeks: number | null = null
+  if (typeof prepRaw === 'string' && prepRaw.trim()) {
+    const parsed = parseInt(prepRaw.trim(), 10)
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 52) {
+      throw new Error('Preparation weeks must be between 1 and 52.')
+    }
+    preparationWeeks = parsed
+  }
 
-  await prisma.race.create({
+  const created = await prisma.race.create({
     data: {
       athleteId,
       name: formData.get('name') as string,
@@ -523,17 +598,70 @@ export async function createRace(formData: FormData) {
       location: (formData.get('location') as string) || undefined,
       type: raceType,
       sport: sportRaw || defaultSportForRaceType(raceType),
+      courseType,
+      triathlonDistance,
+      customDistanceKm,
       priority: priorityRaw,
       intent: intentRaw,
       goal: (formData.get('goal') as string) || undefined,
       url: parseOptionalString(formData.get('url')),
+      preparationWeeks,
+      ...(raceUsesLegs(raceType)
+        ? { legs: { create: triathlonLegsCreateData() } }
+        : {}),
     },
+    select: { id: true },
   })
+
+  // Optional planned split times from the add form (triathlon).
+  if (raceUsesLegs(raceType)) {
+    await saveRaceLegPlanFields(created.id, formData, { persistDistances: isTriCustom })
+  }
 
   revalidatePath('/races')
   revalidatePath('/dashboard')
   revalidatePath('/training')
   revalidatePath(`/athletes/${athleteId}`)
+}
+
+async function saveRaceLegPlanFields(
+  raceId: string,
+  formData: FormData,
+  options?: { persistDistances: boolean },
+) {
+  const persistDistances = options?.persistDistances ?? false
+  for (const kind of TRIATHLON_LEG_ORDER) {
+    const plannedTime = parseOptionalString(formData.get(`legPlannedTime_${kind}`)) ?? null
+    const plannedNotes = parseOptionalString(formData.get(`legPlannedNotes_${kind}`)) ?? null
+    const data: {
+      plannedTime: string | null
+      plannedNotes: string | null
+      plannedDistanceKm?: number | null
+    } = { plannedTime, plannedNotes }
+
+    if (raceLegSupportsStrava(kind)) {
+      data.plannedDistanceKm = persistDistances
+        ? parseLegPlannedDistanceKm(formData, kind)
+        : null
+    }
+
+    await prisma.raceLeg.updateMany({
+      where: { raceId, kind },
+      data,
+    })
+  }
+}
+
+async function saveRaceLegResultFields(raceId: string, formData: FormData) {
+  for (const kind of TRIATHLON_LEG_ORDER) {
+    const resultTime = parseOptionalString(formData.get(`legResultTime_${kind}`)) ?? null
+    // Only overwrite when the field was present in the form.
+    if (!formData.has(`legResultTime_${kind}`)) continue
+    await prisma.raceLeg.updateMany({
+      where: { raceId, kind },
+      data: { resultTime },
+    })
+  }
 }
 
 export async function createAthlete(formData: FormData) {
@@ -916,7 +1044,23 @@ export async function updateRace(formData: FormData) {
   const sportRaw = formData.get('sport') as WorkoutType | null
   const priorityRaw = (formData.get('priority') as RacePriority | null) || RacePriority.C
   const intentRaw = (formData.get('intent') as RaceIntent | null) || RaceIntent.PLANNED
+  const courseType = parseRaceCourseType(formData.get('courseType'))
+  const triathlonDistance =
+    raceType === RaceType.TRIATHLON ? parseTriathlonDistance(formData.get('triathlonDistance')) : null
+  const isTriCustom = triathlonDistance === TriathlonDistance.CUSTOM
+  const customDistanceKm = isTriCustom
+    ? sumTriCustomDistanceKm(formData)
+    : parseCustomDistanceKm(formData.get('customDistanceKm'))
   const returnTo = (formData.get('returnTo') as string) || '/races'
+  const prepRaw = formData.get('preparationWeeks')
+  let preparationWeeks: number | null = null
+  if (typeof prepRaw === 'string' && prepRaw.trim()) {
+    const parsed = parseInt(prepRaw.trim(), 10)
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 52) {
+      throw new Error('Preparation weeks must be between 1 and 52.')
+    }
+    preparationWeeks = parsed
+  }
 
   const race = await prisma.race.update({
     where: { id: raceId },
@@ -926,19 +1070,34 @@ export async function updateRace(formData: FormData) {
       location: parseOptionalString(formData.get('location')),
       type: raceType,
       sport: sportRaw || defaultSportForRaceType(raceType),
+      courseType,
+      triathlonDistance,
+      customDistanceKm,
       priority: priorityRaw,
       intent: intentRaw,
       goal: parseOptionalString(formData.get('goal')),
       url: parseOptionalString(formData.get('url')),
+      preparationWeeks,
     },
-    select: { athleteId: true },
+    select: { id: true, athleteId: true },
   })
+
+  await ensureTriathlonLegsForRace(race.id, raceType)
+  if (raceUsesLegs(raceType)) {
+    await saveRaceLegPlanFields(race.id, formData, { persistDistances: isTriCustom })
+  } else {
+    // Clear overall Strava when converting away is handled by ensure (deletes legs).
+  }
 
   revalidatePath('/races')
   revalidatePath('/dashboard')
   revalidatePath('/training')
   revalidatePath(`/athletes/${race.athleteId}`)
-  redirect(returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/races')
+  revalidatePath(`/races/${race.id}/edit`)
+  const skipRedirect = formData.get('skipRedirect') === '1'
+  if (!skipRedirect) {
+    redirect(returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/races')
+  }
 }
 
 export async function setRaceIntent(formData: FormData) {
@@ -978,16 +1137,16 @@ export async function logRaceOutcome(formData: FormData) {
   const existing =
     session.role === 'COACH'
       ? await prisma.race.findFirst({
-          where: { id: raceId, athlete: { coachId: session.userId } },
-          select: { id: true, athleteId: true },
-        })
+        where: { id: raceId, athlete: { coachId: session.userId } },
+        select: { id: true, athleteId: true, type: true },
+      })
       : await prisma.race.findFirst({
-          where: {
-            id: raceId,
-            athleteId: (await resolveAthleteId(session)) ?? '',
-          },
-          select: { id: true, athleteId: true },
-        })
+        where: {
+          id: raceId,
+          athleteId: (await resolveAthleteId(session)) ?? '',
+        },
+        select: { id: true, athleteId: true, type: true },
+      })
 
   if (!existing) throw new Error('Race not found')
 
@@ -1000,6 +1159,11 @@ export async function logRaceOutcome(formData: FormData) {
       ? null
       : parseOptionalString(formData.get('resultNotes'))
 
+  const isLoggedResult =
+    outcomeRaw === RaceOutcome.FINISHED ||
+    outcomeRaw === RaceOutcome.DID_NOT_START ||
+    outcomeRaw === RaceOutcome.DNF
+
   await prisma.race.update({
     where: { id: raceId },
     data: {
@@ -1007,8 +1171,15 @@ export async function logRaceOutcome(formData: FormData) {
       resultTime: outcomeRaw === RaceOutcome.FINISHED ? resultTime : null,
       resultNotes,
       resultLoggedAt: new Date(),
+      resultDismissedAt:
+        isLoggedResult && session.role === 'ATHLETE' ? null : undefined,
     },
   })
+
+  if (raceUsesLegs(existing.type) && outcomeRaw !== RaceOutcome.DISMISSED) {
+    await ensureTriathlonLegsForRace(existing.id, existing.type)
+    await saveRaceLegResultFields(existing.id, formData)
+  }
 
   revalidatePath('/dashboard')
   revalidatePath('/races')

@@ -1,6 +1,6 @@
 'use client'
 
-import { Bike, Clock, Home, Link2, Pencil } from 'lucide-react'
+import { Bike, Clock, Link2, Pencil } from 'lucide-react'
 import type { BikePrimaryMetric } from '@/lib/bike-workout/defaults'
 import { cn } from '@/lib/utils'
 import type { MouseEvent } from 'react'
@@ -24,7 +24,6 @@ type EditableWorkoutCardProps = {
   distanceManual: boolean
   metricsLocked: boolean
   durationUnit: DurationUnit
-  isIndoor: boolean
   onTitleChange: (value: string) => void
   onSubtitleChange: (value: string) => void
   onTitleAutoEnable: () => void
@@ -33,7 +32,6 @@ type EditableWorkoutCardProps = {
   onDistanceChange: (value: string) => void
   onPrimaryMetricChange: (metric: BikePrimaryMetric) => void
   onToggleDurationUnit: (event: MouseEvent) => void
-  onIndoorToggle: () => void
   className?: string
 }
 
@@ -78,7 +76,6 @@ export function EditableWorkoutCard({
   distanceManual,
   metricsLocked,
   durationUnit,
-  isIndoor,
   onTitleChange,
   onSubtitleChange,
   onTitleAutoEnable,
@@ -87,7 +84,6 @@ export function EditableWorkoutCard({
   onDistanceChange,
   onPrimaryMetricChange,
   onToggleDurationUnit,
-  onIndoorToggle,
   className,
 }: EditableWorkoutCardProps) {
   const durationIsPrimary = primaryMetric === 'duration'
@@ -300,23 +296,6 @@ export function EditableWorkoutCard({
           </div>
         </div>
       </div>
-
-      <button
-        type="button"
-        aria-pressed={isIndoor}
-        aria-label={isIndoor ? 'Indoor workout' : 'Mark as indoor'}
-        title={isIndoor ? 'Indoor' : 'Outdoor — click for Indoor'}
-        onClick={onIndoorToggle}
-        style={{ position: 'absolute', right: '0.75rem', bottom: '0.75rem' }}
-        className={cn(
-          'inline-flex h-7 w-7 items-center justify-center rounded-[6px] border transition',
-          isIndoor
-            ? 'border-[#86D39A] bg-white/80 text-[#166534]'
-            : 'border-transparent bg-transparent text-[#6B7280]/55 hover:border-border hover:bg-white/70 hover:text-[#6B7280]',
-        )}
-      >
-        <Home className="h-3.5 w-3.5" />
-      </button>
     </div>
   )
 }

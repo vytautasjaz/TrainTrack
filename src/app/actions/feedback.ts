@@ -39,6 +39,38 @@ export async function dismissAthleteFeedback(formData: FormData) {
   revalidateFeedbackPaths(result.workoutId)
 }
 
+async function requireCoachOwnsRaceReport(coachId: string, raceId: string) {
+  const race = await prisma.race.findFirst({
+    where: {
+      id: raceId,
+      athlete: { coachId },
+      outcome: { in: ['FINISHED', 'DID_NOT_START', 'DNF'] },
+    },
+    select: { id: true, athleteId: true },
+  })
+  if (!race) throw new Error('Race report not found')
+  return race
+}
+
+export async function dismissRaceReport(formData: FormData) {
+  const session = await requireSession()
+  if (session.role !== 'COACH') throw new Error('Coach only')
+
+  const raceId = formData.get('raceId') as string
+  if (!raceId) throw new Error('Race required')
+
+  const race = await requireCoachOwnsRaceReport(session.userId, raceId)
+
+  await prisma.race.update({
+    where: { id: raceId },
+    data: { resultDismissedAt: new Date() },
+  })
+
+  revalidatePath('/dashboard')
+  revalidatePath('/races')
+  revalidatePath(`/athletes/${race.athleteId}`)
+}
+
 export async function replyToAthleteFeedback(formData: FormData) {
   const session = await requireSession()
   if (session.role !== 'COACH') throw new Error('Coach only')

@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 enum UserRole {
@@ -57,10 +58,33 @@ enum SessionType {
 enum RaceType {
   MARATHON
   HALF_MARATHON
+  FIVE_K
+  TEN_K
   HYROX
   TRIATHLON
   CYCLING
   OTHER
+}
+
+/** Surface / course style — depends on sport (Road, Trail, Gravel, …). */
+enum RaceCourseType {
+  ROAD
+  TRAIL
+  TRACK
+  GRAVEL
+  MTB
+  POOL
+  OPEN_WATER
+  OTHER
+}
+
+/** Triathlon distance variant when Race.type = TRIATHLON. */
+enum TriathlonDistance {
+  SPRINT
+  OLYMPIC
+  HALF
+  FULL
+  CUSTOM
 }
 
 enum RacePriority {
@@ -79,6 +103,25 @@ enum RaceOutcome {
   DID_NOT_START
   DNF
   DISMISSED
+}
+
+/** Triathlon (and similar) race segments — sport legs can link Strava; T1/T2 are time-only. */
+enum RaceLegKind {
+  SWIM
+  T1
+  BIKE
+  T2
+  RUN
+}
+
+enum SeasonPhase {
+  BASE
+  BUILD
+  PEAK
+  RACE
+  RECOVERY
+  TRANSITION
+  MAINTENANCE
 }
 
 enum DayNoteStatus {
@@ -177,6 +220,7 @@ model Athlete {
   coach            User                      @relation("CoachAthletes", fields: [coachId], references: [id], onDelete: Cascade)
   user             User?                     @relation(fields: [userId], references: [id])
   races            Race[]
+  seasonPhaseBlocks SeasonPhaseBlock[]
   workouts         Workout[]
   dayNotes         DayNote[]
   weekPlanSportRows        AthleteWeekPlanSportRow[]
@@ -219,23 +263,83 @@ model Race {
   location  String?
   type      RaceType
   sport     WorkoutType  @default(RUN)
+  /** Road / Trail / Gravel / … — optional, sport-dependent. */
+  courseType RaceCourseType?
+  /** When type = TRIATHLON — Sprint, Olympic, 70.3, Ironman, Custom. */
+  triathlonDistance TriathlonDistance?
+  /** Freeform distance (km) when distance preset is Custom / Other. */
+  customDistanceKm Float?
   priority  RacePriority @default(C)
   intent    RaceIntent   @default(PLANNED)
   goal      String?
   url       String?
+  /** Athlete override; null uses default weeks for race type. */
+  preparationWeeks Int?
   /** Set when athlete logs how the race went (or dismisses the prompt). */
   outcome      RaceOutcome?
   resultTime   String?
   resultNotes  String?
   resultLoggedAt DateTime?
+  /** Cleared when athlete logs a result; set when coach dismisses the dashboard alert. */
+  resultDismissedAt DateTime?
+  /** Single-sport race: linked Strava activity (triathlon uses RaceLeg instead). */
+  stravaActivityId   String? @unique
+  stravaActivityUrl  String?
+  stravaActivityName String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  legs    RaceLeg[]
 
   @@index([athleteId, date])
   @@index([athleteId, intent, date])
   @@index([athleteId, outcome, date])
+}
+
+/** Per-leg plan + result for triathlon (swim / T1 / bike / T2 / run). */
+model RaceLeg {
+  id        String      @id @default(cuid())
+  raceId    String
+  kind      RaceLegKind
+  sortOrder Int         @default(0)
+  /** Target time for the plan (e.g. 1:05:00 or 3:30 for transitions). */
+  plannedTime  String?
+  plannedNotes String?
+  /** Planned leg distance (km). Used for triathlon Custom splits. */
+  plannedDistanceKm Float?
+  /** Logged / Strava-derived split time. */
+  resultTime String?
+  stravaActivityId   String? @unique
+  stravaActivityUrl  String?
+  stravaActivityName String?
+  actualDistanceKm   Float?
+  actualDurationMin  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  race Race @relation(fields: [raceId], references: [id], onDelete: Cascade)
+
+  @@unique([raceId, kind])
+  @@index([raceId])
+}
+
+/** Manual season planning phase block on a sport lane (not linked to workouts). */
+model SeasonPhaseBlock {
+  id        String       @id @default(cuid())
+  athleteId String
+  sport     WorkoutType
+  phase     SeasonPhase
+  label     String?
+  startDate DateTime     @db.Date
+  endDate   DateTime     @db.Date
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId, startDate, endDate])
+  @@index([athleteId, sport])
 }
 
 model WorkoutTemplate {

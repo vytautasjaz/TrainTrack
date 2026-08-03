@@ -2,19 +2,15 @@ import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
 import { Caption, SectionTitle } from '@/components/ui/typography'
 import { StravaConnectCard } from '@/components/integrations/strava-connect-card'
-import { HrZonesForm } from '@/components/settings/hr-zones-form'
-import { PaceZonesForm } from '@/components/settings/pace-zones-form'
-import { BikeSpeedZonesForm } from '@/components/settings/bike-speed-zones-form'
-import { SwimCssForm } from '@/components/settings/swim-css-form'
 import { AthleteNameForm } from '@/components/settings/athlete-name-form'
 import { AthleteAvatarForm } from '@/components/settings/athlete-avatar-form'
 import { CoachPlanningLeadForm } from '@/components/settings/coach-planning-lead-form'
 import { CoachWorkoutBuilderPrefsForm } from '@/components/settings/coach-workout-builder-prefs-form'
+import { TrainingZonesTabs } from '@/components/settings/training-zones-tabs'
 import { getAthletePreferences } from '@/app/actions/preferences'
 import { getSession, resolveAthleteId } from '@/lib/session'
 import { isStravaConfigured } from '@/lib/strava/config'
 import { getStravaConnectionSummary } from '@/lib/strava/sync'
-import { formatPaceMinPerKm, estimateDurationMin } from '@/lib/athlete-preferences'
 import {
   clampPlanningLeadDays,
   DEFAULT_PLANNING_LEAD_DAYS,
@@ -107,9 +103,6 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
   const errorMessage = params.error ? ERROR_MESSAGES[params.error] ?? 'Something went wrong.' : null
   const successMessage = params.connected === '1' ? 'Strava connected successfully.' : null
 
-  const easyPace = preferences.paceEasyMinPerKm
-  const durationPreview =
-    easyPace != null ? estimateDurationMin(10, easyPace) : null
   const displayName = athleteRow?.name ?? session.name
 
   return (
@@ -163,44 +156,7 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
         <AthleteNameForm name={session.name} />
       </section>
 
-      <section className="card-elevated space-y-4 p-5">
-        <div>
-          <SectionTitle>Training paces</SectionTitle>
-          <Caption>Per-km targets for each intensity level</Caption>
-        </div>
-        <PaceZonesForm preferences={preferences} />
-        {durationPreview != null && easyPace != null && (
-          <p className="rounded-xl bg-muted/40 px-3 py-2 text-caption">
-            Example: a 10 km easy run at {formatPaceMinPerKm(easyPace)}/km ≈ {durationPreview} min
-          </p>
-        )}
-      </section>
-
-      <section className="card-elevated space-y-4 p-5">
-        <div>
-          <SectionTitle>Bike speed zones</SectionTitle>
-          <Caption>
-            FTP and default km/h values used for %FTP targets and bike distance/duration estimates
-          </Caption>
-        </div>
-        <BikeSpeedZonesForm preferences={preferences} />
-      </section>
-
-      <section className="card-elevated space-y-4 p-5">
-        <div>
-          <SectionTitle>Critical swim speed</SectionTitle>
-          <Caption>CSS per 100m — used to estimate swim duration from distance</Caption>
-        </div>
-        <SwimCssForm preferences={preferences} />
-      </section>
-
-      <section className="card-elevated space-y-4 p-5">
-        <div>
-          <SectionTitle>Heart rate zones</SectionTitle>
-          <Caption>Bpm limits for recovery through VO2 max</Caption>
-        </div>
-        <HrZonesForm preferences={preferences} />
-      </section>
+      <TrainingZonesTabs preferences={preferences} />
 
       {isAthlete && (
         <section id="integrations" className="card-elevated space-y-4 p-5">

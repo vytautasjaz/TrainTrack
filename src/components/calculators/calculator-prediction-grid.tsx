@@ -29,6 +29,8 @@ type CalculatorPredictionGridProps = {
   onValueChange?: (id: string, value: string) => void
   onValueBlur?: (id: string) => void
   onValueFocus?: (id: string) => void
+  /** Force a fixed column count (e.g. 5 for interval distances). */
+  columns?: number
   className?: string
 }
 
@@ -38,18 +40,30 @@ export function CalculatorPredictionGrid({
   onValueChange,
   onValueBlur,
   onValueFocus,
+  columns,
   className,
 }: CalculatorPredictionGridProps) {
   const hasSplits = items.some((item) => item.splits && item.splits.length > 0)
+  const compactRow = columns != null && columns >= 5
 
   return (
     <section className={cn('space-y-3', className)}>
       <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
       <div
         className={cn(
-          'grid gap-2.5',
-          hasSplits ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-4',
+          'grid gap-2',
+          hasSplits
+            ? 'grid-cols-1 sm:grid-cols-2'
+            : columns != null
+              ? null
+              : 'grid-cols-2 sm:grid-cols-4',
+          compactRow && 'gap-1.5 sm:gap-2',
         )}
+        style={
+          columns != null && !hasSplits
+            ? { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }
+            : undefined
+        }
       >
         {items.map(
           ({
@@ -67,7 +81,13 @@ export function CalculatorPredictionGrid({
             const detailed = Boolean(splits && splits.length > 0)
 
             return (
-              <div key={id} className="card-elevated flex flex-col gap-2 p-3.5 sm:p-4">
+              <div
+                key={id}
+                className={cn(
+                  'card-elevated flex flex-col gap-2',
+                  compactRow ? 'gap-1.5 p-2 sm:p-3' : 'p-3.5 sm:p-4',
+                )}
+              >
                 {detailed ? (
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -92,13 +112,21 @@ export function CalculatorPredictionGrid({
                   <>
                     <div
                       className={cn(
-                        'flex h-8 w-8 items-center justify-center rounded-xl bg-muted/70 text-muted-foreground',
+                        'flex items-center justify-center rounded-xl bg-muted/70 text-muted-foreground',
+                        compactRow ? 'h-7 w-7' : 'h-8 w-8',
                         iconClassName,
                       )}
                     >
-                      <Icon className="h-4 w-4" aria-hidden />
+                      <Icon className={cn(compactRow ? 'h-3.5 w-3.5' : 'h-4 w-4')} aria-hidden />
                     </div>
-                    <p className="text-xs font-medium text-muted-foreground">{label}</p>
+                    <p
+                      className={cn(
+                        'font-medium text-muted-foreground',
+                        compactRow ? 'text-[10px] sm:text-xs' : 'text-xs',
+                      )}
+                    >
+                      {label}
+                    </p>
                     {editable && onValueChange ? (
                       <div>
                         <Input
@@ -107,9 +135,14 @@ export function CalculatorPredictionGrid({
                           onFocus={() => onValueFocus?.(id)}
                           onBlur={() => onValueBlur?.(id)}
                           placeholder={placeholder}
-                          inputMode="numeric"
+                          inputMode="decimal"
                           variant="ghost"
-                          className="w-full text-lg font-bold tabular-nums leading-none tracking-tight sm:text-xl"
+                          className={cn(
+                            'w-full font-bold tabular-nums leading-none tracking-tight',
+                            compactRow
+                              ? 'text-sm sm:text-base'
+                              : 'text-lg sm:text-xl',
+                          )}
                           aria-label={`${label} finish time`}
                         />
                         {invalid ? (
@@ -117,7 +150,14 @@ export function CalculatorPredictionGrid({
                         ) : null}
                       </div>
                     ) : (
-                      <p className="text-lg font-bold tabular-nums leading-none tracking-tight sm:text-xl">
+                      <p
+                        className={cn(
+                          'font-bold tabular-nums leading-none tracking-tight',
+                          compactRow
+                            ? 'text-sm sm:text-base'
+                            : 'text-lg sm:text-xl',
+                        )}
+                      >
                         {value}
                       </p>
                     )}

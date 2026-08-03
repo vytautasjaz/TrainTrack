@@ -135,24 +135,25 @@ function RotateHintArrows({ className }: { className?: string }) {
 
 function WeekPortraitRotatePrompt() {
   return (
-    <div className="flex min-h-[min(60dvh,28rem)] flex-col items-center justify-center px-6 py-12 text-center">
-      <div className="relative mb-6 flex h-28 w-28 items-center justify-center">
-        <RotateHintArrows className="absolute inset-0 h-full w-full text-foreground/45 motion-safe:animate-[week-rotate-hint_2.4s_ease-in-out_infinite]" />
-        <div className="relative z-10 flex h-12 w-8 items-center justify-center rounded-[10px] bg-muted/50 shadow-sm">
+    <div className="mb-4 flex items-center gap-3 rounded-[10px] border border-border/60 bg-muted/40 px-3 py-2.5">
+      <div className="relative flex h-12 w-12 shrink-0 items-center justify-center">
+        <RotateHintArrows className="absolute inset-0 h-full w-full text-foreground/40 motion-safe:animate-[week-rotate-hint_2.4s_ease-in-out_infinite]" />
+        <div className="relative z-10 flex h-8 w-5 items-center justify-center rounded-[6px] bg-card shadow-sm">
           <Smartphone
-            className="h-7 w-7 text-foreground/75"
+            className="h-4 w-4 text-foreground/75"
             aria-hidden
             strokeWidth={1.75}
           />
         </div>
       </div>
-      <p className="max-w-xs text-base font-semibold tracking-tight text-foreground">
-        Rotate your phone to see the week plan
-      </p>
-      <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
-        Turn the screen sideways for the full weekly table, or switch to List
-        view.
-      </p>
+      <div className="min-w-0 text-left">
+        <p className="text-sm font-semibold tracking-tight text-foreground">
+          Rotate your phone for the best experience
+        </p>
+        <p className="mt-0.5 text-xs leading-snug text-muted-foreground">
+          Turn sideways for the full weekly table.
+        </p>
+      </div>
     </div>
   );
 }
@@ -207,8 +208,7 @@ export function TrainingMobileWeekView({
       <div className="portrait:max-lg:block landscape:max-lg:hidden">
         <WeekPortraitRotatePrompt />
       </div>
-
-      <div className="hidden landscape:max-lg:block">{multiWeekTables}</div>
+      {multiWeekTables}
     </>
   );
 }

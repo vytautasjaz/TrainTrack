@@ -1,46 +1,47 @@
 'use client'
 
-import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Caption } from '@/components/ui/typography'
-import { FormField, FormMessage } from '@/components/ui/form-field'
+import { FormMessage } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
+import {
+  PreferenceZoneList,
+  PreferenceZoneRow,
+  PREFERENCE_VALUE_INPUT_CLASS,
+} from '@/components/settings/preference-zone-row'
 import { HR_ZONE_FIELDS, type AthletePreferences } from '@/lib/athlete-preferences'
 import { updateHrZones } from '@/app/actions/preferences'
+import {
+  usePreferenceForm,
+  type PreferenceFormSaveApi,
+} from '@/hooks/use-preference-form'
 
 type HrZonesFormProps = {
   preferences: AthletePreferences
+  onDirtyChange?: (dirty: boolean) => void
+  registerSave?: (api: PreferenceFormSaveApi | null) => void
 }
 
-export function HrZonesForm({ preferences }: HrZonesFormProps) {
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError(null)
-    setSaved(false)
-    const formData = new FormData(e.currentTarget)
-    startTransition(async () => {
-      try {
-        await updateHrZones(formData)
-        setSaved(true)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not save HR zones.')
-      }
-    })
-  }
+export function HrZonesForm({
+  preferences,
+  onDirtyChange,
+  registerSave,
+}: HrZonesFormProps) {
+  const { formRef, error, saved, isPending, markDirty, handleSubmit } = usePreferenceForm(
+    updateHrZones,
+    { errorFallback: 'Could not save HR zones.', onDirtyChange, registerSave },
+  )
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Caption>
-        Set your max and resting heart rate, then the upper limit (bpm) for each zone. Zone 5 is
-        everything above Zone 4 up to max HR.
-      </Caption>
-      <div className="grid gap-3 sm:grid-cols-2">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      onInput={markDirty}
+      className="space-y-4"
+    >
+      <PreferenceZoneList>
         {HR_ZONE_FIELDS.map(({ key, name, label, placeholder }) => (
-          <FormField key={key} label={label}>
+          <PreferenceZoneRow key={key} label={label} unit="bpm">
             <Input
               name={name}
               type="number"
@@ -48,10 +49,18 @@ export function HrZonesForm({ preferences }: HrZonesFormProps) {
               max={250}
               placeholder={placeholder}
               defaultValue={preferences[key] ?? ''}
+              variant="ghost"
+              align="right"
+              aria-label={label}
+              className={PREFERENCE_VALUE_INPUT_CLASS}
             />
-          </FormField>
+          </PreferenceZoneRow>
         ))}
-      </div>
+      </PreferenceZoneList>
+      <Caption>
+        Resting and max HR, then the upper limit (bpm) for each zone. Zone 5 is everything above Z4
+        up to max HR.
+      </Caption>
       {error && <FormMessage variant="error">{error}</FormMessage>}
       {saved && !error && <FormMessage variant="success">HR zones saved.</FormMessage>}
       <Button type="submit" variant="secondary" size="sm" disabled={isPending}>

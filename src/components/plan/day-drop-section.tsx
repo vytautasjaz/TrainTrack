@@ -28,6 +28,7 @@ export function DayDropSection({
   return (
     <section
       id={id}
+      data-plan-day-section={dateKey}
       className={cn(className, dropHighlightClass)}
       {...dropProps}
     >

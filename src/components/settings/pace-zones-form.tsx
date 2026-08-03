@@ -1,60 +1,68 @@
 'use client'
 
-import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Caption } from '@/components/ui/typography'
-import { FormField, FormMessage } from '@/components/ui/form-field'
+import { FormMessage } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
+import {
+  PreferenceZoneList,
+  PreferenceZoneRow,
+  PREFERENCE_VALUE_INPUT_CLASS,
+} from '@/components/settings/preference-zone-row'
 import {
   formatPaceMinPerKm,
   PACE_ZONE_FIELDS,
   type AthletePreferences,
 } from '@/lib/athlete-preferences'
 import { updatePaceZones } from '@/app/actions/preferences'
+import {
+  usePreferenceForm,
+  type PreferenceFormSaveApi,
+} from '@/hooks/use-preference-form'
 
 type PaceZonesFormProps = {
   preferences: AthletePreferences
+  onDirtyChange?: (dirty: boolean) => void
+  registerSave?: (api: PreferenceFormSaveApi | null) => void
 }
 
-export function PaceZonesForm({ preferences }: PaceZonesFormProps) {
-  const [isPending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError(null)
-    setSaved(false)
-    const formData = new FormData(e.currentTarget)
-    startTransition(async () => {
-      try {
-        await updatePaceZones(formData)
-        setSaved(true)
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Could not save paces.')
-      }
-    })
-  }
+export function PaceZonesForm({
+  preferences,
+  onDirtyChange,
+  registerSave,
+}: PaceZonesFormProps) {
+  const { formRef, error, saved, isPending, markDirty, handleSubmit } = usePreferenceForm(
+    updatePaceZones,
+    { errorFallback: 'Could not save paces.', onDirtyChange, registerSave },
+  )
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Caption>
-        Enter your target paces in min/km (e.g. 5:30). These can later be used to estimate workout
-        duration from distance.
-      </Caption>
-      <div className="grid gap-3 sm:grid-cols-2">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      onInput={markDirty}
+      className="space-y-4"
+    >
+      <PreferenceZoneList>
         {PACE_ZONE_FIELDS.map(({ key, name, label }) => (
-          <FormField key={key} label={label}>
+          <PreferenceZoneRow key={key} label={label} unit="/km">
             <Input
               name={name}
               type="text"
               inputMode="decimal"
               placeholder="5:30"
               defaultValue={formatPaceMinPerKm(preferences[key])}
+              variant="ghost"
+              align="right"
+              aria-label={`${label} pace`}
+              className={PREFERENCE_VALUE_INPUT_CLASS}
             />
-          </FormField>
+          </PreferenceZoneRow>
         ))}
-      </div>
+      </PreferenceZoneList>
+      <Caption>
+        Target paces as min/km (e.g. 5:30). Used to estimate workout duration from distance.
+      </Caption>
       {error && <FormMessage variant="error">{error}</FormMessage>}
       {saved && !error && <FormMessage variant="success">Paces saved.</FormMessage>}
       <Button type="submit" variant="secondary" size="sm" disabled={isPending}>

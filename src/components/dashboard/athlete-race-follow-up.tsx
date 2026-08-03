@@ -1,14 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { RaceOutcome } from '@prisma/client'
+import { RaceOutcome, RaceType } from '@prisma/client'
 import { Flag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { logRaceOutcome } from '@/app/actions/workouts'
+import { RaceLegsResultFields } from '@/components/races/race-legs-fields'
+import { RaceStravaLinkPicker } from '@/components/races/race-strava-link-picker'
 import { RACE_TYPE_LABELS } from '@/lib/constants'
+import { raceUsesLegs, type RaceLegView } from '@/lib/race-legs'
 import { cn } from '@/lib/utils'
 
 export type PendingRaceFollowUp = {
@@ -18,6 +21,9 @@ export type PendingRaceFollowUp = {
   location: string | null
   type: keyof typeof RACE_TYPE_LABELS
   goal: string | null
+  stravaActivityUrl?: string | null
+  stravaActivityName?: string | null
+  legs?: RaceLegView[]
 }
 
 type AthleteRaceFollowUpProps = {
@@ -35,7 +41,7 @@ export function AthleteRaceFollowUp({ races, className }: AthleteRaceFollowUpPro
       <div>
         <h2 className="text-lg font-semibold leading-tight tracking-tight">How did it go?</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Log a quick result for past races — or dismiss if you prefer to skip
+          Log a result, link Strava, and for triathlon add splits — or dismiss to skip
         </p>
       </div>
       <div className="space-y-3">
@@ -49,6 +55,9 @@ export function AthleteRaceFollowUp({ races, className }: AthleteRaceFollowUpPro
 
 function RaceFollowUpCard({ race }: { race: PendingRaceFollowUp }) {
   const [choice, setChoice] = useState<OutcomeChoice>('FINISHED')
+  const isTri = raceUsesLegs(race.type as RaceType)
+  const legs = race.legs ?? []
+
   const dateLabel = new Date(race.date).toLocaleDateString(undefined, {
     weekday: 'short',
     month: 'short',
@@ -106,10 +115,25 @@ function RaceFollowUpCard({ race }: { race: PendingRaceFollowUp }) {
         <input type="hidden" name="outcome" value={choice} />
 
         {choice === 'FINISHED' && (
-          <FormField label="Result" hint="e.g. 3:27:16">
+          <FormField label="Overall result" hint="e.g. 3:27:16">
             <Input name="resultTime" placeholder="3:27:16" autoComplete="off" />
           </FormField>
         )}
+
+        {choice !== 'DID_NOT_START' && !isTri ? (
+          <div className="rounded-[6px] border border-border/60 bg-muted/15 px-3 py-2.5">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Strava activity</p>
+            <RaceStravaLinkPicker
+              raceId={race.id}
+              linkedUrl={race.stravaActivityUrl}
+              linkedName={race.stravaActivityName}
+            />
+          </div>
+        ) : null}
+
+        {choice !== 'DID_NOT_START' && isTri && legs.length > 0 ? (
+          <RaceLegsResultFields raceId={race.id} legs={legs} />
+        ) : null}
 
         {choice !== 'DID_NOT_START' && (
           <FormField

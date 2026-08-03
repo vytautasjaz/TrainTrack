@@ -1,5 +1,4 @@
 import {
-  Calculator,
   CalendarRange,
   Flag,
   Home,
@@ -7,6 +6,7 @@ import {
   LineChart,
   Settings,
   Users,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -22,7 +22,7 @@ export const MAIN_NAV: NavItem[] = [
   { href: '/workouts', label: 'Library', icon: Library },
   { href: '/races', label: 'Races', icon: Flag },
   { href: '/progress', label: 'Stats', icon: LineChart },
-  { href: '/calculators', label: 'Calculators', icon: Calculator },
+  { href: '/tools', label: 'Tools', icon: Wrench },
 ]
 
 export type CalculatorNavTab = {
@@ -32,11 +32,11 @@ export type CalculatorNavTab = {
 }
 
 export const CALCULATOR_NAV_TABS: CalculatorNavTab[] = [
-  { id: 'running', label: 'Running', href: '/calculators?tab=running' },
-  { id: 'interval', label: 'Interval', href: '/calculators?tab=interval' },
-  { id: 'triathlon', label: 'Triathlon', href: '/calculators?tab=triathlon' },
-  { id: 'hyrox', label: 'HYROX', href: '/calculators?tab=hyrox' },
-  { id: 'splits', label: 'Splits', href: '/calculators?tab=splits' },
+  { id: 'running', label: 'Running Calculator', href: '/tools?tab=running' },
+  { id: 'interval', label: 'Interval Calculator', href: '/tools?tab=interval' },
+  { id: 'triathlon', label: 'Triathlon Calculator', href: '/tools?tab=triathlon' },
+  { id: 'hyrox', label: 'HYROX Calculator', href: '/tools?tab=hyrox' },
+  { id: 'splits', label: 'Splits Calculator', href: '/tools?tab=splits' },
 ]
 
 export function getMainNav(isCoach: boolean): NavItem[] {
@@ -45,7 +45,7 @@ export function getMainNav(isCoach: boolean): NavItem[] {
       { href: '/dashboard', label: 'Athletes', icon: Users },
       { href: '/training', label: 'Training', icon: CalendarRange },
       { href: '/workouts', label: 'Library', icon: Library },
-      { href: '/calculators', label: 'Calculators', icon: Calculator },
+      { href: '/tools', label: 'Tools', icon: Wrench },
     ]
   }
   return MAIN_NAV.filter((item) => item.href !== '/workouts')

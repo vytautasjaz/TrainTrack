@@ -25,12 +25,24 @@ import { formatDistance, formatDuration, cn } from '@/lib/utils'
 type StravaDetachButtonProps = {
   workoutId: string
   onDetached?: () => void
+  /** Hide the default button; control the confirm dialog from outside. */
+  hideTrigger?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function StravaDetachButton({ workoutId, onDetached }: StravaDetachButtonProps) {
+export function StravaDetachButton({
+  workoutId,
+  onDetached,
+  hideTrigger = false,
+  open: openControlled,
+  onOpenChange,
+}: StravaDetachButtonProps) {
   const router = useRouter()
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmOpenUncontrolled, setConfirmOpenUncontrolled] = useState(false)
   const [pending, startTransition] = useTransition()
+  const confirmOpen = openControlled ?? confirmOpenUncontrolled
+  const setConfirmOpen = onOpenChange ?? setConfirmOpenUncontrolled
 
   function handleConfirm() {
     startTransition(async () => {
@@ -43,16 +55,18 @@ export function StravaDetachButton({ workoutId, onDetached }: StravaDetachButton
 
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="gap-1.5 text-muted-foreground"
-        onClick={() => setConfirmOpen(true)}
-      >
-        <Unlink className="h-3.5 w-3.5" />
-        Detach Strava
-      </Button>
+      {!hideTrigger ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground"
+          onClick={() => setConfirmOpen(true)}
+        >
+          <Unlink className="h-3.5 w-3.5" />
+          Detach Strava
+        </Button>
+      ) : null}
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
@@ -71,17 +85,29 @@ export function StravaDetachButton({ workoutId, onDetached }: StravaDetachButton
 type StravaLinkPickerProps = {
   workoutId: string
   onLinked?: () => void
+  /** Hide the default button; control the picker dialog from outside. */
+  hideTrigger?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function StravaLinkPicker({ workoutId, onLinked }: StravaLinkPickerProps) {
+export function StravaLinkPicker({
+  workoutId,
+  onLinked,
+  hideTrigger = false,
+  open: openControlled,
+  onOpenChange,
+}: StravaLinkPickerProps) {
   const router = useRouter()
   const [connected, setConnected] = useState<boolean | null>(null)
-  const [open, setOpen] = useState(false)
+  const [openUncontrolled, setOpenUncontrolled] = useState(false)
   const [items, setItems] = useState<StravaActivityPickItem[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [attachingId, setAttachingId] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const open = openControlled ?? openUncontrolled
+  const setOpen = onOpenChange ?? setOpenUncontrolled
 
   useEffect(() => {
     let cancelled = false
@@ -97,19 +123,31 @@ export function StravaLinkPicker({ workoutId, onLinked }: StravaLinkPickerProps)
     }
   }, [])
 
-  async function openPicker() {
-    setOpen(true)
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
     setLoading(true)
     setLoadError(null)
-    try {
-      const next = await listStravaActivitiesForWorkout(workoutId)
-      setItems(next)
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Could not load Strava activities')
-      setItems([])
-    } finally {
-      setLoading(false)
+    void listStravaActivitiesForWorkout(workoutId)
+      .then((next) => {
+        if (!cancelled) setItems(next)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setLoadError(err instanceof Error ? err.message : 'Could not load Strava activities')
+          setItems([])
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
+  }, [open, workoutId])
+
+  async function openPicker() {
+    setOpen(true)
   }
 
   function handleAttach(activityId: string) {
@@ -133,16 +171,18 @@ export function StravaLinkPicker({ workoutId, onLinked }: StravaLinkPickerProps)
 
   return (
     <>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="gap-1.5 text-[#FC4C02] hover:text-[#FC4C02]"
-        onClick={() => void openPicker()}
-      >
-        <Link2 className="h-3.5 w-3.5" />
-        Link Strava activity
-      </Button>
+      {!hideTrigger ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-[#FC4C02] hover:text-[#FC4C02]"
+          onClick={() => void openPicker()}
+        >
+          <Link2 className="h-3.5 w-3.5" />
+          Link Strava activity
+        </Button>
+      ) : null}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent

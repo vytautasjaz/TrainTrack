@@ -1,15 +1,5 @@
 import { redirect } from "next/navigation";
 import type { WorkoutType } from "@prisma/client";
-import {
-  addMonths,
-  addWeeks,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  startOfMonth,
-  startOfWeek,
-} from "date-fns";
 import { PageHeader } from "@/components/ui/page-header";
 import { PlanMultiWeekTables } from "@/components/plan/plan-multi-week-tables";
 import { MonthCalendarView } from "@/components/plan/month-calendar-view";
@@ -32,7 +22,19 @@ import { toPlanWorkoutDetail } from "@/lib/plan-workout";
 import { mergeRacesIntoByDate } from "@/lib/races";
 import { buildPlanTableDays } from "@/lib/plan-week";
 import { buildTrainingDays } from "@/lib/training-timeline";
-import { addDateOnlyDays, todayDateOnly, toDateKey } from "@/lib/dates";
+import {
+  addDateOnlyDays,
+  addDateOnlyMonths,
+  eachDateOnlyDay,
+  endOfMonthDateOnly,
+  endOfWeekDateOnly,
+  formatDateOnly,
+  startOfMonthDateOnly,
+  startOfWeekDateOnly,
+  todayDateKey,
+  todayDateOnly,
+  toDateKey,
+} from "@/lib/dates";
 import { getCoachLibraryTemplates } from "@/lib/workout-library/queries";
 import { resolveLibraryTemplateMetricsForAthlete } from "@/lib/workout-library/template-metrics";
 import { loadAthletePreferencesForBuilder } from "@/lib/workout-builder/load-athlete-preferences";
@@ -98,27 +100,26 @@ export default async function TrainingPage({
   const monthSpan = parseMonthSpan(params.months);
   const weekSpan = view === "week" ? parseWeekSpan(params.weeks) : 1;
 
+  // Always use UTC date-only + Monday week starts (never date-fns on local midnight).
+  const todayOnly = todayDateOnly();
   const anchor =
     view === "month"
-      ? addMonths(startOfMonth(new Date()), monthOffset)
-      : addWeeks(new Date(), weekOffset);
-  anchor.setHours(0, 0, 0, 0);
+      ? addDateOnlyMonths(startOfMonthDateOnly(todayOnly), monthOffset)
+      : addDateOnlyDays(todayOnly, weekOffset * 7);
 
-  const rangeEndMonth = addMonths(anchor, monthSpan - 1);
-  const monthGridStart = startOfWeek(startOfMonth(anchor), { weekStartsOn: 1 });
-  const monthGridEnd = endOfWeek(endOfMonth(rangeEndMonth), {
-    weekStartsOn: 1,
-  });
-  const weekStart = startOfWeek(anchor, { weekStartsOn: 1 });
-  const weekEnd = endOfWeek(addWeeks(anchor, weekSpan - 1), {
-    weekStartsOn: 1,
-  });
+  const rangeEndMonth = addDateOnlyMonths(anchor, monthSpan - 1);
+  const monthGridStart = startOfWeekDateOnly(startOfMonthDateOnly(anchor));
+  const monthGridEnd = endOfWeekDateOnly(endOfMonthDateOnly(rangeEndMonth));
+  const weekStart = startOfWeekDateOnly(anchor);
+  const weekEnd = endOfWeekDateOnly(
+    addDateOnlyDays(anchor, (weekSpan - 1) * 7),
+  );
 
   // List starts at yesterday so recent sessions sit above today; earlier days
   // load when scrolling up. Use date-only helpers so from/to keys match day rows
   // (local midnight + toDateKey shifts -1 day in UTC+ and skips that day on past load).
-  const listRangeStart = addDateOnlyDays(todayDateOnly(), -1);
-  const listRangeEnd = addDateOnlyDays(todayDateOnly(), 21);
+  const listRangeStart = addDateOnlyDays(todayOnly, -1);
+  const listRangeEnd = addDateOnlyDays(todayOnly, 21);
   const listFromKey = toDateKey(listRangeStart);
   const listToKey = toDateKey(listRangeEnd);
 
@@ -157,7 +158,7 @@ export default async function TrainingPage({
   const isCoach = session.role === "COACH";
   const canLogWorkout =
     session.role === "ATHLETE" && Boolean(session.athleteId);
-  const today = format(new Date(), "yyyy-MM-dd");
+  const today = todayDateKey();
 
   const coachAthletes = isCoach ? await getCoachAthletes(session.userId) : [];
   const selectedAthlete = coachAthletes.find((a) => a.id === athleteId);
@@ -169,15 +170,15 @@ export default async function TrainingPage({
     : null;
 
   const weekBlocks = Array.from({ length: weekSpan }, (_, i) => {
-    const weekAnchor = addWeeks(anchor, i);
+    const weekAnchor = addDateOnlyDays(anchor, i * 7);
     const days = getWeekDays(weekAnchor);
-    const start = startOfWeek(weekAnchor, { weekStartsOn: 1 });
-    const end = endOfWeek(weekAnchor, { weekStartsOn: 1 });
+    const start = startOfWeekDateOnly(weekAnchor);
+    const end = endOfWeekDateOnly(weekAnchor);
     return {
       index: i,
       weekStart: start,
       weekStartKey: toDateKey(start),
-      weekLabel: `${format(start, "d MMM")} – ${format(end, "d MMM yyyy")}`,
+      weekLabel: `${formatDateOnly(start, "d MMM")} – ${formatDateOnly(end, "d MMM yyyy")}`,
       trainingDays: buildTrainingDays(days),
       tableDays: buildPlanTableDays(days, byDate, notesByDate),
     };
@@ -248,29 +249,27 @@ export default async function TrainingPage({
   const periodLabel =
     view === "month"
       ? monthSpan === 1
-        ? format(anchor, "MMMM yyyy")
-        : `${format(anchor, "MMM yyyy")} – ${format(rangeEndMonth, "MMM yyyy")}`
+        ? formatDateOnly(anchor, "MMMM yyyy")
+        : `${formatDateOnly(anchor, "MMM yyyy")} – ${formatDateOnly(rangeEndMonth, "MMM yyyy")}`
       : firstWeek.weekLabel;
 
   const monthBlocks =
     view === "month"
       ? Array.from({ length: monthSpan }, (_, i) => {
-          const monthAnchor = addMonths(anchor, i);
-          const start = startOfWeek(startOfMonth(monthAnchor), {
-            weekStartsOn: 1,
-          });
-          const end = endOfWeek(endOfMonth(monthAnchor), { weekStartsOn: 1 });
+          const monthAnchor = addDateOnlyMonths(anchor, i);
+          const start = startOfWeekDateOnly(startOfMonthDateOnly(monthAnchor));
+          const end = endOfWeekDateOnly(endOfMonthDateOnly(monthAnchor));
           return {
-            label: format(monthAnchor, "MMMM yyyy"),
+            label: formatDateOnly(monthAnchor, "MMMM yyyy"),
             anchorMonth: monthAnchor,
-            days: eachDayOfInterval({ start, end }).map((day) => {
-              const key = format(day, "yyyy-MM-dd");
+            days: eachDateOnlyDay(start, end).map((day) => {
+              const key = toDateKey(day);
               return {
                 dateKey: key,
-                dayNumber: parseInt(format(day, "d"), 10),
+                dayNumber: day.getUTCDate(),
                 inMonth:
-                  day.getMonth() === monthAnchor.getMonth() &&
-                  day.getFullYear() === monthAnchor.getFullYear(),
+                  day.getUTCMonth() === monthAnchor.getUTCMonth() &&
+                  day.getUTCFullYear() === monthAnchor.getUTCFullYear(),
                 isToday: key === today,
               };
             }),
@@ -349,7 +348,7 @@ export default async function TrainingPage({
       ) : view === "list" ? (
         <TrainingTableView
           initialDays={buildPlanTableDays(
-            eachDayOfInterval({ start: listRangeStart, end: listRangeEnd }),
+            eachDateOnlyDay(listRangeStart, listRangeEnd),
             byDate,
             notesByDate,
           ).map((day) => ({

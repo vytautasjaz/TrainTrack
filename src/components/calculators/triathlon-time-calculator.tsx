@@ -14,10 +14,8 @@ import {
 } from '@/components/calculators/calculator-prediction-grid'
 import { CalculatorValueSlider } from '@/components/calculators/calculator-value-slider'
 import { LabelPresetSelect } from '@/components/calculators/distance-preset-select'
-import { FieldHint } from '@/components/calculators/calculator-help'
 import { TimeParseError } from '@/components/calculators/time-input-hint'
 import { Input } from '@/components/ui/input'
-import { FORMAT } from '@/lib/calculators/calculator-copy'
 import { TRIATHLON_PRESETS, type TriathlonPresetId } from '@/lib/calculators/race-distances'
 import {
   bikeSpeedFromLegTime,
@@ -179,21 +177,23 @@ export function TriathlonTimeCalculator({ state, onChange }: TriathlonTimeCalcul
           split != null
             ? [
                 { label: 'Swim', value: formatRaceTime(split.swimMin) },
-                { label: 'T1', value: formatRaceTime(split.t1Min) },
                 { label: 'Bike', value: formatRaceTime(split.bikeMin) },
-                { label: 'T2', value: formatRaceTime(split.t2Min) },
                 { label: 'Run', value: formatRaceTime(split.runMin) },
               ]
             : [
                 { label: 'Swim', value: '—' },
-                { label: 'T1', value: '—' },
                 { label: 'Bike', value: '—' },
-                { label: 'T2', value: '—' },
                 { label: 'Run', value: '—' },
               ],
       }
     })
   }, [calcSplit])
+
+  const share = (minutes: number) => {
+    if (!selectedSplit || selectedSplit.totalMin <= 0) return 0
+    if (minutes <= 0) return 0
+    return Math.max(1, Math.round((minutes / selectedSplit.totalMin) * 100))
+  }
 
   const swimSliderSec = swimPace != null ? Math.round(swimPace * 60) : null
   const runSliderSec = runPace != null ? Math.round(runPace * 60) : null
@@ -387,7 +387,7 @@ export function TriathlonTimeCalculator({ state, onChange }: TriathlonTimeCalcul
 
   return (
     <div className="space-y-4">
-      <CalculatorHeroCard title="Triathlon calculator">
+      <CalculatorHeroCard>
         <div className="-mx-5 -mt-5 space-y-4">
           <div className="border-b border-border/40 px-5 py-5">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_1px_1fr] sm:gap-0">
@@ -569,12 +569,70 @@ export function TriathlonTimeCalculator({ state, onChange }: TriathlonTimeCalcul
             <TimeParseError show={splitInvalid} />
           </div>
 
-          <div className="px-5 pb-1">
-            <FieldHint>
-              {FORMAT.swimPace} · bike km/h · {FORMAT.paceMinPerKm} Edit a split time to update
-              that leg&apos;s pace or speed.
-            </FieldHint>
-          </div>
+          {selectedSplit != null ? (
+            <section className="space-y-3 border-t border-border/40 px-5 pb-1 pt-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Time share
+              </p>
+              <div className="flex h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  style={{ backgroundColor: '#18B7C9', width: `${share(selectedSplit.swimMin)}%` }}
+                  className="h-full"
+                  title="Swim"
+                />
+                <div
+                  style={{ backgroundColor: '#6B7280', width: `${share(selectedSplit.t1Min)}%` }}
+                  className="h-full"
+                  title="T1"
+                />
+                <div
+                  style={{ backgroundColor: '#F5A623', width: `${share(selectedSplit.bikeMin)}%` }}
+                  className="h-full"
+                  title="Bike"
+                />
+                <div
+                  style={{ backgroundColor: '#6B7280', width: `${share(selectedSplit.t2Min)}%` }}
+                  className="h-full"
+                  title="T2"
+                />
+                <div
+                  style={{ backgroundColor: '#E84855', width: `${share(selectedSplit.runMin)}%` }}
+                  className="h-full"
+                  title="Run"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
+                {[
+                  { label: 'Swim', value: selectedSplit.swimMin, color: '#18B7C9' },
+                  { label: 'T1', value: selectedSplit.t1Min, color: '#6B7280' },
+                  { label: 'Bike', value: selectedSplit.bikeMin, color: '#F5A623' },
+                  { label: 'T2', value: selectedSplit.t2Min, color: '#6B7280' },
+                  { label: 'Run', value: selectedSplit.runMin, color: '#E84855' },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    className="rounded-[6px] border border-border/50 px-2.5 py-2"
+                  >
+                    <p className="flex items-center gap-1.5 text-muted-foreground">
+                      <span
+                        className="h-1.5 w-1.5 rounded-full"
+                        style={{ backgroundColor: item.color }}
+                        aria-hidden
+                      />
+                      {item.label}
+                    </p>
+                    <p className="mt-0.5 font-semibold tabular-nums text-foreground">
+                      {formatRaceTime(item.value)}
+                      <span className="ml-1 font-normal text-muted-foreground">
+                        ({share(item.value)}%)
+                      </span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
         </div>
       </CalculatorHeroCard>
 

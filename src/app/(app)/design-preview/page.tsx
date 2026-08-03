@@ -10,9 +10,45 @@ import {
   minimal,
 } from '@/components/design/minimal-sample-kit'
 import { PlanWorkoutDataCard } from '@/components/plan/plan-workout-data-card'
+import { WorkoutBlock } from '@/components/workout-block'
 import { SessionType, WorkoutStatus, WorkoutType } from '@prisma/client'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import type { WorkoutStructure } from '@/lib/workout-builder/types'
 import { cn } from '@/lib/utils'
+
+const thresholdStructure: WorkoutStructure = {
+  warmup: [
+    {
+      id: 'wu',
+      order: 0,
+      type: 'CONTINUOUS',
+      durationType: 'time',
+      time: 15,
+      targets: [{ type: 'rpe', value: 'Easy' }],
+    },
+  ],
+  mainSet: [
+    {
+      id: 'main',
+      order: 0,
+      type: 'INTERVAL',
+      repetitions: 4,
+      work: { mode: 'time', value: 8, unit: 'min' },
+      recovery: { mode: 'time', value: 2, unit: 'min' },
+      targets: [{ type: 'pace', value: '3:55/km' }],
+    },
+  ],
+  cooldown: [
+    {
+      id: 'cd',
+      order: 0,
+      type: 'CONTINUOUS',
+      durationType: 'time',
+      time: 10,
+      targets: [{ type: 'rpe', value: 'Easy' }],
+    },
+  ],
+}
 
 function sampleWorkout(
   overrides: Partial<PlanWorkoutDetail> & Pick<PlanWorkoutDetail, 'id' | 'title' | 'status'>,
@@ -31,20 +67,46 @@ function sampleWorkout(
     swimStructure: null,
     selfLogged: false,
     result: null,
+    tags: [],
+    isRace: false,
     ...overrides,
   }
 }
 
 const plannedSample = sampleWorkout({
   id: 'sample-planned',
-  title: 'Threshold',
+  title: 'Threshold Intervals',
   status: WorkoutStatus.PLANNED,
   sessionType: SessionType.THRESHOLD,
-  description: '6 × 1000 m',
+  description: '4 × 8 min @ Threshold',
+  plannedDistance: 10.4,
+  plannedDuration: 45,
+  structure: thresholdStructure,
 })
 
 const completedSample = sampleWorkout({
   id: 'sample-completed',
+  title: 'Threshold Intervals',
+  status: WorkoutStatus.COMPLETED,
+  sessionType: SessionType.THRESHOLD,
+  description: '4 × 8 min @ Threshold',
+  plannedDistance: 10.4,
+  plannedDuration: 45,
+  structure: thresholdStructure,
+  result: {
+    actualDistance: 10.4,
+    actualDuration: 45,
+    rpe: null,
+    athleteNotes: null,
+    coachReply: null,
+    coachReplyReadAt: null,
+    stravaActivityUrl: null,
+    logType: null,
+  },
+})
+
+const completedVsPlannedSample = sampleWorkout({
+  id: 'sample-completed-diff',
   title: 'Easy Run',
   status: WorkoutStatus.COMPLETED,
   sessionType: SessionType.EASY_RUN,
@@ -52,8 +114,8 @@ const completedSample = sampleWorkout({
   plannedDistance: 10,
   plannedDuration: 58,
   result: {
-    actualDistance: 10,
-    actualDuration: 58,
+    actualDistance: 4.3,
+    actualDuration: 28,
     rpe: null,
     athleteNotes: null,
     coachReply: null,
@@ -71,6 +133,7 @@ const skippedSample = sampleWorkout({
   description: '8 × 400 m',
   plannedDistance: 8,
   plannedDuration: 48,
+  structure: thresholdStructure,
 })
 
 export default function DesignPreviewPage() {
@@ -78,15 +141,88 @@ export default function DesignPreviewPage() {
     <div className="mx-auto max-w-5xl space-y-8 px-4 pb-16 pt-2 lg:px-0">
       <PageHeader
         title="Design preview"
-        description="Minimal design is now applied app-wide. This page remains as a reference gallery (current leftovers vs sample kit)."
+        description="Design System v3 — dark sidebar shell, Workout Block densities, status matrix. Legacy minimal kit kept below for comparison."
       />
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-section-title">Shell & tokens</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Workspace background #F8F8F6, surface white, sidebar #111318. Calendar Workout Blocks use radius 0; shell cards use 12px.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {[
+            ['Background', 'bg-background border'],
+            ['Surface', 'bg-card border'],
+            ['Sidebar', 'bg-sidebar text-sidebar-foreground'],
+            ['Run', 'bg-sport-run text-white'],
+            ['Bike', 'bg-sport-bike text-white'],
+            ['Swim', 'bg-sport-swim text-white'],
+            ['Success', 'bg-success text-white'],
+          ].map(([label, cls]) => (
+            <div
+              key={label}
+              className={`flex h-16 w-28 flex-col justify-end rounded-md p-2 text-[11px] font-semibold ${cls}`}
+            >
+              {label}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-section-title">Workout Block</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Densities xs / sm / md / lg × statuses planned / completed / skipped. Week uses md; list/dashboard uses lg; month micro uses xs.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {(
+            [
+              ['xs', plannedSample],
+              ['sm', plannedSample],
+              ['md', plannedSample],
+              ['lg', plannedSample],
+            ] as const
+          ).map(([density, workout]) => (
+            <div key={density} className="space-y-1.5">
+              <p className="text-label">{density}</p>
+              <WorkoutBlock workout={workout} density={density} />
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <p className="text-label">Planned</p>
+            <WorkoutBlock workout={plannedSample} density="md" />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-label">Completed (actual / planned)</p>
+            <WorkoutBlock workout={completedVsPlannedSample} density="md" />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-label">Skipped</p>
+            <WorkoutBlock workout={skippedSample} density="md" />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <p className="text-label">Completed + fingerprint (lg)</p>
+          <div className="max-w-sm">
+            <WorkoutBlock workout={completedSample} density="lg" />
+          </div>
+        </div>
+      </section>
 
       <MinimalSampleRoot>
         <div>
-          <h1 className={minimal.pageTitle}>Minimal sample</h1>
+          <h1 className={minimal.pageTitle}>Minimal sample (legacy)</h1>
           <p className={cn(minimal.caption, 'mt-2 max-w-2xl')}>
-            White surfaces, thin gray borders, 6px radius, no shadows, black/gray type,
-            status via soft washes.
+            Previous minimal kit — retained for comparison while surfaces migrate to Workout Block.
           </p>
         </div>
 
@@ -99,7 +235,7 @@ export default function DesignPreviewPage() {
               <div className="card-elevated p-4">
                 <p className="text-card-title">Current card</p>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Rounded-2xl, soft shadow, softer border.
+                  Token-driven radius, soft border.
                 </p>
               </div>
             }
@@ -107,7 +243,7 @@ export default function DesignPreviewPage() {
               <MinimalCard>
                 <p className={minimal.sectionTitle}>Minimal card</p>
                 <p className={cn(minimal.caption, 'mt-2')}>
-                  6px radius, 1px #E5E7EB, no shadow.
+                  Legacy 6px reference.
                 </p>
               </MinimalCard>
             }
@@ -115,8 +251,8 @@ export default function DesignPreviewPage() {
         </MinimalSection>
 
         <MinimalSection
-          title="Workout data cards"
-          description="Reference densities: list / week / month / micro (month grid)."
+          title="Legacy PlanWorkoutDataCard"
+          description="List / week / month / micro — still used on list & month until Phase 2."
         >
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <PlanWorkoutDataCard workout={plannedSample} density="list" />

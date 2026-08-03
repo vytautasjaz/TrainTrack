@@ -86,7 +86,11 @@ export function WatchingRaceTable({ races, className }: WatchingRaceTableProps) 
                         })}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
-                        {raceDistanceLabel(race.type)}
+                        {raceDistanceLabel(race.type, {
+                          triathlonDistance: race.triathlonDistance,
+                          customDistanceKm: race.customDistanceKm,
+                          legs: race.legs,
+                        })}
                       </td>
                       <td className="px-3 py-3 text-right">
                         {isPast ? (
@@ -111,10 +115,11 @@ export function WatchingRaceTable({ races, className }: WatchingRaceTableProps) 
                             href={race.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-xs font-medium text-foreground underline-offset-2 hover:underline"
+                            className="inline-flex max-w-[12rem] items-center gap-1 text-xs font-medium text-foreground underline-offset-2 hover:underline"
+                            title={race.url}
                           >
-                            Open
-                            <ExternalLink className="h-3 w-3" />
+                            <span className="truncate">{race.url}</span>
+                            <ExternalLink className="h-3 w-3 shrink-0" />
                           </a>
                         ) : (
                           <span className="text-muted-foreground">—</span>

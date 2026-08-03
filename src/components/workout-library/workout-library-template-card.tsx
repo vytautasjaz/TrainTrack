@@ -18,7 +18,7 @@ import type { WorkoutLibraryTemplate } from '@/lib/workout-library/types'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { getSessionTypeLabel } from '@/lib/workout-builder/session-modes'
 import { formatDistance, formatDuration } from '@/lib/utils'
-import { formatSwimDistance, swimEnvironmentLabel } from '@/lib/swim-workout/format'
+import { formatSwimDistance } from '@/lib/swim-workout/format'
 import { WorkoutType } from '@prisma/client'
 import {
   createWorkoutFromTemplate,
@@ -43,7 +43,6 @@ function templateMetrics(template: WorkoutLibraryTemplate): string {
         ? formatSwimDistance(template.plannedDistanceMeters)
         : null,
       template.durationMin ? formatDuration(template.durationMin) : null,
-      template.swimEnvironment ? swimEnvironmentLabel(template.swimEnvironment) : null,
     ]
       .filter(Boolean)
       .join(' · ')

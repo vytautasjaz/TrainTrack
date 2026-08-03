@@ -1,28 +1,48 @@
 import { formatPaceMinPerKm, parsePaceMinPerKm } from '@/lib/athlete-preferences'
 
-/** Parse race finish time — supports h:mm:ss, m:ss, or decimal minutes. */
+/** Parse race finish time — supports h:mm:ss, m:ss, m:ss,t / m:ss.t, or decimal minutes. */
 export function parseRaceTimeToMinutes(input: string): number | null {
   const trimmed = input.trim()
   if (!trimmed) return null
 
+  const hmsTenths = trimmed.match(/^(\d+):(\d{1,2}):(\d{1,2})[,.](\d)$/)
+  if (hmsTenths) {
+    const h = parseInt(hmsTenths[1]!, 10)
+    const m = parseInt(hmsTenths[2]!, 10)
+    const s = parseInt(hmsTenths[3]!, 10)
+    const tenths = parseInt(hmsTenths[4]!, 10)
+    if (m >= 60 || s >= 60 || h < 0) return null
+    return h * 60 + m + s / 60 + tenths / 600
+  }
+
   const hms = trimmed.match(/^(\d+):(\d{1,2}):(\d{1,2})$/)
   if (hms) {
-    const h = parseInt(hms[1], 10)
-    const m = parseInt(hms[2], 10)
-    const s = parseInt(hms[3], 10)
+    const h = parseInt(hms[1]!, 10)
+    const m = parseInt(hms[2]!, 10)
+    const s = parseInt(hms[3]!, 10)
     if (m >= 60 || s >= 60 || h < 0) return null
     return h * 60 + m + s / 60
   }
 
+  const colonTenths = trimmed.match(/^(\d+):(\d{1,2})[,.](\d)$/)
+  if (colonTenths) {
+    const mins = parseInt(colonTenths[1]!, 10)
+    const secs = parseInt(colonTenths[2]!, 10)
+    const tenths = parseInt(colonTenths[3]!, 10)
+    if (secs >= 60 || mins < 0) return null
+    return mins + secs / 60 + tenths / 600
+  }
+
   const colonMatch = trimmed.match(/^(\d+):(\d{1,2})$/)
   if (colonMatch) {
-    const mins = parseInt(colonMatch[1], 10)
-    const secs = parseInt(colonMatch[2], 10)
+    const mins = parseInt(colonMatch[1]!, 10)
+    const secs = parseInt(colonMatch[2]!, 10)
     if (secs >= 60 || mins < 0) return null
     return mins + secs / 60
   }
 
-  const decimal = parseFloat(trimmed)
+  const normalized = trimmed.replace(',', '.')
+  const decimal = parseFloat(normalized)
   if (!Number.isNaN(decimal) && decimal > 0) return decimal
   return null
 }
@@ -68,6 +88,21 @@ export function formatRaceTime(totalMinutes: number): string {
     return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
   }
   return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+/** Short-interval display with tenth-second precision (comma separator), e.g. 0:19,5. */
+export function formatRaceTimeTenths(totalMinutes: number): string {
+  if (!Number.isFinite(totalMinutes) || totalMinutes < 0) return '—'
+  const totalTenths = Math.round(totalMinutes * 60 * 10)
+  const totalSecs = Math.floor(totalTenths / 10)
+  const tenths = totalTenths % 10
+  const h = Math.floor(totalSecs / 3600)
+  const m = Math.floor((totalSecs % 3600) / 60)
+  const s = totalSecs % 60
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')},${tenths}`
+  }
+  return `${m}:${s.toString().padStart(2, '0')},${tenths}`
 }
 
 export function formatPaceDisplay(minPerKm: number): string {

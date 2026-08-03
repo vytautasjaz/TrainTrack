@@ -1,18 +1,17 @@
 'use client'
 
-import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { RACE_TYPE_LABELS, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
+import { RaceDetailSheet } from '@/components/races/race-detail-sheet'
+import { getSeasonRaceDetail } from '@/app/actions/races'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import { parseDateOnly } from '@/lib/dates'
+import type { SeasonRace } from '@/lib/season-races'
 
 type RaceDetailModalProps = {
   workout: PlanWorkoutDetail
@@ -20,52 +19,88 @@ type RaceDetailModalProps = {
   onOpenChange: (open: boolean) => void
 }
 
-function formatRaceDate(dateKey: string) {
-  return parseDateOnly(dateKey).toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-  })
+function reviveSeasonRace(raw: SeasonRace): SeasonRace {
+  return {
+    ...raw,
+    date: raw.date instanceof Date ? raw.date : new Date(raw.date),
+  }
 }
 
+/**
+ * Opens the shared RaceDetailSheet from a plan/training race card.
+ * Loads full SeasonRace by raceId so Training matches the Races modal.
+ */
 export function RaceDetailModal({ workout, open, onOpenChange }: RaceDetailModalProps) {
-  if (!workout.isRace || !workout.raceId || !workout.raceType) return null
+  const router = useRouter()
+  const pathname = usePathname()
+  const raceId = workout.isRace ? workout.raceId : null
+  const [race, setRace] = useState<SeasonRace | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    if (!open || !raceId) {
+      setRace(null)
+      setFailed(false)
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    setFailed(false)
+
+    void getSeasonRaceDetail(raceId).then((result) => {
+      if (cancelled) return
+      if (!result) {
+        setRace(null)
+        setFailed(true)
+      } else {
+        setRace(reviveSeasonRace(result))
+        setFailed(false)
+      }
+      setLoading(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, raceId])
+
+  if (!raceId) return null
+
+  if (open && loading) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-sm">
+          <DialogTitle className="sr-only">Loading race</DialogTitle>
+          <DialogDescription className="sr-only">Loading race details</DialogDescription>
+          <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  if (open && failed) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-sm">
+          <DialogTitle>Race unavailable</DialogTitle>
+          <DialogDescription>
+            This race could not be loaded. It may have been removed.
+          </DialogDescription>
+        </DialogContent>
+      </Dialog>
+    )
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{workout.title}</DialogTitle>
-          <DialogDescription>{formatRaceDate(workout.dateKey)}</DialogDescription>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <Badge className="bg-amber-500/15 text-amber-700 dark:text-amber-400">Race</Badge>
-            <Badge className={WORKOUT_TYPE_COLORS[workout.type]}>
-              {WORKOUT_TYPE_LABELS[workout.type]}
-            </Badge>
-            <Badge variant="outline" className="bg-muted/40">
-              {RACE_TYPE_LABELS[workout.raceType]}
-            </Badge>
-          </div>
-        </DialogHeader>
-
-        <div className="space-y-3 text-sm">
-          {workout.raceLocation && (
-            <p>
-              <span className="text-muted-foreground">Location: </span>
-              {workout.raceLocation}
-            </p>
-          )}
-          {workout.raceGoal && (
-            <p>
-              <span className="text-muted-foreground">Goal: </span>
-              {workout.raceGoal}
-            </p>
-          )}
-          <Button variant="secondary" size="sm" asChild>
-            <Link href={`/races/${workout.raceId}/edit`}>Edit race</Link>
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <RaceDetailSheet
+      race={race}
+      open={open && Boolean(race)}
+      onOpenChange={onOpenChange}
+      returnTo={pathname || '/training'}
+      onChanged={() => router.refresh()}
+    />
   )
 }

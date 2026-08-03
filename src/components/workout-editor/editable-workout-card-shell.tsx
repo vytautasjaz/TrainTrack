@@ -1,10 +1,11 @@
 'use client'
 
 import type { MouseEvent, ReactNode } from 'react'
-import { Clock, Home, Link2 } from 'lucide-react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { Clock, Link2 } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
-import { getWorkoutEditorSportTheme } from '@/lib/workout-editor/sport-theme'
+import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import type { DistanceUnit, DurationUnit, WorkoutPrimaryMetric } from '@/lib/workout-editor/types'
 import { cn } from '@/lib/utils'
 
@@ -13,118 +14,119 @@ function metricValueWidthCh(value: string, placeholder: string, minChars = 2) {
   return `${len}ch`
 }
 
-function valueSizeClass(active: boolean, heroActive: boolean) {
-  if (!active) return 'text-[14px] font-medium text-muted-foreground'
-  if (heroActive) return 'text-[28px] font-bold text-[#111827]'
-  return 'text-[22px] font-bold text-[#111827]'
-}
-
-function unitSizeClass(active: boolean, heroActive: boolean) {
-  if (!active) return 'text-[11px] font-medium text-muted-foreground'
-  if (heroActive) return 'text-[16px] font-bold text-[#111827]'
-  return 'text-[13px] font-bold text-[#111827]'
-}
-
-function activeMetricBorderClass(sportType: WorkoutType) {
+function heroGradientClass(sportType: WorkoutType) {
   switch (sportType) {
     case WorkoutType.RUN:
-      return 'ring-1 ring-orange-300/60'
+      return 'from-white to-orange-100'
     case WorkoutType.BIKE:
-      return 'ring-1 ring-sky-300/60'
+      return 'from-white to-sky-100'
     case WorkoutType.SWIM:
-      return 'ring-1 ring-cyan-300/60'
+      return 'from-white to-cyan-100'
     case WorkoutType.STRENGTH:
-      return 'ring-1 ring-emerald-300/60'
+      return 'from-white to-emerald-100'
     case WorkoutType.HYROX:
-      return 'ring-1 ring-rose-300/60'
+      return 'from-white to-rose-100'
     case WorkoutType.TRIATHLON:
-      return 'ring-1 ring-violet-300/60'
+      return 'from-white to-violet-100'
     default:
-      return 'ring-1 ring-slate-300/60'
+      return 'from-white to-slate-100'
   }
 }
 
-function MetricHeroButton({
-  metric,
+function AutoTextButton({
   active,
-  onSelect,
-  controlOnClass,
+  onClick,
+  disabled,
 }: {
-  metric: WorkoutPrimaryMetric
   active: boolean
-  onSelect: (metric: WorkoutPrimaryMetric) => void
-  controlOnClass: string
+  onClick: () => void
+  disabled?: boolean
 }) {
-  const Icon = metric === 'duration' ? Clock : Link2
   return (
     <button
       type="button"
+      onClick={onClick}
+      disabled={disabled}
       aria-pressed={active}
-      aria-label={
-        metric === 'duration'
-          ? 'Show duration as primary on plan card'
-          : 'Show distance as primary on plan card'
-      }
-      title={active ? 'Primary metric (shown big on plan card)' : 'Set as primary metric'}
-      onClick={() => onSelect(metric)}
       className={cn(
-        'mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] border transition',
+        'shrink-0 whitespace-nowrap text-[11px] font-medium transition',
         active
-          ? controlOnClass
-          : 'border-transparent text-muted-foreground/40 hover:border-border hover:bg-white/50 hover:text-muted-foreground',
+          ? 'text-muted-foreground/70'
+          : 'text-muted-foreground/45 hover:text-muted-foreground/70',
+        disabled && 'pointer-events-none opacity-40',
       )}
     >
-      <Icon className="h-4 w-4" />
+      Auto
     </button>
   )
 }
 
-function MetricSourceCell({
-  children,
-  badge,
-  active,
-  activeBorderClass,
+function SourceToggle({
+  isAuto,
   locked,
-  disabled,
-  onClick,
+  onToggle,
 }: {
-  children: ReactNode
-  badge: 'Manual' | 'Auto'
-  active: boolean
-  activeBorderClass: string
+  isAuto: boolean
   locked?: boolean
-  disabled?: boolean
-  onClick?: () => void
+  onToggle: () => void
 }) {
+  if (locked) {
+    return (
+      <span className="text-[11px] font-medium text-muted-foreground/45">Auto</span>
+    )
+  }
   return (
     <button
       type="button"
-      disabled={locked || disabled}
-      onClick={onClick}
-      className={cn(
-        'flex min-w-0 flex-1 flex-col gap-1.5 rounded-[6px] px-2.5 py-2 text-left transition',
-        active
-          ? cn('bg-white/75', activeBorderClass)
-          : 'bg-transparent opacity-55 hover:opacity-80',
-        (locked || disabled) && 'pointer-events-none',
-      )}
+      onClick={onToggle}
+      className="text-[11px] font-medium text-muted-foreground/55 transition hover:text-muted-foreground"
     >
-      <div className="flex min-h-[28px] items-baseline gap-[0.15em] leading-none tracking-tight">
-        {children}
-      </div>
-      <span
+      {isAuto ? 'Auto' : 'Manual'}
+    </button>
+  )
+}
+
+function MetricFooterControls({
+  isAuto,
+  locked,
+  onToggleSource,
+  onCard,
+  canHide,
+  onToggleCardVisibility,
+}: {
+  isAuto: boolean
+  locked?: boolean
+  onToggleSource: () => void
+  onCard: boolean
+  canHide: boolean
+  onToggleCardVisibility: () => void
+}) {
+  return (
+    <div className="flex flex-nowrap items-center justify-center gap-x-2">
+      <SourceToggle isAuto={isAuto} locked={locked} onToggle={onToggleSource} />
+      <button
+        type="button"
+        onClick={onToggleCardVisibility}
+        disabled={onCard && !canHide}
+        aria-pressed={!onCard}
+        title={
+          onCard
+            ? canHide
+              ? 'Hide on workout card'
+              : 'At least one metric must stay on the card'
+            : 'Show on workout card'
+        }
         className={cn(
-          'self-start rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
-          active
-            ? badge === 'Manual'
-              ? 'bg-[#111827]/10 text-[#111827]'
-              : 'bg-sky-500/15 text-sky-800'
-            : 'bg-muted/50 text-muted-foreground',
+          'shrink-0 whitespace-nowrap text-[11px] font-medium transition',
+          onCard
+            ? 'text-muted-foreground/55 hover:text-muted-foreground'
+            : 'text-muted-foreground/70',
+          onCard && !canHide && 'pointer-events-none opacity-40',
         )}
       >
-        {badge}
-      </span>
-    </button>
+        {onCard ? 'Hide' : 'Show'}
+      </button>
+    </div>
   )
 }
 
@@ -137,21 +139,16 @@ export type EditableWorkoutCardShellProps = {
   primaryMetric: WorkoutPrimaryMetric
   durationInput: string
   distanceInput: string
-  /** Auto-estimated value for distance (shown in the Auto cell). */
   autoDistanceInput?: string
-  /** Auto-estimated value for duration (shown in the Auto cell). */
   autoDurationInput?: string
   durationManual: boolean
   distanceManual: boolean
-  /** When false, secondary (non-primary) metric is dimmed and hidden on plan cards. */
   secondaryMetricVisible?: boolean
   metricsLocked: boolean
   showDistance?: boolean
   distanceUnit?: DistanceUnit
   durationUnit?: DurationUnit
   allowDurationUnitToggle?: boolean
-  isIndoor?: boolean
-  showIndoorToggle?: boolean
   onTitleChange: (value: string) => void
   onSubtitleChange: (value: string) => void
   onTitleAutoEnable: () => void
@@ -163,10 +160,15 @@ export type EditableWorkoutCardShellProps = {
   onDurationSourceChange?: (source: 'manual' | 'auto') => void
   onSecondaryMetricVisibleChange?: (visible: boolean) => void
   onToggleDurationUnit?: (event: MouseEvent) => void
-  onIndoorToggle?: () => void
   distanceLocked?: boolean
   durationLocked?: boolean
   cornerSlot?: ReactNode
+  /** Full date line above icon + title, e.g. "Friday, Jul 31 2026". */
+  dateLabel?: string | null
+  /** Intensity / workout-type control for the first metrics column. */
+  intensityControl?: ReactNode
+  sportOptions?: WorkoutType[]
+  onSportChange?: (sport: WorkoutType) => void
   className?: string
   footer?: ReactNode
 }
@@ -190,8 +192,6 @@ export function EditableWorkoutCardShell({
   distanceUnit = 'km',
   durationUnit = 'min',
   allowDurationUnitToggle = false,
-  isIndoor = false,
-  showIndoorToggle = false,
   onTitleChange,
   onSubtitleChange,
   onTitleAutoEnable,
@@ -203,15 +203,18 @@ export function EditableWorkoutCardShell({
   onDurationSourceChange,
   onSecondaryMetricVisibleChange,
   onToggleDurationUnit,
-  onIndoorToggle,
   distanceLocked,
   durationLocked,
   cornerSlot,
+  dateLabel,
+  intensityControl,
+  sportOptions,
+  onSportChange,
   className,
   footer,
 }: EditableWorkoutCardShellProps) {
-  const theme = getWorkoutEditorSportTheme(sportType)
-  const activeBorderClass = activeMetricBorderClass(sportType)
+  const canChangeSport =
+    Boolean(onSportChange) && Boolean(sportOptions && sportOptions.length > 1)
   const durationIsPrimary = primaryMetric === 'duration' || !showDistance
   const distanceIsPrimary = !durationIsPrimary
 
@@ -224,12 +227,27 @@ export function EditableWorkoutCardShell({
   const autoDistanceDisplay = autoDistanceInput.trim()
   const autoDurationDisplay = autoDurationInput.trim()
 
-  // Locked metrics (from structured details) count as auto-sourced
   const distanceSourceIsManual = lockDistance ? false : distanceManual
   const durationSourceIsManual = lockDuration ? false : durationManual
 
-  const distanceRowActive = distanceIsPrimary || secondaryMetricVisible
-  const durationRowActive = durationIsPrimary || secondaryMetricVisible
+  const shownDistance = distanceSourceIsManual
+    ? distanceInput
+    : autoDistanceDisplay || distanceInput
+  const shownDuration = durationSourceIsManual
+    ? durationInput
+    : autoDurationDisplay || durationInput
+
+  const distanceIsAuto = !distanceSourceIsManual
+  const durationIsAuto = !durationSourceIsManual
+
+  /** Black = shown on plan card; gray = hidden from card (still stored). */
+  const distanceOnCard =
+    showDistance &&
+    (primaryMetric === 'distance' || secondaryMetricVisible)
+  const durationOnCard =
+    primaryMetric === 'duration' || !showDistance || secondaryMetricVisible
+  const canHideDistance = distanceOnCard && durationOnCard
+  const canHideDuration = showDistance && distanceOnCard && durationOnCard
 
   const unitLabel = (unit: DurationUnit) => (unit === 'min' ? 'min' : 'h')
 
@@ -245,322 +263,394 @@ export function EditableWorkoutCardShell({
     onDurationSourceChange?.(source)
   }
 
-  function handleSelectDistanceSource(source: 'manual' | 'auto') {
+  function toggleDistanceSource() {
     if (lockDistance) return
-    const alreadyActive =
-      distanceRowActive &&
-      ((source === 'manual' && distanceSourceIsManual) ||
-        (source === 'auto' && !distanceSourceIsManual))
-    if (!distanceIsPrimary && alreadyActive) {
-      onSecondaryMetricVisibleChange?.(false)
-      return
-    }
-    selectDistanceSource(source)
+    selectDistanceSource(distanceSourceIsManual ? 'auto' : 'manual')
   }
 
-  function handleSelectDurationSource(source: 'manual' | 'auto') {
+  function toggleDurationSource() {
     if (lockDuration) return
-    const alreadyActive =
-      durationRowActive &&
-      ((source === 'manual' && durationSourceIsManual) ||
-        (source === 'auto' && !durationSourceIsManual))
-    if (!durationIsPrimary && alreadyActive) {
+    selectDurationSource(durationSourceIsManual ? 'auto' : 'manual')
+  }
+
+  function toggleDistanceCardVisibility() {
+    if (distanceOnCard) {
+      if (!canHideDistance) return
+      if (primaryMetric === 'distance') {
+        onPrimaryMetricChange('duration')
+      }
       onSecondaryMetricVisibleChange?.(false)
       return
     }
-    selectDurationSource(source)
+    if (primaryMetric === 'duration') {
+      onSecondaryMetricVisibleChange?.(true)
+    } else {
+      onPrimaryMetricChange('distance')
+      onSecondaryMetricVisibleChange?.(true)
+    }
   }
 
-  function handlePrimaryMetricChange(metric: WorkoutPrimaryMetric) {
-    onPrimaryMetricChange(metric)
+  function toggleDurationCardVisibility() {
+    if (durationOnCard) {
+      if (!canHideDuration) return
+      if (primaryMetric === 'duration') {
+        onPrimaryMetricChange('distance')
+      }
+      onSecondaryMetricVisibleChange?.(false)
+      return
+    }
+    if (primaryMetric === 'distance') {
+      onSecondaryMetricVisibleChange?.(true)
+    } else {
+      onPrimaryMetricChange('duration')
+      onSecondaryMetricVisibleChange?.(true)
+    }
   }
+
+  const valueTone = (onCard: boolean, isPrimary: boolean) =>
+    cn(
+      'font-bold',
+      isPrimary ? 'text-[32px]' : 'text-[18px]',
+      onCard ? 'text-[#111827]' : 'text-muted-foreground/45',
+    )
+
+  const unitTone = (onCard: boolean, isPrimary: boolean) =>
+    cn(
+      'font-semibold leading-none tracking-tight',
+      onCard ? 'text-[#111827]' : 'text-muted-foreground/45',
+      isPrimary ? 'text-base' : 'text-[11px]',
+    )
+
+  const sportIcon = canChangeSport ? (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          aria-label={`Sport: ${WORKOUT_TYPE_LABELS[sportType]}. Change sport`}
+          title="Change sport"
+          className="shrink-0 rounded-xl outline-none ring-offset-2 transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-foreground/20"
+        >
+          <WorkoutSportIcon type={sportType} size="md" />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="start"
+          sideOffset={6}
+          className="z-[220] min-w-[10.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
+        >
+          {sportOptions!.map((sport) => {
+            const selected = sport === sportType
+            return (
+              <DropdownMenu.Item
+                key={sport}
+                onSelect={() => onSportChange?.(sport)}
+                className={cn(
+                  'flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none',
+                  'data-[highlighted]:bg-foreground/[0.04]',
+                  selected && 'bg-foreground/[0.06] font-semibold',
+                )}
+              >
+                <WorkoutSportIcon type={sport} size="xs" />
+                <span className="flex-1">{WORKOUT_TYPE_LABELS[sport]}</span>
+              </DropdownMenu.Item>
+            )
+          })}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  ) : (
+    <WorkoutSportIcon type={sportType} size="md" className="mt-0.5 shrink-0" />
+  )
 
   return (
     <div
       className={cn(
-        'relative rounded-[6px] border p-4 shadow-none sm:p-5',
-        theme.card,
-        cornerSlot && 'pb-12',
+        'relative rounded-none border-0 border-b border-black/20 bg-gradient-to-b px-5 pb-6 pt-5 shadow-none sm:px-6',
+        heroGradientClass(sportType),
+        cornerSlot && 'pb-14',
         className,
       )}
     >
-      <div className="flex items-start gap-3">
-        <span
-          className={cn(
-            'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full',
-            theme.iconWrap,
-          )}
-        >
-          <WorkoutSportIcon
-            type={sportType}
-            size="sm"
-            className="!h-10 !w-10 !rounded-full !bg-transparent"
-          />
-        </span>
+      {dateLabel ? (
+        <p className="mb-2.5 text-[13px] leading-snug text-[#6B7280]">{dateLabel}</p>
+      ) : null}
 
-        <div className={cn('min-w-0 flex-1 space-y-2', showIndoorToggle && 'pr-8')}>
-          <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-start gap-3">
+        {sportIcon}
+
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5 pr-8">
+          <div className="flex max-w-full min-w-0 items-baseline gap-1.5">
             <input
               value={title}
               onChange={(e) => onTitleChange(e.target.value)}
               aria-label="Workout title"
-              className="min-w-0 flex-1 bg-transparent text-[17px] font-semibold leading-snug text-[#111827] outline-none placeholder:text-muted-foreground/50"
+              style={{ width: `${Math.max(title.length + 1, 6)}ch` }}
+              className="max-w-[calc(100%-2.75rem)] min-w-0 bg-transparent text-[17px] font-semibold leading-snug text-[#111827] outline-none placeholder:text-muted-foreground/50"
               placeholder="Workout title"
             />
-            <button
-              type="button"
+            <AutoTextButton
+              active={titleAuto}
               onClick={onTitleAutoEnable}
-              className={cn(
-                'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition',
-                titleAuto ? theme.chipOn : theme.chipOff,
-              )}
-              aria-pressed={titleAuto}
-            >
-              Auto
-            </button>
+            />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex max-w-full min-w-0 items-baseline gap-1.5">
             <input
               value={subtitle}
               onChange={(e) => onSubtitleChange(e.target.value)}
               aria-label="Workout subtitle"
-              className="min-w-0 flex-1 bg-transparent text-[13px] leading-snug text-[#6B7280] outline-none placeholder:text-muted-foreground/40"
+              style={{ width: `${Math.max(subtitle.length + 1, 6)}ch` }}
+              className="max-w-[calc(100%-2.75rem)] min-w-0 bg-transparent text-[13px] leading-snug text-[#6B7280] outline-none placeholder:text-muted-foreground/40"
               placeholder="Subtitle"
             />
-            <button
-              type="button"
+            <AutoTextButton
+              active={subtitleAuto}
               onClick={onSubtitleAutoEnable}
-              className={cn(
-                'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide transition',
-                subtitleAuto ? theme.chipOn : theme.chipOff,
-              )}
-              aria-pressed={subtitleAuto}
-            >
-              Auto
-            </button>
+            />
           </div>
-
-          <div className="space-y-1.5 pt-1.5">
-            {showDistance ? (
-              <div
-                className={cn(
-                  'flex items-stretch gap-2 rounded-[10px] px-1 py-1 transition',
-                  distanceIsPrimary && 'bg-white/40',
-                )}
-              >
-                <MetricHeroButton
-                  metric="distance"
-                  active={distanceIsPrimary}
-                  onSelect={handlePrimaryMetricChange}
-                  controlOnClass={theme.controlOn}
-                />
-
-                <div className="flex min-w-0 flex-1 gap-1">
-                  <MetricSourceCell
-                    badge="Manual"
-                    active={distanceRowActive && distanceSourceIsManual}
-                    activeBorderClass={activeBorderClass}
-                    locked={lockDistance}
-                    onClick={() => handleSelectDistanceSource('manual')}
-                  >
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={distanceInput}
-                      readOnly={lockDistance}
-                      onChange={(e) => onDistanceChange(e.target.value)}
-                      onFocus={() => {
-                        selectDistanceSource('manual')
-                        if (!lockDistance && !durationInput.trim() && !distanceInput.trim()) {
-                          onPrimaryMetricChange('distance')
-                        }
-                      }}
-                      placeholder={distancePlaceholder}
-                      style={{
-                        width: metricValueWidthCh(distanceInput, distancePlaceholder),
-                      }}
-                      className={cn(
-                        'm-0 min-w-0 shrink-0 bg-transparent p-0 leading-none tracking-tight outline-none placeholder:text-muted-foreground/30',
-                        valueSizeClass(distanceRowActive && distanceSourceIsManual, distanceIsPrimary),
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        // Keep typing focused without toggling secondary off
-                        selectDistanceSource('manual')
-                      }}
-                    />
-                    <span
-                      className={cn(
-                        'shrink-0 leading-none tracking-tight',
-                        unitSizeClass(distanceRowActive && distanceSourceIsManual, distanceIsPrimary),
-                      )}
-                    >
-                      {distanceUnit}
-                    </span>
-                  </MetricSourceCell>
-
-                  {!lockDistance ? (
-                    <MetricSourceCell
-                      badge="Auto"
-                      active={distanceRowActive && !distanceSourceIsManual}
-                      activeBorderClass={activeBorderClass}
-                      onClick={() => handleSelectDistanceSource('auto')}
-                    >
-                      <span
-                        className={cn(
-                          'leading-none tracking-tight tabular-nums',
-                          valueSizeClass(distanceRowActive && !distanceSourceIsManual, distanceIsPrimary),
-                          !autoDistanceDisplay && 'text-muted-foreground/40',
-                        )}
-                      >
-                        {autoDistanceDisplay || '—'}
-                      </span>
-                      {autoDistanceDisplay ? (
-                        <span
-                          className={cn(
-                            'shrink-0 leading-none tracking-tight',
-                            unitSizeClass(distanceRowActive && !distanceSourceIsManual, distanceIsPrimary),
-                          )}
-                        >
-                          {distanceUnit}
-                        </span>
-                      ) : null}
-                    </MetricSourceCell>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-
-            <div
-              className={cn(
-                'flex items-stretch gap-2 rounded-[10px] px-1 py-1 transition',
-                durationIsPrimary && 'bg-white/40',
-              )}
-            >
-              <MetricHeroButton
-                metric="duration"
-                active={durationIsPrimary}
-                onSelect={handlePrimaryMetricChange}
-                controlOnClass={theme.controlOn}
-              />
-
-              <div className="flex min-w-0 flex-1 gap-1">
-                <MetricSourceCell
-                  badge="Manual"
-                  active={durationRowActive && durationSourceIsManual}
-                  activeBorderClass={activeBorderClass}
-                  locked={lockDuration}
-                  onClick={() => handleSelectDurationSource('manual')}
-                >
-                  <input
-                    type="text"
-                    inputMode={durationUnit === 'min' ? 'numeric' : 'text'}
-                    value={durationInput}
-                    readOnly={lockDuration}
-                    onChange={(e) => onDurationChange(e.target.value)}
-                    onFocus={() => {
-                      selectDurationSource('manual')
-                      if (!lockDuration && !durationInput.trim() && !distanceInput.trim()) {
-                        onPrimaryMetricChange('duration')
-                      }
-                    }}
-                    placeholder={durationPlaceholder}
-                    style={{
-                      width: metricValueWidthCh(durationInput, durationPlaceholder),
-                    }}
-                    className={cn(
-                      'm-0 min-w-0 shrink-0 bg-transparent p-0 leading-none tracking-tight outline-none placeholder:text-muted-foreground/30',
-                      valueSizeClass(durationRowActive && durationSourceIsManual, durationIsPrimary),
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      selectDurationSource('manual')
-                    }}
-                  />
-                  {allowDurationUnitToggle && onToggleDurationUnit ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        if (!lockDuration) onToggleDurationUnit(e)
-                      }}
-                      disabled={lockDuration}
-                      className={cn(
-                        'shrink-0 leading-none tracking-tight transition',
-                        unitSizeClass(durationRowActive && durationSourceIsManual, durationIsPrimary),
-                        lockDuration && 'pointer-events-none opacity-50',
-                      )}
-                    >
-                      {unitLabel(durationUnit)}
-                    </button>
-                  ) : (
-                    <span
-                      className={cn(
-                        'shrink-0 leading-none tracking-tight',
-                        unitSizeClass(durationRowActive && durationSourceIsManual, durationIsPrimary),
-                      )}
-                    >
-                      {unitLabel(durationUnit)}
-                    </span>
-                  )}
-                </MetricSourceCell>
-
-                {!lockDuration ? (
-                  <MetricSourceCell
-                    badge="Auto"
-                    active={durationRowActive && !durationSourceIsManual}
-                    activeBorderClass={activeBorderClass}
-                    onClick={() => handleSelectDurationSource('auto')}
-                  >
-                    <span
-                      className={cn(
-                        'leading-none tracking-tight tabular-nums',
-                        valueSizeClass(durationRowActive && !durationSourceIsManual, durationIsPrimary),
-                        !autoDurationDisplay && 'text-muted-foreground/40',
-                      )}
-                    >
-                      {autoDurationDisplay || '—'}
-                    </span>
-                    {autoDurationDisplay ? (
-                      <span
-                        className={cn(
-                          'shrink-0 leading-none tracking-tight',
-                          unitSizeClass(durationRowActive && !durationSourceIsManual, durationIsPrimary),
-                        )}
-                      >
-                        {unitLabel(durationUnit)}
-                      </span>
-                    ) : null}
-                  </MetricSourceCell>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {footer}
         </div>
       </div>
 
-      {showIndoorToggle && onIndoorToggle ? (
-        <button
-          type="button"
-          onClick={onIndoorToggle}
-          className={cn(
-            'absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-[6px] border transition',
-            isIndoor
-              ? theme.controlOn
-              : 'border-transparent text-muted-foreground/55 hover:border-border hover:bg-white/60',
-          )}
-          aria-pressed={isIndoor}
-          title={isIndoor ? 'Indoor' : 'Outdoor'}
-        >
-          <Home className="h-4 w-4" />
-        </button>
-      ) : null}
+      <div className="mt-[18px] flex min-w-0 items-stretch overflow-hidden">
+        {intensityControl ? (
+          <>
+            <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-2 text-center">
+              <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Intensity
+              </span>
+              <div className="mt-1.5 flex h-8 w-full shrink-0 items-center justify-center overflow-hidden">
+                {intensityControl}
+              </div>
+            </div>
+            <div className="w-px shrink-0 self-stretch bg-foreground/20" />
+          </>
+        ) : null}
+
+        {showDistance ? (
+          <>
+            <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center">
+              <button
+                type="button"
+                aria-pressed={distanceIsPrimary && distanceOnCard}
+                title={
+                  distanceOnCard
+                    ? distanceIsPrimary
+                      ? 'Primary metric on plan card'
+                      : 'Set as primary metric'
+                    : 'Show on workout card'
+                }
+                onClick={() => {
+                  onPrimaryMetricChange('distance')
+                  onSecondaryMetricVisibleChange?.(true)
+                }}
+                className={cn(
+                  'inline-flex h-4 shrink-0 items-center justify-center gap-1.5',
+                  distanceOnCard
+                    ? 'text-foreground'
+                    : 'text-muted-foreground/40',
+                )}
+              >
+                <Link2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                <span className="text-[10px] font-bold uppercase tracking-wide">
+                  Distance
+                </span>
+              </button>
+
+              <div
+                className={cn(
+                  'mt-1.5 flex h-8 w-full shrink-0 items-center justify-center gap-0.5',
+                  !distanceOnCard && 'opacity-90',
+                )}
+              >
+                {distanceIsAuto && shownDistance ? (
+                  <span
+                    className={cn(
+                      'font-semibold leading-none',
+                      distanceOnCard
+                        ? 'text-muted-foreground'
+                        : 'text-muted-foreground/40',
+                      distanceIsPrimary ? 'text-xl' : 'text-sm',
+                    )}
+                  >
+                    ~
+                  </span>
+                ) : null}
+                {distanceSourceIsManual || lockDistance ? (
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={distanceInput}
+                    readOnly={lockDistance}
+                    onChange={(e) => onDistanceChange(e.target.value)}
+                    onFocus={() => {
+                      selectDistanceSource('manual')
+                      if (!lockDistance && !durationInput.trim() && !distanceInput.trim()) {
+                        onPrimaryMetricChange('distance')
+                      }
+                    }}
+                    placeholder={distancePlaceholder}
+                    style={{
+                      width: metricValueWidthCh(distanceInput, distancePlaceholder),
+                    }}
+                    className={cn(
+                      'm-0 bg-transparent p-0 text-center tabular-nums leading-none tracking-tight outline-none placeholder:text-muted-foreground/30',
+                      valueTone(distanceOnCard, distanceIsPrimary),
+                    )}
+                  />
+                ) : (
+                  <span
+                    className={cn(
+                      'tabular-nums leading-none tracking-tight',
+                      valueTone(distanceOnCard, distanceIsPrimary),
+                      !shownDistance && 'text-muted-foreground/40',
+                    )}
+                  >
+                    {shownDistance || '—'}
+                  </span>
+                )}
+                <span className={unitTone(distanceOnCard, distanceIsPrimary)}>
+                  {distanceUnit}
+                </span>
+              </div>
+
+              <div className="mt-1.5 flex h-4 shrink-0 items-center justify-center">
+                <MetricFooterControls
+                  isAuto={distanceIsAuto}
+                  locked={lockDistance}
+                  onToggleSource={toggleDistanceSource}
+                  onCard={distanceOnCard}
+                  canHide={canHideDistance}
+                  onToggleCardVisibility={toggleDistanceCardVisibility}
+                />
+              </div>
+            </div>
+            <div className="w-px shrink-0 self-stretch bg-foreground/20" />
+          </>
+        ) : null}
+
+        <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center">
+          <button
+            type="button"
+            aria-pressed={durationIsPrimary && durationOnCard}
+            title={
+              durationOnCard
+                ? durationIsPrimary
+                  ? 'Primary metric on plan card'
+                  : 'Set as primary metric'
+                : 'Show on workout card'
+            }
+            onClick={() => {
+              onPrimaryMetricChange('duration')
+              onSecondaryMetricVisibleChange?.(true)
+            }}
+            className={cn(
+              'inline-flex h-4 shrink-0 items-center justify-center gap-1.5',
+              durationOnCard
+                ? 'text-foreground'
+                : 'text-muted-foreground/40',
+            )}
+          >
+            <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <span className="text-[10px] font-bold uppercase tracking-wide">Time</span>
+          </button>
+
+          <div
+            className={cn(
+              'mt-1.5 flex h-8 w-full shrink-0 items-center justify-center gap-0.5',
+              !durationOnCard && 'opacity-90',
+            )}
+          >
+            {durationIsAuto && shownDuration ? (
+              <span
+                className={cn(
+                  'font-semibold leading-none',
+                  durationOnCard
+                    ? 'text-muted-foreground'
+                    : 'text-muted-foreground/40',
+                  durationIsPrimary ? 'text-xl' : 'text-sm',
+                )}
+              >
+                ~
+              </span>
+            ) : null}
+            {durationSourceIsManual || lockDuration ? (
+              <input
+                type="text"
+                inputMode={durationUnit === 'min' ? 'numeric' : 'text'}
+                value={durationInput}
+                readOnly={lockDuration}
+                onChange={(e) => onDurationChange(e.target.value)}
+                onFocus={() => {
+                  selectDurationSource('manual')
+                  if (!lockDuration && !durationInput.trim() && !distanceInput.trim()) {
+                    onPrimaryMetricChange('duration')
+                  }
+                }}
+                placeholder={durationPlaceholder}
+                style={{
+                  width: metricValueWidthCh(durationInput, durationPlaceholder),
+                }}
+                className={cn(
+                  'm-0 bg-transparent p-0 text-center tabular-nums leading-none tracking-tight outline-none placeholder:text-muted-foreground/30',
+                  valueTone(durationOnCard, durationIsPrimary),
+                )}
+              />
+            ) : (
+              <span
+                className={cn(
+                  'tabular-nums leading-none tracking-tight',
+                  valueTone(durationOnCard, durationIsPrimary),
+                  !shownDuration && 'text-muted-foreground/40',
+                )}
+              >
+                {shownDuration || '—'}
+              </span>
+            )}
+            {allowDurationUnitToggle && onToggleDurationUnit ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (!lockDuration) onToggleDurationUnit(e)
+                }}
+                disabled={lockDuration}
+                title={`Unit: ${unitLabel(durationUnit)}. Click to switch.`}
+                aria-label={`Duration unit ${unitLabel(durationUnit)}. Click to switch between min and hours.`}
+                className={cn(
+                  unitTone(durationOnCard, durationIsPrimary),
+                  'underline-offset-2 hover:underline',
+                  lockDuration && 'pointer-events-none opacity-50',
+                )}
+              >
+                {unitLabel(durationUnit)}
+              </button>
+            ) : (
+              <span className={unitTone(durationOnCard, durationIsPrimary)}>
+                {unitLabel(durationUnit)}
+              </span>
+            )}
+          </div>
+
+          <div className="mt-1.5 flex h-4 shrink-0 items-center justify-center">
+            <MetricFooterControls
+              isAuto={durationIsAuto}
+              locked={lockDuration}
+              onToggleSource={toggleDurationSource}
+              onCard={durationOnCard}
+              canHide={canHideDuration}
+              onToggleCardVisibility={toggleDurationCardVisibility}
+            />
+          </div>
+        </div>
+      </div>
+
+      {footer}
 
       {cornerSlot ? (
-        <div className="absolute bottom-3 right-3 flex items-center">{cornerSlot}</div>
+        <div className="absolute bottom-3 right-5 flex items-center sm:right-6">
+          {cornerSlot}
+        </div>
       ) : null}
     </div>
   )
