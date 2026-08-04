@@ -58,7 +58,7 @@ export function UpcomingRaceTable({ races, className }: UpcomingRaceTableProps) 
                     >
                       <td className="px-4 py-3">
                         <Link
-                          href={`/races/${race.id}/edit`}
+                          href={`/season/${race.id}/edit`}
                           className="flex min-w-0 items-start gap-3"
                         >
                           <span
@@ -120,7 +120,7 @@ export function UpcomingRaceTable({ races, className }: UpcomingRaceTableProps) 
                       </td>
                       <td className="px-4 py-3 text-right">
                         <ItemActions
-                          editHref={`/races/${race.id}/edit`}
+                          editHref={`/season/${race.id}/edit`}
                           deleteAction={deleteRace}
                           deleteId={race.id}
                           deleteIdField="raceId"

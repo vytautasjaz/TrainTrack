@@ -35,6 +35,7 @@ type PlanMultiWeekTablesProps = {
   addWeekHref?: string | null
   removeWeekHref?: string | null
   header?: ReactNode
+  swimCssSecPer100m?: number | null
 }
 
 function CombinedWeeksTable({
@@ -47,6 +48,7 @@ function CombinedWeeksTable({
   prevWeekHref,
   nextWeekHref,
   combinedLabel,
+  swimCssSecPer100m,
 }: {
   weeks: PlanMultiWeekBlock[]
   isCoach: boolean
@@ -57,6 +59,7 @@ function CombinedWeeksTable({
   prevWeekHref: string
   nextWeekHref: string
   combinedLabel: string
+  swimCssSecPer100m?: number | null
 }) {
   const first = weeks[0]
   const typesInFirst = new Set(
@@ -117,6 +120,7 @@ function CombinedWeeksTable({
               planSportRows={planSportRows}
               weekExtraPlanSportRows={block.weekExtraPlanSportRows}
               weekHiddenPlanSportRows={block.weekHiddenPlanSportRows}
+              swimCssSecPer100m={swimCssSecPer100m}
               hideFooterRows
               tableFragment={index === 0 ? 'thead' : 'tbody-row'}
               skipDndProvider
@@ -142,6 +146,7 @@ function CombinedWeeksTable({
           planSportRows={planSportRows}
           weekExtraPlanSportRows={block.weekExtraPlanSportRows}
           weekHiddenPlanSportRows={block.weekHiddenPlanSportRows}
+          swimCssSecPer100m={swimCssSecPer100m}
           weekLabel={block.weekLabel}
           prevWeekHref={index === 0 ? prevWeekHref : undefined}
           nextWeekHref={index === 0 ? nextWeekHref : undefined}
@@ -172,6 +177,7 @@ export function PlanMultiWeekTables({
   addWeekHref,
   removeWeekHref,
   header,
+  swimCssSecPer100m = null,
 }: PlanMultiWeekTablesProps) {
   const canCombine = weeks.length > 1
   const [combined, setCombined] = useState(true)
@@ -272,6 +278,7 @@ export function PlanMultiWeekTables({
       prevWeekHref={prevWeekHref}
       nextWeekHref={nextWeekHref}
       combinedLabel={combinedLabel}
+      swimCssSecPer100m={swimCssSecPer100m}
     />
   )
 
@@ -297,6 +304,7 @@ export function PlanMultiWeekTables({
             planSportRows={planSportRows}
             weekExtraPlanSportRows={block.weekExtraPlanSportRows}
             weekHiddenPlanSportRows={block.weekHiddenPlanSportRows}
+            swimCssSecPer100m={swimCssSecPer100m}
             weekLabel={block.weekLabel}
             prevWeekHref={index === 0 ? prevWeekHref : undefined}
             nextWeekHref={index === 0 ? nextWeekHref : undefined}

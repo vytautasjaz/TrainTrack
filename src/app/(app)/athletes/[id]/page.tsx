@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { Flag, Route, Timer, TrendingUp } from 'lucide-react'
-import { getSession } from '@/lib/session'
+import { getSession, isCoach} from '@/lib/session'
 import { getAthleteDashboard, getAthleteForCoach, getProgressStats } from '@/lib/queries'
 import { pickAthletePreferences } from '@/lib/athlete-preferences'
 import { PageHeader } from '@/components/ui/page-header'
@@ -19,7 +19,7 @@ type AthleteProfilePageProps = {
 export default async function AthleteProfilePage({ params }: AthleteProfilePageProps) {
   const session = await getSession()
   if (!session) redirect('/')
-  if (session.role !== 'COACH') redirect('/dashboard')
+  if (!isCoach(session)) redirect('/dashboard')
 
   const { id } = await params
   const athlete = await getAthleteForCoach(session.userId, id)

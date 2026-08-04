@@ -19,25 +19,25 @@ import { TriathlonDistance } from '@prisma/client'
 const HERO_GRADIENT: Record<RacePriority, string> = {
   A: 'from-white to-red-100',
   B: 'from-white to-blue-100',
-  C: 'from-white to-amber-100',
+  C: 'from-white to-emerald-100',
 }
 
 const HERO_ICON: Record<RacePriority, string> = {
   A: 'bg-red-500/15 text-red-700',
   B: 'bg-blue-500/15 text-blue-700',
-  C: 'bg-amber-500/15 text-amber-800',
+  C: 'bg-emerald-500/15 text-emerald-800',
 }
 
 const HERO_BADGE: Record<RacePriority, string> = {
   A: 'bg-red-500 text-white',
   B: 'bg-blue-500 text-white',
-  C: 'bg-amber-500 text-white',
+  C: 'bg-emerald-500 text-white',
 }
 
 const HERO_MUTED: Record<RacePriority, string> = {
   A: 'text-red-800/55',
   B: 'text-blue-800/55',
-  C: 'text-amber-900/50',
+  C: 'text-emerald-900/50',
 }
 
 const HERO_WATCHING = {

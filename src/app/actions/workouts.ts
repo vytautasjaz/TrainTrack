@@ -3,9 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSession, resolveAthleteId, requireAthleteSession } from '@/lib/session'
+import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, coachCanAccessAthlete } from '@/lib/session'
 import { parseDateOnly, toDateKey } from '@/lib/dates'
-import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance } from '@prisma/client'
+import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, CoachAthleteLinkStatus } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
 import { defaultSportForRaceType } from '@/lib/races'
 import {
@@ -35,6 +35,25 @@ function parseOptionalInt(value: FormDataEntryValue | null) {
 function parseOptionalString(value: FormDataEntryValue | null) {
   const str = (value as string)?.trim()
   return str || undefined
+}
+
+async function requireRaceAccess(raceId: string) {
+  const session = await requireSession()
+  const race = await prisma.race.findUnique({
+    where: { id: raceId },
+    select: { id: true, athleteId: true },
+  })
+  if (!race) throw new Error('Race not found')
+
+  if (isCoach(session)) {
+    const ok = await coachCanAccessAthlete(session.userId, race.athleteId)
+    if (!ok) throw new Error('Race not found')
+  } else {
+    const ownId = await resolveAthleteId(session)
+    if (!ownId || race.athleteId !== ownId) throw new Error('Race not found')
+  }
+
+  return { session, race }
 }
 
 function parseRaceCourseType(value: FormDataEntryValue | null): RaceCourseType | null {
@@ -162,7 +181,7 @@ async function cleanupLegacyRescheduleArtifacts(workout: {
 
 async function requireAthleteOwnedWorkout(workoutId: string) {
   const session = await requireSession()
-  if (session.role !== 'ATHLETE') throw new Error('Athlete only')
+  if (!session.hasAthlete) throw new Error('Athlete only')
 
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete profile')
@@ -254,7 +273,7 @@ export async function completeWorkout(formData: FormData) {
 
 export async function rescheduleWorkout(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'ATHLETE') throw new Error('Athlete only')
+  if (!session.hasAthlete) throw new Error('Athlete only')
 
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete profile')
@@ -315,7 +334,7 @@ export async function rescheduleWorkout(formData: FormData) {
 
 export async function unlogWorkout(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'ATHLETE') throw new Error('Athlete only')
+  if (!session.hasAthlete) throw new Error('Athlete only')
 
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete profile')
@@ -356,7 +375,7 @@ export async function unlogWorkout(formData: FormData) {
 
 export async function markWorkoutDone(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'ATHLETE') throw new Error('Athlete only')
+  if (!session.hasAthlete) throw new Error('Athlete only')
 
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete profile')
@@ -392,7 +411,7 @@ export async function markWorkoutDone(formData: FormData) {
 
 export async function markWorkoutSkipped(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'ATHLETE') throw new Error('Athlete only')
+  if (!session.hasAthlete) throw new Error('Athlete only')
 
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete profile')
@@ -426,7 +445,7 @@ export async function markWorkoutSkipped(formData: FormData) {
 
 export async function createWorkoutFromTemplate(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete selected')
 
@@ -475,13 +494,13 @@ export async function createWorkoutFromTemplate(formData: FormData) {
 /** Copy a planned workout into the coach library as a new template. */
 export async function createTemplateFromWorkout(workoutId: string) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
   if (!workoutId) throw new Error('Workout required')
 
   const workout = await prisma.workout.findFirst({
     where: {
       id: workoutId,
-      athlete: { coachId: session.userId },
+      athlete: athleteOwnedByCoachWhere(session.userId),
     },
   })
   if (!workout) throw new Error('Workout not found')
@@ -522,7 +541,7 @@ export async function createTemplateFromWorkout(workoutId: string) {
 
 export async function createTemplate(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const type = formData.get('type') as WorkoutType
 
@@ -557,12 +576,21 @@ export async function createRace(formData: FormData) {
   const formAthleteId = formData.get('athleteId') as string | null
   let athleteId: string | null = formAthleteId?.trim() || null
 
-  if (session.role === 'COACH' && athleteId) {
+  if (isCoach(session) && athleteId) {
     const owned = await prisma.athlete.findFirst({
-      where: { id: athleteId, coachId: session.userId },
+      where: { id: athleteId, ...athleteOwnedByCoachWhere(session.userId) },
       select: { id: true },
     })
     if (!owned) throw new Error('Athlete not found')
+  } else if (isCoach(session)) {
+    athleteId = await resolveAthleteId(session)
+    if (athleteId) {
+      const owned = await prisma.athlete.findFirst({
+        where: { id: athleteId, ...athleteOwnedByCoachWhere(session.userId) },
+        select: { id: true },
+      })
+      if (!owned) throw new Error('Athlete not found')
+    }
   } else {
     athleteId = await resolveAthleteId(session)
   }
@@ -618,7 +646,7 @@ export async function createRace(formData: FormData) {
     await saveRaceLegPlanFields(created.id, formData, { persistDistances: isTriCustom })
   }
 
-  revalidatePath('/races')
+  revalidatePath('/season')
   revalidatePath('/dashboard')
   revalidatePath('/training')
   revalidatePath(`/athletes/${athleteId}`)
@@ -666,13 +694,30 @@ async function saveRaceLegResultFields(raceId: string, formData: FormData) {
 
 export async function createAthlete(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
-  await prisma.athlete.create({
-    data: {
-      coachId: session.userId,
-      name: formData.get('name') as string,
-    },
+  const name = String(formData.get('name') ?? '').trim()
+  if (!name) throw new Error('Name is required')
+
+  const coachProfile = await prisma.coachProfile.findUnique({
+    where: { userId: session.userId },
+  })
+  if (!coachProfile) throw new Error('Coach profile required — become a coach first')
+
+  await prisma.$transaction(async (tx) => {
+    const athlete = await tx.athlete.create({
+      data: {
+        coachId: session.userId,
+        name,
+      },
+    })
+    await tx.coachAthleteLink.create({
+      data: {
+        coachProfileId: coachProfile.id,
+        athleteId: athlete.id,
+        status: CoachAthleteLinkStatus.ACCEPTED,
+      },
+    })
   })
 
   revalidatePath('/dashboard')
@@ -693,7 +738,7 @@ export async function moveWorkout(formData: FormData) {
 
 export async function moveWorkoutToDate(workoutId: string, dateKey: string) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Only coaches can move workouts')
+  if (!isCoach(session)) throw new Error('Only coaches can move workouts')
 
   const workout = await prisma.workout.findUniqueOrThrow({
     where: { id: workoutId },
@@ -713,7 +758,7 @@ export async function moveWorkoutToDate(workoutId: string, dateKey: string) {
 
 export async function reorderDayWorkouts(dateKey: string, workoutIds: string[]) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Only coaches can reorder workouts')
+  if (!isCoach(session)) throw new Error('Only coaches can reorder workouts')
 
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete selected')
@@ -755,7 +800,7 @@ export async function copyWorkoutToDates(payload: {
   dates: string[]
 }) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const dates = [...new Set(payload.dates.map((d) => d.trim()).filter(Boolean))]
   if (!payload.workoutId || dates.length === 0) {
@@ -802,7 +847,7 @@ export async function copyWorkoutToDates(payload: {
 /** Unique sport types already planned per day in a month (for copy calendar). */
 export async function getAthleteDaySportsForMonth(year: number, month: number) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) return {} as Record<string, WorkoutType[]>
@@ -833,7 +878,7 @@ export async function getAthleteDaySportsForMonth(year: number, month: number) {
 
 export async function createWorkout(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete selected')
@@ -861,7 +906,7 @@ export async function createWorkout(formData: FormData) {
 
 export async function updateWorkout(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const workoutId = formData.get('workoutId') as string
 
@@ -892,7 +937,7 @@ export async function patchPlanWorkoutCard(input: {
   plannedDistanceMeters?: number | null
 }) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const workoutId = input.workoutId?.trim()
   if (!workoutId) throw new Error('Workout required')
@@ -900,7 +945,7 @@ export async function patchPlanWorkoutCard(input: {
   const existing = await prisma.workout.findFirst({
     where: {
       id: workoutId,
-      athlete: { coachId: session.userId },
+      athlete: athleteOwnedByCoachWhere(session.userId),
     },
     select: { id: true, type: true },
   })
@@ -942,7 +987,7 @@ export async function patchPlanWorkoutCard(input: {
 
 export async function deleteWorkout(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const workoutId = formData.get('workoutId') as string
   await prisma.workout.delete({ where: { id: workoutId } })
@@ -959,7 +1004,7 @@ export async function deleteWorkout(formData: FormData) {
 
 export async function updateTemplate(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const templateId = formData.get('templateId') as string
 
@@ -987,7 +1032,7 @@ export async function updateTemplate(formData: FormData) {
 
 export async function deleteTemplate(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const templateId = formData.get('templateId') as string
   const template = await prisma.workoutTemplate.findFirst({
@@ -1005,7 +1050,7 @@ export async function deleteTemplate(formData: FormData) {
 
 export async function duplicateTemplate(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const templateId = formData.get('templateId') as string
   if (!templateId) throw new Error('Template required')
@@ -1038,8 +1083,8 @@ export async function duplicateTemplate(formData: FormData) {
 }
 
 export async function updateRace(formData: FormData) {
-  await requireSession()
   const raceId = formData.get('raceId') as string
+  await requireRaceAccess(raceId)
   const raceType = formData.get('type') as RaceType
   const sportRaw = formData.get('sport') as WorkoutType | null
   const priorityRaw = (formData.get('priority') as RacePriority | null) || RacePriority.C
@@ -1051,7 +1096,7 @@ export async function updateRace(formData: FormData) {
   const customDistanceKm = isTriCustom
     ? sumTriCustomDistanceKm(formData)
     : parseCustomDistanceKm(formData.get('customDistanceKm'))
-  const returnTo = (formData.get('returnTo') as string) || '/races'
+  const returnTo = (formData.get('returnTo') as string) || '/season'
   const prepRaw = formData.get('preparationWeeks')
   let preparationWeeks: number | null = null
   if (typeof prepRaw === 'string' && prepRaw.trim()) {
@@ -1089,20 +1134,20 @@ export async function updateRace(formData: FormData) {
     // Clear overall Strava when converting away is handled by ensure (deletes legs).
   }
 
-  revalidatePath('/races')
+  revalidatePath('/season')
   revalidatePath('/dashboard')
   revalidatePath('/training')
   revalidatePath(`/athletes/${race.athleteId}`)
-  revalidatePath(`/races/${race.id}/edit`)
+  revalidatePath(`/season/${race.id}/edit`)
   const skipRedirect = formData.get('skipRedirect') === '1'
   if (!skipRedirect) {
-    redirect(returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/races')
+    redirect(returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/season')
   }
 }
 
 export async function setRaceIntent(formData: FormData) {
-  await requireSession()
   const raceId = formData.get('raceId') as string
+  await requireRaceAccess(raceId)
   const intentRaw = formData.get('intent') as RaceIntent
   if (intentRaw !== RaceIntent.PLANNED && intentRaw !== RaceIntent.WATCHING) {
     throw new Error('Invalid race intent')
@@ -1114,7 +1159,7 @@ export async function setRaceIntent(formData: FormData) {
     select: { athleteId: true },
   })
 
-  revalidatePath('/races')
+  revalidatePath('/season')
   revalidatePath('/dashboard')
   revalidatePath('/training')
   revalidatePath(`/athletes/${race.athleteId}`)
@@ -1135,9 +1180,9 @@ export async function logRaceOutcome(formData: FormData) {
   }
 
   const existing =
-    session.role === 'COACH'
+    isCoach(session)
       ? await prisma.race.findFirst({
-        where: { id: raceId, athlete: { coachId: session.userId } },
+        where: { id: raceId, athlete: athleteOwnedByCoachWhere(session.userId) },
         select: { id: true, athleteId: true, type: true },
       })
       : await prisma.race.findFirst({
@@ -1172,7 +1217,7 @@ export async function logRaceOutcome(formData: FormData) {
       resultNotes,
       resultLoggedAt: new Date(),
       resultDismissedAt:
-        isLoggedResult && session.role === 'ATHLETE' ? null : undefined,
+        isLoggedResult && session.hasAthlete ? null : undefined,
     },
   })
 
@@ -1182,7 +1227,7 @@ export async function logRaceOutcome(formData: FormData) {
   }
 
   revalidatePath('/dashboard')
-  revalidatePath('/races')
+  revalidatePath('/season')
   revalidatePath(`/athletes/${existing.athleteId}`)
 }
 
@@ -1229,16 +1274,12 @@ export async function logManualWorkout(formData: FormData) {
 }
 
 export async function deleteRace(formData: FormData) {
-  await requireSession()
   const raceId = formData.get('raceId') as string
-  const race = await prisma.race.findUnique({
-    where: { id: raceId },
-    select: { athleteId: true },
-  })
+  const { race } = await requireRaceAccess(raceId)
   await prisma.race.delete({ where: { id: raceId } })
 
-  revalidatePath('/races')
+  revalidatePath('/season')
   revalidatePath('/dashboard')
   revalidatePath('/training')
-  if (race) revalidatePath(`/athletes/${race.athleteId}`)
+  revalidatePath(`/athletes/${race.athleteId}`)
 }

@@ -35,7 +35,7 @@ export function RaceDetailSheet({
   open,
   onOpenChange,
   onChanged,
-  returnTo = '/races',
+  returnTo = '/season',
 }: RaceDetailSheetProps) {
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { WorkoutType } from "@prisma/client";
 import { AddWorkoutCell } from "@/components/plan/add-workout-cell";
 import { PlanMobileDayStack } from "@/components/plan/plan-mobile-day-stack";
+import { SeasonEventChips } from "@/components/plan/season-event-chips";
 import { PlanWorkoutCell } from "@/components/plan/plan-workout-row";
 import { PlanWeekDndProvider } from "@/components/plan/plan-week-dnd";
 import { PlanWeekDayStrip } from "@/components/plan/week-day-strip";
@@ -60,6 +61,8 @@ type PlanTableViewProps = {
   weekLabel?: string;
   prevWeekHref?: string;
   nextWeekHref?: string;
+  /** Athlete CSS (sec/100m) — estimates swim duration in week volume when missing. */
+  swimCssSecPer100m?: number | null;
   /** Hide weekly volume + add-day footer rows (e.g. combined multi-week table). */
   hideFooterRows?: boolean;
   /**
@@ -162,6 +165,38 @@ function DayHeaderRow({
   );
 }
 
+function EventsTableRow({ days }: { days: PlanDay[] }) {
+  return (
+    <tr className={cn("border-b bg-muted/10", PLAN_TABLE_LINE)}>
+      <th
+        className={cn(
+          "bg-muted/20 px-1 py-1 text-left align-top text-[8px] font-medium text-muted-foreground landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-[10px]",
+          PLAN_TABLE_VLINE,
+        )}
+      >
+        Events
+      </th>
+      {days.map((day) => {
+        const events = day.seasonEvents ?? [];
+        return (
+          <td
+            key={day.dateKey}
+            className={cn(
+              "align-top landscape:max-lg:px-px",
+              PLAN_TABLE_VLINE,
+              events.length > 0
+                ? "bg-amber-200/90 p-1.5 dark:bg-amber-500/25 landscape:max-lg:p-1 lg:min-h-[3.25rem] lg:p-2"
+                : cn("p-0.5 lg:p-1.5", dayColumnClass(day)),
+            )}
+          >
+            <SeasonEventChips events={events} variant="note" editable />
+          </td>
+        );
+      })}
+    </tr>
+  );
+}
+
 function NoteTableRow({
   days,
   canEditDayNotes,
@@ -251,13 +286,17 @@ function VolumeTableRow({
   isCoach,
   canEditDayNotes,
   athleteId,
+  swimCssSecPer100m,
 }: {
   days: PlanDay[];
   isCoach: boolean;
   canEditDayNotes: boolean;
   athleteId?: string;
+  swimCssSecPer100m?: number | null;
 }) {
-  const { planned: totalMin, actual: actualMin } = sumWeekDurationMinutes(days);
+  const { planned: totalMin, actual: actualMin } = sumWeekDurationMinutes(days, {
+    swimCssSecPer100m,
+  });
   const showDayAdd = isCoach || canEditDayNotes;
 
   return (
@@ -330,6 +369,7 @@ function SportTableRows({
   dragEnabled,
   athleteId,
   weekStartKey,
+  swimCssSecPer100m,
 }: {
   days: PlanDay[];
   sportRows: WorkoutType[];
@@ -338,11 +378,12 @@ function SportTableRows({
   dragEnabled: boolean;
   athleteId?: string;
   weekStartKey?: string;
+  swimCssSecPer100m?: number | null;
 }) {
   return (
     <>
       {sportRows.map((sport) => {
-        const totals = sumSportWeekTotals(days, sport);
+        const totals = sumSportWeekTotals(days, sport, { swimCssSecPer100m });
 
         const SportIcon = WORKOUT_TYPE_ICONS[sport];
         const sportIconColor = WORKOUT_TYPE_COLORS[sport].replace(/bg-\S+\s*/g, "").trim();
@@ -444,6 +485,7 @@ function PlanTableViewInner({
   weekLabel,
   prevWeekHref,
   nextWeekHref,
+  swimCssSecPer100m = null,
   hideFooterRows = false,
   tableFragment = false,
 }: PlanTableViewProps) {
@@ -480,6 +522,7 @@ function PlanTableViewInner({
 
   const hasAnyDayNotes = days.some((d) => d.dayNote);
   const showNoteRow = hasAnyDayNotes;
+  const showEventsRow = days.some((d) => (d.seasonEvents?.length ?? 0) > 0);
   const showRecoveryRow = days.some((d) => dayHasRecovery(d.workouts));
   const showEmptyWorkoutsRow =
     !isCoach && sportRows.length === 0 && !showRecoveryRow;
@@ -563,6 +606,7 @@ function PlanTableViewInner({
       {tableFragment === "tbody-row" && (
         <DayHeaderRow days={days} as="th" emphasizeTop />
       )}
+      {showEventsRow && <EventsTableRow days={days} />}
       {showNoteRow && (
         <NoteTableRow
           days={days}
@@ -578,6 +622,7 @@ function PlanTableViewInner({
         dragEnabled={dragEnabled}
         athleteId={athleteId}
         weekStartKey={weekStartKey}
+        swimCssSecPer100m={swimCssSecPer100m}
       />
       {showEmptyWorkoutsRow && (
         <tr className={cn("border-b", PLAN_TABLE_LINE)}>
@@ -604,6 +649,7 @@ function PlanTableViewInner({
           isCoach={isCoach}
           canEditDayNotes={canEditDayNotes}
           athleteId={athleteId}
+          swimCssSecPer100m={swimCssSecPer100m}
         />
       )}
     </>

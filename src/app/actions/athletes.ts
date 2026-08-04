@@ -14,17 +14,9 @@ import {
   type AthletePreferences,
 } from '@/lib/athlete-preferences'
 import { isConfigurablePlanSport, parsePlanSportRows } from '@/lib/plan-sports'
-import { requireSession } from '@/lib/session'
+import { requireSession, isCoach, requireCoachOwnsAthlete, athleteOwnedByCoachWhere } from '@/lib/session'
 
 const VALID_STATUSES = new Set<string>(Object.values(AthleteStatus))
-
-async function requireCoachOwnsAthlete(coachId: string, athleteId: string) {
-  const athlete = await prisma.athlete.findFirst({
-    where: { id: athleteId, coachId },
-    select: { id: true },
-  })
-  if (!athlete) throw new Error('Athlete not found')
-}
 
 function parseHrValue(raw: FormDataEntryValue | null): number | null {
   if (typeof raw !== 'string' || !raw.trim()) return null
@@ -47,10 +39,10 @@ export async function getAthleteCoachProfile(athleteId: string): Promise<{
   planSportRows: WorkoutType[]
 } | null> {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const athlete = await prisma.athlete.findFirst({
-    where: { id: athleteId, coachId: session.userId },
+    where: { id: athleteId, ...athleteOwnedByCoachWhere(session.userId) },
     select: {
       id: true,
       name: true,
@@ -82,7 +74,7 @@ export async function getAthleteCoachProfile(athleteId: string): Promise<{
 
 export async function updateAthleteStatusByCoach(athleteId: string, status: AthleteStatus) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
   if (!VALID_STATUSES.has(status)) throw new Error('Invalid status')
 
   await requireCoachOwnsAthlete(session.userId, athleteId)
@@ -98,7 +90,7 @@ export async function updateAthleteStatusByCoach(athleteId: string, status: Athl
 
 export async function updateAthleteProfileByCoach(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const athleteId = formData.get('athleteId') as string
   const status = formData.get('status') as string
@@ -156,7 +148,7 @@ export async function updateAthleteProfileByCoach(formData: FormData) {
 
 export async function updateAthletePlanSportRows(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const athleteId = formData.get('athleteId') as string
   if (!athleteId) throw new Error('Athlete required')
@@ -178,7 +170,7 @@ export async function updateAthletePlanSportRows(formData: FormData) {
 
 export async function addExtraPlanSportRow(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const athleteId = formData.get('athleteId') as string
   const weekStartKey = formData.get('weekStart') as string
@@ -221,7 +213,7 @@ export async function addExtraPlanSportRow(formData: FormData) {
 
 export async function removeEmptyPlanSportRow(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const athleteId = formData.get('athleteId') as string
   const weekStartKey = formData.get('weekStart') as string
@@ -275,7 +267,7 @@ export async function removeEmptyPlanSportRow(formData: FormData) {
 
 export async function selectAthleteForTraining(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const athleteId = formData.get('athleteId') as string
   if (!athleteId) throw new Error('Athlete required')

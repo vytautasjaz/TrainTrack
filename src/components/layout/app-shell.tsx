@@ -4,28 +4,53 @@ import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
 import { RoleSwitcher } from '@/components/layout/role-switcher'
 import { CoachAthleteBar } from '@/components/coach/coach-athlete-bar'
 import { StravaAutoSync } from '@/components/integrations/strava-auto-sync'
-import { getSession, getCoachAthletes, resolveAthleteId } from '@/lib/session'
+import {
+  getSession,
+  getCoachAthletes,
+  resolveAthleteId,
+  isCoach,
+  athleteHasConnectedCoach,
+} from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import {
   getUnreadCoachFeedbackCount,
   getUnreadCoachReplyCount,
+  getPendingCoachRequestCount,
 } from '@/lib/queries'
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession()
   const showPreferences = Boolean(session)
-  const isCoach = session?.role === 'COACH'
+  const coach = session ? isCoach(session) : false
 
   let dashboardNotificationCount = 0
   let coachAthletes: Awaited<ReturnType<typeof getCoachAthletes>> = []
   let selectedAthleteId: string | null = null
   let athleteProfile: { name: string; avatarUrl: string | null } | null = null
+  let showConnectCoach = false
 
-  if (session?.role === 'COACH') {
-    dashboardNotificationCount = await getUnreadCoachFeedbackCount(session.userId)
+  if (session?.hasAthlete) {
+    const ownAthlete = await prisma.athlete.findUnique({
+      where: { userId: session.userId },
+      select: { id: true },
+    })
+    if (ownAthlete) {
+      showConnectCoach = !(await athleteHasConnectedCoach(ownAthlete.id))
+    }
+  }
+
+  if (session && coach) {
+    const [feedbackCount, pendingCount] = await Promise.all([
+      getUnreadCoachFeedbackCount(session.userId),
+      getPendingCoachRequestCount(session.userId),
+    ])
+    dashboardNotificationCount = feedbackCount + pendingCount
     coachAthletes = await getCoachAthletes(session.userId)
     selectedAthleteId = await resolveAthleteId(session)
-  } else if (session?.role === 'ATHLETE') {
+    if (session.name) {
+      athleteProfile = { name: session.name, avatarUrl: null }
+    }
+  } else if (session?.hasAthlete) {
     const athleteId = await resolveAthleteId(session)
     if (athleteId) {
       dashboardNotificationCount = await getUnreadCoachReplyCount(athleteId)
@@ -42,6 +67,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         athleteProfile = { name: session.name, avatarUrl: null }
       }
     }
+  } else if (session?.name) {
+    athleteProfile = { name: session.name, avatarUrl: null }
   }
 
   const roleSwitcher = session ? (
@@ -49,7 +76,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   ) : null
 
   const athleteBar =
-    isCoach && selectedAthleteId && coachAthletes.length > 0 ? (
+    coach && selectedAthleteId && coachAthletes.length > 0 ? (
       <Suspense fallback={null}>
         <CoachAthleteBar
           athletes={coachAthletes.map((a) => ({
@@ -65,11 +92,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="app-gradient flex min-h-dvh">
-      {session?.role === 'ATHLETE' ? <StravaAutoSync /> : null}
+      {session?.hasAthlete ? <StravaAutoSync /> : null}
       <Suspense fallback={null}>
         <AppNav
           showPreferences={showPreferences}
-          isCoach={isCoach}
+          showConnectCoach={showConnectCoach}
+          isCoach={coach}
           dashboardNotificationCount={dashboardNotificationCount}
           sidebarFooter={roleSwitcher}
           athleteProfile={athleteProfile}
@@ -81,7 +109,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
             <Suspense fallback={null}>
               <MobileNavMenu
                 showPreferences={showPreferences}
-                isCoach={isCoach}
+                showConnectCoach={showConnectCoach}
+                isCoach={coach}
                 dashboardNotificationCount={dashboardNotificationCount}
                 menuFooter={roleSwitcher}
                 athleteProfile={athleteProfile}

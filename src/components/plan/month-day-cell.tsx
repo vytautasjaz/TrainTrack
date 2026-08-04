@@ -4,6 +4,7 @@ import { MonthWorkoutChip } from '@/components/plan/month-workout-chip'
 import { useDayDropTarget } from '@/components/plan/use-day-drop-target'
 import type { DayNoteData } from '@/lib/day-notes'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import type { SeasonEventData } from '@/lib/season-planner'
 import { dayHasRecovery, recoveryDayMonthClass } from '@/lib/recovery-day'
 import {
   getDayRacePriority,
@@ -19,6 +20,7 @@ type MonthDayCellProps = {
   dayNumber: number
   workouts: PlanWorkoutDetail[]
   dayNote?: DayNoteData | null
+  seasonEvents?: SeasonEventData[]
   isCoach: boolean
   inMonth: boolean
   isToday: boolean
@@ -36,6 +38,7 @@ export function MonthDayCell({
   dayNumber,
   workouts,
   dayNote,
+  seasonEvents = [],
   isCoach,
   inMonth,
   isToday,
@@ -48,6 +51,7 @@ export function MonthDayCell({
   const isRecovery = dayHasRecovery(workouts)
   const racePriority = getDayRacePriority(workouts)
   const isRaceDay = racePriority != null
+  const hasEvents = seasonEvents.length > 0
   const { dropHighlightClass, dropProps, isDragging } = useDayDropTarget({
     dateKey,
     enabled: dropEnabled && inMonth,
@@ -110,6 +114,13 @@ export function MonthDayCell({
           isRecovery &&
           !isRaceDay &&
           'border-violet-500 bg-violet-500/10',
+        hasEvents &&
+          inMonth &&
+          !isRaceDay &&
+          !isRecovery &&
+          !isToday &&
+          !isSelected &&
+          'border-amber-300/80 bg-amber-50/90 dark:bg-amber-500/10',
         dropHighlightClass,
       )}
     >
@@ -134,6 +145,13 @@ export function MonthDayCell({
         >
           {dayNumber}
         </span>
+        {hasEvents && inMonth ? (
+          <span
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500"
+            title={seasonEvents.map((e) => e.title).join(', ')}
+            aria-label={`${seasonEvents.length} season event${seasonEvents.length > 1 ? 's' : ''}`}
+          />
+        ) : null}
       </div>
 
       {/* Mobile / tablet: workout indicators in cell */}

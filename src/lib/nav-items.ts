@@ -1,5 +1,6 @@
 import {
   CalendarRange,
+  CircleUser,
   Flag,
   Home,
   Library,
@@ -20,7 +21,7 @@ export const MAIN_NAV: NavItem[] = [
   { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/training', label: 'Training', icon: CalendarRange },
   { href: '/workouts', label: 'Library', icon: Library },
-  { href: '/races', label: 'Races', icon: Flag },
+  { href: '/season', label: 'Season plan', icon: Flag },
   { href: '/progress', label: 'Stats', icon: LineChart },
   { href: '/tools', label: 'Tools', icon: Wrench },
 ]
@@ -44,6 +45,7 @@ export function getMainNav(isCoach: boolean): NavItem[] {
     return [
       { href: '/dashboard', label: 'Athletes', icon: Users },
       { href: '/training', label: 'Training', icon: CalendarRange },
+      { href: '/season', label: 'Season plan', icon: Flag },
       { href: '/workouts', label: 'Library', icon: Library },
       { href: '/tools', label: 'Tools', icon: Wrench },
     ]
@@ -55,4 +57,21 @@ export const PREFERENCES_NAV: NavItem = {
   href: '/settings/preferences',
   label: 'Preferences',
   icon: Settings,
+}
+
+export const ACCOUNT_NAV: NavItem = {
+  href: '/settings/account',
+  label: 'Account',
+  icon: CircleUser,
+}
+
+/** Nested under athlete name while on /settings/* */
+export const SETTINGS_SUBNAV: NavItem[] = [ACCOUNT_NAV, PREFERENCES_NAV]
+
+export const SETTINGS_ENTRY_HREF = ACCOUNT_NAV.href
+
+export const CONNECT_COACH_NAV: NavItem = {
+  href: '/settings/account#connect-coach',
+  label: 'Connect to a coach',
+  icon: Users,
 }

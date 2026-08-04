@@ -2,13 +2,13 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
-import { requireSession, resolveAthleteId } from '@/lib/session'
+import { requireSession, resolveAthleteId, isCoach, athleteOwnedByCoachWhere } from '@/lib/session'
 
 async function requireCoachOwnsFeedback(coachId: string, resultId: string) {
   const result = await prisma.workoutResult.findFirst({
     where: {
       id: resultId,
-      workout: { athlete: { coachId } },
+      workout: { athlete: athleteOwnedByCoachWhere(coachId) },
     },
     select: { id: true, workoutId: true },
   })
@@ -24,7 +24,7 @@ function revalidateFeedbackPaths(workoutId: string) {
 
 export async function dismissAthleteFeedback(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const resultId = formData.get('resultId') as string
   if (!resultId) throw new Error('Feedback required')
@@ -43,7 +43,7 @@ async function requireCoachOwnsRaceReport(coachId: string, raceId: string) {
   const race = await prisma.race.findFirst({
     where: {
       id: raceId,
-      athlete: { coachId },
+      athlete: athleteOwnedByCoachWhere(coachId),
       outcome: { in: ['FINISHED', 'DID_NOT_START', 'DNF'] },
     },
     select: { id: true, athleteId: true },
@@ -54,7 +54,7 @@ async function requireCoachOwnsRaceReport(coachId: string, raceId: string) {
 
 export async function dismissRaceReport(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const raceId = formData.get('raceId') as string
   if (!raceId) throw new Error('Race required')
@@ -67,13 +67,13 @@ export async function dismissRaceReport(formData: FormData) {
   })
 
   revalidatePath('/dashboard')
-  revalidatePath('/races')
+  revalidatePath('/season')
   revalidatePath(`/athletes/${race.athleteId}`)
 }
 
 export async function replyToAthleteFeedback(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const resultId = formData.get('resultId') as string
   const coachReply = ((formData.get('coachReply') as string) ?? '').trim()
@@ -110,7 +110,7 @@ async function requireAthleteOwnsReply(athleteId: string, resultId?: string, wor
 
 export async function markCoachReplyRead(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'ATHLETE') throw new Error('Athlete only')
+  if (!session.hasAthlete) throw new Error('Athlete only')
 
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete profile')

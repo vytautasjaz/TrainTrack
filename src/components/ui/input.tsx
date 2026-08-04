@@ -25,6 +25,7 @@ const inputVariants = cva('', {
     align: {
       left: '',
       center: 'text-center',
+      right: 'text-right',
     },
   },
   defaultVariants: {

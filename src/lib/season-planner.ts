@@ -40,24 +40,24 @@ export const PLANNER_PRIORITY_LANES: {
     { priority: 'C', label: 'C Training', shortLabel: 'Training' },
   ]
 
-/** Race card surfaces — A red, B blue, C amber (orange/yellow). */
+/** Race card surfaces — A red, B blue, C mint. */
 export const PLANNER_PRIORITY_CARD: Record<RacePriority, string> = {
   A: 'border-red-300/80 bg-red-50 text-red-950',
   B: 'border-blue-300/80 bg-blue-50 text-blue-950',
-  C: 'border-amber-300/80 bg-amber-50 text-amber-950',
+  C: 'border-emerald-300/80 bg-emerald-50 text-emerald-950',
 }
 
 export const PLANNER_PRIORITY_DOT: Record<RacePriority, string> = {
   A: 'bg-red-500',
   B: 'bg-blue-500',
-  C: 'bg-amber-500',
+  C: 'bg-emerald-500',
 }
 
 /** Prep-week fills — slightly deeper than race-card surfaces, muted countdown. */
 export const PLANNER_PRIORITY_SHADOW: Record<RacePriority, string> = {
   A: 'bg-red-100/80 text-red-900/30',
   B: 'bg-blue-100/80 text-blue-900/30',
-  C: 'bg-amber-100/80 text-amber-900/30',
+  C: 'bg-emerald-100/80 text-emerald-900/30',
 }
 
 export const PLANNER_SPORT_TINT: Record<PlannerSport, string> = {
@@ -98,8 +98,8 @@ export function resolvePreparationWeeks(
 export const PLANNER_ZOOM_VIEWPORTS = [12, 6, 3] as const
 export const PLANNER_ZOOM_LABELS = ['12 months', '6 months', '3 months'] as const
 export const PLANNER_ZOOM_MAX = PLANNER_ZOOM_VIEWPORTS.length - 1
-/** Default: 6 months. */
-export const DEFAULT_PLANNER_ZOOM = 1
+/** Default: 3 months (widest week columns). */
+export const DEFAULT_PLANNER_ZOOM = PLANNER_ZOOM_MAX
 
 export function plannerViewportMonths(zoom: number): number {
   const index = Math.min(PLANNER_ZOOM_MAX, Math.max(0, zoom))
@@ -300,3 +300,20 @@ export type SeasonPhaseBlockData = {
   startDate: Date
   endDate: Date
 }
+
+export type SeasonEventData = {
+  id: string
+  title: string
+  notes: string | null
+  startDate: Date
+  endDate: Date
+}
+
+/** Display label for season events (title only). */
+export function formatSeasonEventLabel(event: { title: string }): string {
+  return event.title.trim() || 'Event'
+}
+
+/** Soft amber blocks — distinct from A/B/C race cards. */
+export const SEASON_EVENT_CARD =
+  'border-amber-300/80 bg-amber-100/90 text-amber-950'

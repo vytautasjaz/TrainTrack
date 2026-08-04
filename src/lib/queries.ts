@@ -17,6 +17,7 @@ import {
   sumRaceDurationsMin,
 } from '@/lib/race-distance-stats'
 import { WORKOUT_LIST_ORDER_BY } from '@/lib/workout-sort'
+import { athleteOwnedByCoachWhere } from '@/lib/session'
 
 export const DEFAULT_PLANNING_LEAD_DAYS = 3
 export const MIN_PLANNING_LEAD_DAYS = 1
@@ -210,18 +211,47 @@ const UNREAD_RACE_REPORT_WHERE = {
   resultDismissedAt: null,
 }
 
+export async function getPendingCoachRequests(coachUserId: string) {
+  const profile = await prisma.coachProfile.findUnique({
+    where: { userId: coachUserId },
+    select: {
+      coachingCode: true,
+      links: {
+        where: { status: 'PENDING' },
+        include: { athlete: { select: { id: true, name: true } } },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  })
+  if (!profile) return { coachingCode: null as string | null, requests: [] }
+  return {
+    coachingCode: profile.coachingCode,
+    requests: profile.links,
+  }
+}
+
+export async function getPendingCoachRequestCount(coachUserId: string) {
+  return prisma.coachAthleteLink.count({
+    where: {
+      status: 'PENDING',
+      coachProfile: { userId: coachUserId },
+    },
+  })
+}
+
 export async function getUnreadCoachFeedbackCount(coachId: string) {
+  const athleteWhere = athleteOwnedByCoachWhere(coachId)
   const [workoutCount, raceCount] = await Promise.all([
     prisma.workoutResult.count({
       where: {
-        workout: { athlete: { coachId } },
+        workout: { athlete: athleteWhere },
         athleteNotes: { not: null },
         feedbackDismissedAt: null,
       },
     }),
     prisma.race.count({
       where: {
-        athlete: { coachId },
+        athlete: athleteWhere,
         ...UNREAD_RACE_REPORT_WHERE,
       },
     }),
@@ -231,6 +261,7 @@ export async function getUnreadCoachFeedbackCount(coachId: string) {
 
 export async function getCoachDashboard(coachId: string) {
   const today = todayDateOnly()
+  const athleteWhere = athleteOwnedByCoachWhere(coachId)
   const coach = await prisma.user.findUnique({
     where: { id: coachId },
     select: { planningLeadDays: true },
@@ -241,7 +272,7 @@ export async function getCoachDashboard(coachId: string) {
   const horizonDate = addDateOnlyDays(today, planningLeadDays)
 
   const athletes = await prisma.athlete.findMany({
-    where: { coachId },
+    where: athleteWhere,
     include: {
       races: {
         where: { intent: 'PLANNED', date: { gte: today } },
@@ -295,7 +326,7 @@ export async function getCoachDashboard(coachId: string) {
   const [recentFeedback, recentRaceReports] = await Promise.all([
     prisma.workoutResult.findMany({
       where: {
-        workout: { athlete: { coachId } },
+        workout: { athlete: athleteWhere },
         athleteNotes: { not: null },
         feedbackDismissedAt: null,
       },
@@ -307,7 +338,7 @@ export async function getCoachDashboard(coachId: string) {
     }),
     prisma.race.findMany({
       where: {
-        athlete: { coachId },
+        athlete: athleteWhere,
         ...UNREAD_RACE_REPORT_WHERE,
       },
       include: {
@@ -348,7 +379,7 @@ export async function getWeekHiddenPlanSportRows(athleteId: string, weekStart: D
 
 export async function getAthleteForCoach(coachId: string, athleteId: string) {
   return prisma.athlete.findFirst({
-    where: { id: athleteId, coachId },
+    where: { id: athleteId, ...athleteOwnedByCoachWhere(coachId) },
     include: {
       races: {
         orderBy: { date: 'asc' },
@@ -446,6 +477,25 @@ export function groupDayNotesByDate(
     map.set(toDateKey(n.date), { status: n.status, notes: n.notes })
   }
   return map
+}
+
+/** Season events that overlap [start, end] (inclusive). */
+export async function getSeasonEventsForRange(athleteId: string, start: Date, end: Date) {
+  return prisma.seasonEvent.findMany({
+    where: {
+      athleteId,
+      startDate: { lte: end },
+      endDate: { gte: start },
+    },
+    orderBy: { startDate: 'asc' },
+    select: {
+      id: true,
+      title: true,
+      notes: true,
+      startDate: true,
+      endDate: true,
+    },
+  })
 }
 
 export function getWeekDays(anchor: Date) {

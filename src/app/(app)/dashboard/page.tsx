@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation'
 import { Flag, Footprints, Route, Timer, TrendingUp, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getSession, resolveAthleteId } from '@/lib/session'
-import { getAthleteDashboard, getCoachDashboard, countsTowardCompliance } from '@/lib/queries'
+import { getSession, resolveAthleteId, isCoach} from '@/lib/session'
+import { getAthleteDashboard, getCoachDashboard, countsTowardCompliance, getPendingCoachRequests } from '@/lib/queries'
 import { toDateKey } from '@/lib/dates'
 import { daysUntil, formatDistance, formatDuration, percent } from '@/lib/utils'
 import { createAthlete } from '@/app/actions/workouts'
 import { CoachAthleteCard } from '@/components/coach/coach-athlete-card'
+import { CoachPendingRequests } from '@/components/coach/coach-pending-requests'
 import { CoachFeedbackList, type CoachFeedbackItem } from '@/components/coach/coach-feedback-list'
 import {
   CoachRaceReportsList,
@@ -51,9 +52,14 @@ export default async function DashboardPage() {
   const session = await getSession()
   if (!session) redirect('/')
 
-  if (session.role === 'COACH') {
-    const { athletes, recentFeedback, recentRaceReports, planningLeadDays, planningWarnings } =
-      await getCoachDashboard(session.userId)
+  if (isCoach(session)) {
+    const [
+      { athletes, recentFeedback, recentRaceReports, planningLeadDays, planningWarnings },
+      pendingCoach,
+    ] = await Promise.all([
+      getCoachDashboard(session.userId),
+      getPendingCoachRequests(session.userId),
+    ])
     const feedbackItems: CoachFeedbackItem[] = recentFeedback.map((r) => ({
       id: r.id,
       athleteNotes: r.athleteNotes!.trim(),
@@ -89,6 +95,16 @@ export default async function DashboardPage() {
           title="Athletes"
           description="Roster and feedback"
         />
+
+        {pendingCoach.coachingCode ? (
+          <CoachPendingRequests
+            coachingCode={pendingCoach.coachingCode}
+            requests={pendingCoach.requests.map((link) => ({
+              id: link.id,
+              athlete: link.athlete,
+            }))}
+          />
+        ) : null}
 
         <CoachPlanningWarnings
           warnings={planningWarnings}

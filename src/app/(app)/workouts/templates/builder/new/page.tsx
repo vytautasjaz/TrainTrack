@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { WorkoutType } from '@prisma/client'
 import { WorkoutEditorPage } from '@/components/workout-editor/workout-editor-page'
-import { getSession } from '@/lib/session'
+import { getSession, isCoach} from '@/lib/session'
 import { todayDateKey } from '@/lib/dates'
 
 type NewTemplateBuilderPageProps = {
@@ -13,7 +13,7 @@ type NewTemplateBuilderPageProps = {
 
 export default async function NewTemplateBuilderPage({ searchParams }: NewTemplateBuilderPageProps) {
   const session = await getSession()
-  if (!session || session.role !== 'COACH') redirect('/')
+  if (!session || !isCoach(session)) redirect('/')
 
   const params = await searchParams
   const sport = (params.sport as WorkoutType) || WorkoutType.RUN

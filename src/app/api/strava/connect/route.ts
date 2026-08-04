@@ -14,7 +14,7 @@ export async function GET() {
     return NextResponse.redirect(new URL('/', process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'))
   }
 
-  if (session.role !== 'ATHLETE' || !session.athleteId) {
+  if (!session.hasAthlete || !session.athleteId) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
     return NextResponse.redirect(new URL('/dashboard?strava=athletes_only', appUrl))
   }

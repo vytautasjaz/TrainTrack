@@ -132,7 +132,7 @@ export function PlanWeekDayStrip({
                         'h-2.5 w-2.5 fill-current/30',
                         racePriority === 'A' && 'text-red-600 dark:text-red-400',
                         racePriority === 'B' && 'text-blue-600 dark:text-blue-400',
-                        racePriority === 'C' && 'text-amber-600 dark:text-amber-300',
+                        racePriority === 'C' && 'text-emerald-600 dark:text-emerald-300',
                       )}
                     />
                   ) : (

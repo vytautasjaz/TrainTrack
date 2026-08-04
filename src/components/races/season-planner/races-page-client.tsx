@@ -29,6 +29,7 @@ import {
   deleteSeasonPhaseBlock,
   updateSeasonPhaseBlock,
 } from '@/app/actions/season-phases'
+import { SeasonEventModal } from '@/components/plan/season-event-modal'
 import { raceOutcomeSummary, type SeasonRace } from '@/lib/season-races'
 import { daysUntil } from '@/lib/utils'
 import {
@@ -41,6 +42,8 @@ import {
   PLANNER_SPORT_LABELS,
   PLANNER_SPORT_TINT,
   PLANNER_ZOOM_LABELS,
+  SEASON_EVENT_CARD,
+  formatSeasonEventLabel,
   SEASON_PHASE_LABELS,
   buildPlannerScrollRange,
   buildPlannerWeekColumns,
@@ -53,6 +56,7 @@ import {
   weekIndexForDate,
   weeksUntilRace,
   type PlannerSport,
+  type SeasonEventData,
   type SeasonPhaseBlockData,
 } from '@/lib/season-planner'
 import {
@@ -62,17 +66,22 @@ import {
   WORKOUT_TYPE_LABELS,
 } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import { toDateKey } from '@/lib/dates'
 
 type RacesPageClientProps = {
   allPlanned: SeasonRace[]
   watching: SeasonRace[]
   phaseBlocks: SeasonPhaseBlockData[]
+  seasonEvents: SeasonEventData[]
+  athleteId: string
 }
 
 export function RacesPageClient({
   allPlanned,
   watching,
   phaseBlocks,
+  seasonEvents,
+  athleteId,
 }: RacesPageClientProps) {
   const allRaces = useMemo(
     () => [...allPlanned, ...watching].sort((a, b) => a.date.getTime() - b.date.getTime()),
@@ -85,8 +94,10 @@ export function RacesPageClient({
         planned={allPlanned}
         watching={watching}
         phaseBlocks={phaseBlocks}
+        seasonEvents={seasonEvents}
+        athleteId={athleteId}
       />
-      <AllRacesTable races={allRaces} />
+      <AllRacesTable races={allRaces} athleteId={athleteId} />
     </div>
   )
 }
@@ -97,10 +108,14 @@ function SeasonPlannerView({
   planned,
   watching,
   phaseBlocks,
+  seasonEvents,
+  athleteId,
 }: {
   planned: SeasonRace[]
   watching: SeasonRace[]
   phaseBlocks: SeasonPhaseBlockData[]
+  seasonEvents: SeasonEventData[]
+  athleteId: string
 }) {
   const router = useRouter()
   const today = useMemo(() => new Date(), [])
@@ -112,6 +127,7 @@ function SeasonPlannerView({
     C: true,
   })
   const [showWatching, setShowWatching] = useState(true)
+  const [showEvents, setShowEvents] = useState(true)
   const [sportFilter, setSportFilter] = useState<Record<PlannerSport, boolean>>(() =>
     Object.fromEntries(PLANNER_SPORTS.map((s) => [s, true])) as Record<PlannerSport, boolean>,
   )
@@ -119,6 +135,11 @@ function SeasonPlannerView({
   const [phaseModal, setPhaseModal] = useState<
     | { mode: 'create'; sport: PlannerSport }
     | { mode: 'edit'; block: SeasonPhaseBlockData }
+    | null
+  >(null)
+  const [eventModal, setEventModal] = useState<
+    | { mode: 'create' }
+    | { mode: 'edit'; event: SeasonEventData }
     | null
   >(null)
 
@@ -175,7 +196,12 @@ function SeasonPlannerView({
           ))}
         </SegmentedControl>
 
-        <AddRaceButton variant="secondary" size="sm" className="shrink-0" />
+        <AddRaceButton
+          variant="secondary"
+          size="sm"
+          className="shrink-0"
+          athleteId={athleteId}
+        />
 
         <PlannerToolbar
           zoom={zoom}
@@ -195,6 +221,8 @@ function SeasonPlannerView({
         priorityFilter={priorityFilter}
         sportFilter={sportFilter}
         showWatching={showWatching}
+        showEvents={showEvents}
+        seasonEvents={seasonEvents}
         showPriorityLanes={showPriority}
         showSportLanes={showSport}
         phaseBlocks={phaseBlocks}
@@ -202,6 +230,8 @@ function SeasonPlannerView({
         onSelectRace={setSelectedId}
         onAddPhase={(sport) => setPhaseModal({ mode: 'create', sport })}
         onEditPhase={(block) => setPhaseModal({ mode: 'edit', block })}
+        onAddEvent={() => setEventModal({ mode: 'create' })}
+        onEditEvent={(event) => setEventModal({ mode: 'edit', event })}
       />
 
       <div className="flex flex-nowrap items-center gap-x-2 overflow-x-auto pb-0.5">
@@ -220,6 +250,11 @@ function SeasonPlannerView({
           active={showWatching}
           onClick={() => setShowWatching((prev) => !prev)}
           label="Watching"
+        />
+        <FilterChip
+          active={showEvents}
+          onClick={() => setShowEvents((prev) => !prev)}
+          label="Events"
         />
         <div className="mx-0.5 h-5 w-px shrink-0 bg-foreground/20" aria-hidden />
         {PLANNER_SPORTS.map((sport) => (
@@ -248,6 +283,14 @@ function SeasonPlannerView({
         onOpenChange={(open) => {
           if (!open) setPhaseModal(null)
         }}
+      />
+
+      <SeasonEventModal
+        open={Boolean(eventModal)}
+        onOpenChange={(open) => {
+          if (!open) setEventModal(null)
+        }}
+        event={eventModal?.mode === 'edit' ? eventModal.event : null}
       />
     </div>
   )
@@ -351,6 +394,8 @@ function SeasonPlannerBoard({
   priorityFilter,
   sportFilter,
   showWatching,
+  showEvents,
+  seasonEvents,
   showPriorityLanes,
   showSportLanes,
   phaseBlocks,
@@ -358,6 +403,8 @@ function SeasonPlannerBoard({
   onSelectRace,
   onAddPhase,
   onEditPhase,
+  onAddEvent,
+  onEditEvent,
 }: {
   weeks: ReturnType<typeof buildPlannerWeekColumns>
   months: ReturnType<typeof groupPlannerMonths>
@@ -367,6 +414,8 @@ function SeasonPlannerBoard({
   priorityFilter: Record<RacePriority, boolean>
   sportFilter: Record<PlannerSport, boolean>
   showWatching: boolean
+  showEvents: boolean
+  seasonEvents: SeasonEventData[]
   showPriorityLanes: boolean
   showSportLanes: boolean
   phaseBlocks: SeasonPhaseBlockData[]
@@ -374,6 +423,8 @@ function SeasonPlannerBoard({
   onSelectRace: (id: string) => void
   onAddPhase: (sport: PlannerSport) => void
   onEditPhase: (block: SeasonPhaseBlockData) => void
+  onAddEvent: () => void
+  onEditEvent: (event: SeasonEventData) => void
 }) {
   const labelW = 112
   const gridW = weeks.length * colW
@@ -445,7 +496,7 @@ function SeasonPlannerBoard({
         {/* Breathing room between week header and race lanes — keep week guidelines */}
         <div className="flex h-2 bg-card" aria-hidden>
           <div
-            className="sticky left-0 z-[5] shrink-0 border-r border-border/60 bg-card"
+            className="sticky left-0 z-10 shrink-0 border-r border-border/60 bg-card"
             style={{ width: labelW }}
           />
           <div className="relative" style={{ width: gridW }}>
@@ -465,9 +516,9 @@ function SeasonPlannerBoard({
           </div>
         </div>
 
-        {/* Today line */}
+        {/* Today line — below sticky lane labels so it clips under the left column */}
         <div
-          className="pointer-events-none absolute bottom-0 top-0 z-10 border-l border-dashed border-brand/70"
+          className="pointer-events-none absolute bottom-0 top-0 z-[1] border-l border-dashed border-brand/70"
           style={{ left: labelW + todayIdx * colW + colW / 2 }}
         >
           <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-semibold text-white">
@@ -518,6 +569,28 @@ function SeasonPlannerBoard({
               colW={colW}
               today={today}
               onSelectRace={onSelectRace}
+            />
+          </PlannerLane>
+        ) : null}
+
+        {showPriorityLanes && showEvents ? (
+          <PlannerLane
+            label="Events"
+            labelW={labelW}
+            gridW={gridW}
+            colW={colW}
+            weeks={weeks}
+            todayIdx={todayIdx}
+            onLabelAction={onAddEvent}
+            labelActionTitle="Add event"
+            contentMinHeight={eventLaneMinHeight(seasonEvents, weeks, colW)}
+            thickBottom
+          >
+            <StackedEventCards
+              events={seasonEvents}
+              weeks={weeks}
+              colW={colW}
+              onEditEvent={onEditEvent}
             />
           </PlannerLane>
         ) : null}
@@ -623,7 +696,7 @@ function PlannerLane({
       style={{ minHeight: minH }}
     >
       <div
-        className="sticky left-0 z-[5] flex shrink-0 items-center gap-1 border-r border-border/60 bg-card px-2"
+        className="sticky left-0 z-10 flex shrink-0 items-center gap-1 border-r border-border/60 bg-card px-2"
         style={{ width: labelW }}
       >
         <span className="truncate text-[11px] font-semibold text-foreground">{label}</span>
@@ -665,6 +738,13 @@ const RACE_CARD_TOP = 6
 const RACE_CARD_STACK_GAP = 3
 const RACE_CARD_BOTTOM_PAD = 6
 
+const EVENT_CARD_HEIGHT_COMPACT = 34
+/** Taller card for wide week columns (3-month zoom) — date + 2-line title. */
+const EVENT_CARD_HEIGHT_ROOMY = 50
+const EVENT_CARD_TOP = 6
+const EVENT_CARD_STACK_GAP = 3
+const EVENT_CARD_BOTTOM_PAD = 6
+
 /** Wide enough week column (≈3-month zoom) for a roomier race card. */
 function raceCardRoomy(colW: number) {
   return colW >= 56
@@ -674,10 +754,133 @@ function raceCardHeight(colW: number) {
   return raceCardRoomy(colW) ? RACE_CARD_HEIGHT_ROOMY : RACE_CARD_HEIGHT_COMPACT
 }
 
+function eventCardHeight(colW: number) {
+  return raceCardRoomy(colW) ? EVENT_CARD_HEIGHT_ROOMY : EVENT_CARD_HEIGHT_COMPACT
+}
+
+function formatEventDateRange(start: Date, end: Date): string {
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
+  const startLabel = start.toLocaleDateString(undefined, opts)
+  if (toDateKey(start) === toDateKey(end)) return startLabel
+  return `${startLabel} – ${end.toLocaleDateString(undefined, opts)}`
+}
+
 /** 3-month: one week. Zoomed-out: stretch so the name stays readable. */
 function raceCardWidth(colW: number) {
   if (raceCardRoomy(colW)) return Math.max(colW - 4, 1)
   return Math.min(Math.max(colW * 1.85, 92), 148)
+}
+
+/** Assign vertical stack rows so overlapping event ranges don't cover each other. */
+function layoutStackedEvents(
+  events: SeasonEventData[],
+  weeks: ReturnType<typeof buildPlannerWeekColumns>,
+  colW: number,
+) {
+  const items = [...events]
+    .map((event) => {
+      const start = weekIndexForDate(weeks, event.startDate)
+      const end = weekIndexForDate(weeks, event.endDate)
+      const span = Math.max(1, end - start + 1)
+      const spanLeft = start * colW
+      const spanRight = (start + span) * colW
+      return {
+        event,
+        left: start * colW + 1,
+        width: span * colW - 2,
+        spanLeft,
+        spanRight,
+        stack: 0,
+      }
+    })
+    .sort(
+      (a, b) =>
+        a.spanLeft - b.spanLeft ||
+        a.spanRight - b.spanRight ||
+        a.event.title.localeCompare(b.event.title),
+    )
+
+  const rowEnds: number[] = []
+  for (const item of items) {
+    let row = 0
+    while (row < rowEnds.length && item.spanLeft < rowEnds[row]! - 2) {
+      row += 1
+    }
+    item.stack = row
+    if (row === rowEnds.length) rowEnds.push(item.spanRight)
+    else rowEnds[row] = Math.max(rowEnds[row]!, item.spanRight)
+  }
+
+  return {
+    items,
+    rows: Math.max(1, rowEnds.length),
+  }
+}
+
+function eventLaneMinHeight(
+  events: SeasonEventData[],
+  weeks: ReturnType<typeof buildPlannerWeekColumns>,
+  colW: number,
+) {
+  if (events.length === 0) return raceCardRoomy(colW) ? 58 : 44
+  const { rows } = layoutStackedEvents(events, weeks, colW)
+  const cardH = eventCardHeight(colW)
+  return (
+    EVENT_CARD_TOP +
+    rows * cardH +
+    (rows - 1) * EVENT_CARD_STACK_GAP +
+    EVENT_CARD_BOTTOM_PAD
+  )
+}
+
+function StackedEventCards({
+  events,
+  weeks,
+  colW,
+  onEditEvent,
+}: {
+  events: SeasonEventData[]
+  weeks: ReturnType<typeof buildPlannerWeekColumns>
+  colW: number
+  onEditEvent: (event: SeasonEventData) => void
+}) {
+  const { items } = layoutStackedEvents(events, weeks, colW)
+  const cardH = eventCardHeight(colW)
+  const roomy = raceCardRoomy(colW)
+  return (
+    <>
+      {items.map(({ event, left, width, stack }) => {
+        const top = EVENT_CARD_TOP + stack * (cardH + EVENT_CARD_STACK_GAP)
+        const label = formatSeasonEventLabel(event)
+        const dateLabel = formatEventDateRange(event.startDate, event.endDate)
+        return (
+          <button
+            key={event.id}
+            type="button"
+            onClick={() => onEditEvent(event)}
+            className={cn(
+              'absolute z-[1] overflow-hidden rounded-[6px] border px-1.5 py-0.5 text-left shadow-sm transition hover:brightness-[0.98]',
+              SEASON_EVENT_CARD,
+            )}
+            style={{ left, width, top, height: cardH }}
+            title={`${dateLabel} · ${label}`}
+          >
+            <p className="truncate text-[9px] font-medium leading-tight opacity-70">
+              {dateLabel}
+            </p>
+            <p
+              className={cn(
+                'text-[11px] font-semibold leading-tight',
+                roomy ? 'line-clamp-2' : 'truncate',
+              )}
+            >
+              {label}
+            </p>
+          </button>
+        )
+      })}
+    </>
+  )
 }
 
 /** Assign vertical stack rows so overlapping cards / prep tails don't cover each other. */
@@ -970,7 +1173,7 @@ function RaceSearchField({
   )
 }
 
-function AllRacesTable({ races }: { races: SeasonRace[] }) {
+function AllRacesTable({ races, athleteId }: { races: SeasonRace[]; athleteId: string }) {
   const router = useRouter()
   const today = useMemo(() => new Date(), [])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -1007,8 +1210,8 @@ function AllRacesTable({ races }: { races: SeasonRace[] }) {
         onSelect={setSelectedId}
         headerActions={
           <div className="flex shrink-0 items-center gap-2">
-            <WatchRaceButton variant="ghost" size="sm" />
-            <AddRaceButton variant="secondary" size="sm" />
+            <WatchRaceButton variant="ghost" size="sm" athleteId={athleteId} />
+            <AddRaceButton variant="secondary" size="sm" athleteId={athleteId} />
           </div>
         }
       />
@@ -1503,7 +1706,7 @@ function RaceRowMenu({ race }: { race: SeasonRace }) {
           >
             <DropdownMenu.Item asChild>
               <Link
-                href={`/races/${race.id}/edit`}
+                href={`/season/${race.id}/edit`}
                 className="flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-muted/60"
               >
                 <Pencil className="h-3.5 w-3.5" />

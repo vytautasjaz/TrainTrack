@@ -60,7 +60,7 @@ export function WatchingRaceTable({ races, className }: WatchingRaceTableProps) 
                     >
                       <td className="px-4 py-3">
                         <Link
-                          href={`/races/${race.id}/edit`}
+                          href={`/season/${race.id}/edit`}
                           className="flex min-w-0 items-start gap-3"
                         >
                           <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-muted-foreground/45 bg-card text-muted-foreground">
@@ -137,7 +137,7 @@ export function WatchingRaceTable({ races, className }: WatchingRaceTableProps) 
                             </form>
                           )}
                           <ItemActions
-                            editHref={`/races/${race.id}/edit`}
+                            editHref={`/season/${race.id}/edit`}
                             deleteAction={deleteRace}
                             deleteId={race.id}
                             deleteIdField="raceId"

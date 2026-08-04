@@ -4,8 +4,6 @@ import { prisma } from '@/lib/prisma'
 import { exchangeStravaCode } from '@/lib/strava/client'
 import { isStravaConfigured } from '@/lib/strava/config'
 import { applyStravaAvatarToAthlete } from '@/lib/strava/avatar'
-import { UserRole } from '@prisma/client'
-
 export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const preferencesUrl = new URL('/settings/preferences', appUrl)
@@ -40,29 +38,57 @@ export async function GET(request: NextRequest) {
     where: { id: userId },
     include: { athleteProfile: true },
   })
-  if (!user || user.role !== UserRole.ATHLETE || !user.athleteProfile) {
+  if (!user?.athleteProfile) {
     return NextResponse.redirect(new URL('/dashboard?strava=athletes_only', appUrl))
   }
 
   try {
     const token = await exchangeStravaCode(code)
     const grantedScopes = searchParams.get('scope') ?? ''
+    const stravaAthleteId = String(token.athlete.id)
 
     await prisma.stravaConnection.upsert({
       where: { userId },
       create: {
         userId,
-        stravaAthleteId: String(token.athlete.id),
+        stravaAthleteId,
         accessToken: token.access_token,
         refreshToken: token.refresh_token,
         expiresAt: new Date(token.expires_at * 1000),
         scope: grantedScopes,
       },
       update: {
-        stravaAthleteId: String(token.athlete.id),
+        stravaAthleteId,
         accessToken: token.access_token,
         refreshToken: token.refresh_token,
         expiresAt: new Date(token.expires_at * 1000),
+        scope: grantedScopes,
+      },
+    })
+
+    await prisma.account.upsert({
+      where: {
+        provider_providerAccountId: {
+          provider: 'strava',
+          providerAccountId: stravaAthleteId,
+        },
+      },
+      create: {
+        userId,
+        type: 'oauth',
+        provider: 'strava',
+        providerAccountId: stravaAthleteId,
+        access_token: token.access_token,
+        refresh_token: token.refresh_token,
+        expires_at: token.expires_at,
+        token_type: token.token_type,
+        scope: grantedScopes,
+      },
+      update: {
+        userId,
+        access_token: token.access_token,
+        refresh_token: token.refresh_token,
+        expires_at: token.expires_at,
         scope: grantedScopes,
       },
     })

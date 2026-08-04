@@ -4,13 +4,13 @@ import { revalidatePath } from 'next/cache'
 import { DayNoteStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
-import { requireSession } from '@/lib/session'
+import { requireSession, isCoach, isAthleteRole, requireCoachOwnsAthlete } from '@/lib/session'
 
 async function resolveDayNoteAthleteId(formData: FormData) {
   const session = await requireSession()
   const formAthleteId = (formData.get('athleteId') as string | null)?.trim() || null
 
-  if (session.role === 'ATHLETE') {
+  if (isAthleteRole(session) && session.hasAthlete && (!isCoach(session) || !formAthleteId)) {
     if (!session.athleteId) throw new Error('No athlete profile')
     if (formAthleteId && formAthleteId !== session.athleteId) {
       throw new Error('Forbidden')
@@ -18,15 +18,16 @@ async function resolveDayNoteAthleteId(formData: FormData) {
     return session.athleteId
   }
 
-  if (session.role === 'COACH') {
+  if (isCoach(session)) {
     const athleteId = formAthleteId ?? session.athleteId
     if (!athleteId) throw new Error('Athlete required')
-
-    const athlete = await prisma.athlete.findFirst({
-      where: { id: athleteId, coachId: session.userId },
-    })
-    if (!athlete) throw new Error('Athlete not found')
+    await requireCoachOwnsAthlete(session.userId, athleteId)
     return athleteId
+  }
+
+  if (isAthleteRole(session) && session.hasAthlete) {
+    if (!session.athleteId) throw new Error('No athlete profile')
+    return session.athleteId
   }
 
   throw new Error('Unauthorized')

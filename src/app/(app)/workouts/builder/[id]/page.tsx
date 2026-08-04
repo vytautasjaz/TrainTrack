@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import { WorkoutEditorPage } from '@/components/workout-editor/workout-editor-page'
 import { prisma } from '@/lib/prisma'
-import { getSession, resolveAthleteId } from '@/lib/session'
+import { getSession, resolveAthleteId, isCoach} from '@/lib/session'
 import { toPlanWorkoutDetail } from '@/lib/plan-workout'
 
 type EditWorkoutBuilderPageProps = {
@@ -10,7 +10,7 @@ type EditWorkoutBuilderPageProps = {
 
 export default async function EditWorkoutBuilderPage({ params }: EditWorkoutBuilderPageProps) {
   const session = await getSession()
-  if (!session || session.role !== 'COACH') redirect('/')
+  if (!session || !isCoach(session)) redirect('/')
 
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) redirect('/training')

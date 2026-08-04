@@ -8,7 +8,14 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ThemeToggleButton } from '@/components/theme-toggle-button'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
-import { CALCULATOR_NAV_TABS, getMainNav, PREFERENCES_NAV } from '@/lib/nav-items'
+import { SignOutButton } from '@/components/layout/sign-out-button'
+import {
+  CALCULATOR_NAV_TABS,
+  CONNECT_COACH_NAV,
+  getMainNav,
+  SETTINGS_ENTRY_HREF,
+  SETTINGS_SUBNAV,
+} from '@/lib/nav-items'
 
 export type SidebarAthleteProfile = {
   name: string
@@ -46,12 +53,14 @@ function readStoredCollapsed(): boolean {
 
 export function AppNav({
   showPreferences = true,
+  showConnectCoach = false,
   isCoach = false,
   dashboardNotificationCount = 0,
   sidebarFooter,
   athleteProfile = null,
 }: {
   showPreferences?: boolean
+  showConnectCoach?: boolean
   isCoach?: boolean
   dashboardNotificationCount?: number
   sidebarFooter?: ReactNode
@@ -61,6 +70,7 @@ export function AppNav({
   const searchParams = useSearchParams()
   const mainNav = getMainNav(isCoach)
   const toolsOpen = pathname === '/tools' || pathname.startsWith('/tools/')
+  const settingsOpen = pathname.startsWith('/settings')
   const activeCalculatorTab = searchParams.get('tab') ?? 'running'
   const [collapsed, setCollapsed] = useState(false)
 
@@ -187,46 +197,83 @@ export function AppNav({
           })}
         </nav>
         <div className="mt-auto shrink-0 space-y-1 border-t border-white/10 pt-3">
-          {athleteProfile ? (
-            collapsed ? (
-              <div className="flex justify-center py-1.5" title={athleteProfile.name}>
-                <AthleteAvatar
-                  name={athleteProfile.name}
-                  avatarUrl={athleteProfile.avatarUrl}
-                  size="sm"
-                  className="ring-2 ring-white/15"
-                />
-              </div>
-            ) : (
-              <div className="mb-1 flex items-center gap-3 px-3 py-2">
-                <AthleteAvatar
-                  name={athleteProfile.name}
-                  avatarUrl={athleteProfile.avatarUrl}
-                  size="sm"
-                  className="ring-2 ring-white/15"
-                />
-                <p className="min-w-0 truncate text-sm font-semibold text-sidebar-foreground">
-                  {athleteProfile.name}
-                </p>
-              </div>
-            )
+          {showPreferences && athleteProfile ? (
+            <div>
+              {collapsed ? (
+                <Link
+                  href={SETTINGS_ENTRY_HREF}
+                  title={athleteProfile.name}
+                  className={cn(
+                    'flex justify-center rounded-[10px] py-1.5 transition-colors',
+                    settingsOpen ? 'bg-white/10' : 'hover:bg-white/5',
+                  )}
+                >
+                  <AthleteAvatar
+                    name={athleteProfile.name}
+                    avatarUrl={athleteProfile.avatarUrl}
+                    size="sm"
+                    className="ring-2 ring-white/15"
+                  />
+                </Link>
+              ) : (
+                <Link
+                  href={SETTINGS_ENTRY_HREF}
+                  title={athleteProfile.name}
+                  className={cn(
+                    'mb-1 flex items-center gap-3 rounded-[10px] px-3 py-2 transition-colors',
+                    settingsOpen
+                      ? 'bg-white/10 text-white'
+                      : 'text-sidebar-foreground hover:bg-white/5 hover:text-white',
+                  )}
+                >
+                  <AthleteAvatar
+                    name={athleteProfile.name}
+                    avatarUrl={athleteProfile.avatarUrl}
+                    size="sm"
+                    className="ring-2 ring-white/15"
+                  />
+                  <p className="min-w-0 truncate text-sm font-semibold">
+                    {athleteProfile.name}
+                  </p>
+                </Link>
+              )}
+              {!collapsed && settingsOpen ? (
+                <div className="mt-1 ml-4 space-y-0.5 border-l border-white/15 pl-3">
+                  {SETTINGS_SUBNAV.map(({ href, label }) => {
+                    const active = pathname.startsWith(href)
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={cn(
+                          'block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors',
+                          active
+                            ? 'bg-white/10 text-white'
+                            : 'text-white/45 hover:bg-white/5 hover:text-white',
+                        )}
+                      >
+                        {label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
           ) : null}
-          {showPreferences && (
+          {showConnectCoach ? (
             <Link
-              href={PREFERENCES_NAV.href}
-              title={PREFERENCES_NAV.label}
+              href={CONNECT_COACH_NAV.href}
+              title={CONNECT_COACH_NAV.label}
               className={cn(
                 'flex items-center rounded-[10px] py-2.5 text-sm font-medium transition-colors',
                 collapsed ? 'justify-center px-2' : 'gap-3 px-3',
-                pathname.startsWith('/settings')
-                  ? 'bg-white/10 text-white'
-                  : 'text-white/55 hover:bg-white/5 hover:text-white',
+                'text-white/90 hover:bg-white/10 hover:text-white',
               )}
             >
-              <PREFERENCES_NAV.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-              {!collapsed && PREFERENCES_NAV.label}
+              <CONNECT_COACH_NAV.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+              {!collapsed && CONNECT_COACH_NAV.label}
             </Link>
-          )}
+          ) : null}
           <ThemeToggleButton
             showLabel={!collapsed}
             className={cn(
@@ -234,6 +281,7 @@ export function AppNav({
               collapsed ? 'w-full justify-center px-2' : 'justify-start gap-2',
             )}
           />
+          <SignOutButton tone="sidebar" iconOnly={collapsed} className="mt-1" />
           {!collapsed && (
             <div className="sidebar-footer text-sidebar-foreground [&_.text-label]:text-white/40 [&_.text-caption]:text-white/40 [&_button]:bg-white/10 [&_button]:text-white [&_select]:border-white/15 [&_select]:bg-white/5 [&_select]:text-white">
               {sidebarFooter}
@@ -264,7 +312,7 @@ export function AppNav({
       {/* Bottom nav — portrait phones */}
       <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card shadow-[var(--shadow-nav)] portrait:max-lg:block landscape:max-lg:hidden lg:hidden">
         <div className="flex items-stretch justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
-          {(showPreferences ? [...mainNav, PREFERENCES_NAV] : mainNav).map(({ href, label, icon: Icon }) => {
+          {mainNav.map(({ href, label, icon: Icon }) => {
             const active = isNavActive(pathname, href)
             const showBadge = href === '/dashboard' && dashboardNotificationCount > 0
             return (

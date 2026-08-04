@@ -1,6 +1,7 @@
 import { format } from 'date-fns'
 import type { DayNoteData } from '@/lib/day-notes'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import type { SeasonEventData } from '@/lib/season-planner'
 import { todayDateKey, toDateKey } from '@/lib/dates'
 
 export type PlanDay = {
@@ -11,6 +12,7 @@ export type PlanDay = {
   isToday: boolean
   workouts: PlanWorkoutDetail[]
   dayNote?: DayNoteData | null
+  seasonEvents?: SeasonEventData[]
 }
 
 /** Local calendar date for labels — avoids TZ drift on UTC date-only instants. */
@@ -33,6 +35,7 @@ export function buildPlanTableDays(
   days: Date[],
   byDate: Map<string, PlanWorkoutDetail[]>,
   notesByDate?: Map<string, DayNoteData>,
+  eventsByDate?: Map<string, SeasonEventData[]>,
 ): PlanDay[] {
   const todayKey = todayDateKey()
   return days.map((date) => {
@@ -46,6 +49,7 @@ export function buildPlanTableDays(
       isToday: dateKey === todayKey,
       workouts: byDate.get(dateKey) ?? [],
       dayNote: notesByDate?.get(dateKey) ?? null,
+      seasonEvents: eventsByDate?.get(dateKey) ?? [],
     }
   })
 }

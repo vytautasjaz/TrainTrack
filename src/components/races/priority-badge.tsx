@@ -5,21 +5,21 @@ import { RACE_PRIORITY_LABELS } from "@/lib/constants";
 const PRIORITY_BADGE: Record<RacePriority, string> = {
   A: "border-red-300 bg-red-50 text-red-800",
   B: "border-blue-300 bg-blue-50 text-blue-800",
-  C: "border-amber-300 bg-amber-50 text-amber-900",
+  C: "border-emerald-300 bg-emerald-50 text-emerald-900",
 };
 
 /** Icon / text color for priority markers. */
 const PRIORITY_DOT: Record<RacePriority, string> = {
   A: "text-red-600",
   B: "text-blue-600",
-  C: "text-amber-600",
+  C: "text-emerald-600",
 };
 
 /** Full marker chip: tinted fill + matching contour. */
 const PRIORITY_MARKER: Record<RacePriority, string> = {
   A: "border-red-400 bg-red-50 text-red-600",
   B: "border-blue-400 bg-blue-50 text-blue-600",
-  C: "border-amber-400 bg-amber-50 text-amber-700",
+  C: "border-emerald-400 bg-emerald-50 text-emerald-700",
 };
 
 type PriorityBadgeProps = {

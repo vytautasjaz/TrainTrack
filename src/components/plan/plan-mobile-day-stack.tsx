@@ -4,6 +4,7 @@ import { WorkoutType } from "@prisma/client";
 import { AddWorkoutCell } from "@/components/plan/add-workout-cell";
 import { PlanWorkoutCell } from "@/components/plan/plan-workout-row";
 import { DayNoteSection } from "@/components/plan/day-note-section";
+import { SeasonEventChips } from "@/components/plan/season-event-chips";
 import { RecoveryDaySection } from "@/components/plan/recovery-day-section";
 import { TrainingDayWorkoutList } from "@/components/training/training-day-workout-list";
 import {
@@ -118,6 +119,7 @@ export function PlanMobileDayStack({
 
   const hasAnyDayNotes = days.some((d) => d.dayNote);
   const showNoteRow = hasAnyDayNotes;
+  const showEventsRow = days.some((d) => (d.seasonEvents?.length ?? 0) > 0);
   const showRecoveryRow = days.some((d) => dayHasRecovery(d.workouts));
 
   return (
@@ -250,6 +252,15 @@ export function PlanMobileDayStack({
                 />
               )}
             </div>
+            {showEventsRow && (day.seasonEvents?.length ?? 0) > 0 && (
+              <div className="border-b border-border/60 bg-amber-200/90 px-3 py-2.5 dark:bg-amber-500/25">
+                <SeasonEventChips
+                  events={day.seasonEvents ?? []}
+                  variant="note"
+                  editable
+                />
+              </div>
+            )}
             {showNoteRow && coachEditable && (
               <div
                 className={cn(

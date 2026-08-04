@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { Prisma, SessionType, WorkoutType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
-import { requireAthleteSession, requireSession, resolveAthleteId } from '@/lib/session'
+import { requireAthleteSession, requireSession, resolveAthleteId, isCoach} from '@/lib/session'
 import { builderPayloadSchema } from '@/lib/workout-builder/schema'
 import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-athlete-preferences'
 import {
@@ -25,7 +25,7 @@ import {
 
 function requireCoach() {
   return requireSession().then((session) => {
-    if (session.role !== 'COACH') throw new Error('Coach only')
+    if (!isCoach(session)) throw new Error('Coach only')
     return session
   })
 }
@@ -80,7 +80,7 @@ export async function getCoachTemplatesForPicker(): Promise<WorkoutTemplatePicke
 export async function getAthletePreferencesForWorkoutModal() {
   const session = await requireSession()
   const athleteId =
-    session.role === 'ATHLETE'
+    session.hasAthlete
       ? (await requireAthleteSession()).athleteId
       : await resolveAthleteId(session)
   return loadAthletePreferencesForBuilder(athleteId)
@@ -88,7 +88,7 @@ export async function getAthletePreferencesForWorkoutModal() {
 
 export async function getWorkoutBuilderPrefsForModal(): Promise<WorkoutBuilderPrefs> {
   const session = await requireSession()
-  if (session.role !== 'COACH') return {}
+  if (!isCoach(session)) return {}
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { workoutBuilderPrefs: true },

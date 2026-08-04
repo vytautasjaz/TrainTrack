@@ -6,18 +6,26 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggleButton } from '@/components/theme-toggle-button'
+import { SignOutButton } from '@/components/layout/sign-out-button'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { CALCULATOR_NAV_TABS, getMainNav, PREFERENCES_NAV } from '@/lib/nav-items'
+import {
+  CALCULATOR_NAV_TABS,
+  CONNECT_COACH_NAV,
+  getMainNav,
+  SETTINGS_ENTRY_HREF,
+  SETTINGS_SUBNAV,
+} from '@/lib/nav-items'
 import { cn } from '@/lib/utils'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 
 type MobileNavMenuProps = {
   showPreferences?: boolean
+  showConnectCoach?: boolean
   isCoach?: boolean
   dashboardNotificationCount?: number
   menuFooter?: ReactNode
@@ -26,6 +34,7 @@ type MobileNavMenuProps = {
 
 export function MobileNavMenu({
   showPreferences = true,
+  showConnectCoach = false,
   isCoach = false,
   dashboardNotificationCount = 0,
   menuFooter,
@@ -37,6 +46,7 @@ export function MobileNavMenu({
 
   const mainItems = getMainNav(isCoach)
   const toolsOpen = pathname === '/tools' || pathname.startsWith('/tools/')
+  const settingsOpen = pathname.startsWith('/settings')
   const activeCalculatorTab = searchParams.get('tab') ?? 'running'
 
   return (
@@ -110,37 +120,69 @@ export function MobileNavMenu({
               )
             })}
           </nav>
-          {athleteProfile ? (
-            <div className="mt-3 flex items-center gap-3 rounded-[10px] bg-muted/50 px-3 py-2.5">
-              <AthleteAvatar
-                name={athleteProfile.name}
-                avatarUrl={athleteProfile.avatarUrl}
-                size="sm"
-              />
-              <p className="min-w-0 truncate text-sm font-semibold text-foreground">
-                {athleteProfile.name}
-              </p>
+          {showPreferences && athleteProfile ? (
+            <div className="mt-3">
+              <Link
+                href={SETTINGS_ENTRY_HREF}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  'flex items-center gap-3 rounded-[10px] px-3 py-2.5 transition-colors',
+                  settingsOpen
+                    ? 'bg-muted text-foreground'
+                    : 'bg-muted/50 text-foreground hover:bg-muted/80',
+                )}
+              >
+                <AthleteAvatar
+                  name={athleteProfile.name}
+                  avatarUrl={athleteProfile.avatarUrl}
+                  size="sm"
+                />
+                <p className="min-w-0 truncate text-sm font-semibold">
+                  {athleteProfile.name}
+                </p>
+              </Link>
+              {settingsOpen ? (
+                <div className="mt-1 ml-4 space-y-0.5 border-l border-border pl-3">
+                  {SETTINGS_SUBNAV.map(({ href, label }) => {
+                    const active = pathname.startsWith(href)
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        onClick={() => setOpen(false)}
+                        className={cn(
+                          'block rounded-[6px] px-2.5 py-1.5 text-sm font-medium transition-colors',
+                          active
+                            ? 'bg-muted text-foreground'
+                            : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                        )}
+                      >
+                        {label}
+                      </Link>
+                    )
+                  })}
+                </div>
+              ) : null}
             </div>
           ) : null}
-          {showPreferences ? (
+          {showConnectCoach ? (
             <Link
-              href={PREFERENCES_NAV.href}
+              href={CONNECT_COACH_NAV.href}
               onClick={() => setOpen(false)}
               className={cn(
                 'mt-1 flex items-center gap-3 rounded-[6px] px-3 py-2.5 text-sm font-medium transition-colors',
-                pathname.startsWith('/settings')
-                  ? 'bg-muted text-foreground'
-                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                'text-foreground hover:bg-muted/60',
               )}
             >
-              <PREFERENCES_NAV.icon className="h-4 w-4" />
-              {PREFERENCES_NAV.label}
+              <CONNECT_COACH_NAV.icon className="h-4 w-4" />
+              {CONNECT_COACH_NAV.label}
             </Link>
           ) : null}
           <ThemeToggleButton
             label="Toggle theme"
             className="mt-2 justify-start gap-2 rounded-[6px]"
           />
+          <SignOutButton tone="menu" className="mt-1 rounded-[6px]" />
           {menuFooter}
         </DialogContent>
       </Dialog>

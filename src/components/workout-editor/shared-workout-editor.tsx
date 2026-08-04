@@ -408,7 +408,10 @@ export function SharedWorkoutEditor({
     return hasStructureContent(structure)
   }, [detailsOpen, sportType, structure, swimForm])
 
-  const canAutoEstimate = sportType !== WorkoutType.SWIM || metricsFromDetails
+  const canAutoEstimate =
+    sportType !== WorkoutType.SWIM ||
+    metricsFromDetails ||
+    hasSwimCssPreference(preferences)
 
   useEffect(() => {
     if (!titleAuto || !typeSelected) return
@@ -958,7 +961,7 @@ export function SharedWorkoutEditor({
   }))
 
   const missingPrefs =
-    preferences && (typeSelected || (sportType === WorkoutType.SWIM && metricsFromDetails))
+    preferences && typeSelected
       ? sportType === WorkoutType.BIKE
         ? !hasBikeSpeedPreferences(preferences)
         : sportType === WorkoutType.RUN

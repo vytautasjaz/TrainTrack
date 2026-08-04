@@ -17,6 +17,7 @@ import { WorkoutStructureChart } from "@/components/workout-builder/workout-stru
 import { hasStructureContent } from "@/lib/workout-builder/utils";
 import type { DayNoteData } from "@/lib/day-notes";
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
+import type { SeasonEventData } from "@/lib/season-planner";
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS } from "@/lib/constants";
 import { getRecoveryWorkout } from "@/lib/recovery-day";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +25,7 @@ import { todayDateKey } from "@/lib/dates";
 import { WORKOUT_DAY_CARD_CLASS } from "@/lib/workout-display";
 import { cn } from "@/lib/utils";
 import { useFilteredWorkoutsByDate } from "@/components/training/use-plan-sport-filter-data";
+import { SeasonEventChips } from "@/components/plan/season-event-chips";
 
 const DAY_PANEL_STORAGE_KEY = "tt-month-day-panel-open";
 const MONTH_SPAN_STORAGE_KEY = "tt-month-span";
@@ -48,6 +50,7 @@ type MonthCalendarViewProps = {
   monthOffset: number;
   workoutsByDate: Map<string, PlanWorkoutDetail[]>;
   notesByDate: Map<string, DayNoteData>;
+  eventsByDate?: Map<string, SeasonEventData[]>;
   isCoach: boolean;
   athleteId?: string;
   trainingMode?: boolean;
@@ -60,6 +63,7 @@ function SelectedDayPanel({
   selectedLabel,
   selectedWorkouts,
   selectedNote,
+  selectedEvents,
   canEditNotes,
   athleteId,
   isCoach,
@@ -69,6 +73,7 @@ function SelectedDayPanel({
   selectedLabel: string;
   selectedWorkouts: PlanWorkoutDetail[];
   selectedNote: DayNoteData | null;
+  selectedEvents: SeasonEventData[];
   canEditNotes: boolean;
   athleteId?: string;
   isCoach: boolean;
@@ -99,6 +104,15 @@ function SelectedDayPanel({
           recoveryWorkout={getRecoveryWorkout(selectedWorkouts)}
         />
       </div>
+
+      {selectedEvents.length > 0 && (
+        <div className="mt-3 rounded-[6px] border border-amber-300/80 bg-amber-50/90 p-2 dark:bg-amber-500/10">
+          <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+            Events
+          </p>
+          <SeasonEventChips events={selectedEvents} />
+        </div>
+      )}
 
       {selectedNote && (
         <div className="mt-3">
@@ -164,6 +178,7 @@ function MonthGrid({
   days,
   workoutsByDate,
   notesByDate,
+  eventsByDate,
   isCoach,
   selectedDateKey,
   onSelect,
@@ -172,6 +187,7 @@ function MonthGrid({
   days: MonthDay[];
   workoutsByDate: Map<string, PlanWorkoutDetail[]>;
   notesByDate: Map<string, DayNoteData>;
+  eventsByDate: Map<string, SeasonEventData[]>;
   isCoach: boolean;
   selectedDateKey: string;
   onSelect: (dateKey: string) => void;
@@ -200,6 +216,7 @@ function MonthGrid({
               dayNumber={day.dayNumber}
               workouts={workoutsByDate.get(day.dateKey) ?? []}
               dayNote={notesByDate.get(day.dateKey) ?? null}
+              seasonEvents={eventsByDate.get(day.dateKey) ?? []}
               isCoach={isCoach}
               inMonth={day.inMonth}
               isToday={day.isToday}
@@ -223,6 +240,7 @@ export function MonthCalendarView({
   monthOffset,
   workoutsByDate,
   notesByDate,
+  eventsByDate,
   isCoach,
   athleteId,
   trainingMode = false,
@@ -230,6 +248,7 @@ export function MonthCalendarView({
   nextMonthHref,
 }: MonthCalendarViewProps) {
   const filteredWorkoutsByDate = useFilteredWorkoutsByDate(workoutsByDate);
+  const eventsMap = eventsByDate ?? new Map<string, SeasonEventData[]>();
   const allDays = useMemo(() => months.flatMap((m) => m.days), [months]);
 
   const defaultSelected = useMemo(() => {
@@ -288,6 +307,7 @@ export function MonthCalendarView({
   const canEditNotes = true;
   const selectedWorkouts = filteredWorkoutsByDate.get(selectedDateKey) ?? [];
   const selectedNote = notesByDate.get(selectedDateKey) ?? null;
+  const selectedEvents = eventsMap.get(selectedDateKey) ?? [];
   const selectedLabel = format(
     new Date(selectedDateKey + "T12:00:00"),
     "EEEE, d MMMM",
@@ -299,6 +319,7 @@ export function MonthCalendarView({
     selectedLabel,
     selectedWorkouts,
     selectedNote,
+    selectedEvents,
     canEditNotes,
     athleteId,
     isCoach,
@@ -387,6 +408,7 @@ export function MonthCalendarView({
                   days={block.days}
                   workoutsByDate={filteredWorkoutsByDate}
                   notesByDate={notesByDate}
+                  eventsByDate={eventsMap}
                   isCoach={isCoach}
                   selectedDateKey={selectedDateKey}
                   onSelect={setSelectedDateKey}

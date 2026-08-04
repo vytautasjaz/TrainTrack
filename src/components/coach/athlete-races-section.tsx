@@ -71,7 +71,7 @@ export function AthleteRacesSection({ athleteId, races }: AthleteRacesSectionPro
           </div>
           <div className="border-t border-white/15 bg-black/20 px-6 py-3">
             <ItemActions
-              editHref={`/races/${featured.id}/edit?returnTo=${encodeURIComponent(profilePath)}`}
+              editHref={`/season/${featured.id}/edit?returnTo=${encodeURIComponent(profilePath)}`}
               deleteAction={deleteRace}
               deleteId={featured.id}
               deleteIdField="raceId"
@@ -97,7 +97,7 @@ export function AthleteRacesSection({ athleteId, races }: AthleteRacesSectionPro
                 <p className="text-sm text-muted-foreground">days remaining</p>
                 {race.goal && <p className="text-sm">Goal: {race.goal}</p>}
                 <ItemActions
-                  editHref={`/races/${race.id}/edit?returnTo=${encodeURIComponent(profilePath)}`}
+                  editHref={`/season/${race.id}/edit?returnTo=${encodeURIComponent(profilePath)}`}
                   deleteAction={deleteRace}
                   deleteId={race.id}
                   deleteIdField="raceId"
@@ -158,7 +158,7 @@ export function AthleteRacesSection({ athleteId, races }: AthleteRacesSectionPro
                     ) : null}
                   </div>
                   <ItemActions
-                    editHref={`/races/${r.id}/edit?returnTo=${encodeURIComponent(profilePath)}`}
+                    editHref={`/season/${r.id}/edit?returnTo=${encodeURIComponent(profilePath)}`}
                     deleteAction={deleteRace}
                     deleteId={r.id}
                     deleteIdField="raceId"

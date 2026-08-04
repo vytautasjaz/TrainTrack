@@ -54,7 +54,7 @@ export function PastRaceTable({ races, className }: PastRaceTableProps) {
                   >
                     <td className="px-4 py-3">
                       <Link
-                        href={`/races/${race.id}/edit`}
+                        href={`/season/${race.id}/edit`}
                         className="flex min-w-0 items-start gap-3 opacity-80 transition group-hover:opacity-100"
                       >
                         <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground">
@@ -92,7 +92,7 @@ export function PastRaceTable({ races, className }: PastRaceTableProps) {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <ItemActions
-                        editHref={`/races/${race.id}/edit`}
+                        editHref={`/season/${race.id}/edit`}
                         deleteAction={deleteRace}
                         deleteId={race.id}
                         deleteIdField="raceId"

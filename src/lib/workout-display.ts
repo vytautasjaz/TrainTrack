@@ -25,7 +25,7 @@ export const WORKOUT_TYPE_CELL_TINT: Record<WorkoutType, string> = {
   REST: 'bg-zinc-500/[0.04]',
 }
 
-export const RACE_PLAN_DOT_CLASS = 'bg-amber-500'
+export const RACE_PLAN_DOT_CLASS = 'bg-emerald-500'
 
 /** Week table cell: highlight full cell when any workout inside is hovered */
 export const PLAN_TABLE_CELL_HOVER_CLASS =

@@ -2,7 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import { WorkoutEditorPage } from '@/components/workout-editor/workout-editor-page'
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, isCoach} from '@/lib/session'
 import { todayDateKey } from '@/lib/dates'
 import { parseStructure } from '@/lib/workout-builder/utils'
 import { parseSwimStructure } from '@/lib/swim-workout/parse'
@@ -14,7 +14,7 @@ type EditTemplateBuilderPageProps = {
 
 export default async function EditTemplateBuilderPage({ params }: EditTemplateBuilderPageProps) {
   const session = await getSession()
-  if (!session || session.role !== 'COACH') redirect('/')
+  if (!session || !isCoach(session)) redirect('/')
 
   const { id } = await params
   const template = await prisma.workoutTemplate.findFirst({

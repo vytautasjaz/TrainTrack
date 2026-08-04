@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, isCoach} from '@/lib/session'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { BackButton } from '@/components/ui/back-button'
@@ -20,7 +20,7 @@ type EditTemplatePageProps = {
 export default async function EditTemplatePage({ params }: EditTemplatePageProps) {
   const session = await getSession()
   if (!session) redirect('/')
-  if (session.role !== 'COACH') redirect('/workouts')
+  if (!isCoach(session)) redirect('/workouts')
 
   const { id } = await params
   const template = await prisma.workoutTemplate.findFirst({

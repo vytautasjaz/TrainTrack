@@ -1,5 +1,6 @@
-import { PrismaClient, UserRole, WorkoutStatus, WorkoutType, RaceType } from '@prisma/client'
-import { addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns'
+import { PrismaClient, UserRole, WorkoutStatus, WorkoutType, CoachAthleteLinkStatus } from '@prisma/client'
+import { addDays, startOfWeek } from 'date-fns'
+import { generateCoachingCode } from '../src/lib/coaching-code'
 
 const prisma = new PrismaClient()
 
@@ -7,7 +8,17 @@ async function main() {
   await prisma.workoutResult.deleteMany()
   await prisma.workout.deleteMany()
   await prisma.workoutTemplate.deleteMany()
+  await prisma.raceLeg.deleteMany().catch(() => undefined)
   await prisma.race.deleteMany()
+  await prisma.coachAthleteLink.deleteMany()
+  await prisma.coachProfile.deleteMany()
+  await prisma.athleteWeekPlanSportRow.deleteMany().catch(() => undefined)
+  await prisma.athleteWeekHiddenPlanSportRow.deleteMany().catch(() => undefined)
+  await prisma.dayNote.deleteMany().catch(() => undefined)
+  await prisma.seasonPhaseBlock.deleteMany().catch(() => undefined)
+  await prisma.stravaConnection.deleteMany().catch(() => undefined)
+  await prisma.account.deleteMany().catch(() => undefined)
+  await prisma.session.deleteMany().catch(() => undefined)
   await prisma.athlete.deleteMany()
   await prisma.user.deleteMany()
 
@@ -15,7 +26,14 @@ async function main() {
     data: {
       name: 'Coach Alex',
       email: 'coach@traintrack.app',
-      role: UserRole.COACH,
+      roles: [UserRole.COACH],
+    },
+  })
+
+  const coachProfile = await prisma.coachProfile.create({
+    data: {
+      userId: coach.id,
+      coachingCode: generateCoachingCode(),
     },
   })
 
@@ -23,7 +41,7 @@ async function main() {
     data: {
       name: 'Jordan Lee',
       email: 'jordan@traintrack.app',
-      role: UserRole.ATHLETE,
+      roles: [UserRole.ATHLETE],
     },
   })
 
@@ -32,6 +50,14 @@ async function main() {
       coachId: coach.id,
       userId: athleteUser.id,
       name: 'Jordan Lee',
+    },
+  })
+
+  await prisma.coachAthleteLink.create({
+    data: {
+      coachProfileId: coachProfile.id,
+      athleteId: athlete.id,
+      status: CoachAthleteLinkStatus.ACCEPTED,
     },
   })
 
@@ -121,34 +147,14 @@ async function main() {
     }
   }
 
-  await prisma.race.create({
-    data: {
-      athleteId: athlete.id,
-      name: 'Berlin Marathon',
-      date: addDays(today, 134),
-      location: 'Berlin, Germany',
-      type: RaceType.MARATHON,
-      goal: 'Sub 3:30',
-    },
-  })
-
-  await prisma.race.create({
-    data: {
-      athleteId: athlete.id,
-      name: 'HYROX World Championship',
-      date: addDays(today, 210),
-      location: 'Manchester, UK',
-      type: RaceType.HYROX,
-      goal: 'Top 20 age group',
-    },
-  })
-
-  console.log('Seed complete')
-  console.log(`Coach ID: ${coach.id}`)
-  console.log(`Athlete user ID: ${athleteUser.id}`)
-  console.log(`Athlete ID: ${athlete.id}`)
+  console.log('Seeded Coach Alex (%s) + Jordan Lee', coachProfile.coachingCode)
 }
 
 main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect())
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
+  .finally(async () => {
+    await prisma.$disconnect()
+  })

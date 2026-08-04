@@ -31,7 +31,26 @@ npm run db:setup-local   # start Docker DB, switch .env, push schema, seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and sign in as **Coach Alex** or **Jordan Lee**.
+Open [http://localhost:3000](http://localhost:3000) and sign in with email, Google, Strava, or (in development) a seeded demo user.
+
+### Auth (Google / Strava / email)
+
+TrainTrack uses **Auth.js (NextAuth v5)**. Set these in `.env` / Netlify:
+
+| Variable | Purpose |
+| -------- | ------- |
+| `AUTH_SECRET` | Session encryption (`openssl rand -base64 32`) |
+| `AUTH_URL` / `NEXT_PUBLIC_APP_URL` | Canonical app origin |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | Google OAuth |
+| `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` | Strava login + activity sync |
+
+**Redirect URIs**
+
+- Google: `{AUTH_URL}/api/auth/callback/google`
+- Strava (Auth.js login): `{AUTH_URL}/api/auth/callback/strava`
+- Strava (activity link from Preferences): `{NEXT_PUBLIC_APP_URL}/api/strava/callback` — set Strava “Authorization Callback Domain” to your host (e.g. `localhost` or your Netlify domain)
+
+After first sign-in, users pick **Start Training**, **Become a Coach**, or skip. Coaches get an invite code (`TT-…`); athletes connect under **Settings → Account**.
 
 ### Switch database
 
@@ -63,11 +82,11 @@ Default local `DATABASE_URL`:
 postgresql://traintrack:traintrack@localhost:5433/traintrack?schema=public
 ```
 
-## Demo login
+## Sign-in
 
-MVP uses cookie-based demo sessions (no real auth yet). Pick a user on the home screen, or use the role switcher in the header.
+Production: Google, Strava, or email/password via Auth.js. See `.env.example`.
 
-After seeding, the console prints user IDs you can set in `.env` if needed.
+Development: the home page also lists seeded demo users (`ALLOW_DEMO_LOGIN=1` outside `development`). After seeding, Coach Alex and Jordan Lee appear there.
 
 ## Scripts
 
@@ -92,7 +111,7 @@ legacy/          # Old Vite PWA
 
 ## Not yet implemented
 
-- Real authentication (NextAuth / Clerk)
+- Email verification / magic links
 - Drag-and-drop calendar
 - Duplicate entire weeks
 - Advanced metrics (CTL / ATL / TSB)

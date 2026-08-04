@@ -2,6 +2,7 @@ import { WorkoutType } from '@prisma/client'
 import type { PlanDay } from '@/lib/plan-week'
 import { formatDistance, formatDuration } from '@/lib/utils'
 import { formatSwimDistance } from '@/lib/swim-workout/format'
+import { estimateSwimDurationMinFromCss } from '@/lib/athlete-preferences'
 
 const SPORTS_WITHOUT_PLANNED_DISTANCE = new Set<WorkoutType>([WorkoutType.STRENGTH])
 
@@ -19,6 +20,11 @@ export type SportWeekTotals = {
   actualDistanceMeters: number
 }
 
+export type WeekTotalsOptions = {
+  /** Used to estimate swim duration when plannedDuration is missing. */
+  swimCssSecPer100m?: number | null
+}
+
 function plannedSwimMeters(workout: {
   plannedDistanceMeters: number | null
   plannedDistance: number | null
@@ -32,13 +38,36 @@ function plannedSwimMeters(workout: {
   return 0
 }
 
-export function sumSportWeekTotals(days: PlanDay[], sport: WorkoutType): SportWeekTotals {
+function plannedSwimDurationMin(
+  workout: {
+    plannedDuration: number | null
+    plannedDistanceMeters: number | null
+    plannedDistance: number | null
+  },
+  swimCssSecPer100m?: number | null,
+): number {
+  if (workout.plannedDuration != null && workout.plannedDuration > 0) {
+    return workout.plannedDuration
+  }
+  if (typeof swimCssSecPer100m === 'number' && swimCssSecPer100m > 0) {
+    const meters = plannedSwimMeters(workout)
+    if (meters > 0) return estimateSwimDurationMinFromCss(meters, swimCssSecPer100m)
+  }
+  return 0
+}
+
+export function sumSportWeekTotals(
+  days: PlanDay[],
+  sport: WorkoutType,
+  options?: WeekTotalsOptions,
+): SportWeekTotals {
   let distanceKm = 0
   let durationMin = 0
   let actualDistanceKm = 0
   let actualDurationMin = 0
   let distanceMeters = 0
   let actualDistanceMeters = 0
+  const css = options?.swimCssSecPer100m
 
   for (const day of days) {
     for (const workout of day.workouts) {
@@ -82,18 +111,20 @@ export function sumSportWeekTotals(days: PlanDay[], sport: WorkoutType): SportWe
       }
 
       if (workout.type !== sport) continue
-      if (workout.plannedDuration) durationMin += workout.plannedDuration
-      if (workout.result?.actualDuration) actualDurationMin += workout.result.actualDuration
 
       if (sport === WorkoutType.SWIM) {
         distanceMeters += plannedSwimMeters(workout)
+        durationMin += plannedSwimDurationMin(workout, css)
         if (workout.result?.actualDistance) {
           actualDistanceMeters += Math.round(workout.result.actualDistance * 1000)
         }
       } else {
+        if (workout.plannedDuration) durationMin += workout.plannedDuration
         if (workout.plannedDistance) distanceKm += workout.plannedDistance
         if (workout.result?.actualDistance) actualDistanceKm += workout.result.actualDistance
       }
+
+      if (workout.result?.actualDuration) actualDurationMin += workout.result.actualDuration
     }
   }
 
@@ -108,9 +139,13 @@ export function sumSportWeekTotals(days: PlanDay[], sport: WorkoutType): SportWe
 }
 
 /** Total planned/actual duration across all sports for the week (excludes REST). */
-export function sumWeekDurationMinutes(days: PlanDay[]): { planned: number; actual: number } {
+export function sumWeekDurationMinutes(
+  days: PlanDay[],
+  options?: WeekTotalsOptions,
+): { planned: number; actual: number } {
   let planned = 0
   let actual = 0
+  const css = options?.swimCssSecPer100m
 
   for (const day of days) {
     for (const workout of day.workouts) {
@@ -125,7 +160,11 @@ export function sumWeekDurationMinutes(days: PlanDay[]): { planned: number; actu
         }
         continue
       }
-      if (workout.plannedDuration) planned += workout.plannedDuration
+      if (workout.type === WorkoutType.SWIM) {
+        planned += plannedSwimDurationMin(workout, css)
+      } else if (workout.plannedDuration) {
+        planned += workout.plannedDuration
+      }
       if (workout.result?.actualDuration) actual += workout.result.actualDuration
     }
   }

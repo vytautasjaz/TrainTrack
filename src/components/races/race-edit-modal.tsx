@@ -48,7 +48,7 @@ export function RaceEditModal({
   open,
   onOpenChange,
   onSaved,
-  returnTo = '/races',
+  returnTo = '/season',
 }: RaceEditModalProps) {
   if (!race) return null
 

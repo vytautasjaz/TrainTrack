@@ -3,18 +3,14 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSession } from '@/lib/session'
+import { requireSession, isCoach, requireCoachOwnsAthlete } from '@/lib/session'
 import { safeRedirectPath } from '@/lib/safe-redirect'
-
-async function requireCoachOwnsAthlete(coachId: string, athleteId: string) {
-  const athlete = await prisma.athlete.findFirst({
-    where: { id: athleteId, coachId },
-    select: { id: true },
-  })
-  if (!athlete) throw new Error('Athlete not found')
-}
+import { setDemoSession as setDemo } from '@/app/actions/auth'
 
 export async function switchUser(formData: FormData) {
+  if (process.env.NODE_ENV !== 'development' && process.env.ALLOW_DEMO_LOGIN !== '1') {
+    throw new Error('Demo switch disabled')
+  }
   const userId = formData.get('userId') as string
   const cookieStore = await cookies()
   cookieStore.set('tt_user', userId, { path: '/' })
@@ -22,10 +18,18 @@ export async function switchUser(formData: FormData) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: { athleteProfile: true },
+    include: {
+      athleteProfile: true,
+      coachProfile: { select: { id: true } },
+    },
   })
   if (user?.athleteProfile?.id) {
     cookieStore.set('tt_athlete', user.athleteProfile.id, { path: '/' })
+  } else if (user?.coachProfile) {
+    const { getCoachAthletes } = await import('@/lib/session')
+    const athletes = await getCoachAthletes(userId)
+    const active = athletes.find((a) => a.status === 'ACTIVE') ?? athletes[0]
+    if (active) cookieStore.set('tt_athlete', active.id, { path: '/' })
   }
 
   redirect('/dashboard')
@@ -33,7 +37,7 @@ export async function switchUser(formData: FormData) {
 
 export async function switchAthlete(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') throw new Error('Coach only')
+  if (!isCoach(session)) throw new Error('Coach only')
 
   const athleteId = formData.get('athleteId') as string
   const redirectTo = safeRedirectPath(formData.get('redirectTo') as string | null, '/training')
@@ -46,7 +50,5 @@ export async function switchAthlete(formData: FormData) {
 }
 
 export async function setDemoSession(userId: string, athleteId?: string) {
-  const cookieStore = await cookies()
-  cookieStore.set('tt_user', userId, { path: '/' })
-  if (athleteId) cookieStore.set('tt_athlete', athleteId, { path: '/' })
+  return setDemo(userId, athleteId)
 }

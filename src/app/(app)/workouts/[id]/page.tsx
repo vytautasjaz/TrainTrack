@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { getSession } from '@/lib/session'
+import { getSession, isCoach} from '@/lib/session'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -46,13 +46,13 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
   if (!workout) notFound()
 
   const result = workout.result
-  const isCoach = session.role === 'COACH'
+  const coachView = isCoach(session)
   const dateValue = workout.date.toISOString().slice(0, 10)
   const structure = parseStructure(workout.structure)
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      {session.role === 'ATHLETE' && result?.coachReply && !result.coachReplyReadAt && (
+      {session.hasAthlete && result?.coachReply && !result.coachReplyReadAt && (
         <MarkCoachReplyReadOnView workoutId={workout.id} shouldMark />
       )}
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -75,7 +75,7 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
             </Badge>
           </div>
         </div>
-        {isCoach && (
+        {coachView && (
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" asChild>
               <Link href={`/workouts/builder/${workout.id}`}>Open in builder</Link>
@@ -114,7 +114,7 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
         </Card>
       ) : null}
 
-      {isCoach && (
+      {coachView && (
         <Card>
           <CardHeader>
             <CardTitle>Edit workout</CardTitle>
@@ -220,7 +220,7 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
-              {session.role === 'ATHLETE'
+              {session.hasAthlete
                 ? 'Stats were imported from Strava and can\'t be edited here.'
                 : 'This workout was completed via Strava.'}
             </p>
@@ -233,7 +233,7 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
         </Card>
       )}
 
-      {session.role === 'ATHLETE' && !result?.stravaActivityUrl && (
+      {session.hasAthlete && !result?.stravaActivityUrl && (
         <Card>
           <CardHeader>
             <CardTitle>Log workout</CardTitle>

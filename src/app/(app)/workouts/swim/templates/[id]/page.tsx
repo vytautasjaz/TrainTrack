@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getSession } from '@/lib/session'
+import { getSession, isCoach} from '@/lib/session'
 
 type EditSwimTemplatePageProps = {
   params: Promise<{ id: string }>
@@ -8,7 +8,7 @@ type EditSwimTemplatePageProps = {
 /** @deprecated Prefer /workouts/templates/builder/[id] — redirects there. */
 export default async function EditSwimTemplatePage({ params }: EditSwimTemplatePageProps) {
   const session = await getSession()
-  if (!session || session.role !== 'COACH') redirect('/')
+  if (!session || !isCoach(session)) redirect('/')
 
   const { id } = await params
   redirect(`/workouts/templates/builder/${id}`)

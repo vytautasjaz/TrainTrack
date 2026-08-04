@@ -263,7 +263,7 @@ export function WorkoutBlock({
                   workout.racePriority === 'A' && 'text-red-600 dark:text-red-400',
                   workout.racePriority === 'B' && 'text-blue-600 dark:text-blue-400',
                   (workout.racePriority === 'C' || !workout.racePriority) &&
-                    'text-amber-600 dark:text-amber-400',
+                    'text-emerald-600 dark:text-emerald-400',
                 )}
                 strokeWidth={1.75}
                 aria-hidden

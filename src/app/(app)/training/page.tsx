@@ -10,13 +10,15 @@ import {
   getDayNotesForRange,
   getPlanWorkoutsInRange,
   getRacesForRange,
+  getSeasonEventsForRange,
   getWeekDays,
   getWeekExtraPlanSportRows,
   getWeekHiddenPlanSportRows,
   groupDayNotesByDate,
   groupWorkoutsByDate,
 } from "@/lib/queries";
-import { getSession, getCoachAthletes, resolveAthleteId } from "@/lib/session";
+import { groupSeasonEventsByDate } from "@/lib/season-events";
+import { getSession, getCoachAthletes, resolveAthleteId, isCoach as userIsCoach } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { toPlanWorkoutDetail } from "@/lib/plan-workout";
 import { mergeRacesIntoByDate } from "@/lib/races";
@@ -155,9 +157,20 @@ export default async function TrainingPage({
   const dayNotes = await getDayNotesForRange(athleteId, rangeStart, rangeEnd);
   const notesByDate = groupDayNotesByDate(dayNotes);
 
-  const isCoach = session.role === "COACH";
+  const seasonEventsRaw = await getSeasonEventsForRange(
+    athleteId,
+    rangeStart,
+    rangeEnd,
+  );
+  const eventsByDate = groupSeasonEventsByDate(
+    seasonEventsRaw,
+    rangeStart,
+    rangeEnd,
+  );
+
+  const isCoach = userIsCoach(session);
   const canLogWorkout =
-    session.role === "ATHLETE" && Boolean(session.athleteId);
+    session.hasAthlete && Boolean(session.athleteId);
   const today = todayDateKey();
 
   const coachAthletes = isCoach ? await getCoachAthletes(session.userId) : [];
@@ -180,7 +193,7 @@ export default async function TrainingPage({
       weekStartKey: toDateKey(start),
       weekLabel: `${formatDateOnly(start, "d MMM")} – ${formatDateOnly(end, "d MMM yyyy")}`,
       trainingDays: buildTrainingDays(days),
-      tableDays: buildPlanTableDays(days, byDate, notesByDate),
+      tableDays: buildPlanTableDays(days, byDate, notesByDate, eventsByDate),
     };
   });
 
@@ -304,27 +317,27 @@ export default async function TrainingPage({
     };
   });
 
+  const athletePreferences = await loadAthletePreferencesForBuilder(athleteId);
+  const swimCssSecPer100m = athletePreferences?.swimCssSecPer100m ?? null;
+
   const libraryTemplates = isCoach
-    ? await (async () => {
-        const [templates, preferences] = await Promise.all([
-          getCoachLibraryTemplates(session.userId),
-          loadAthletePreferencesForBuilder(athleteId),
-        ])
-        return templates.map((t) => {
-          const metrics = resolveLibraryTemplateMetricsForAthlete(t, preferences)
-          return {
-            id: t.id,
-            title: t.title,
-            type: t.type,
-            sessionType: t.sessionType,
-            distanceKm: metrics.distanceKm,
-            durationMin: metrics.durationMin,
-            plannedDistanceMeters: t.plannedDistanceMeters,
-            distanceApprox: metrics.distanceApprox,
-            durationApprox: metrics.durationApprox,
-          }
-        })
-      })()
+    ? (await getCoachLibraryTemplates(session.userId)).map((t) => {
+        const metrics = resolveLibraryTemplateMetricsForAthlete(
+          t,
+          athletePreferences,
+        );
+        return {
+          id: t.id,
+          title: t.title,
+          type: t.type,
+          sessionType: t.sessionType,
+          distanceKm: metrics.distanceKm,
+          durationMin: metrics.durationMin,
+          plannedDistanceMeters: t.plannedDistanceMeters,
+          distanceApprox: metrics.distanceApprox,
+          durationApprox: metrics.durationApprox,
+        };
+      })
     : [];
 
   return (
@@ -339,6 +352,7 @@ export default async function TrainingPage({
           monthOffset={monthOffset}
           workoutsByDate={byDate}
           notesByDate={notesByDate}
+          eventsByDate={eventsByDate}
           isCoach={isCoach}
           athleteId={athleteId}
           trainingMode
@@ -376,6 +390,7 @@ export default async function TrainingPage({
               nextWeekHref={nextHref}
               addWeekHref={addWeekHref}
               removeWeekHref={removeWeekHref}
+              swimCssSecPer100m={swimCssSecPer100m}
             />
           </div>
 
@@ -397,6 +412,7 @@ export default async function TrainingPage({
               weekBlocks={weekViewBlocks}
               addWeekHref={addWeekHref}
               removeWeekHref={removeWeekHref}
+              swimCssSecPer100m={swimCssSecPer100m}
             />
           </div>
         </>

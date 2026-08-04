@@ -1,7 +1,13 @@
 'use server'
 
 import { prisma } from '@/lib/prisma'
-import { requireSession, resolveAthleteId } from '@/lib/session'
+import {
+  requireSession,
+  resolveAthleteId,
+  isCoach,
+  isAthleteRole,
+  coachCanAccessAthlete,
+} from '@/lib/session'
 import type { SeasonRace } from '@/lib/season-races'
 
 const SEASON_RACE_SELECT = {
@@ -41,18 +47,15 @@ export async function getSeasonRaceDetail(
   })
   if (!race) return null
 
-  if (session.role === 'ATHLETE') {
-    const athleteId = await resolveAthleteId(session)
-    if (!athleteId || race.athleteId !== athleteId) return null
-  } else if (session.role === 'COACH') {
-    const owned = await prisma.athlete.findFirst({
-      where: { id: race.athleteId, coachId: session.userId },
-      select: { id: true },
-    })
-    if (!owned) return null
-  } else {
-    return null
+  let allowed = false
+  if (isAthleteRole(session) && session.hasAthlete) {
+    const ownId = await resolveAthleteId(session)
+    if (ownId && race.athleteId === ownId) allowed = true
   }
+  if (!allowed && isCoach(session)) {
+    allowed = await coachCanAccessAthlete(session.userId, race.athleteId)
+  }
+  if (!allowed) return null
 
   const { athleteId: _athleteId, ...rest } = race
   return rest as SeasonRace

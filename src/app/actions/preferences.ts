@@ -17,7 +17,7 @@ import {
   parseWorkoutBuilderPrefs,
   type WorkoutBuilderPrefs,
 } from '@/lib/workout-builder/workout-builder-prefs'
-import { requireSession, resolveAthleteId } from '@/lib/session'
+import { requireSession, resolveAthleteId, isCoach} from '@/lib/session'
 
 async function requireAthleteForPreferences() {
   const session = await requireSession()
@@ -141,7 +141,7 @@ export async function updateAthleteName(formData: FormData) {
     data: { name },
   })
 
-  if (session.role === 'ATHLETE' && session.athleteId) {
+  if (session.hasAthlete && session.athleteId) {
     await prisma.athlete.update({
       where: { id: session.athleteId },
       data: { name },
@@ -149,6 +149,7 @@ export async function updateAthleteName(formData: FormData) {
   }
 
   revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
   revalidatePath('/dashboard')
 }
 
@@ -157,7 +158,7 @@ const AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gi
 
 export async function uploadAthleteAvatar(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'ATHLETE' || !session.athleteId) {
+  if (!session.hasAthlete || !session.athleteId) {
     throw new Error('Only athletes can upload a profile photo.')
   }
 
@@ -196,13 +197,14 @@ export async function uploadAthleteAvatar(formData: FormData) {
   })
 
   revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
   revalidatePath('/dashboard')
   revalidatePath('/training')
 }
 
 export async function syncAvatarFromStrava() {
   const session = await requireSession()
-  if (session.role !== 'ATHLETE' || !session.athleteId) {
+  if (!session.hasAthlete || !session.athleteId) {
     throw new Error('Only athletes can sync a Strava photo.')
   }
 
@@ -211,13 +213,14 @@ export async function syncAvatarFromStrava() {
   if (!url) throw new Error('No Strava profile photo found.')
 
   revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
   revalidatePath('/dashboard')
   revalidatePath('/training')
 }
 
 export async function clearAthleteAvatar() {
   const session = await requireSession()
-  if (session.role !== 'ATHLETE' || !session.athleteId) {
+  if (!session.hasAthlete || !session.athleteId) {
     throw new Error('Only athletes can clear a profile photo.')
   }
 
@@ -227,13 +230,14 @@ export async function clearAthleteAvatar() {
   })
 
   revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
   revalidatePath('/dashboard')
   revalidatePath('/training')
 }
 
 export async function updateCoachPlanningLeadDays(formData: FormData) {
   const session = await requireSession()
-  if (session.role !== 'COACH') {
+  if (!isCoach(session)) {
     throw new Error('Only coaches can update planning reminders.')
   }
 
@@ -254,7 +258,7 @@ export async function updateCoachPlanningLeadDays(formData: FormData) {
 
 export async function getCoachWorkoutBuilderPrefs(): Promise<WorkoutBuilderPrefs> {
   const session = await requireSession()
-  if (session.role !== 'COACH') return {}
+  if (!isCoach(session)) return {}
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
@@ -265,7 +269,7 @@ export async function getCoachWorkoutBuilderPrefs(): Promise<WorkoutBuilderPrefs
 
 export async function updateCoachWorkoutBuilderPrefs(prefs: WorkoutBuilderPrefs) {
   const session = await requireSession()
-  if (session.role !== 'COACH') {
+  if (!isCoach(session)) {
     throw new Error('Only coaches can update workout builder preferences.')
   }
 

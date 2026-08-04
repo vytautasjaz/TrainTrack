@@ -108,7 +108,7 @@ export function MonthWorkoutChip({ workout, isCoach, variant }: MonthWorkoutChip
         'relative rounded-[6px] p-0.5 transition',
         priority === 'A' && 'text-red-600 hover:bg-red-500/15',
         priority === 'B' && 'text-blue-600 hover:bg-blue-500/15',
-        priority === 'C' && 'text-amber-600 hover:bg-amber-500/15',
+        priority === 'C' && 'text-emerald-600 hover:bg-emerald-500/15',
       )
     } else {
       body = <Flag className="h-2.5 w-2.5 fill-current/25" strokeWidth={2} />
@@ -116,7 +116,7 @@ export function MonthWorkoutChip({ workout, isCoach, variant }: MonthWorkoutChip
         'relative flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] transition',
         priority === 'A' && 'bg-red-500/15 text-red-600 hover:bg-red-500/25',
         priority === 'B' && 'bg-blue-500/15 text-blue-600 hover:bg-blue-500/25',
-        priority === 'C' && 'bg-amber-500/15 text-amber-600 hover:bg-amber-500/25',
+        priority === 'C' && 'bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25',
       )
     }
   } else {

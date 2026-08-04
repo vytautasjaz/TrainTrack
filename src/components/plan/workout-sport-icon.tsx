@@ -29,7 +29,7 @@ export function WorkoutSportIcon({
   const Icon = isRace ? Flag : WORKOUT_TYPE_ICONS[type]
   const s = sizeClass[size]
   const colorClass = isRace
-    ? 'text-amber-600 dark:text-amber-400'
+    ? 'text-emerald-600 dark:text-emerald-400'
     : WORKOUT_TYPE_COLORS[type].replace(/bg-\S+\s*/, '')
 
   return (
@@ -38,7 +38,7 @@ export function WorkoutSportIcon({
         'flex shrink-0 items-center justify-center',
         appearance === 'outline'
           ? cn(s.outline, 'border border-border/60 bg-background', colorClass)
-          : cn(s.box, isRace ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : WORKOUT_TYPE_COLORS[type]),
+          : cn(s.box, isRace ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : WORKOUT_TYPE_COLORS[type]),
         className,
       )}
       title={isRace ? 'Race' : undefined}

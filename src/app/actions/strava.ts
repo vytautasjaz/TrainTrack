@@ -131,9 +131,9 @@ export async function attachStravaActivityToWorkout(workoutId: string, activityI
 
 function revalidateRacePaths(athleteId: string, raceId?: string) {
   revalidateStravaPaths()
-  revalidatePath('/races')
+  revalidatePath('/season')
   revalidatePath(`/athletes/${athleteId}`)
-  if (raceId) revalidatePath(`/races/${raceId}/edit`)
+  if (raceId) revalidatePath(`/season/${raceId}/edit`)
 }
 
 export async function listStravaActivitiesForRace(raceId: string, legId?: string) {

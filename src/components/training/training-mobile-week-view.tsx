@@ -26,6 +26,7 @@ type TrainingMobileWeekViewProps = {
   weekBlocks?: PlanMultiWeekBlock[];
   addWeekHref?: string | null;
   removeWeekHref?: string | null;
+  swimCssSecPer100m?: number | null;
 };
 
 /**
@@ -174,6 +175,7 @@ export function TrainingMobileWeekView({
   weekBlocks,
   addWeekHref,
   removeWeekHref,
+  swimCssSecPer100m = null,
 }: TrainingMobileWeekViewProps) {
   const blocks: PlanMultiWeekBlock[] =
     weekBlocks && weekBlocks.length > 0
@@ -200,6 +202,7 @@ export function TrainingMobileWeekView({
       nextWeekHref={nextWeekHref}
       addWeekHref={addWeekHref}
       removeWeekHref={removeWeekHref}
+      swimCssSecPer100m={swimCssSecPer100m}
     />
   );
 

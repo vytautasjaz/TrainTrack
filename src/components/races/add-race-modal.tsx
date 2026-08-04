@@ -18,6 +18,8 @@ type AddRaceModalProps = {
   onOpenChange: (open: boolean) => void
   athleteId?: string
   defaultIntent?: RaceIntent
+  /** Prefill date as YYYY-MM-DD (e.g. from training day). */
+  defaultDate?: string
 }
 
 export function AddRaceModal({
@@ -25,6 +27,7 @@ export function AddRaceModal({
   onOpenChange,
   athleteId,
   defaultIntent = RaceIntent.PLANNED,
+  defaultDate,
 }: AddRaceModalProps) {
   const isWatching = defaultIntent === RaceIntent.WATCHING
 
@@ -52,7 +55,8 @@ export function AddRaceModal({
           <div className="min-h-0 flex-1 overflow-y-auto">
             {open ? (
               <RaceDetailsFields
-                key={`${defaultIntent}-${open}`}
+                key={`${defaultIntent}-${defaultDate ?? ''}-${open}`}
+                initial={defaultDate ? { date: defaultDate } : undefined}
                 lockedIntent={defaultIntent}
                 showIntent={false}
                 showSummary

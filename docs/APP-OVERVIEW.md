@@ -31,7 +31,7 @@ Sportai: **Run, Bike, Swim, Triathlon, Strength, HYROX, Recovery, Rest**.
 
 - **Home** — šiandienos / artimiausios treniruotės, savaitės progress, apimtis, kita lenktynė, trenerio atsakymai
 - **Training** — pagrindinis kalendorius / planas
-- **Races** — sezono lenktynės
+- **Season plan** (`/season`) — sezono planas: lenktynės, eventai, fazės
 - **Stats** — apimtis, completion, tendencijos
 - **Tools** — tempo / intervalų / triathlon / HYROX / splits skaičiuoklės
 - **Preferences** — zonos, profilis, Strava
@@ -40,11 +40,12 @@ Sportai: **Run, Bike, Swim, Triathlon, Strength, HYROX, Recovery, Rest**.
 
 - **Athletes** — atletų rosters, compliance, planning warnings, feedback eilė
 - **Training** — pasirinkto atleto planas
+- **Season plan** — pasirinkto atleto sezono planas
 - **Library** — workout šablonų biblioteka
 - **Tools** — tos pačios skaičiuoklės
 - **Preferences** — planavimo lead dienos, builder nustatymai; pasirinkto atleto zonos
 
-Treneris perjungia atletą per athlete bar / role switcher — visas Training / Stats / Races kontekstas seka pasirinktą atletą.
+Treneris perjungia atletą per athlete bar / role switcher — visas Training / Stats / Season plan kontekstas seka pasirinktą atletą.
 
 ---
 
@@ -90,13 +91,15 @@ Vienas hub’as vietoj senų Plan / History:
 - Builderiai: `/workouts/builder/...`, template builderiai: `/workouts/templates/builder/...`
 - Struktūra, metrikos, statusas, Strava sync indikatorius, trenerio / atleto komentarai
 
-### 4. Races (lenktynės)
+### 4. Season plan (`/season`)
 
-- Planuojamos / stebimos (watching) / praėjusios
+- Planuojamos / stebimos (watching) / praėjusios lenktynės
 - Prioritetas **A / B / C**
+- Sezono eventai ir fazės
 - Rezultatas: finished / DNS / DNF / dismissed + laikas, pastabos
 - Sezono overview, timeline
 - Dashboard’e — post-race follow-up atletui
+- Senas kelias `/races` nukreipia į `/season`
 
 ### 5. Stats (progress)
 
@@ -166,7 +169,7 @@ Lenktynės + Stats sezono kontekste
 | ------------ | ----------------------------------------------- |
 | Frontend     | Next.js 15 App Router, React 19, Tailwind v4    |
 | Duomenys     | Prisma, PostgreSQL (Docker local arba Supabase) |
-| Auth         | Demo cookie sesija (dar ne production auth)     |
+| Auth         | Auth.js: Google, Strava, email/password; multi-role |
 | Integracijos | Strava OAuth + sync                             |
 | PWA          | manifest, service worker, install prompt        |
 | Tema         | Light / dark (`next-themes`)                    |

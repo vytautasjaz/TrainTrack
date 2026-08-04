@@ -2,13 +2,11 @@ import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
 import { Caption, SectionTitle } from '@/components/ui/typography'
 import { StravaConnectCard } from '@/components/integrations/strava-connect-card'
-import { AthleteNameForm } from '@/components/settings/athlete-name-form'
-import { AthleteAvatarForm } from '@/components/settings/athlete-avatar-form'
 import { CoachPlanningLeadForm } from '@/components/settings/coach-planning-lead-form'
 import { CoachWorkoutBuilderPrefsForm } from '@/components/settings/coach-workout-builder-prefs-form'
 import { TrainingZonesTabs } from '@/components/settings/training-zones-tabs'
 import { getAthletePreferences } from '@/app/actions/preferences'
-import { getSession, resolveAthleteId } from '@/lib/session'
+import { getSession, resolveAthleteId, isCoach} from '@/lib/session'
 import { isStravaConfigured } from '@/lib/strava/config'
 import { getStravaConnectionSummary } from '@/lib/strava/sync'
 import {
@@ -33,11 +31,11 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/')
 
-  const isCoach = session.role === 'COACH'
-  const isAthlete = session.role === 'ATHLETE' && Boolean(session.athleteId)
+  const coach = isCoach(session)
+  const isAthlete = session.hasAthlete && Boolean(session.athleteId)
   const athleteId = await resolveAthleteId(session)
 
-  const coachUser = isCoach
+  const coachUser = coach
     ? await prisma.user.findUnique({
         where: { id: session.userId },
         select: { planningLeadDays: true, workoutBuilderPrefs: true },
@@ -54,12 +52,12 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
         <PageHeader
           title="Preferences"
           description={
-            isCoach
+            coach
               ? 'Coach planning reminders. Select an athlete to edit their training zones.'
               : 'Select an athlete to manage training preferences.'
           }
         />
-        {isCoach ? (
+        {coach ? (
           <>
             <section className="card-elevated space-y-4 p-5">
               <div>
@@ -90,10 +88,6 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
   }
 
   const preferences = (await getAthletePreferences(athleteId)) ?? {}
-  const athleteRow = await prisma.athlete.findUnique({
-    where: { id: athleteId },
-    select: { avatarUrl: true, name: true },
-  })
 
   const params = isAthlete ? await searchParams : {}
   const stravaSummary = isAthlete
@@ -103,20 +97,18 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
   const errorMessage = params.error ? ERROR_MESSAGES[params.error] ?? 'Something went wrong.' : null
   const successMessage = params.connected === '1' ? 'Strava connected successfully.' : null
 
-  const displayName = athleteRow?.name ?? session.name
-
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader
         title="Preferences"
         description={
           isAthlete
-            ? 'Profile, training zones, heart rate limits, and connected services.'
-            : 'Coach reminders, profile, training zones, and heart rate limits.'
+            ? 'Training zones, heart rate limits, and connected services.'
+            : 'Coach reminders, training zones, and heart rate limits.'
         }
       />
 
-      {isCoach ? (
+      {coach ? (
         <>
           <section className="card-elevated space-y-4 p-5">
             <div>
@@ -140,21 +132,6 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
           </section>
         </>
       ) : null}
-
-      <section className="card-elevated space-y-4 p-5">
-        <div>
-          <SectionTitle>Profile</SectionTitle>
-          <Caption>How your name and photo appear in the app</Caption>
-        </div>
-        {isAthlete ? (
-          <AthleteAvatarForm
-            name={displayName}
-            avatarUrl={athleteRow?.avatarUrl}
-            stravaConnected={connected}
-          />
-        ) : null}
-        <AthleteNameForm name={session.name} />
-      </section>
 
       <TrainingZonesTabs preferences={preferences} />
 

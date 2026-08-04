@@ -47,7 +47,7 @@ export async function createSeasonPhaseBlock(formData: FormData) {
   await prisma.seasonPhaseBlock.create({
     data: { athleteId, sport, phase, startDate, endDate, label },
   })
-  revalidatePath('/races')
+  revalidatePath('/season')
 }
 
 export async function updateSeasonPhaseBlock(formData: FormData) {
@@ -74,7 +74,7 @@ export async function updateSeasonPhaseBlock(formData: FormData) {
     where: { id },
     data: { sport, phase, startDate, endDate, label },
   })
-  revalidatePath('/races')
+  revalidatePath('/season')
 }
 
 export async function deleteSeasonPhaseBlock(formData: FormData) {
@@ -86,5 +86,5 @@ export async function deleteSeasonPhaseBlock(formData: FormData) {
   })
   if (!existing) throw new Error('Phase block not found')
   await prisma.seasonPhaseBlock.delete({ where: { id } })
-  revalidatePath('/races')
+  revalidatePath('/season')
 }

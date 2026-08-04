@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Plus } from "lucide-react";
-import { WorkoutType } from "@prisma/client";
+import { CalendarRange, Flag, Plus } from "lucide-react";
+import { RaceIntent, WorkoutType } from "@prisma/client";
 import { WorkoutEditorDialog } from "@/components/workout-editor/workout-editor-dialog";
 import { DayNoteModal } from "@/components/plan/day-note-modal";
 import { RecoveryDayModal } from "@/components/plan/recovery-day-modal";
+import { SeasonEventModal } from "@/components/plan/season-event-modal";
+import { AddRaceModal } from "@/components/races/add-race-modal";
 import { WorkoutSportIcon } from "@/components/plan/workout-sport-icon";
 import { SPORT_ROW_ORDER, WORKOUT_TYPE_LABELS } from "@/lib/constants";
 import type { DayNoteData } from "@/lib/day-notes";
@@ -68,13 +70,17 @@ export function PlanDayAddMenu({
   className,
 }: PlanDayAddMenuProps) {
   const canAddWorkout = !isCoach;
-  const canAddNoteOption = canAddNote && !dayNote;
+  const canShowNoteOption = canAddNote;
   const canAddRecoveryOption = isCoach && !recoveryWorkout;
+  const canAddRace = Boolean(athleteId) || !isCoach;
+  const canAddEvent = Boolean(athleteId) || !isCoach;
   const [menuOpen, setMenuOpen] = useState(false);
   const [workoutOpen, setWorkoutOpen] = useState(false);
   const [workoutSport, setWorkoutSport] = useState<WorkoutType | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
+  const [eventOpen, setEventOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [raceOpen, setRaceOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -90,7 +96,7 @@ export function PlanDayAddMenu({
     return () => document.removeEventListener("click", handleClick);
   }, [menuOpen]);
 
-  if (!isCoach && !canAddNoteOption && !canAddWorkout) return null;
+  if (!isCoach && !canShowNoteOption && !canAddWorkout && !canAddEvent) return null;
 
   const menuOpensUp = menuPlacement === "top";
 
@@ -118,9 +124,19 @@ export function PlanDayAddMenu({
     setNoteOpen(true);
   }
 
+  function openEvent() {
+    setMenuOpen(false);
+    setEventOpen(true);
+  }
+
   function openRecovery() {
     setMenuOpen(false);
     setRecoveryOpen(true);
+  }
+
+  function openRace() {
+    setMenuOpen(false);
+    setRaceOpen(true);
   }
 
   const isSubtle = variant === "subtle";
@@ -171,7 +187,41 @@ export function PlanDayAddMenu({
               onClick={() => openWorkoutSport(sport)}
             />
           ))}
-          {canAddNoteOption && <MenuItem label="Note" onClick={openNote} />}
+          {canAddRace && (
+            <MenuItem
+              label="Race"
+              icon={
+                <Flag
+                  className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                  strokeWidth={2}
+                />
+              }
+              onClick={openRace}
+              className="border-t border-border/50 font-medium"
+            />
+          )}
+          {canAddEvent && (
+            <MenuItem
+              label="Event"
+              icon={
+                <CalendarRange
+                  className="h-3.5 w-3.5 shrink-0 text-amber-700"
+                  strokeWidth={2}
+                />
+              }
+              onClick={openEvent}
+              className={cn(
+                !canAddRace && "border-t border-border/50",
+                "font-medium text-amber-900 dark:text-amber-200",
+              )}
+            />
+          )}
+          {canShowNoteOption && (
+            <MenuItem
+              label={dayNote ? "Edit note" : "Note"}
+              onClick={openNote}
+            />
+          )}
           {canAddRecoveryOption && (
             <MenuItem
               label="Recovery Day"
@@ -191,7 +241,7 @@ export function PlanDayAddMenu({
           athleteMode={!isCoach}
         />
       )}
-      {canAddNoteOption && (
+      {canShowNoteOption && (
         <DayNoteModal
           dateKey={dateKey}
           note={dayNote}
@@ -200,12 +250,29 @@ export function PlanDayAddMenu({
           onOpenChange={setNoteOpen}
         />
       )}
+      {canAddEvent && (
+        <SeasonEventModal
+          open={eventOpen}
+          onOpenChange={setEventOpen}
+          defaultStartDate={dateKey}
+          defaultEndDate={dateKey}
+        />
+      )}
       {isCoach && (
         <RecoveryDayModal
           date={dateKey}
           workout={recoveryWorkout}
           open={recoveryOpen}
           onOpenChange={setRecoveryOpen}
+        />
+      )}
+      {canAddRace && (
+        <AddRaceModal
+          open={raceOpen}
+          onOpenChange={setRaceOpen}
+          athleteId={athleteId}
+          defaultIntent={RaceIntent.PLANNED}
+          defaultDate={dateKey}
         />
       )}
     </div>
