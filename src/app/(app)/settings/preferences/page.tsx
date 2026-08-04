@@ -2,10 +2,12 @@ import { redirect } from 'next/navigation'
 import { PageHeader } from '@/components/ui/page-header'
 import { Caption, SectionTitle } from '@/components/ui/typography'
 import { StravaConnectCard } from '@/components/integrations/strava-connect-card'
+import { CalendarSyncCard } from '@/components/integrations/calendar-sync-card'
 import { CoachPlanningLeadForm } from '@/components/settings/coach-planning-lead-form'
 import { CoachWorkoutBuilderPrefsForm } from '@/components/settings/coach-workout-builder-prefs-form'
 import { TrainingZonesTabs } from '@/components/settings/training-zones-tabs'
 import { getAthletePreferences } from '@/app/actions/preferences'
+import { getCalendarFeedSummaries } from '@/app/actions/preferences'
 import { getSession, resolveAthleteId, isCoach} from '@/lib/session'
 import { isStravaConfigured } from '@/lib/strava/config'
 import { getStravaConnectionSummary } from '@/lib/strava/sync'
@@ -93,6 +95,13 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
   const stravaSummary = isAthlete
     ? await getStravaConnectionSummary(session.userId, session.athleteId!)
     : null
+  const calendarFeeds = isAthlete ? await getCalendarFeedSummaries() : []
+  const googleAccount = isAthlete
+    ? await prisma.account.findFirst({
+        where: { userId: session.userId, provider: 'google' },
+        select: { id: true },
+      })
+    : null
   const connected = Boolean(stravaSummary)
   const errorMessage = params.error ? ERROR_MESSAGES[params.error] ?? 'Something went wrong.' : null
   const successMessage = params.connected === '1' ? 'Strava connected successfully.' : null
@@ -147,6 +156,10 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
             summary={stravaSummary}
             errorMessage={errorMessage}
             successMessage={successMessage}
+          />
+          <CalendarSyncCard
+            feeds={calendarFeeds}
+            hasGoogleLinked={Boolean(googleAccount)}
           />
         </section>
       )}

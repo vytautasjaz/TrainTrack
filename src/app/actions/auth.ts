@@ -184,7 +184,12 @@ export async function skipOnboarding() {
 }
 
 export async function linkGoogleAccount() {
-  await signIn('google', { redirectTo: '/settings/account' })
+  await signIn('google', {
+    redirectTo: '/settings/account',
+    scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
+    access_type: 'offline',
+    prompt: 'consent',
+  })
 }
 
 export async function linkStravaAccount() {

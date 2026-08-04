@@ -16,12 +16,13 @@ import { sportUsesPlannedDistance } from '@/lib/plan-week-totals'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 import { RECOVERY_DAY_DEFAULT_NOTE } from '@/lib/recovery-day'
 import { hasStructureContent, parseStructure } from '@/lib/workout-builder/utils'
-import { usesSimpleWorkoutForm } from '@/lib/workout-builder/session-modes'
+import { sessionTypesForSport } from '@/lib/workout-builder/session-modes'
 import { withDerivedApproxTags } from '@/lib/workout-approx-tags'
 import {
   parseWorkoutBuilderPrefs,
   type WorkoutBuilderPrefs,
 } from '@/lib/workout-builder/workout-builder-prefs'
+import { onTrainingCalendarDataChanged } from '@/lib/calendar-invalidation'
 
 function requireCoach() {
   return requireSession().then((session) => {
@@ -144,6 +145,7 @@ export async function saveRecoveryDay(payload: SaveRecoveryDayPayload) {
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
+  await onTrainingCalendarDataChanged(athleteId)
 }
 
 export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload) {
@@ -221,6 +223,7 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
+  await onTrainingCalendarDataChanged(athleteId)
 }
 
 export async function updateWorkoutFromModal(
@@ -302,6 +305,7 @@ export async function updateWorkoutFromModal(
   revalidatePath('/training')
   revalidatePath('/dashboard')
   revalidatePath(`/workouts/${payload.workoutId}`)
+  await onTrainingCalendarDataChanged(athleteId)
 }
 
 const ATHLETE_ADD_SPORT_TYPES: WorkoutType[] = [
@@ -326,11 +330,10 @@ export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkou
   if (!ATHLETE_ADD_SPORT_TYPES.includes(payload.sportType)) {
     throw new Error('Invalid sport type')
   }
-  if (!usesSimpleWorkoutForm(payload.sessionType, payload.sportType)) {
-    throw new Error('Athletes can only add simple workouts')
-  }
-  if (!payload.description?.trim()) {
-    throw new Error('Description is required')
+  // Athletes submit distance/duration/description only (no block builder).
+  // Allow any session type valid for the sport — including CUSTOM when unset in the UI.
+  if (!sessionTypesForSport(payload.sportType).includes(payload.sessionType)) {
+    throw new Error('Invalid session type')
   }
 
   const scheduledDate = parseDateOnly(payload.scheduledDate)
@@ -354,7 +357,7 @@ export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkou
       type: payload.sportType,
       sessionType: payload.sessionType,
       title: payload.title,
-      description: payload.description?.trim() || undefined,
+      description: payload.description?.trim() || null,
       plannedDistance: metrics.plannedDistance,
       plannedDuration: metrics.plannedDuration,
       selfLogged: true,
@@ -363,6 +366,7 @@ export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkou
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
+  await onTrainingCalendarDataChanged(session.athleteId)
 }
 
 export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
@@ -397,6 +401,7 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
     revalidatePath('/dashboard')
     revalidatePath(`/workouts/${workoutId}`)
     revalidatePath(`/workouts/builder/${workoutId}`)
+    await onTrainingCalendarDataChanged(athleteId)
     return { id: workoutId, savedAt: new Date().toISOString() }
   }
 
@@ -417,6 +422,7 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
+  await onTrainingCalendarDataChanged(athleteId)
   return { id: workout.id, savedAt: new Date().toISOString() }
 }
 

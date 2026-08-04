@@ -150,6 +150,11 @@ enum SwimEnvironment {
   OPEN_WATER
 }
 
+enum CalendarFeedType {
+  TRAINING
+  RACES
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -308,6 +313,8 @@ model Athlete {
   races            Race[]
   seasonPhaseBlocks SeasonPhaseBlock[]
   seasonEvents      SeasonEvent[]
+  calendarFeeds     CalendarFeed[]
+  calendarEventMaps CalendarEventMap[]
   workouts         Workout[]
   dayNotes         DayNote[]
   weekPlanSportRows        AthleteWeekPlanSportRow[]
@@ -443,6 +450,44 @@ model SeasonEvent {
   athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
 
   @@index([athleteId, startDate, endDate])
+}
+
+/** Tokenized, read-only ICS export for one athlete and one feed type. */
+model CalendarFeed {
+  id        String           @id @default(cuid())
+  athleteId String
+  type      CalendarFeedType
+  tokenHash String           @unique
+  /** Last 4 chars of token shown in UI after creation (no token storage). */
+  tokenHint String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  /** Optional Google Calendar metadata for provider sync. */
+  googleCalendarId String?
+  googleSyncEnabled Boolean  @default(false)
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([athleteId, type])
+  @@index([athleteId])
+}
+
+/** Local item <-> external event mapping for provider sync. */
+model CalendarEventMap {
+  id        String           @id @default(cuid())
+  athleteId String
+  type      CalendarFeedType
+  sourceId  String
+  externalId String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([type, sourceId])
+  @@unique([athleteId, type, externalId])
+  @@index([athleteId, type])
 }
 
 model WorkoutTemplate {

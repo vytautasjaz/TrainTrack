@@ -180,6 +180,17 @@ function genericWorkoutTags(
   return tags
 }
 
+function defaultAthleteSessionType(sportType: WorkoutType): SessionType {
+  switch (sportType) {
+    case WorkoutType.STRENGTH:
+      return SessionType.STRENGTH
+    case WorkoutType.HYROX:
+      return SessionType.HYROX
+    default:
+      return SessionType.EASY_RUN
+  }
+}
+
 export function SharedWorkoutEditor({
   mode = 'plan',
   sportType: initialSport,
@@ -840,7 +851,7 @@ export function SharedWorkoutEditor({
         await createAthleteWorkoutFromModal({
           title: title.trim() || WORKOUT_TYPE_LABELS[sportType],
           sportType,
-          sessionType: sessionType ?? SessionType.CUSTOM,
+          sessionType: sessionType ?? defaultAthleteSessionType(sportType),
           scheduledDate: date,
           plannedDistance: config.showDistance && distanceKm > 0 ? distanceKm : undefined,
           plannedDuration: durationMin > 0 ? durationMin : undefined,

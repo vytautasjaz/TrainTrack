@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { Prisma } from '@prisma/client'
+import { CalendarFeedType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
   BIKE_SPEED_ZONE_FIELDS,
@@ -18,6 +18,14 @@ import {
   type WorkoutBuilderPrefs,
 } from '@/lib/workout-builder/workout-builder-prefs'
 import { requireSession, resolveAthleteId, isCoach} from '@/lib/session'
+import {
+  feedUrlFromToken,
+  generateCalendarFeedToken,
+  googleCalendarName,
+  hashCalendarFeedToken,
+  tokenHint,
+} from '@/lib/calendar-sync'
+import { queueGoogleCalendarSync } from '@/lib/google-calendar-sync'
 
 async function requireAthleteForPreferences() {
   const session = await requireSession()
@@ -312,4 +320,124 @@ export async function getAthletePreferences(athleteId: string): Promise<AthleteP
   })
   if (!athlete) return null
   return pickAthletePreferences(athlete)
+}
+
+type CalendarFeedSummary = {
+  type: CalendarFeedType
+  feedUrl: string | null
+  tokenHint: string | null
+  googleSyncEnabled: boolean
+  googleCalendarId: string | null
+}
+
+export async function getCalendarFeedSummaries(): Promise<CalendarFeedSummary[]> {
+  const { athleteId } = await requireAthleteForPreferences()
+  const rows = await prisma.calendarFeed.findMany({
+    where: { athleteId },
+    select: {
+      type: true,
+      tokenHint: true,
+      googleSyncEnabled: true,
+      googleCalendarId: true,
+    },
+  })
+  const byType = new Map(rows.map((row) => [row.type, row]))
+  return [CalendarFeedType.TRAINING, CalendarFeedType.RACES].map((type) => {
+    const row = byType.get(type)
+    return {
+      type,
+      feedUrl: null,
+      tokenHint: row?.tokenHint ?? null,
+      googleSyncEnabled: Boolean(row?.googleSyncEnabled),
+      googleCalendarId: row?.googleCalendarId ?? null,
+    }
+  })
+}
+
+export async function rotateCalendarFeedToken(type: CalendarFeedType): Promise<{
+  type: CalendarFeedType
+  feedUrl: string
+  tokenHint: string
+}> {
+  const { athleteId } = await requireAthleteForPreferences()
+  const token = generateCalendarFeedToken()
+  const hashed = hashCalendarFeedToken(token)
+  const hint = tokenHint(token)
+
+  await prisma.calendarFeed.upsert({
+    where: {
+      athleteId_type: { athleteId, type },
+    },
+    create: {
+      athleteId,
+      type,
+      tokenHash: hashed,
+      tokenHint: hint,
+    },
+    update: {
+      tokenHash: hashed,
+      tokenHint: hint,
+    },
+  })
+
+  revalidatePath('/settings/preferences')
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  if (!appUrl) throw new Error('NEXT_PUBLIC_APP_URL is required for calendar feeds')
+  return {
+    type,
+    feedUrl: feedUrlFromToken(type, token, appUrl),
+    tokenHint: hint,
+  }
+}
+
+export async function disableGoogleCalendarSync(type: CalendarFeedType) {
+  const session = await requireSession()
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete selected')
+
+  await prisma.calendarFeed.updateMany({
+    where: { athleteId, type },
+    data: { googleSyncEnabled: false },
+  })
+  await prisma.calendarEventMap.deleteMany({
+    where: { athleteId, type },
+  })
+  revalidatePath('/settings/preferences')
+}
+
+export async function enableGoogleCalendarSync(type: CalendarFeedType) {
+  const session = await requireSession()
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete selected')
+
+  const google = await prisma.account.findFirst({
+    where: { userId: session.userId, provider: 'google' },
+    select: { id: true, scope: true },
+  })
+  if (!google) {
+    throw new Error('Link Google in Account settings first.')
+  }
+  if (!google.scope?.includes('https://www.googleapis.com/auth/calendar.events')) {
+    throw new Error('Relink Google to grant Calendar permission.')
+  }
+
+  await prisma.calendarFeed.upsert({
+    where: { athleteId_type: { athleteId, type } },
+    create: {
+      athleteId,
+      type,
+      tokenHash: hashCalendarFeedToken(generateCalendarFeedToken()),
+      tokenHint: null,
+      googleSyncEnabled: true,
+      googleCalendarId: googleCalendarName(type),
+    },
+    update: {
+      googleSyncEnabled: true,
+      googleCalendarId: googleCalendarName(type),
+    },
+  })
+
+  await queueGoogleCalendarSync(athleteId)
+  revalidatePath('/settings/preferences')
 }

@@ -18,6 +18,10 @@ import { ensureTriathlonLegsForRace } from '@/lib/strava/sync'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 import { safeRedirectPath } from '@/lib/safe-redirect'
+import {
+  onRacesCalendarDataChanged,
+  onTrainingCalendarDataChanged,
+} from '@/lib/calendar-invalidation'
 import { sportSlug } from '@/lib/workout-library/config'
 import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-athlete-preferences'
 import { resolveLibraryTemplateMetricsForAthlete } from '@/lib/workout-library/template-metrics'
@@ -650,6 +654,7 @@ export async function createRace(formData: FormData) {
   revalidatePath('/dashboard')
   revalidatePath('/training')
   revalidatePath(`/athletes/${athleteId}`)
+  await onRacesCalendarDataChanged(athleteId)
 }
 
 async function saveRaceLegPlanFields(
@@ -734,6 +739,7 @@ export async function moveWorkout(formData: FormData) {
   })
 
   revalidatePath('/training')
+  await onTrainingCalendarDataChanged(workout.athleteId)
 }
 
 export async function moveWorkoutToDate(workoutId: string, dateKey: string) {
@@ -754,6 +760,7 @@ export async function moveWorkoutToDate(workoutId: string, dateKey: string) {
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
+  await onTrainingCalendarDataChanged(workout.athleteId)
 }
 
 export async function reorderDayWorkouts(dateKey: string, workoutIds: string[]) {
@@ -784,6 +791,7 @@ export async function reorderDayWorkouts(dateKey: string, workoutIds: string[]) 
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
+  await onTrainingCalendarDataChanged(athleteId)
 }
 
 export async function duplicateWorkout(formData: FormData) {
@@ -926,6 +934,11 @@ export async function updateWorkout(formData: FormData) {
   revalidatePath('/training')
   revalidatePath('/dashboard')
   revalidatePath(`/workouts/${workoutId}`)
+  const updated = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    select: { athleteId: true },
+  })
+  if (updated) await onTrainingCalendarDataChanged(updated.athleteId)
 }
 
 /** Quick coach edit from plan cards (title / planned distance / duration). */
@@ -983,6 +996,11 @@ export async function patchPlanWorkoutCard(input: {
   revalidatePath('/training')
   revalidatePath('/dashboard')
   revalidatePath(`/workouts/${workoutId}`)
+  const updated = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    select: { athleteId: true },
+  })
+  if (updated) await onTrainingCalendarDataChanged(updated.athleteId)
 }
 
 export async function deleteWorkout(formData: FormData) {
@@ -990,11 +1008,16 @@ export async function deleteWorkout(formData: FormData) {
   if (!isCoach(session)) throw new Error('Coach only')
 
   const workoutId = formData.get('workoutId') as string
+  const workout = await prisma.workout.findUnique({
+    where: { id: workoutId },
+    select: { athleteId: true },
+  })
   await prisma.workout.delete({ where: { id: workoutId } })
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
   revalidatePath(`/workouts/${workoutId}`)
+  if (workout?.athleteId) await onTrainingCalendarDataChanged(workout.athleteId)
 
   const redirectTo = formData.get('redirectTo') as string | null
   if (redirectTo) {
@@ -1139,6 +1162,7 @@ export async function updateRace(formData: FormData) {
   revalidatePath('/training')
   revalidatePath(`/athletes/${race.athleteId}`)
   revalidatePath(`/season/${race.id}/edit`)
+  await onRacesCalendarDataChanged(race.athleteId)
   const skipRedirect = formData.get('skipRedirect') === '1'
   if (!skipRedirect) {
     redirect(returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/season')
@@ -1163,6 +1187,7 @@ export async function setRaceIntent(formData: FormData) {
   revalidatePath('/dashboard')
   revalidatePath('/training')
   revalidatePath(`/athletes/${race.athleteId}`)
+  await onRacesCalendarDataChanged(race.athleteId)
 }
 
 export async function logRaceOutcome(formData: FormData) {
@@ -1229,6 +1254,7 @@ export async function logRaceOutcome(formData: FormData) {
   revalidatePath('/dashboard')
   revalidatePath('/season')
   revalidatePath(`/athletes/${existing.athleteId}`)
+  await onRacesCalendarDataChanged(existing.athleteId)
 }
 
 export async function logManualWorkout(formData: FormData) {
@@ -1282,4 +1308,5 @@ export async function deleteRace(formData: FormData) {
   revalidatePath('/dashboard')
   revalidatePath('/training')
   revalidatePath(`/athletes/${race.athleteId}`)
+  await onRacesCalendarDataChanged(race.athleteId)
 }

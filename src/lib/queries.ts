@@ -498,6 +498,54 @@ export async function getSeasonEventsForRange(athleteId: string, start: Date, en
   })
 }
 
+/** Future workouts (today+) for calendar export (all-day). */
+export async function getCalendarTrainingEvents(athleteId: string, from: Date) {
+  return prisma.workout.findMany({
+    where: {
+      athleteId,
+      date: { gte: from },
+      isRescheduleGhost: false,
+    },
+    orderBy: [{ date: 'asc' }, { sortOrder: 'asc' }, { title: 'asc' }],
+    select: {
+      id: true,
+      date: true,
+      title: true,
+      description: true,
+      sessionType: true,
+      type: true,
+      plannedDistance: true,
+      plannedDuration: true,
+      status: true,
+      selfLogged: true,
+      updatedAt: true,
+    },
+  })
+}
+
+/** Future planned races (today+) for calendar export (all-day). */
+export async function getCalendarRaceEvents(athleteId: string, from: Date) {
+  return prisma.race.findMany({
+    where: {
+      athleteId,
+      intent: 'PLANNED',
+      date: { gte: from },
+    },
+    orderBy: [{ date: 'asc' }, { name: 'asc' }],
+    select: {
+      id: true,
+      date: true,
+      name: true,
+      location: true,
+      type: true,
+      sport: true,
+      priority: true,
+      goal: true,
+      updatedAt: true,
+    },
+  })
+}
+
 export function getWeekDays(anchor: Date) {
   const start = startOfWeekDateOnly(anchor)
   return Array.from({ length: 7 }, (_, i) => addDateOnlyDays(start, i))
