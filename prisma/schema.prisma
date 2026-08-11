@@ -155,6 +155,23 @@ enum CalendarFeedType {
   RACES
 }
 
+enum PersonalBestSport {
+  RUN
+  BIKE
+  SWIM
+  TRIATHLON
+  HYROX
+  GYM
+  OTHER
+}
+
+enum PersonalBestMetric {
+  TIME
+  WEIGHT_KG
+  REPS
+  WATTS
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -311,6 +328,7 @@ model Athlete {
   user             User?                     @relation(fields: [userId], references: [id])
   coachLinks       CoachAthleteLink[]
   races            Race[]
+  personalBests    PersonalBest[]
   seasonPhaseBlocks SeasonPhaseBlock[]
   seasonEvents      SeasonEvent[]
   calendarFeeds     CalendarFeed[]
@@ -380,15 +398,51 @@ model Race {
   stravaActivityId   String? @unique
   stravaActivityUrl  String?
   stravaActivityName String?
+  /**
+   * Results-log entry only — shown in Results, not on the season plan / training calendar.
+   * Used for manually logged historical races.
+   */
+  resultsLogOnly Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   legs    RaceLeg[]
+  personalBest PersonalBest?
 
   @@index([athleteId, date])
   @@index([athleteId, intent, date])
   @@index([athleteId, outcome, date])
+}
+
+/** Athlete-defined personal best (add/remove freely). */
+model PersonalBest {
+  id        String             @id @default(cuid())
+  athleteId String
+  /** Display name, e.g. "5K", "Olympic triathlon", "Deadlift". */
+  name      String
+  sport     PersonalBestSport
+  /** Optional preset key for race auto-matching (FIVE_K, TRI_OLYMPIC, …). */
+  presetKey String?
+  metric    PersonalBestMetric @default(TIME)
+  /** Minutes for TIME; kg / reps / watts for other metrics. */
+  value     Float
+  /**
+   * Approximate or exact date: YYYY, YYYY-MM, or YYYY-MM-DD.
+   * Year-only is fine when the exact day is unknown.
+   */
+  dateText  String?
+  event     String?
+  raceId    String?            @unique
+  sortOrder Int                @default(0)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  race    Race?   @relation(fields: [raceId], references: [id], onDelete: SetNull)
+
+  @@index([athleteId, sortOrder])
+  @@index([athleteId, presetKey])
 }
 
 /** Per-leg plan + result for triathlon (swim / T1 / bike / T2 / run). */
@@ -526,6 +580,8 @@ model Workout {
   plannedDistance Float?
   plannedDuration Int?
   coachNotes      String?
+  /** When true, coachNotes are hidden from the athlete. */
+  coachNotesPrivate Boolean @default(false)
   structure       Json?
   swimEnvironment       SwimEnvironment?
   swimStructure         Json?
@@ -557,6 +613,8 @@ model WorkoutResult {
   actualDuration   Int?
   rpe              Int?
   athleteNotes     String?
+  /** When true, athleteNotes are hidden from the coach. */
+  athleteNotesPrivate Boolean @default(false)
   coachReply       String?
   coachRepliedAt   DateTime?
   coachReplyReadAt DateTime?

@@ -31,6 +31,7 @@ export type PlanWorkoutDetail = {
   plannedDuration: number | null
   swimEnvironment: SwimEnvironment | null
   coachNotes: string | null
+  coachNotesPrivate?: boolean
   structure: WorkoutStructure | null
   swimStructure: SwimWorkoutStructure | null
   tags?: string[]
@@ -50,6 +51,7 @@ export type PlanWorkoutDetail = {
     actualDuration: number | null
     rpe: number | null
     athleteNotes: string | null
+    athleteNotesPrivate?: boolean
     coachReply: string | null
     coachReplyReadAt: string | null
     stravaActivityUrl: string | null
@@ -70,6 +72,7 @@ export function toPlanWorkoutDetail(w: {
   plannedDistance: number | null
   plannedDuration: number | null
   coachNotes: string | null
+  coachNotesPrivate?: boolean
   structure?: unknown
   swimEnvironment?: SwimEnvironment | null
   swimStructure?: unknown
@@ -82,6 +85,7 @@ export function toPlanWorkoutDetail(w: {
     actualDuration: number | null
     rpe: number | null
     athleteNotes: string | null
+    athleteNotesPrivate?: boolean
     coachReply: string | null
     coachReplyReadAt?: Date | null
     stravaActivityUrl: string | null
@@ -103,6 +107,7 @@ export function toPlanWorkoutDetail(w: {
     plannedDuration: w.plannedDuration,
     swimEnvironment: w.swimEnvironment ?? null,
     coachNotes: w.coachNotes,
+    coachNotesPrivate: w.coachNotesPrivate ?? false,
     structure: w.structure ? parseStructure(w.structure) : null,
     swimStructure: w.swimStructure ? parseSwimStructure(w.swimStructure) : null,
     tags: w.tags ?? [],
@@ -114,6 +119,7 @@ export function toPlanWorkoutDetail(w: {
           actualDuration: w.result.actualDuration,
           rpe: w.result.rpe,
           athleteNotes: w.result.athleteNotes,
+          athleteNotesPrivate: w.result.athleteNotesPrivate ?? false,
           coachReply: w.result.coachReply ?? null,
           coachReplyReadAt: w.result.coachReplyReadAt?.toISOString() ?? null,
           stravaActivityUrl: w.result.stravaActivityUrl ?? null,
@@ -122,6 +128,31 @@ export function toPlanWorkoutDetail(w: {
           logType: w.result.logType ?? null,
         }
       : null,
+  }
+}
+
+/** Strip private notes so the other party never receives them in client props. */
+export function redactPlanWorkoutNotesForViewer(
+  workout: PlanWorkoutDetail,
+  viewer: 'coach' | 'athlete',
+): PlanWorkoutDetail {
+  if (viewer === 'athlete') {
+    if (!workout.coachNotesPrivate) return workout
+    return {
+      ...workout,
+      coachNotes: null,
+      coachNotesPrivate: false,
+    }
+  }
+
+  if (!workout.result?.athleteNotesPrivate) return workout
+  return {
+    ...workout,
+    result: {
+      ...workout.result,
+      athleteNotes: null,
+      athleteNotesPrivate: false,
+    },
   }
 }
 

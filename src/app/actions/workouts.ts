@@ -41,6 +41,11 @@ function parseOptionalString(value: FormDataEntryValue | null) {
   return str || undefined
 }
 
+function parseCheckboxFlag(formData: FormData, key: string): boolean {
+  const value = formData.get(key)
+  return value === 'true' || value === 'on' || value === '1'
+}
+
 async function requireRaceAccess(raceId: string) {
   const session = await requireSession()
   const race = await prisma.race.findUnique({
@@ -117,12 +122,14 @@ function buildWorkoutResultData({
   actualDuration,
   rpe,
   athleteNotes,
+  athleteNotesPrivate,
   logType,
 }: {
   actualDistance?: number
   actualDuration?: number
   rpe?: number
   athleteNotes?: string
+  athleteNotesPrivate?: boolean
   logType: ReturnType<typeof parseAthleteLogType>
 }) {
   return {
@@ -130,6 +137,7 @@ function buildWorkoutResultData({
     ...(actualDuration !== undefined ? { actualDuration } : {}),
     ...(rpe !== undefined ? { rpe } : {}),
     ...(athleteNotes !== undefined ? { athleteNotes } : {}),
+    ...(athleteNotesPrivate !== undefined ? { athleteNotesPrivate } : {}),
     logType,
   }
 }
@@ -220,13 +228,20 @@ export async function updateStravaWorkoutComment(formData: FormData) {
 
   const athleteNotesRaw = (formData.get('athleteNotes') as string)?.trim()
   const athleteNotes = athleteNotesRaw || null
+  const athleteNotesPrivate = athleteNotes
+    ? parseCheckboxFlag(formData, 'athleteNotesPrivate')
+    : false
 
   await prisma.workoutResult.update({
     where: { workoutId },
     data: {
       athleteNotes,
-      // Re-surface on coach dashboard when athlete shares/updates a comment
-      feedbackDismissedAt: athleteNotes ? null : workout.result.feedbackDismissedAt,
+      athleteNotesPrivate,
+      // Re-surface on coach dashboard when athlete shares/updates a public comment
+      feedbackDismissedAt:
+        athleteNotes && !athleteNotesPrivate
+          ? null
+          : workout.result.feedbackDismissedAt,
     },
   })
 
@@ -248,6 +263,9 @@ export async function completeWorkout(formData: FormData) {
   const rpe = formData.get('rpe') ? parseInt(formData.get('rpe') as string, 10) : undefined
   const athleteNotesRaw = (formData.get('athleteNotes') as string)?.trim()
   const athleteNotes = athleteNotesRaw || undefined
+  const athleteNotesPrivate = athleteNotes
+    ? parseCheckboxFlag(formData, 'athleteNotesPrivate')
+    : false
   const logType = parseAthleteLogType(formData.get('logType'))
   const status = isAthleteLogSkipped(logType) ? WorkoutStatus.SKIPPED : WorkoutStatus.COMPLETED
   const resultData = buildWorkoutResultData({
@@ -255,6 +273,7 @@ export async function completeWorkout(formData: FormData) {
     actualDuration,
     rpe,
     athleteNotes,
+    athleteNotesPrivate,
     logType,
   })
 
@@ -905,6 +924,7 @@ export async function createWorkout(formData: FormData) {
       plannedDistance: parseOptionalFloat(formData.get('plannedDistance')),
       plannedDuration: parseOptionalInt(formData.get('plannedDuration')),
       coachNotes: parseOptionalString(formData.get('coachNotes')),
+      coachNotesPrivate: parseCheckboxFlag(formData, 'coachNotesPrivate'),
     },
   })
 
@@ -928,6 +948,7 @@ export async function updateWorkout(formData: FormData) {
       plannedDistance: parseOptionalFloat(formData.get('plannedDistance')),
       plannedDuration: parseOptionalInt(formData.get('plannedDuration')),
       coachNotes: parseOptionalString(formData.get('coachNotes')),
+      coachNotesPrivate: parseCheckboxFlag(formData, 'coachNotesPrivate'),
     },
   })
 
@@ -1221,7 +1242,7 @@ export async function logRaceOutcome(formData: FormData) {
   if (!existing) throw new Error('Race not found')
 
   const resultTime =
-    outcomeRaw === RaceOutcome.FINISHED
+    outcomeRaw === RaceOutcome.FINISHED || outcomeRaw === RaceOutcome.DNF
       ? parseOptionalString(formData.get('resultTime'))
       : null
   const resultNotes =
@@ -1238,7 +1259,7 @@ export async function logRaceOutcome(formData: FormData) {
     where: { id: raceId },
     data: {
       outcome: outcomeRaw,
-      resultTime: outcomeRaw === RaceOutcome.FINISHED ? resultTime : null,
+      resultTime,
       resultNotes,
       resultLoggedAt: new Date(),
       resultDismissedAt:
@@ -1255,6 +1276,14 @@ export async function logRaceOutcome(formData: FormData) {
   revalidatePath('/season')
   revalidatePath(`/athletes/${existing.athleteId}`)
   await onRacesCalendarDataChanged(existing.athleteId)
+
+  if (outcomeRaw !== RaceOutcome.FINISHED) {
+    return { pbSuggestion: null }
+  }
+
+  const { evaluatePersonalBestSuggestionForRace } = await import('@/app/actions/personal-bests')
+  const pbSuggestion = await evaluatePersonalBestSuggestionForRace(raceId)
+  return { pbSuggestion }
 }
 
 export async function logManualWorkout(formData: FormData) {
@@ -1268,6 +1297,9 @@ export async function logManualWorkout(formData: FormData) {
   const actualDuration = parseOptionalInt(formData.get('actualDuration'))
   const rpe = parseOptionalInt(formData.get('rpe'))
   const athleteNotes = parseOptionalString(formData.get('athleteNotes'))
+  const athleteNotesPrivate = athleteNotes
+    ? parseCheckboxFlag(formData, 'athleteNotesPrivate')
+    : false
   const completedAt = parseDateOnly(date)
   const sortOrder = await getNextWorkoutSortOrder(session.athleteId, completedAt)
 
@@ -1287,6 +1319,7 @@ export async function logManualWorkout(formData: FormData) {
           actualDuration,
           rpe,
           athleteNotes,
+          athleteNotesPrivate,
           completedAt,
         },
       },

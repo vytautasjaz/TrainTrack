@@ -3,6 +3,10 @@ import { cookies } from 'next/headers'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 
+export type AppViewMode = 'coach' | 'athlete'
+
+export const VIEW_MODE_COOKIE = 'tt_view_mode'
+
 export type SessionContext = {
   userId: string
   /** Primary role for legacy checks: COACH if coach, else ATHLETE if athlete, else first role. */
@@ -12,6 +16,8 @@ export type SessionContext = {
   name: string
   hasAthlete: boolean
   hasCoach: boolean
+  /** Active workspace when user has both athlete + coach profiles. */
+  viewMode: AppViewMode
   onboardingSkipped: boolean
   needsOnboarding: boolean
 }
@@ -20,6 +26,7 @@ export function hasRole(roles: UserRole[], role: UserRole): boolean {
   return roles.includes(role)
 }
 
+/** Permission: user has the COACH role (regardless of UI workspace). */
 export function isCoach(session: Pick<SessionContext, 'roles'>): boolean {
   return hasRole(session.roles, UserRole.COACH)
 }
@@ -30,6 +37,32 @@ export function isAthleteRole(session: Pick<SessionContext, 'roles'>): boolean {
 
 export function isAdmin(session: Pick<SessionContext, 'roles'>): boolean {
   return hasRole(session.roles, UserRole.ADMIN)
+}
+
+/** UI workspace: coach nav/plan editing vs athlete self-view. */
+export function isCoachView(
+  session: Pick<SessionContext, 'viewMode' | 'hasCoach'>,
+): boolean {
+  return session.hasCoach && session.viewMode === 'coach'
+}
+
+export function canSwitchViewMode(
+  session: Pick<SessionContext, 'hasAthlete' | 'hasCoach'>,
+): boolean {
+  return session.hasAthlete && session.hasCoach
+}
+
+function resolveViewMode(
+  raw: string | undefined,
+  hasAthlete: boolean,
+  hasCoach: boolean,
+): AppViewMode {
+  if (hasCoach && hasAthlete) {
+    if (raw === 'athlete' || raw === 'coach') return raw
+    return 'coach'
+  }
+  if (hasCoach) return 'coach'
+  return 'athlete'
 }
 
 function primaryRole(roles: UserRole[]): UserRole {
@@ -58,10 +91,17 @@ export async function getSession(): Promise<SessionContext | null> {
       const athleteIdCookie = cookieStore.get('tt_athlete')?.value
       const hasAthlete = Boolean(user.athleteProfile)
       const hasCoach = Boolean(user.coachProfile)
+      const viewMode = resolveViewMode(
+        cookieStore.get(VIEW_MODE_COOKIE)?.value,
+        hasAthlete,
+        hasCoach,
+      )
       let athleteId: string | null = user.athleteProfile?.id ?? null
-      if (hasCoach && athleteIdCookie) {
+      if (viewMode === 'coach' && hasCoach && athleteIdCookie) {
         const allowed = await coachCanAccessAthlete(user.id, athleteIdCookie)
         if (allowed) athleteId = athleteIdCookie
+      } else if (viewMode === 'athlete' && hasAthlete) {
+        athleteId = user.athleteProfile?.id ?? null
       } else if (!hasAthlete && athleteIdCookie && hasCoach) {
         const allowed = await coachCanAccessAthlete(user.id, athleteIdCookie)
         if (allowed) athleteId = athleteIdCookie
@@ -74,6 +114,7 @@ export async function getSession(): Promise<SessionContext | null> {
         name: user.name,
         hasAthlete,
         hasCoach,
+        viewMode,
         onboardingSkipped: Boolean(user.onboardingSkippedAt),
         needsOnboarding: !hasAthlete && !hasCoach && !user.onboardingSkippedAt,
       }
@@ -87,6 +128,11 @@ export async function getSession(): Promise<SessionContext | null> {
     const hasAthlete = session.user.hasAthlete
     const hasCoach = session.user.hasCoach
     const onboardingSkipped = session.user.onboardingSkipped
+    const viewMode = resolveViewMode(
+      cookieStore.get(VIEW_MODE_COOKIE)?.value,
+      hasAthlete,
+      hasCoach,
+    )
 
     let athleteId: string | null = null
     if (hasAthlete) {
@@ -96,20 +142,14 @@ export async function getSession(): Promise<SessionContext | null> {
       })
       athleteId = profile?.id ?? null
     }
-    if (hasCoach && athleteIdCookie) {
+    if (viewMode === 'coach' && hasCoach && athleteIdCookie) {
       const allowed = await coachCanAccessAthlete(session.user.id, athleteIdCookie)
       if (allowed) athleteId = athleteIdCookie
+    } else if (viewMode === 'athlete' && hasAthlete) {
+      // keep own athlete id
     } else if (!hasAthlete && athleteIdCookie && hasCoach) {
       const allowed = await coachCanAccessAthlete(session.user.id, athleteIdCookie)
       if (allowed) athleteId = athleteIdCookie
-    }
-
-    // Athlete viewing own plan takes precedence unless coach explicitly switched
-    if (hasAthlete && hasCoach && athleteIdCookie) {
-      const allowed = await coachCanAccessAthlete(session.user.id, athleteIdCookie)
-      athleteId = allowed ? athleteIdCookie : athleteId
-    } else if (hasAthlete && !athleteIdCookie) {
-      // keep own athlete id
     }
 
     return {
@@ -120,6 +160,7 @@ export async function getSession(): Promise<SessionContext | null> {
       name: session.user.name ?? 'User',
       hasAthlete,
       hasCoach,
+      viewMode,
       onboardingSkipped,
       needsOnboarding: !hasAthlete && !hasCoach && !onboardingSkipped,
     }
@@ -201,6 +242,15 @@ export async function getCoachAthletes(coachUserId: string) {
 }
 
 export async function resolveAthleteId(session: SessionContext): Promise<string | null> {
+  // Athlete workspace: always the signed-in user's own athlete profile.
+  if (session.hasAthlete && session.viewMode === 'athlete') {
+    const own = await prisma.athlete.findUnique({
+      where: { userId: session.userId },
+      select: { id: true },
+    })
+    return own?.id ?? session.athleteId
+  }
+
   if (session.athleteId) {
     if (isCoach(session) && session.hasAthlete && session.athleteId) {
       return session.athleteId
@@ -217,7 +267,7 @@ export async function resolveAthleteId(session: SessionContext): Promise<string 
     if (own) return own.id
   }
 
-  if (isCoach(session)) {
+  if (isCoachView(session)) {
     const athletes = await getCoachAthletes(session.userId)
     const active = athletes.find((a) => a.status === AthleteStatus.ACTIVE)
     return active?.id ?? athletes[0]?.id ?? null

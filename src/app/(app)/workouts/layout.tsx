@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getSession, isCoach} from '@/lib/session'
+import { getSession, isCoachView} from '@/lib/session'
 import { WorkoutLibraryNav } from '@/components/workout-library/workout-library-nav'
 
 export default async function WorkoutsLayout({
@@ -9,7 +9,7 @@ export default async function WorkoutsLayout({
 }) {
   const session = await getSession()
   if (!session) redirect('/')
-  if (!isCoach(session)) {
+  if (!isCoachView(session)) {
     return <>{children}</>
   }
 

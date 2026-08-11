@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { WorkoutType } from '@prisma/client'
+import { ImageIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { CoachReplyBlock } from '@/components/plan/coach-reply-block'
 import { MarkCoachReplyReadOnView } from '@/components/athlete/mark-coach-reply-read-on-view'
@@ -14,8 +16,10 @@ import {
 import { ItemActions } from '@/components/ui/item-actions'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { PrivateNoteToggle } from '@/components/ui/private-note-toggle'
 import { AthleteWorkoutDetailCard } from '@/components/plan/athlete-workout-detail-card'
 import { WorkoutEditorDialog } from '@/components/workout-editor/workout-editor-dialog'
+import { ExportWorkoutCardDialog } from '@/components/workout-block/export-workout-card-dialog'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import {
   athleteAddedFieldClass,
@@ -53,6 +57,7 @@ export function WorkoutDetailModal({
 }: WorkoutDetailModalProps) {
   const currentPath = useCurrentPath()
   const result = workout.result
+  const [exportOpen, setExportOpen] = useState(false)
 
   // Coaches jump straight into the editor (skip read-only preview).
   if (isCoach && workout.type !== WorkoutType.RECOVERY) {
@@ -113,6 +118,7 @@ export function WorkoutDetailModal({
                     await saveRecoveryDay({
                       date: workout.dateKey,
                       coachNotes: String(formData.get('coachNotes') ?? '').trim() || undefined,
+                      coachNotesPrivate: formData.get('coachNotesPrivate') === 'true',
                       workoutId: workout.id,
                     })
                     onOpenChange(false)
@@ -124,6 +130,11 @@ export function WorkoutDetailModal({
                     defaultValue={workout.coachNotes ?? ''}
                     rows={4}
                     placeholder="Optional guidance for the athlete"
+                  />
+                  <PrivateNoteToggle
+                    hideFrom="athlete"
+                    name="coachNotesPrivate"
+                    defaultChecked={Boolean(workout.coachNotesPrivate)}
                   />
                   <Button type="submit" variant="secondary" size="sm">
                     Save
@@ -168,7 +179,12 @@ export function WorkoutDetailModal({
               {result?.athleteNotes?.trim() ? (
                 <section className="border-t border-border/50 pt-4 text-sm">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Your comment
+                    {isCoach ? 'Athlete comment' : 'Your comment'}
+                    {!isCoach && result.athleteNotesPrivate ? (
+                      <span className="ml-1.5 font-medium normal-case tracking-normal">
+                        · private
+                      </span>
+                    ) : null}
                   </p>
                   <p className="mt-1.5 leading-relaxed whitespace-pre-wrap text-muted-foreground">
                     &ldquo;{result.athleteNotes.trim()}&rdquo;
@@ -184,7 +200,17 @@ export function WorkoutDetailModal({
           </div>
 
           {!isCoach && (
-            <div className="shrink-0 px-5 pb-4">
+            <div className="shrink-0 space-y-2 px-5 pb-4">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-full gap-1.5"
+                onClick={() => setExportOpen(true)}
+              >
+                <ImageIcon className="h-3.5 w-3.5" aria-hidden />
+                Export card as PNG
+              </Button>
               <HomeWorkoutCompleteSection
                 workout={workout}
                 onClose={() => onOpenChange(false)}
@@ -193,6 +219,14 @@ export function WorkoutDetailModal({
           )}
         </DialogContent>
       </Dialog>
+
+      {!isCoach ? (
+        <ExportWorkoutCardDialog
+          workout={workout}
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+        />
+      ) : null}
     </>
   )
 }

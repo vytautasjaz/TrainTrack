@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import type { WorkoutType } from "@prisma/client";
 import { PageHeader } from "@/components/ui/page-header";
 import { PlanMultiWeekTables } from "@/components/plan/plan-multi-week-tables";
-import { MonthCalendarView } from "@/components/plan/month-calendar-view";
+import { CalendarMonthView } from "@/components/training/calendar-month-view";
 import { TrainingMobileWeekView } from "@/components/training/training-mobile-week-view";
 import { TrainingCalendarControls } from "@/components/training/training-calendar-controls";
 import { TrainingTableView } from "@/components/training/training-table-view";
@@ -18,9 +18,9 @@ import {
   groupWorkoutsByDate,
 } from "@/lib/queries";
 import { groupSeasonEventsByDate } from "@/lib/season-events";
-import { getSession, getCoachAthletes, resolveAthleteId, isCoach as userIsCoach } from "@/lib/session";
+import { getSession, getCoachAthletes, resolveAthleteId, isCoachView as userIsCoach } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { toPlanWorkoutDetail } from "@/lib/plan-workout";
+import { toPlanWorkoutDetail, redactPlanWorkoutNotesForViewer } from "@/lib/plan-workout";
 import { mergeRacesIntoByDate } from "@/lib/races";
 import { buildPlanTableDays } from "@/lib/plan-week";
 import { buildTrainingDays } from "@/lib/training-timeline";
@@ -43,7 +43,7 @@ import { loadAthletePreferencesForBuilder } from "@/lib/workout-builder/load-ath
 import { TrainingPlanShell } from "@/components/training/training-plan-shell";
 import { TrainingDefaultViewRedirect } from "@/components/training/training-default-view-redirect";
 
-type TrainingView = "week" | "month" | "list";
+type TrainingView = "week" | "list" | "calendar";
 
 const MAX_WEEK_SPAN = 16;
 
@@ -58,7 +58,7 @@ type TrainingPageProps = {
 };
 
 function parseView(raw: string | undefined): TrainingView {
-  if (raw === "month") return "month";
+  if (raw === "calendar" || raw === "month") return "calendar";
   // New list = former infinite-scroll table; keep `table` as alias
   if (raw === "list" || raw === "table") return "list";
   return "week";
@@ -90,6 +90,14 @@ export default async function TrainingPage({
   if (params.view === "table") {
     redirect("/training?view=list");
   }
+  // Soft-redirect legacy month view to calendar
+  if (params.view === "month") {
+    const qs = new URLSearchParams();
+    qs.set("view", "calendar");
+    if (params.month) qs.set("month", params.month);
+    if (params.months) qs.set("months", params.months);
+    redirect(`/training?${qs.toString()}`);
+  }
 
   // No explicit view → client picks List (mobile) or Week (desktop)
   if (params.view == null || params.view === "") {
@@ -101,11 +109,12 @@ export default async function TrainingPage({
   const view = parseView(params.view);
   const monthSpan = parseMonthSpan(params.months);
   const weekSpan = view === "week" ? parseWeekSpan(params.weeks) : 1;
+  const usesMonthGrid = view === "calendar";
 
   // Always use UTC date-only + Monday week starts (never date-fns on local midnight).
   const todayOnly = todayDateOnly();
   const anchor =
-    view === "month"
+    usesMonthGrid
       ? addDateOnlyMonths(startOfMonthDateOnly(todayOnly), monthOffset)
       : addDateOnlyDays(todayOnly, weekOffset * 7);
 
@@ -126,13 +135,13 @@ export default async function TrainingPage({
   const listToKey = toDateKey(listRangeEnd);
 
   const rangeStart =
-    view === "month"
+    usesMonthGrid
       ? monthGridStart
       : view === "list"
         ? listRangeStart
         : weekStart;
   const rangeEnd =
-    view === "month"
+    usesMonthGrid
       ? monthGridEnd
       : view === "list"
         ? listRangeEnd
@@ -145,10 +154,14 @@ export default async function TrainingPage({
   );
 
   const byDateRaw = groupWorkoutsByDate(rawWorkouts);
+  const isCoach = userIsCoach(session);
+  const noteViewer = isCoach ? 'coach' : 'athlete'
   const byDateWorkouts = new Map(
     [...byDateRaw.entries()].map(([key, list]) => [
       key,
-      list.map(toPlanWorkoutDetail),
+      list.map((w) =>
+        redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), noteViewer),
+      ),
     ]),
   );
   const races = await getRacesForRange(athleteId, rangeStart, rangeEnd);
@@ -168,19 +181,16 @@ export default async function TrainingPage({
     rangeEnd,
   );
 
-  const isCoach = userIsCoach(session);
   const canLogWorkout =
     session.hasAthlete && Boolean(session.athleteId);
   const today = todayDateKey();
 
   const coachAthletes = isCoach ? await getCoachAthletes(session.userId) : [];
   const selectedAthlete = coachAthletes.find((a) => a.id === athleteId);
-  const athletePlanConfig = isCoach
-    ? await prisma.athlete.findUnique({
-        where: { id: athleteId },
-        select: { planSportRows: true },
-      })
-    : null;
+  const athletePlanConfig = await prisma.athlete.findUnique({
+    where: { id: athleteId },
+    select: { planSportRows: true },
+  });
 
   const weekBlocks = Array.from({ length: weekSpan }, (_, i) => {
     const weekAnchor = addDateOnlyDays(anchor, i * 7);
@@ -235,15 +245,15 @@ export default async function TrainingPage({
 
   const weekHref = `/training?view=week&${weekQuery}`;
   const listHref = `/training?view=list`;
-  const monthHref = `/training?view=month&${monthQuery}`;
+  const calendarHref = `/training?view=calendar&${monthQuery}`;
 
   const prevHref =
-    view === "month"
-      ? `/training?view=month&month=${prevMonth}${monthSpanQuery}`
+    usesMonthGrid
+      ? `/training?view=calendar&month=${prevMonth}${monthSpanQuery}`
       : `/training?view=week&week=${prevWeek}${weekSpanQuery}`;
   const nextHref =
-    view === "month"
-      ? `/training?view=month&month=${nextMonth}${monthSpanQuery}`
+    usesMonthGrid
+      ? `/training?view=calendar&month=${nextMonth}${monthSpanQuery}`
       : `/training?view=week&week=${nextWeek}${weekSpanQuery}`;
 
   const addWeekHref =
@@ -260,14 +270,14 @@ export default async function TrainingPage({
   const trainingTitle = isCoach ? "Plan" : "Training";
 
   const periodLabel =
-    view === "month"
+    usesMonthGrid
       ? monthSpan === 1
         ? formatDateOnly(anchor, "MMMM yyyy")
-        : `${formatDateOnly(anchor, "MMM yyyy")} – ${formatDateOnly(rangeEndMonth, "MMM yyyy")}`
+        : `${formatDateOnly(anchor, "MMMM yyyy")} – ${formatDateOnly(rangeEndMonth, "MMMM yyyy")}`
       : firstWeek.weekLabel;
 
   const monthBlocks =
-    view === "month"
+    usesMonthGrid
       ? Array.from({ length: monthSpan }, (_, i) => {
           const monthAnchor = addDateOnlyMonths(anchor, i);
           const start = startOfWeekDateOnly(startOfMonthDateOnly(monthAnchor));
@@ -297,10 +307,11 @@ export default async function TrainingPage({
         <TrainingCalendarControls
           view={view}
           weekHref={weekHref}
-          monthHref={monthHref}
           listHref={listHref}
+          calendarHref={calendarHref}
           canLogWorkout={canLogWorkout}
           showLibraryToggle={isCoach}
+          showSportFilter={view === "list"}
         />
       }
     />
@@ -344,18 +355,20 @@ export default async function TrainingPage({
     <TrainingPlanShell isCoach={isCoach} templates={libraryTemplates}>
       {pageHeader}
 
-      {view === "month" ? (
-        <MonthCalendarView
+      {view === "calendar" ? (
+        <CalendarMonthView
           rangeLabel={periodLabel}
-          months={monthBlocks}
+          months={monthBlocks.map(({ label, days }) => ({ label, days }))}
           monthSpan={monthSpan}
           monthOffset={monthOffset}
           workoutsByDate={byDate}
           notesByDate={notesByDate}
           eventsByDate={eventsByDate}
           isCoach={isCoach}
+          canEditDayNotes
           athleteId={athleteId}
-          trainingMode
+          planSportRows={athletePlanConfig?.planSportRows ?? []}
+          swimCssSecPer100m={swimCssSecPer100m}
           prevMonthHref={prevHref}
           nextMonthHref={nextHref}
         />

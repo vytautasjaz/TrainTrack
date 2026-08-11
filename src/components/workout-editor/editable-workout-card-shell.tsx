@@ -2,35 +2,22 @@
 
 import type { MouseEvent, ReactNode } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Clock, Link2 } from 'lucide-react'
+import { Clock, Eye, EyeOff, Link2 } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import type { DistanceUnit, DurationUnit, WorkoutPrimaryMetric } from '@/lib/workout-editor/types'
+import { getSportHeroGradientClass } from '@/lib/workout-editor/sport-theme'
+import type {
+  DistanceUnit,
+  DurationUnit,
+  WorkoutPrimaryMetric,
+  WorkoutPrimaryMetricState,
+} from '@/lib/workout-editor/types'
 import { cn } from '@/lib/utils'
 
 function metricValueWidthCh(value: string, placeholder: string, minChars = 2) {
   const len = Math.max(value.length, placeholder.length, minChars)
   return `${len}ch`
-}
-
-function heroGradientClass(sportType: WorkoutType) {
-  switch (sportType) {
-    case WorkoutType.RUN:
-      return 'from-white to-orange-100'
-    case WorkoutType.BIKE:
-      return 'from-white to-sky-100'
-    case WorkoutType.SWIM:
-      return 'from-white to-cyan-100'
-    case WorkoutType.STRENGTH:
-      return 'from-white to-emerald-100'
-    case WorkoutType.HYROX:
-      return 'from-white to-rose-100'
-    case WorkoutType.TRIATHLON:
-      return 'from-white to-violet-100'
-    default:
-      return 'from-white to-slate-100'
-  }
 }
 
 function AutoTextButton({
@@ -109,6 +96,13 @@ function MetricFooterControls({
         onClick={onToggleCardVisibility}
         disabled={onCard && !canHide}
         aria-pressed={!onCard}
+        aria-label={
+          onCard
+            ? canHide
+              ? 'Hide on workout card'
+              : 'At least one metric must stay on the card'
+            : 'Show on workout card'
+        }
         title={
           onCard
             ? canHide
@@ -117,14 +111,18 @@ function MetricFooterControls({
             : 'Show on workout card'
         }
         className={cn(
-          'shrink-0 whitespace-nowrap text-[11px] font-medium transition',
+          'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm transition',
           onCard
             ? 'text-muted-foreground/55 hover:text-muted-foreground'
-            : 'text-muted-foreground/70',
+            : 'text-muted-foreground/70 hover:text-muted-foreground',
           onCard && !canHide && 'pointer-events-none opacity-40',
         )}
       >
-        {onCard ? 'Hide' : 'Show'}
+        {onCard ? (
+          <Eye className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+        ) : (
+          <EyeOff className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+        )}
       </button>
     </div>
   )
@@ -136,7 +134,7 @@ export type EditableWorkoutCardShellProps = {
   subtitle: string
   titleAuto: boolean
   subtitleAuto: boolean
-  primaryMetric: WorkoutPrimaryMetric
+  primaryMetric: WorkoutPrimaryMetricState
   durationInput: string
   distanceInput: string
   autoDistanceInput?: string
@@ -215,8 +213,9 @@ export function EditableWorkoutCardShell({
 }: EditableWorkoutCardShellProps) {
   const canChangeSport =
     Boolean(onSportChange) && Boolean(sportOptions && sportOptions.length > 1)
-  const durationIsPrimary = primaryMetric === 'duration' || !showDistance
-  const distanceIsPrimary = !durationIsPrimary
+  const hasPrimary = primaryMetric != null
+  const durationIsPrimary = hasPrimary && (primaryMetric === 'duration' || !showDistance)
+  const distanceIsPrimary = hasPrimary && primaryMetric === 'distance'
 
   const lockDistance = distanceLocked ?? metricsLocked
   const lockDuration = durationLocked ?? metricsLocked
@@ -240,14 +239,22 @@ export function EditableWorkoutCardShell({
   const distanceIsAuto = !distanceSourceIsManual
   const durationIsAuto = !durationSourceIsManual
 
-  /** Black = shown on plan card; gray = hidden from card (still stored). */
+  /** Manual (or locked) text entered — not an empty field / placeholder. */
+  const distanceHasEnteredValue = distanceSourceIsManual
+    ? distanceInput.trim().length > 0
+    : Boolean(autoDistanceDisplay || distanceInput.trim())
+  const durationHasEnteredValue = durationSourceIsManual
+    ? durationInput.trim().length > 0
+    : Boolean(autoDurationDisplay || durationInput.trim())
+
+  /** Both metrics stay visible until a primary is chosen; then eye toggle applies. */
   const distanceOnCard =
     showDistance &&
-    (primaryMetric === 'distance' || secondaryMetricVisible)
+    (!hasPrimary || primaryMetric === 'distance' || secondaryMetricVisible)
   const durationOnCard =
-    primaryMetric === 'duration' || !showDistance || secondaryMetricVisible
-  const canHideDistance = distanceOnCard && durationOnCard
-  const canHideDuration = showDistance && distanceOnCard && durationOnCard
+    !hasPrimary || primaryMetric === 'duration' || !showDistance || secondaryMetricVisible
+  const canHideDistance = hasPrimary && distanceOnCard && durationOnCard
+  const canHideDuration = hasPrimary && showDistance && distanceOnCard && durationOnCard
 
   const unitLabel = (unit: DurationUnit) => (unit === 'min' ? 'min' : 'h')
 
@@ -274,6 +281,11 @@ export function EditableWorkoutCardShell({
   }
 
   function toggleDistanceCardVisibility() {
+    if (!hasPrimary) {
+      onPrimaryMetricChange('distance')
+      onSecondaryMetricVisibleChange?.(true)
+      return
+    }
     if (distanceOnCard) {
       if (!canHideDistance) return
       if (primaryMetric === 'distance') {
@@ -291,6 +303,11 @@ export function EditableWorkoutCardShell({
   }
 
   function toggleDurationCardVisibility() {
+    if (!hasPrimary) {
+      onPrimaryMetricChange('duration')
+      onSecondaryMetricVisibleChange?.(true)
+      return
+    }
     if (durationOnCard) {
       if (!canHideDuration) return
       if (primaryMetric === 'duration') {
@@ -307,17 +324,21 @@ export function EditableWorkoutCardShell({
     }
   }
 
-  const valueTone = (onCard: boolean, isPrimary: boolean) =>
+  /**
+   * Size follows pending/actual primary (grows on focus).
+   * Color stays grey until a value is actually entered.
+   */
+  const valueTone = (onCard: boolean, isPrimary: boolean, hasEnteredValue: boolean) =>
     cn(
       'font-bold',
       isPrimary ? 'text-[32px]' : 'text-[18px]',
-      onCard ? 'text-[#111827]' : 'text-muted-foreground/45',
+      onCard && hasEnteredValue ? 'text-[#111827]' : 'text-muted-foreground/45',
     )
 
-  const unitTone = (onCard: boolean, isPrimary: boolean) =>
+  const unitTone = (onCard: boolean, isPrimary: boolean, hasEnteredValue: boolean) =>
     cn(
       'font-semibold leading-none tracking-tight',
-      onCard ? 'text-[#111827]' : 'text-muted-foreground/45',
+      onCard && hasEnteredValue ? 'text-[#111827]' : 'text-muted-foreground/45',
       isPrimary ? 'text-base' : 'text-[11px]',
     )
 
@@ -367,7 +388,7 @@ export function EditableWorkoutCardShell({
     <div
       className={cn(
         'relative rounded-none border-0 border-b border-black/20 bg-gradient-to-b px-5 pb-6 pt-5 shadow-none sm:px-6',
-        heroGradientClass(sportType),
+        getSportHeroGradientClass(sportType),
         cornerSlot && 'pb-14',
         className,
       )}
@@ -446,9 +467,11 @@ export function EditableWorkoutCardShell({
                 }}
                 className={cn(
                   'inline-flex h-4 shrink-0 items-center justify-center gap-1.5',
-                  distanceOnCard
+                  hasPrimary && distanceOnCard && distanceHasEnteredValue
                     ? 'text-foreground'
-                    : 'text-muted-foreground/40',
+                    : distanceIsPrimary
+                      ? 'text-muted-foreground/70'
+                      : 'text-muted-foreground/40',
                 )}
               >
                 <Link2 className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -476,40 +499,55 @@ export function EditableWorkoutCardShell({
                     ~
                   </span>
                 ) : null}
-                {distanceSourceIsManual || lockDistance ? (
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={distanceInput}
-                    readOnly={lockDistance}
-                    onChange={(e) => onDistanceChange(e.target.value)}
-                    onFocus={() => {
-                      selectDistanceSource('manual')
-                      if (!lockDistance && !durationInput.trim() && !distanceInput.trim()) {
-                        onPrimaryMetricChange('distance')
-                      }
-                    }}
-                    placeholder={distancePlaceholder}
-                    style={{
-                      width: metricValueWidthCh(distanceInput, distancePlaceholder),
-                    }}
-                    className={cn(
-                      'm-0 bg-transparent p-0 text-center tabular-nums leading-none tracking-tight outline-none placeholder:text-muted-foreground/30',
-                      valueTone(distanceOnCard, distanceIsPrimary),
-                    )}
-                  />
-                ) : (
+                {lockDistance ? (
                   <span
                     className={cn(
                       'tabular-nums leading-none tracking-tight',
-                      valueTone(distanceOnCard, distanceIsPrimary),
+                      valueTone(
+                        distanceOnCard,
+                        distanceIsPrimary,
+                        distanceHasEnteredValue,
+                      ),
                       !shownDistance && 'text-muted-foreground/40',
                     )}
                   >
                     {shownDistance || '—'}
                   </span>
+                ) : (
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={
+                      distanceSourceIsManual ? distanceInput : shownDistance
+                    }
+                    onChange={(e) => onDistanceChange(e.target.value)}
+                    onFocus={() => {
+                      if (!lockDistance) onPrimaryMetricChange('distance')
+                    }}
+                    placeholder={distancePlaceholder}
+                    style={{
+                      width: metricValueWidthCh(
+                        distanceSourceIsManual ? distanceInput : shownDistance,
+                        distancePlaceholder,
+                      ),
+                    }}
+                    className={cn(
+                      'm-0 bg-transparent p-0 text-center tabular-nums leading-none tracking-tight outline-none placeholder:text-muted-foreground/45',
+                      valueTone(
+                        distanceOnCard,
+                        distanceIsPrimary,
+                        distanceHasEnteredValue,
+                      ),
+                    )}
+                  />
                 )}
-                <span className={unitTone(distanceOnCard, distanceIsPrimary)}>
+                <span
+                  className={unitTone(
+                    distanceOnCard,
+                    distanceIsPrimary,
+                    distanceHasEnteredValue,
+                  )}
+                >
                   {distanceUnit}
                 </span>
               </div>
@@ -546,9 +584,11 @@ export function EditableWorkoutCardShell({
             }}
             className={cn(
               'inline-flex h-4 shrink-0 items-center justify-center gap-1.5',
-              durationOnCard
+              hasPrimary && durationOnCard && durationHasEnteredValue
                 ? 'text-foreground'
-                : 'text-muted-foreground/40',
+                : durationIsPrimary
+                  ? 'text-muted-foreground/70'
+                  : 'text-muted-foreground/40',
             )}
           >
             <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -574,38 +614,45 @@ export function EditableWorkoutCardShell({
                 ~
               </span>
             ) : null}
-            {durationSourceIsManual || lockDuration ? (
-              <input
-                type="text"
-                inputMode={durationUnit === 'min' ? 'numeric' : 'text'}
-                value={durationInput}
-                readOnly={lockDuration}
-                onChange={(e) => onDurationChange(e.target.value)}
-                onFocus={() => {
-                  selectDurationSource('manual')
-                  if (!lockDuration && !durationInput.trim() && !distanceInput.trim()) {
-                    onPrimaryMetricChange('duration')
-                  }
-                }}
-                placeholder={durationPlaceholder}
-                style={{
-                  width: metricValueWidthCh(durationInput, durationPlaceholder),
-                }}
-                className={cn(
-                  'm-0 bg-transparent p-0 text-center tabular-nums leading-none tracking-tight outline-none placeholder:text-muted-foreground/30',
-                  valueTone(durationOnCard, durationIsPrimary),
-                )}
-              />
-            ) : (
+            {lockDuration ? (
               <span
                 className={cn(
                   'tabular-nums leading-none tracking-tight',
-                  valueTone(durationOnCard, durationIsPrimary),
+                  valueTone(
+                    durationOnCard,
+                    durationIsPrimary,
+                    durationHasEnteredValue,
+                  ),
                   !shownDuration && 'text-muted-foreground/40',
                 )}
               >
                 {shownDuration || '—'}
               </span>
+            ) : (
+              <input
+                type="text"
+                inputMode={durationUnit === 'min' ? 'numeric' : 'text'}
+                value={durationSourceIsManual ? durationInput : shownDuration}
+                onChange={(e) => onDurationChange(e.target.value)}
+                onFocus={() => {
+                  if (!lockDuration) onPrimaryMetricChange('duration')
+                }}
+                placeholder={durationPlaceholder}
+                style={{
+                  width: metricValueWidthCh(
+                    durationSourceIsManual ? durationInput : shownDuration,
+                    durationPlaceholder,
+                  ),
+                }}
+                className={cn(
+                  'm-0 bg-transparent p-0 text-center tabular-nums leading-none tracking-tight outline-none placeholder:text-muted-foreground/45',
+                  valueTone(
+                    durationOnCard,
+                    durationIsPrimary,
+                    durationHasEnteredValue,
+                  ),
+                )}
+              />
             )}
             {allowDurationUnitToggle && onToggleDurationUnit ? (
               <button
@@ -618,7 +665,11 @@ export function EditableWorkoutCardShell({
                 title={`Unit: ${unitLabel(durationUnit)}. Click to switch.`}
                 aria-label={`Duration unit ${unitLabel(durationUnit)}. Click to switch between min and hours.`}
                 className={cn(
-                  unitTone(durationOnCard, durationIsPrimary),
+                  unitTone(
+                    durationOnCard,
+                    durationIsPrimary,
+                    durationHasEnteredValue,
+                  ),
                   'underline-offset-2 hover:underline',
                   lockDuration && 'pointer-events-none opacity-50',
                 )}
@@ -626,7 +677,13 @@ export function EditableWorkoutCardShell({
                 {unitLabel(durationUnit)}
               </button>
             ) : (
-              <span className={unitTone(durationOnCard, durationIsPrimary)}>
+              <span
+                className={unitTone(
+                  durationOnCard,
+                  durationIsPrimary,
+                  durationHasEnteredValue,
+                )}
+              >
                 {unitLabel(durationUnit)}
               </span>
             )}

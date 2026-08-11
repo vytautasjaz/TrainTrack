@@ -150,7 +150,7 @@ export function PlanWorkoutDataCard({
     stravaSynced ? (
       <StravaSyncedIndicator
         workout={workout}
-        variant={density === 'month' || density === 'micro' ? 'mark' : 'wordmark'}
+        variant="wordmark"
         size={density === 'list' ? 'sm' : 'xs'}
       />
     ) : (
@@ -221,22 +221,20 @@ export function PlanWorkoutDataCard({
       {hero ? (
         <div
           className={cn(
-            'flex min-w-0 flex-wrap items-baseline gap-x-1.5',
+            'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap',
             subtitle ? styles.heroPad : null,
           )}
         >
-          <span className="inline-flex max-w-full items-baseline">
-            {hero.approximate ? (
-              <span className={cn('font-medium text-[#6B7280]', styles.unit)}>~</span>
-            ) : null}
-            <span className={cn('tabular-nums', styles.hero)}>{hero.value}</span>
-            {hero.unit ? (
-              <span className={styles.unit}>
-                {'\u00a0'}
-                {hero.unit}
-              </span>
-            ) : null}
-          </span>
+          {hero.approximate ? (
+            <span className={cn('font-medium text-[#6B7280]', styles.unit)}>~</span>
+          ) : null}
+          <span className={cn('tabular-nums', styles.hero)}>{hero.value}</span>
+          {hero.unit ? (
+            <span className={styles.unit}>
+              {'\u00a0'}
+              {hero.unit}
+            </span>
+          ) : null}
           {hero.plannedValue ? (
             <span
               className={cn(
@@ -245,7 +243,8 @@ export function PlanWorkoutDataCard({
                 'text-[#9CA3AF]',
               )}
             >
-              / {hero.plannedValue}
+              {'\u00a0/\u00a0'}
+              {hero.plannedValue}
               {hero.plannedUnit ? `\u00a0${hero.plannedUnit}` : ''}
             </span>
           ) : null}
@@ -253,17 +252,26 @@ export function PlanWorkoutDataCard({
       ) : null}
 
       {duration ? (
-        <div className={cn('flex min-w-0 flex-wrap items-center gap-x-1', styles.duration)}>
-          <span className="inline-flex items-center gap-1">
-            {hero?.kind === 'distance' ? (
-              <Clock className={cn(styles.clock, 'shrink-0 text-[#6B7280]')} aria-hidden />
-            ) : null}
-            <span className="font-semibold text-[#111827]">{duration.actual}</span>
-          </span>
+        <div
+          className={cn(
+            'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap',
+            styles.duration,
+          )}
+        >
+          {hero?.kind === 'distance' ? (
+            <Clock
+              className={cn(
+                styles.clock,
+                'mr-1 inline-block shrink-0 align-[-0.1em] text-[#6B7280]',
+              )}
+              aria-hidden
+            />
+          ) : null}
+          <span className="font-semibold text-[#111827]">{duration.actual}</span>
           {duration.planned ? (
-            <span className="inline-flex items-center gap-1 text-[#9CA3AF]">
-              <span>/</span>
-              <span>{duration.planned}</span>
+            <span className="text-[#9CA3AF]">
+              {'\u00a0/\u00a0'}
+              {duration.planned}
             </span>
           ) : null}
         </div>

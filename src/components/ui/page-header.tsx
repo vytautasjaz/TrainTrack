@@ -8,7 +8,10 @@ type PageHeaderProps = {
 
 export function PageHeader({ title, description, action }: PageHeaderProps) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 lg:items-end lg:gap-3 lg:pt-4 landscape:max-lg:gap-1.5">
+    <div
+      data-page-header
+      className="flex flex-wrap items-center justify-between gap-2 pt-2 lg:items-end lg:gap-3 lg:pt-4 landscape:max-lg:gap-1.5"
+    >
       <div className="min-w-0">
         <PageTitle>{title}</PageTitle>
         {description && (

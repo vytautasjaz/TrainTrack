@@ -64,6 +64,7 @@ export async function updatePaceZones(formData: FormData) {
   })
 
   revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
 }
 
 export async function updateBikeSpeedZones(formData: FormData) {
@@ -99,6 +100,7 @@ export async function updateBikeSpeedZones(formData: FormData) {
   })
 
   revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
 }
 
 export async function updateSwimCss(formData: FormData) {
@@ -120,6 +122,7 @@ export async function updateSwimCss(formData: FormData) {
   })
 
   revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
 }
 
 export async function updateHrZones(formData: FormData) {
@@ -136,6 +139,7 @@ export async function updateHrZones(formData: FormData) {
   })
 
   revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
 }
 
 export async function updateAthleteName(formData: FormData) {

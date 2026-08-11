@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation'
-import { Flag, Footprints, Route, Timer, TrendingUp, Users } from 'lucide-react'
+import { Flag, TrendingUp, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getSession, resolveAthleteId, isCoach} from '@/lib/session'
+import { getSession, resolveAthleteId, isCoachView} from '@/lib/session'
 import { getAthleteDashboard, getCoachDashboard, countsTowardCompliance, getPendingCoachRequests } from '@/lib/queries'
 import { toDateKey } from '@/lib/dates'
-import { daysUntil, formatDistance, formatDuration, percent } from '@/lib/utils'
+import { daysUntil, formatDistance, percent } from '@/lib/utils'
 import { createAthlete } from '@/app/actions/workouts'
 import { CoachAthleteCard } from '@/components/coach/coach-athlete-card'
 import { CoachPendingRequests } from '@/components/coach/coach-pending-requests'
@@ -20,13 +20,12 @@ import {
 } from '@/components/athlete/athlete-coach-reply-list'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { MetricChip } from '@/components/ui/metric-chip'
-import { ProgressRing } from '@/components/ui/progress-ring'
 import { StatCard } from '@/components/ui/stat-card'
 import { PageHeader } from '@/components/ui/page-header'
 import { AthleteDashboardWorkouts } from '@/components/dashboard/athlete-dashboard-workouts'
 import { AthleteRaceFollowUp } from '@/components/dashboard/athlete-race-follow-up'
-import { toPlanWorkoutDetail } from '@/lib/plan-workout'
+import { AthleteWeekStatsCard } from '@/components/dashboard/athlete-week-stats-card'
+import { toPlanWorkoutDetail, redactPlanWorkoutNotesForViewer } from '@/lib/plan-workout'
 
 function formatGreetingName(name: string) {
   const first = name.trim().split(/\s+/)[0] ?? name
@@ -52,7 +51,7 @@ export default async function DashboardPage() {
   const session = await getSession()
   if (!session) redirect('/')
 
-  if (isCoach(session)) {
+  if (isCoachView(session)) {
     const [
       { athletes, recentFeedback, recentRaceReports, planningLeadDays, planningWarnings },
       pendingCoach,
@@ -203,7 +202,9 @@ export default async function DashboardPage() {
       plannedDuration: r.workout.plannedDuration,
     },
   }))
-  const weekPct = percent(data.weekCompleted, data.weekPlanned)
+  const weekStatsWorkouts = data.weekStatsWindowWorkouts.map((w) =>
+    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+  )
 
   return (
     <div className="space-y-6">
@@ -240,51 +241,22 @@ export default async function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.9fr)] lg:items-start lg:gap-8">
         <div className="min-w-0">
           <AthleteDashboardWorkouts
-            todayWorkouts={data.todayWorkouts.map(toPlanWorkoutDetail)}
-            upcomingWorkouts={data.upcomingWorkouts.map(toPlanWorkoutDetail)}
+            todayWorkouts={data.todayWorkouts.map((w) =>
+              redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+            )}
+            upcomingWorkouts={data.upcomingWorkouts.map((w) =>
+              redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+            )}
           />
         </div>
 
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-4">
-          <section className="card-elevated overflow-hidden p-5">
-            <div className="mb-4 flex items-baseline justify-between gap-2">
-              <h2 className="text-lg font-semibold leading-tight tracking-tight">This week</h2>
-              <p className="text-xs font-medium text-muted-foreground">
-                {data.weekCompleted} of {data.weekPlanned} workouts
-              </p>
-            </div>
-            <div className="flex flex-col items-center gap-5">
-              <ProgressRing
-                value={data.weekCompleted}
-                max={Math.max(data.weekPlanned, 1)}
-                size={140}
-                stroke={10}
-                tone="light"
-                label={
-                  <span className="text-2xl font-bold tabular-nums text-foreground">
-                    {weekPct}%
-                  </span>
-                }
-              />
-              <div className="flex w-full justify-around gap-2 border-t border-border/50 pt-5">
-                <MetricChip
-                  icon={Route}
-                  value={formatDistance(data.weekDistance)}
-                  label="Distance"
-                />
-                <MetricChip
-                  icon={Timer}
-                  value={formatDuration(data.weekDuration)}
-                  label="Duration"
-                />
-                <MetricChip
-                  icon={Footprints}
-                  value={String(data.weekCompleted)}
-                  label="Completed"
-                />
-              </div>
-            </div>
-          </section>
+          <AthleteWeekStatsCard
+            workouts={weekStatsWorkouts}
+            anchorWeekStartKey={data.weekStatsAnchorStartKey}
+            planSportRows={data.planSportRows}
+            swimCssSecPer100m={data.swimCssSecPer100m}
+          />
 
           {data.nextRace ? (
             <section className="card-elevated space-y-2 p-5">

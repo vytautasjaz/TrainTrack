@@ -19,13 +19,15 @@ type DayNoteSectionProps = {
 
 function noteTextClass(unavailable: boolean, showFullText: boolean, compact: boolean) {
   return cn(
-    'min-w-0 text-xs leading-snug',
+    'min-w-0 leading-snug',
+    // Match WorkoutBlock: xs title 11px (month) / md title 13px (week)
+    compact && !showFullText && 'text-[11px] font-medium',
+    compact && showFullText && 'text-[13px] font-medium',
+    !compact && 'text-sm',
     showFullText ? 'whitespace-pre-wrap break-words' : 'truncate',
-    !showFullText && compact && 'landscape:max-lg:text-[8px] landscape:max-lg:leading-tight',
     unavailable
-      ? 'text-red-600 dark:text-red-400'
+      ? 'italic text-red-600 dark:text-red-400'
       : 'text-foreground',
-    unavailable && 'italic',
   )
 }
 
@@ -59,7 +61,10 @@ export function DayNoteSection({
 
     if (compact) {
       const className = cn(
-        'group w-full rounded-lg px-0.5 py-0.5 text-left landscape:max-lg:px-0 lg:px-1',
+        'group w-full rounded-[var(--radius-workout)] border border-amber-200/70 bg-yellow-100 px-2 py-1.5 text-left',
+        'shadow-[0_1px_1px_rgb(0_0_0_/0.05),0_1px_2px_rgb(0_0_0_/0.04)]',
+        'dark:border-yellow-500/30 dark:bg-yellow-500/20',
+        showFullText && 'lg:px-2.5 lg:py-2',
       )
 
       const content = (
@@ -72,7 +77,10 @@ export function DayNoteSection({
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className={cn(className, 'cursor-pointer hover:bg-muted/50')}
+              className={cn(
+                className,
+                'cursor-pointer transition hover:bg-yellow-200/80 dark:hover:bg-yellow-500/30',
+              )}
             >
               {content}
             </button>

@@ -5,6 +5,8 @@ import { sportSupportsWorkoutBuilder } from '@/lib/workout-builder/session-modes
 import { sportUsesPlannedDistance } from '@/lib/plan-week-totals'
 
 export type WorkoutPrimaryMetric = 'duration' | 'distance'
+/** Unset until the athlete/coach types the first manual metric on a new workout. */
+export type WorkoutPrimaryMetricState = WorkoutPrimaryMetric | null
 export type DurationUnit = 'min' | 'hours'
 export type DistanceUnit = 'km' | 'm'
 

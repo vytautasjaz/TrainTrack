@@ -1,0 +1,27 @@
+---
+description: Shared table header and shell chrome — square frames, consistent borders
+globs: src/components/**/*.{tsx,ts}, src/app/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# Table chrome
+
+Use shared table chrome from `src/lib/table-styles.ts` (CSS in `globals.css`). Do not invent one-off table frames or header backgrounds.
+
+## Variants
+
+| Variant | Classes | When |
+|---|---|---|
+| **Shell** | `TABLE_SHELL` | Outer wrapper around **div** grids (Month calendar) |
+| **Frame** | `TABLE_FRAME` | Border on the **`<table>`** itself (Week plan) — avoids wrapper/cell gaps |
+| **Primary header** | `TABLE_HEADER`, `TABLE_HEADER_CELL*`, `TABLE_HEADER_VLINE` | Week plan, Month calendar, Season planner |
+| **Sub header** | `TABLE_HEADER_SUB` | Secondary strip under a primary header |
+| **Muted header** | `TABLE_HEADER_MUTED` | Sparse list tables (race lists, results, personal bests) |
+
+## Rules
+
+- Table frames are **square** (`rounded-none`) — never rounded corners on table chrome.
+- Week plan tables use `TABLE_FRAME` on `<table>`, not a bordered wrapper around the table.
+- Do not put `border-r` on the last day column — the frame/shell is the outer edge.
+- Prefer importing constants from `@/lib/table-styles` over duplicating border strings.
+- Add new variants only in `globals.css` + `table-styles.ts`.

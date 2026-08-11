@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { format } from 'date-fns'
-import { getSession, isCoach} from '@/lib/session'
+import { getSession, isCoachView} from '@/lib/session'
 import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -16,7 +16,7 @@ import { LIBRARY_SPORTS } from '@/lib/workout-library/config'
 export default async function WorkoutsPage() {
   const session = await getSession()
   if (!session) redirect('/')
-  if (!isCoach(session)) redirect('/training')
+  if (!isCoachView(session)) redirect('/training')
 
   const [counts, recent] = await Promise.all([
     getCoachLibraryCountsBySport(session.userId),

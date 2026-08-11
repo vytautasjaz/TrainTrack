@@ -126,11 +126,34 @@ if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: 'jwt' },
+  secret: process.env.AUTH_SECRET,
   pages: {
     signIn: '/',
     error: '/',
   },
   providers,
+  /**
+   * Stale/malformed session cookies (e.g. after AUTH_SECRET rotation or an old
+   * Auth.js cookie) fail JWT decode. Auth.js already clears them; don't treat
+   * that as an app crash in the Next.js console.
+   */
+  logger: {
+    error(error) {
+      const type =
+        error && typeof error === 'object' && 'type' in error
+          ? String((error as { type?: string }).type)
+          : error instanceof Error
+            ? error.name
+            : ''
+      if (type === 'JWTSessionError' || type === 'SessionTokenError') {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn(`[auth] ${type}: clearing invalid session cookie`)
+        }
+        return
+      }
+      console.error(error)
+    },
+  },
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'strava' && account.access_token && user.id) {

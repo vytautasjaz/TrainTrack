@@ -185,7 +185,7 @@ export async function skipOnboarding() {
 
 export async function linkGoogleAccount() {
   await signIn('google', {
-    redirectTo: '/settings/account',
+    redirectTo: '/settings/preferences#sign-in',
     scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
     access_type: 'offline',
     prompt: 'consent',
@@ -193,7 +193,7 @@ export async function linkGoogleAccount() {
 }
 
 export async function linkStravaAccount() {
-  await signIn('strava', { redirectTo: '/settings/account' })
+  await signIn('strava', { redirectTo: '/settings/preferences#sign-in' })
 }
 
 export async function setPassword(formData: FormData) {
@@ -205,6 +205,7 @@ export async function setPassword(formData: FormData) {
     where: { id: session.userId },
     data: { passwordHash },
   })
+  revalidatePath('/settings/preferences')
   revalidatePath('/settings/account')
 }
 
@@ -233,6 +234,7 @@ export async function unlinkProvider(formData: FormData) {
   if (provider === 'strava') {
     await prisma.stravaConnection.deleteMany({ where: { userId: session.userId } })
   }
+  revalidatePath('/settings/preferences')
   revalidatePath('/settings/account')
 }
 
@@ -251,7 +253,8 @@ export async function requestCoachConnection(formData: FormData) {
   })
   if (!coachProfile) throw new Error('Invalid coach code')
   if (coachProfile.userId === session.userId) {
-    throw new Error('You cannot connect to yourself')
+    await coachMyself()
+    return
   }
 
   await prisma.coachAthleteLink.upsert({
@@ -273,6 +276,190 @@ export async function requestCoachConnection(formData: FormData) {
 
   revalidatePath('/settings/account')
   revalidatePath('/dashboard')
+}
+
+/**
+ * Dual-role user: link own athlete profile to own coach profile (ACCEPTED immediately).
+ */
+export async function coachMyself(): Promise<void> {
+  const session = await requireSession()
+  if (!session.hasAthlete) throw new Error('Start training before coaching yourself')
+  if (!session.hasCoach) throw new Error('Become a coach before coaching yourself')
+
+  const athlete = await prisma.athlete.findUnique({
+    where: { userId: session.userId },
+    select: { id: true, coachId: true },
+  })
+  if (!athlete) throw new Error('Athlete profile not found')
+
+  const coachProfile = await prisma.coachProfile.findUnique({
+    where: { userId: session.userId },
+    select: { id: true },
+  })
+  if (!coachProfile) throw new Error('Coach profile not found')
+
+  const alreadySelf = await prisma.coachAthleteLink.findFirst({
+    where: {
+      athleteId: athlete.id,
+      coachProfileId: coachProfile.id,
+      status: CoachAthleteLinkStatus.ACCEPTED,
+    },
+  })
+  if (alreadySelf && athlete.coachId === session.userId) {
+    return
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.coachAthleteLink.updateMany({
+      where: {
+        athleteId: athlete.id,
+        status: {
+          in: [CoachAthleteLinkStatus.ACCEPTED, CoachAthleteLinkStatus.PENDING],
+        },
+        NOT: { coachProfileId: coachProfile.id },
+      },
+      data: { status: CoachAthleteLinkStatus.REMOVED },
+    })
+
+    await tx.coachAthleteLink.upsert({
+      where: {
+        coachProfileId_athleteId: {
+          coachProfileId: coachProfile.id,
+          athleteId: athlete.id,
+        },
+      },
+      create: {
+        coachProfileId: coachProfile.id,
+        athleteId: athlete.id,
+        status: CoachAthleteLinkStatus.ACCEPTED,
+      },
+      update: {
+        status: CoachAthleteLinkStatus.ACCEPTED,
+      },
+    })
+
+    await tx.athlete.update({
+      where: { id: athlete.id },
+      data: { coachId: session.userId },
+    })
+  })
+
+  revalidatePath('/settings/account')
+  revalidatePath('/dashboard')
+  revalidatePath('/training')
+}
+
+/** Athlete leaves their accepted coach (and cancels pending requests). */
+export async function leaveCoach(): Promise<void> {
+  const session = await requireSession()
+  if (!session.hasAthlete) throw new Error('Athlete only')
+
+  const athlete = await prisma.athlete.findUnique({
+    where: { userId: session.userId },
+    select: { id: true, coachId: true },
+  })
+  if (!athlete) throw new Error('Athlete profile not found')
+
+  await prisma.$transaction(async (tx) => {
+    await tx.coachAthleteLink.updateMany({
+      where: {
+        athleteId: athlete.id,
+        status: {
+          in: [CoachAthleteLinkStatus.ACCEPTED, CoachAthleteLinkStatus.PENDING],
+        },
+      },
+      data: { status: CoachAthleteLinkStatus.REMOVED },
+    })
+    if (athlete.coachId) {
+      await tx.athlete.update({
+        where: { id: athlete.id },
+        data: { coachId: null },
+      })
+    }
+  })
+
+  revalidatePath('/settings/account')
+  revalidatePath('/dashboard')
+  revalidatePath('/training')
+}
+
+/**
+ * Athlete switches to a new coach by invite code:
+ * removes current accepted/pending links, then requests the new coach.
+ * Own coaching code → coachMyself() (accepted immediately).
+ */
+export async function switchCoach(formData: FormData): Promise<void> {
+  const session = await requireSession()
+  if (!session.hasAthlete) throw new Error('Start training before connecting to a coach')
+
+  const athlete = await prisma.athlete.findUnique({
+    where: { userId: session.userId },
+    select: { id: true, coachId: true },
+  })
+  if (!athlete) throw new Error('Athlete profile not found')
+
+  const code = normalizeCoachingCode(String(formData.get('coachingCode') ?? ''))
+  const coachProfile = await prisma.coachProfile.findUnique({
+    where: { coachingCode: code },
+    select: { id: true, userId: true },
+  })
+  if (!coachProfile) throw new Error('Invalid coach code')
+  if (coachProfile.userId === session.userId) {
+    await coachMyself()
+    return
+  }
+
+  const alreadyAccepted = await prisma.coachAthleteLink.findFirst({
+    where: {
+      athleteId: athlete.id,
+      coachProfileId: coachProfile.id,
+      status: CoachAthleteLinkStatus.ACCEPTED,
+    },
+  })
+  if (alreadyAccepted) {
+    throw new Error('You are already connected to this coach')
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.coachAthleteLink.updateMany({
+      where: {
+        athleteId: athlete.id,
+        status: {
+          in: [CoachAthleteLinkStatus.ACCEPTED, CoachAthleteLinkStatus.PENDING],
+        },
+        NOT: { coachProfileId: coachProfile.id },
+      },
+      data: { status: CoachAthleteLinkStatus.REMOVED },
+    })
+
+    if (athlete.coachId && athlete.coachId !== coachProfile.userId) {
+      await tx.athlete.update({
+        where: { id: athlete.id },
+        data: { coachId: null },
+      })
+    }
+
+    await tx.coachAthleteLink.upsert({
+      where: {
+        coachProfileId_athleteId: {
+          coachProfileId: coachProfile.id,
+          athleteId: athlete.id,
+        },
+      },
+      create: {
+        coachProfileId: coachProfile.id,
+        athleteId: athlete.id,
+        status: CoachAthleteLinkStatus.PENDING,
+      },
+      update: {
+        status: CoachAthleteLinkStatus.PENDING,
+      },
+    })
+  })
+
+  revalidatePath('/settings/account')
+  revalidatePath('/dashboard')
+  revalidatePath('/training')
 }
 
 export async function respondCoachRequest(formData: FormData) {
@@ -338,4 +525,124 @@ export async function setDemoSession(userId: string, athleteId?: string) {
   const cookieStore = await cookies()
   cookieStore.set('tt_user', userId, { path: '/' })
   if (athleteId) cookieStore.set('tt_athlete', athleteId, { path: '/' })
+  else cookieStore.delete('tt_athlete')
+}
+
+const DEMO_COACH_EMAIL = 'coach@traintrack.app'
+const DEMO_ATHLETE_EMAIL = 'jordan@traintrack.app'
+
+/**
+ * Creates Coach Alex + Jordan Lee if missing. Never deletes existing data.
+ */
+export async function ensureDemoAccounts(): Promise<void> {
+  if (process.env.NODE_ENV !== 'development' && process.env.ALLOW_DEMO_LOGIN !== '1') {
+    throw new Error('Demo login disabled')
+  }
+
+  let coach = await prisma.user.findUnique({
+    where: { email: DEMO_COACH_EMAIL },
+    include: { coachProfile: true, athleteProfile: { select: { id: true } } },
+  })
+
+  if (!coach) {
+    coach = await prisma.user.create({
+      data: {
+        name: 'Coach Alex',
+        email: DEMO_COACH_EMAIL,
+        roles: [UserRole.COACH],
+        coachProfile: {
+          create: { coachingCode: generateCoachingCode() },
+        },
+      },
+      include: { coachProfile: true, athleteProfile: { select: { id: true } } },
+    })
+  } else {
+    if (!coach.roles.includes(UserRole.COACH)) {
+      await prisma.user.update({
+        where: { id: coach.id },
+        data: { roles: [...new Set([...coach.roles, UserRole.COACH])] },
+      })
+    }
+    if (!coach.coachProfile) {
+      await prisma.coachProfile.create({
+        data: { userId: coach.id, coachingCode: generateCoachingCode() },
+      })
+      coach = await prisma.user.findUniqueOrThrow({
+        where: { id: coach.id },
+        include: { coachProfile: true, athleteProfile: { select: { id: true } } },
+      })
+    }
+  }
+
+  let athleteUser = await prisma.user.findUnique({
+    where: { email: DEMO_ATHLETE_EMAIL },
+    include: { athleteProfile: { select: { id: true } } },
+  })
+
+  if (!athleteUser) {
+    athleteUser = await prisma.user.create({
+      data: {
+        name: 'Jordan Lee',
+        email: DEMO_ATHLETE_EMAIL,
+        roles: [UserRole.ATHLETE],
+        athleteProfile: {
+          create: {
+            name: 'Jordan Lee',
+            coachId: coach.id,
+          },
+        },
+      },
+      include: { athleteProfile: { select: { id: true } } },
+    })
+  } else if (!athleteUser.athleteProfile) {
+    await prisma.athlete.create({
+      data: {
+        userId: athleteUser.id,
+        name: 'Jordan Lee',
+        coachId: coach.id,
+      },
+    })
+    athleteUser = await prisma.user.findUniqueOrThrow({
+      where: { id: athleteUser.id },
+      include: { athleteProfile: { select: { id: true } } },
+    })
+  }
+
+  const coachProfileId = coach.coachProfile?.id
+  const athleteId = athleteUser.athleteProfile?.id
+  if (coachProfileId && athleteId) {
+    const existing = await prisma.coachAthleteLink.findUnique({
+      where: {
+        coachProfileId_athleteId: { coachProfileId, athleteId },
+      },
+    })
+    if (!existing) {
+      await prisma.coachAthleteLink.create({
+        data: {
+          coachProfileId,
+          athleteId,
+          status: CoachAthleteLinkStatus.ACCEPTED,
+        },
+      })
+    }
+  }
+
+  revalidatePath('/')
+}
+
+export async function continueAsDemoUser(formData: FormData) {
+  if (process.env.NODE_ENV !== 'development' && process.env.ALLOW_DEMO_LOGIN !== '1') {
+    throw new Error('Demo login disabled')
+  }
+  const userId = String(formData.get('userId') ?? '').trim()
+  if (!userId) throw new Error('Missing demo user')
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { athleteProfile: { select: { id: true } } },
+  })
+  if (!user) throw new Error('Demo user not found')
+
+  await setDemoSession(user.id, user.athleteProfile?.id)
+  redirect('/dashboard')
 }

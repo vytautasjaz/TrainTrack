@@ -30,6 +30,7 @@ export type SwimWorkoutForm = {
   plannedDistanceMeters?: number | null
   plannedDuration?: number | null
   coachNotes?: string | null
+  coachNotesPrivate?: boolean
   swimStructure?: SwimWorkoutStructure | null
   builderEnabled: boolean
 }

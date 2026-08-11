@@ -15,6 +15,7 @@ import { SessionType, WorkoutStatus, WorkoutType } from '@prisma/client'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import type { WorkoutStructure } from '@/lib/workout-builder/types'
 import { cn } from '@/lib/utils'
+import { TABLE_HEADER, TABLE_HEADER_MUTED, TABLE_SHELL } from '@/lib/table-styles'
 
 const thresholdStructure: WorkoutStructure = {
   warmup: [
@@ -352,28 +353,54 @@ export default function DesignPreviewPage() {
         <MinimalSection title="Table">
           <CompareColumns
             current={
-              <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[var(--shadow-card)]">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-border/60 bg-muted/40">
-                      <th className="px-3 py-2 font-semibold">Day</th>
-                      <th className="px-3 py-2 font-semibold">Workout</th>
-                      <th className="px-3 py-2 font-semibold">Distance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-border/40">
-                      <td className="px-3 py-2.5">Mon</td>
-                      <td className="px-3 py-2.5">Easy Run</td>
-                      <td className="px-3 py-2.5">10 km</td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2.5">Tue</td>
-                      <td className="px-3 py-2.5">Threshold</td>
-                      <td className="px-3 py-2.5">13 km</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="space-y-4">
+                <div className={TABLE_SHELL}>
+                  <p className="border-b border-border/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Primary header
+                  </p>
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className={TABLE_HEADER}>
+                        <th className="px-3 py-2 font-semibold">Day</th>
+                        <th className="px-3 py-2 font-semibold">Workout</th>
+                        <th className="px-3 py-2 font-semibold">Distance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-border/40">
+                        <td className="px-3 py-2.5">Mon</td>
+                        <td className="px-3 py-2.5">Easy Run</td>
+                        <td className="px-3 py-2.5">10 km</td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-2.5">Tue</td>
+                        <td className="px-3 py-2.5">Threshold</td>
+                        <td className="px-3 py-2.5">13 km</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className={TABLE_SHELL}>
+                  <p className="border-b border-border/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Muted header
+                  </p>
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className={TABLE_HEADER_MUTED}>
+                        <th className="px-3 py-2 font-semibold">Day</th>
+                        <th className="px-3 py-2 font-semibold">Workout</th>
+                        <th className="px-3 py-2 font-semibold">Distance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-border/40">
+                        <td className="px-3 py-2.5">Mon</td>
+                        <td className="px-3 py-2.5">Easy Run</td>
+                        <td className="px-3 py-2.5">10 km</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             }
             minimalSample={

@@ -8,6 +8,7 @@ import { SessionType, WorkoutStatus, WorkoutType } from '@prisma/client'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormField } from '@/components/ui/form-field'
+import { PrivateNoteToggle } from '@/components/ui/private-note-toggle'
 import { Textarea } from '@/components/ui/textarea'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
 import { SelectDropdownContent, SelectDropdownItem } from '@/components/ui/select-dropdown'
@@ -82,7 +83,7 @@ import { defaultWorkoutTitle } from '@/lib/workout-builder/default-structure'
 import { getSessionTypeLabel, sessionTypesForSport } from '@/lib/workout-builder/session-modes'
 import { WORKOUT_TYPE_LABELS, SPORT_ROW_ORDER } from '@/lib/constants'
 import { getWorkoutEditorSportTheme } from '@/lib/workout-editor/sport-theme'
-import { getSportEditorConfig, type DurationUnit, type SharedWorkoutEditorProps, type WorkoutPrimaryMetric } from '@/lib/workout-editor/types'
+import { getSportEditorConfig, type DurationUnit, type SharedWorkoutEditorProps, type WorkoutPrimaryMetric, type WorkoutPrimaryMetricState } from '@/lib/workout-editor/types'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { parseDateOnly } from '@/lib/dates'
 import { cn } from '@/lib/utils'
@@ -131,6 +132,25 @@ function sanitizeHoursInput(value: string): string {
   const hours = cleaned.slice(0, colonIndex).replace(/\D/g, '').slice(0, 3)
   const minutes = cleaned.slice(colonIndex + 1).replace(/\D/g, '').slice(0, 2)
   return `${hours}:${minutes}`
+}
+
+/** Open Build workout / Structured when the saved session was built that way. */
+function workoutShouldOpenDetails(workout: PlanWorkoutDetail | null | undefined): boolean {
+  if (!workout) return false
+  if (workout.type === WorkoutType.SWIM) {
+    return hasSwimStructureContent(workout.swimStructure)
+  }
+  if (workout.structure && hasStructureContent(parseStructure(workout.structure))) {
+    return true
+  }
+  // Strength (and other description-only sports) use Build workout for the notes body.
+  if (
+    getSportEditorConfig(workout.type).descriptionOnly &&
+    Boolean(workout.description?.trim())
+  ) {
+    return true
+  }
+  return false
 }
 
 function autoSubtitle(
@@ -233,12 +253,8 @@ export function SharedWorkoutEditor({
   const [subtitle, setSubtitle] = useState('')
   const [titleAuto, setTitleAuto] = useState(false)
   const [subtitleAuto, setSubtitleAuto] = useState(false)
-  const [primaryMetric, setPrimaryMetric] = useState<WorkoutPrimaryMetric>(
-    getSportEditorConfig(workout?.type ?? initialSport).showDistance
-      ? 'distance'
-      : 'duration',
-  )
-  const [secondaryMetricVisible, setSecondaryMetricVisible] = useState(false)
+  const [primaryMetric, setPrimaryMetric] = useState<WorkoutPrimaryMetricState>(null)
+  const [secondaryMetricVisible, setSecondaryMetricVisible] = useState(true)
   const [durationMin, setDurationMin] = useState(0)
   const [distanceKm, setDistanceKm] = useState(0)
   const [durationUnit, setDurationUnit] = useState<DurationUnit>(config.durationUnitDefault)
@@ -249,13 +265,14 @@ export function SharedWorkoutEditor({
   // Separately tracked auto-estimate strings shown in the Auto cell
   const [autoDistanceInput, setAutoDistanceInput] = useState('')
   const [autoDurationInput, setAutoDurationInput] = useState('')
-  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(() => workoutShouldOpenDetails(workout))
   const [includeOpen, setIncludeOpen] = useState(false)
   const [simpleConfirmOpen, setSimpleConfirmOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [structure, setStructure] = useState<WorkoutStructure>(emptyStructure())
   const [includeItems, setIncludeItems] = useState<WorkoutIncludeItem[]>([])
   const [coachNotes, setCoachNotes] = useState('')
+  const [coachNotesPrivate, setCoachNotesPrivate] = useState(false)
   const [templateId, setTemplateId] = useState<string | undefined>()
   const [swimForm, setSwimForm] = useState<SwimWorkoutForm>(defaultSwimWorkoutForm())
 
@@ -331,10 +348,11 @@ export function SharedWorkoutEditor({
           : '',
       )
       const approx = approxMetricsFromTags(workout.tags)
+      const openDetails = workoutShouldOpenDetails(workout)
       const hasSavedStructure = Boolean(
         workout.structure && hasStructureContent(parseStructure(workout.structure)),
       )
-      const hasSwimStructure = Boolean(workout.swimStructure)
+      const hasSwimStructure = hasSwimStructureContent(workout.swimStructure)
       const durationIsManual =
         hasDuration && (hasSavedStructure || hasSwimStructure || !approx.duration)
       const distanceIsManual =
@@ -362,9 +380,10 @@ export function SharedWorkoutEditor({
       const parsedStructure = parseStructure(workout.structure)
       setStructure(parsedStructure ?? emptyStructure())
       setIncludeItems(parsedStructure.includeItems ?? [])
-      setDetailsOpen(hasSavedStructure || hasSwimStructure)
+      setDetailsOpen(openDetails)
       setIncludeOpen((parsedStructure.includeItems?.length ?? 0) > 0)
       setCoachNotes(workout.coachNotes ?? '')
+      setCoachNotesPrivate(Boolean(workout.coachNotesPrivate))
       if (workout.type === WorkoutType.SWIM) {
         setSwimForm(
           swimWorkoutToForm({
@@ -389,10 +408,8 @@ export function SharedWorkoutEditor({
     setSubtitle('')
     setTitleAuto(false)
     setSubtitleAuto(false)
-    setPrimaryMetric(
-      getSportEditorConfig(initialSport).showDistance ? 'distance' : 'duration',
-    )
-    setSecondaryMetricVisible(false)
+    setPrimaryMetric(null)
+    setSecondaryMetricVisible(true)
     setDurationMin(0)
     setDistanceKm(0)
     setDurationInput('')
@@ -406,6 +423,7 @@ export function SharedWorkoutEditor({
     setStructure(emptyStructure())
     setIncludeItems([])
     setCoachNotes('')
+    setCoachNotesPrivate(false)
     setTemplateId(undefined)
     setSwimForm(defaultSwimWorkoutForm())
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -571,7 +589,6 @@ export function SharedWorkoutEditor({
 
   function handleDurationChange(raw: string) {
     if (metricsFromDetails) return
-    const hadNoValues = durationMin <= 0 && distanceKm <= 0
     const nextValue =
       durationUnit === 'hours' ? sanitizeHoursInput(raw) : raw.replace(/\D/g, '')
     if (!nextValue || nextValue === ':') {
@@ -580,9 +597,17 @@ export function SharedWorkoutEditor({
       setDurationInput('')
       setAutoDistanceInput('')
       if (!distanceManual || !distanceInput.trim()) setDistanceKm(0)
+      const otherHasValue = distanceInput.trim().length > 0 || distanceKm > 0
+      if (otherHasValue) {
+        setPrimaryMetric('distance')
+      } else {
+        // Stay pending-primary on this field (large + grey) until focus moves
+        setPrimaryMetric('duration')
+        setSecondaryMetricVisible(true)
+      }
       return
     }
-    if (hadNoValues) setPrimaryMetric('duration')
+    setPrimaryMetric('duration')
     setDurationManual(true)
     setDurationInput(nextValue)
     const total = parseDurationInput(nextValue, durationUnit)
@@ -603,7 +628,6 @@ export function SharedWorkoutEditor({
 
   function handleDistanceChange(raw: string) {
     if (metricsFromDetails) return
-    const hadNoValues = durationMin <= 0 && distanceKm <= 0
     const cleaned = raw.replace(/[^\d.]/g, '')
     if (!cleaned) {
       setDistanceManual(true)
@@ -611,11 +635,18 @@ export function SharedWorkoutEditor({
       setDistanceInput('')
       setAutoDurationInput('')
       if (!durationManual || !durationInput.trim()) setDurationMin(0)
+      const otherHasValue = durationInput.trim().length > 0 || durationMin > 0
+      if (otherHasValue) {
+        setPrimaryMetric('duration')
+      } else {
+        setPrimaryMetric('distance')
+        setSecondaryMetricVisible(true)
+      }
       return
     }
     const value = Number.parseFloat(cleaned)
     if (!Number.isFinite(value) || value < 0) return
-    if (hadNoValues) setPrimaryMetric('distance')
+    setPrimaryMetric('distance')
     setDistanceManual(true)
     setDistanceInput(cleaned)
     const km = config.distanceUnit === 'm' ? value / 1000 : value
@@ -668,15 +699,28 @@ export function SharedWorkoutEditor({
       }
       return
     }
+
+    // Restore Auto from the opposite manual metric (fresh estimate).
     setDistanceManual(false)
+    setDistanceInput('')
+    if (canAutoEstimate && durationManual && durationMin > 0) {
+      const estimated = estimateDistanceFromDuration(durationMin)
+      const formatted = formatDistanceEstimate(estimated)
+      setAutoDistanceInput(formatted)
+      setDistanceKm(estimated)
+      return
+    }
     if (autoDistanceInput) {
       const cleaned = autoDistanceInput.replace(/[^\d.]/g, '')
       const value = Number.parseFloat(cleaned)
       if (Number.isFinite(value) && value > 0) {
         const km = config.distanceUnit === 'm' ? value / 1000 : value
         setDistanceKm(km)
+        return
       }
     }
+    setDistanceKm(0)
+    setAutoDistanceInput('')
   }
 
   function handleDurationSourceChange(source: 'manual' | 'auto') {
@@ -691,10 +735,23 @@ export function SharedWorkoutEditor({
       }
       return
     }
+
+    // Restore Auto from the opposite manual metric (fresh estimate).
     setDurationManual(false)
+    setDurationInput('')
+    if (canAutoEstimate && distanceManual && distanceKm > 0) {
+      const estimated = estimateDurationFromDistance(distanceKm)
+      const formatted = estimated > 0 ? formatDurationInput(estimated, durationUnit) : ''
+      setAutoDurationInput(formatted)
+      setDurationMin(estimated)
+      return
+    }
     if (autoDurationInput) {
       setDurationMin(parseDurationInput(autoDurationInput, durationUnit))
+      return
     }
+    setDurationMin(0)
+    setAutoDurationInput('')
   }
 
   function applyTemplate(item: WorkoutTemplatePickerItem) {
@@ -724,6 +781,18 @@ export function SharedWorkoutEditor({
     )
     setAutoDistanceInput('')
     setAutoDurationInput('')
+    setPrimaryMetric(
+      hasDistance && !hasDuration
+        ? 'distance'
+        : hasDuration && !hasDistance
+          ? 'duration'
+          : hasDistance
+            ? 'distance'
+            : hasDuration
+              ? 'duration'
+              : null,
+    )
+    setSecondaryMetricVisible(true)
     if (sportType === WorkoutType.SWIM) {
       setSwimForm({
         ...defaultSwimWorkoutForm(),
@@ -732,17 +801,26 @@ export function SharedWorkoutEditor({
         plannedDistanceMeters: hasDistance ? Math.round(nextDistance * 1000) : null,
         plannedDuration: hasDuration ? nextDuration : null,
         swimStructure: item.structure as SwimWorkoutForm['swimStructure'],
-        builderEnabled: Boolean(item.structure),
+        builderEnabled: hasSwimStructureContent(
+          item.structure as SwimWorkoutForm['swimStructure'],
+        ),
       })
-      setDetailsOpen(Boolean(item.structure))
+      setDetailsOpen(
+        hasSwimStructureContent(item.structure as SwimWorkoutForm['swimStructure']),
+      )
     } else {
       const parsed = parseStructure(item.structure)
       setStructure(parsed)
       setIncludeItems(parsed.includeItems ?? [])
-      setDetailsOpen(hasStructureContent(parsed))
+      setDetailsOpen(
+        hasStructureContent(parsed) ||
+          (getSportEditorConfig(sportType).descriptionOnly &&
+            Boolean(item.description?.trim())),
+      )
       setIncludeOpen((parsed.includeItems?.length ?? 0) > 0)
     }
     setCoachNotes(item.notes ?? '')
+    setCoachNotesPrivate(false)
     setTemplateId(item.id)
     setSubtitleAuto(false)
     setSubtitle(item.description?.trim() ?? '')
@@ -754,14 +832,25 @@ export function SharedWorkoutEditor({
       duration: !metricsFromDetails && !durationManual && durationMin > 0 && typeSelected,
       distance: !metricsFromDetails && !distanceManual && distanceKm > 0 && typeSelected,
     }
+    const resolvedPrimary: WorkoutPrimaryMetric =
+      primaryMetric ??
+      (!config.showDistance
+        ? 'duration'
+        : distanceKm > 0 && durationMin <= 0
+          ? 'distance'
+          : durationMin > 0 && distanceKm <= 0
+            ? 'duration'
+            : config.showDistance
+              ? 'distance'
+              : 'duration')
     const secondaryExtra = secondaryMetricVisible ? [] : [SECONDARY_METRIC_OFF_TAG]
     if (sportType === WorkoutType.BIKE && bikeKind) {
       return [
-        ...bikeWorkoutTags(environment, bikeKind, primaryMetric, approx, durationUnit),
+        ...bikeWorkoutTags(environment, bikeKind, resolvedPrimary, approx, durationUnit),
         ...secondaryExtra,
       ]
     }
-    return genericWorkoutTags(primaryMetric, approx, durationUnit, secondaryExtra)
+    return genericWorkoutTags(resolvedPrimary, approx, durationUnit, secondaryExtra)
   }
 
   /** Live draft → athlete-facing card shape (same resolution as save). */
@@ -789,6 +878,7 @@ export function SharedWorkoutEditor({
         plannedDuration: durationMin > 0 ? durationMin : null,
         swimEnvironment: swimForm.swimEnvironment,
         coachNotes: coachNotes.trim() || null,
+        coachNotesPrivate,
         structure: null,
         swimStructure: detailsOpen ? (swimForm.swimStructure ?? null) : null,
         tags: buildTags(),
@@ -836,6 +926,7 @@ export function SharedWorkoutEditor({
       plannedDuration: durationMin > 0 ? durationMin : null,
       swimEnvironment: null,
       coachNotes: coachNotes.trim() || null,
+      coachNotesPrivate,
       structure: persistDetails || hasIncludeItems ? structureToSave : null,
       swimStructure: null,
       tags: buildTags(),
@@ -873,6 +964,7 @@ export function SharedWorkoutEditor({
           plannedDistanceMeters: meters > 0 ? meters : null,
           plannedDuration: durationMin > 0 ? durationMin : null,
           coachNotes: coachNotes.trim() || null,
+          coachNotesPrivate,
           builderEnabled: detailsOpen && Boolean(swimForm.swimStructure),
           swimStructure: detailsOpen ? (swimForm.swimStructure ?? null) : null,
           scheduledDate: date,
@@ -924,6 +1016,7 @@ export function SharedWorkoutEditor({
       if (isTemplate) {
         const payload = {
           title: resolvedTitle,
+          description: resolvedDescription || undefined,
           sportType,
           sessionType: resolvedSession,
           tags: buildTags(),
@@ -951,6 +1044,7 @@ export function SharedWorkoutEditor({
             ? distanceKm
             : undefined,
         coachNotes: coachNotes.trim() || undefined,
+        coachNotesPrivate,
         structure: persistDetails || hasIncludeItems ? structureToSave : undefined,
         templateId,
         allowPaceEstimate: typeSelected || persistDetails,
@@ -1133,8 +1227,8 @@ export function SharedWorkoutEditor({
     const nextConfig = getSportEditorConfig(next)
     setSportType(next)
     setDurationUnit(nextConfig.durationUnitDefault)
-    setPrimaryMetric(nextConfig.showDistance ? 'distance' : 'duration')
-    setSecondaryMetricVisible(false)
+    setPrimaryMetric(null)
+    setSecondaryMetricVisible(true)
     setBikeKind(null)
     setSessionType(null)
     setDetailsOpen(false)
@@ -1354,9 +1448,9 @@ export function SharedWorkoutEditor({
 
         {missingPrefs && (
           <div className="rounded-[6px] border border-amber-300/70 bg-amber-50/60 px-3 py-2 text-xs text-amber-900">
-            Add {missingPrefsLabel} in Preferences to estimate distance/time.
+            Add {missingPrefsLabel} in Profile to estimate distance/time.
             <Button asChild variant="link" size="xs" className="ml-1 h-auto px-0 text-amber-900">
-              <Link href="/settings/preferences">Set defaults</Link>
+              <Link href="/settings/account">Set defaults</Link>
             </Button>
           </div>
         )}
@@ -1426,6 +1520,12 @@ export function SharedWorkoutEditor({
               onChange={(e) => setCoachNotes(e.target.value.slice(0, 500))}
               rows={3}
               placeholder="Focus cues for the athlete."
+            />
+            <PrivateNoteToggle
+              hideFrom="athlete"
+              checked={coachNotesPrivate}
+              onCheckedChange={setCoachNotesPrivate}
+              className="mt-2"
             />
           </FormField>
         )}

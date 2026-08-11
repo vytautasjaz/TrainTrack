@@ -31,6 +31,7 @@ export const swimWorkoutFormSchema = z.object({
   plannedDistanceMeters: z.number().int().positive().nullable().optional(),
   plannedDuration: z.number().int().positive().nullable().optional(),
   coachNotes: z.string().nullable().optional(),
+  coachNotesPrivate: z.boolean().optional(),
   swimStructure: swimWorkoutStructureSchema.nullable().optional(),
   builderEnabled: z.boolean(),
   scheduledDate: z.string().optional(),

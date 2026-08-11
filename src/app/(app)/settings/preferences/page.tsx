@@ -5,10 +5,11 @@ import { StravaConnectCard } from '@/components/integrations/strava-connect-card
 import { CalendarSyncCard } from '@/components/integrations/calendar-sync-card'
 import { CoachPlanningLeadForm } from '@/components/settings/coach-planning-lead-form'
 import { CoachWorkoutBuilderPrefsForm } from '@/components/settings/coach-workout-builder-prefs-form'
+import { SignInMethodsSection } from '@/components/settings/sign-in-methods-section'
 import { TrainingZonesTabs } from '@/components/settings/training-zones-tabs'
 import { getAthletePreferences } from '@/app/actions/preferences'
 import { getCalendarFeedSummaries } from '@/app/actions/preferences'
-import { getSession, resolveAthleteId, isCoach} from '@/lib/session'
+import { getSession, resolveAthleteId, isCoach } from '@/lib/session'
 import { isStravaConfigured } from '@/lib/strava/config'
 import { getStravaConnectionSummary } from '@/lib/strava/sync'
 import {
@@ -36,60 +37,34 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
   const coach = isCoach(session)
   const isAthlete = session.hasAthlete && Boolean(session.athleteId)
   const athleteId = await resolveAthleteId(session)
+  const editingSelectedAthlete =
+    coach && Boolean(athleteId) && athleteId !== session.athleteId
 
-  const coachUser = coach
-    ? await prisma.user.findUnique({
-        where: { id: session.userId },
-        select: { planningLeadDays: true, workoutBuilderPrefs: true },
-      })
-    : null
+  const [coachUser, authUser] = await Promise.all([
+    coach
+      ? prisma.user.findUnique({
+          where: { id: session.userId },
+          select: { planningLeadDays: true, workoutBuilderPrefs: true },
+        })
+      : Promise.resolve(null),
+    prisma.user.findUniqueOrThrow({
+      where: { id: session.userId },
+      select: {
+        passwordHash: true,
+        accounts: { select: { provider: true } },
+      },
+    }),
+  ])
+
   const planningLeadDays = clampPlanningLeadDays(
     coachUser?.planningLeadDays ?? DEFAULT_PLANNING_LEAD_DAYS,
   )
   const workoutBuilderPrefs = parseWorkoutBuilderPrefs(coachUser?.workoutBuilderPrefs)
 
-  if (!athleteId) {
-    return (
-      <div className="mx-auto max-w-2xl space-y-6">
-        <PageHeader
-          title="Preferences"
-          description={
-            coach
-              ? 'Coach planning reminders. Select an athlete to edit their training zones.'
-              : 'Select an athlete to manage training preferences.'
-          }
-        />
-        {coach ? (
-          <>
-            <section className="card-elevated space-y-4 p-5">
-              <div>
-                <SectionTitle>Plan-ahead reminders</SectionTitle>
-                <Caption>
-                  Get a dashboard warning when an active athlete does not have workouts planned far
-                  enough ahead.
-                </Caption>
-              </div>
-              <CoachPlanningLeadForm planningLeadDays={planningLeadDays} />
-            </section>
-            <section className="card-elevated space-y-4 p-5">
-              <div>
-                <SectionTitle>Workout builder preferences</SectionTitle>
-                <Caption>
-                  Customize Add Block presets per sport — order, labels, and default duration /
-                  intensity when you insert a block.
-                </Caption>
-              </div>
-              <CoachWorkoutBuilderPrefsForm initialPrefs={workoutBuilderPrefs} />
-            </section>
-          </>
-        ) : (
-          <Caption>No athlete profile available.</Caption>
-        )}
-      </div>
-    )
-  }
-
-  const preferences = (await getAthletePreferences(athleteId)) ?? {}
+  const providers = new Set(authUser.accounts.map((a) => a.provider))
+  const hasGoogle = providers.has('google')
+  const hasStrava = providers.has('strava')
+  const hasPassword = Boolean(authUser.passwordHash)
 
   const params = isAthlete ? await searchParams : {}
   const stravaSummary = isAthlete
@@ -106,16 +81,51 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
   const errorMessage = params.error ? ERROR_MESSAGES[params.error] ?? 'Something went wrong.' : null
   const successMessage = params.connected === '1' ? 'Strava connected successfully.' : null
 
+  const selectedPreferences =
+    editingSelectedAthlete && athleteId
+      ? ((await getAthletePreferences(athleteId)) ?? {})
+      : null
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader
         title="Preferences"
-        description={
-          isAthlete
-            ? 'Training zones, heart rate limits, and connected services.'
-            : 'Coach reminders, training zones, and heart rate limits.'
-        }
+        description="Sign-in methods, integrations, and calendar sync."
       />
+
+      <SignInMethodsSection
+        hasGoogle={hasGoogle}
+        hasStrava={hasStrava}
+        hasPassword={hasPassword}
+        showActivitySyncLink={isAthlete}
+      />
+
+      {isAthlete ? (
+        <section id="integrations" className="card-elevated scroll-mt-24 space-y-4 p-5">
+          <div>
+            <SectionTitle>Integrations</SectionTitle>
+            <Caption>Connect external services to sync training data.</Caption>
+          </div>
+          <StravaConnectCard
+            connected={connected}
+            configured={isStravaConfigured()}
+            summary={stravaSummary}
+            errorMessage={errorMessage}
+            successMessage={successMessage}
+          />
+        </section>
+      ) : null}
+
+      {isAthlete ? (
+        <section id="calendar-sync" className="scroll-mt-24">
+          <div className="card-elevated p-5">
+            <CalendarSyncCard
+              feeds={calendarFeeds}
+              hasGoogleLinked={Boolean(googleAccount)}
+            />
+          </div>
+        </section>
+      ) : null}
 
       {coach ? (
         <>
@@ -142,27 +152,15 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
         </>
       ) : null}
 
-      <TrainingZonesTabs preferences={preferences} />
-
-      {isAthlete && (
-        <section id="integrations" className="card-elevated space-y-4 p-5">
-          <div>
-            <SectionTitle>Integrations</SectionTitle>
-            <Caption>Connect external services to sync training data</Caption>
-          </div>
-          <StravaConnectCard
-            connected={connected}
-            configured={isStravaConfigured()}
-            summary={stravaSummary}
-            errorMessage={errorMessage}
-            successMessage={successMessage}
-          />
-          <CalendarSyncCard
-            feeds={calendarFeeds}
-            hasGoogleLinked={Boolean(googleAccount)}
-          />
+      {selectedPreferences ? (
+        <section className="space-y-3">
+          <Caption>
+            Editing training zones for the selected athlete. Athletes manage their own zones on
+            Profile.
+          </Caption>
+          <TrainingZonesTabs preferences={selectedPreferences} />
         </section>
-      )}
+      ) : null}
     </div>
   )
 }

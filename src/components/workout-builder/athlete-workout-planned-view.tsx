@@ -76,7 +76,9 @@ export function AthleteWorkoutPlannedView({
     >
       {!isAthlete ? <p className="font-semibold">Planned</p> : null}
 
-      {description?.trim() ? <p>{description.trim()}</p> : null}
+      {description?.trim() ? (
+        <p className="whitespace-pre-wrap leading-relaxed">{description.trim()}</p>
+      ) : null}
 
       {showStructuredAthleteView ? (
         <AthleteWorkoutStructureView
@@ -121,7 +123,7 @@ export function AthleteWorkoutPlannedView({
             value={coachNotes ?? ''}
             onChange={(e) => onCoachNotesChange?.(e.target.value)}
             rows={3}
-            placeholder="Notes visible to the athlete"
+            placeholder="Notes for the athlete (optional)"
             variant="soft"
           />
         </div>

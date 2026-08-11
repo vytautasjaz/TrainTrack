@@ -7,13 +7,13 @@
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   /* Design System v3 neutrals */
-  --color-background: #f8f8f6;
+  --color-background: #ffffff;
   --color-foreground: #111318;
   --color-card: #ffffff;
   --color-card-foreground: #111318;
   --color-muted: #f3f3f1;
   --color-muted-foreground: #6b7280;
-  --color-border: #eaeaea;
+  --color-border: #dedede;
   --color-primary: #111318;
   --color-primary-foreground: #ffffff;
   --color-brand: #e84855;
@@ -29,10 +29,34 @@
   --color-chart-brand: #e84855;
   --color-chart-planned: #a1a1aa;
   --color-chart-success: #2fbf71;
-  --color-sport-swim: #18b7c9;
-  --color-sport-bike: #3b82f6;
-  --color-sport-run: #ff6b35;
+  --color-sport-run: #f97316;
+  --color-sport-run-bg: #fff7ed;
+  --color-sport-run-border: #fed7aa;
+  --color-sport-swim: #0ea5e9;
+  --color-sport-swim-bg: #f0f9ff;
+  --color-sport-swim-border: #bae6fd;
+  --color-sport-bike: #14b8a6;
+  --color-sport-bike-bg: #f0fdfa;
+  --color-sport-bike-border: #99f6e4;
+  --color-sport-strength: #8b5cf6;
+  --color-sport-strength-bg: #f5f3ff;
+  --color-sport-strength-border: #ddd6fe;
+  --color-sport-hyrox: #ef4444;
+  --color-sport-hyrox-bg: #fef2f2;
+  --color-sport-hyrox-border: #fecaca;
+  /* Reserved — no WorkoutType yet */
+  --color-sport-ski: #4f7fd9;
+  --color-sport-ski-bg: #eff6ff;
+  --color-sport-ski-border: #bfdbfe;
   --color-sport-tri: #7c5cff;
+  --color-sport-tri-bg: #f5f3ff;
+  --color-sport-tri-border: #ddd6fe;
+  --color-sport-recovery: #a78bfa;
+  --color-sport-recovery-bg: #f5f3ff;
+  --color-sport-recovery-border: #ddd6fe;
+  --color-sport-rest: #a1a1aa;
+  --color-sport-rest-bg: #fafafa;
+  --color-sport-rest-border: #e4e4e7;
   --color-sport-race: #f5a623;
   --color-sidebar: #111318;
   --color-sidebar-foreground: #f4f6fb;
@@ -50,7 +74,7 @@
   --radius-xl: 0.75rem;
   --radius-2xl: 0.75rem;
   --radius-3xl: 0.75rem;
-  --radius-workout: 0;
+  --radius-workout: 4px;
   --shadow-card: 0 0 #0000;
   --shadow-float: 0 0 #0000;
   --shadow-nav: 0 -1px 0 rgb(17 19 24 / 0.08);
@@ -134,10 +158,175 @@ body {
   @apply rounded-md border border-border bg-card shadow-none;
 }
 
-/* Workout Block (calendar-native, radius 0) */
+/* ─── Table chrome (style guide) ─────────────────────────────────────────
+ * Shell: square outer frame, slightly darker than default UI border.
+ * Primary: dark header — Week plan, Month calendar, Season planner, dense grids.
+ * Muted: light uppercase header — sparse list tables (results, PBs, race lists).
+ * Sub: mid-tone strip under a primary header (e.g. week numbers under months).
+ * Prefer classes from `src/lib/table-styles.ts` in components.
+ */
+.tt-table-shell {
+  --tt-table-frame-border: color-mix(
+    in oklab,
+    var(--color-foreground) 12%,
+    var(--color-border)
+  );
+  border-radius: 0;
+  background: var(--color-card);
+  box-shadow: none;
+  overflow: hidden;
+  /* Same model as Week frame: black top, grey bottom; L/R on header/body */
+  border-top: 1px solid #000;
+  border-bottom: 1px solid var(--tt-table-frame-border);
+  border-left: none;
+  border-right: none;
+}
+
+/* Border on the <table> itself — cells sit flush (no wrapper gap). Week plan. */
+.tt-table-frame {
+  --tt-table-frame-border: color-mix(
+    in oklab,
+    var(--color-foreground) 12%,
+    var(--color-border)
+  );
+  border-radius: 0;
+  border-collapse: collapse;
+  background: var(--color-card);
+  box-shadow: none;
+  /* Top/bottom on the table; L/R painted per-cell so header can be black and body grey */
+  border-top: 1px solid var(--tt-table-frame-border);
+  border-bottom: 1px solid var(--tt-table-frame-border);
+  border-left: none;
+  border-right: none;
+}
+
+.tt-table-header {
+  @apply relative z-[1] bg-sidebar text-sidebar-foreground;
+}
+
+/* Month div header: black sides + bottom (top comes from shell) */
+div.tt-table-header {
+  border-left: 1px solid #000;
+  border-right: 1px solid #000;
+  border-bottom: 1px solid #000;
+}
+
+/* Month body: light grey outer sides under the header */
+.tt-table-body {
+  border-left: 1px solid var(--tt-table-frame-border);
+  border-right: 1px solid var(--tt-table-frame-border);
+}
+
+/* Week: black top edge */
+table.tt-table-frame:has(> thead.tt-table-header) {
+  border-top-color: #000;
+}
+
+/* Header row: black bottom + black sides only */
+thead.tt-table-header > tr > :is(th, td),
+tr.tt-table-header > :is(th, td) {
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: 1px solid #000 !important;
+}
+
+thead.tt-table-header > tr > :first-child,
+tr.tt-table-header > :first-child {
+  border-left: 1px solid #000 !important;
+}
+
+thead.tt-table-header > tr > :last-child,
+tr.tt-table-header > :last-child {
+  border-right: 1px solid #000 !important;
+}
+
+/* Body rows: light grey outer sides (continues the frame under the header) */
+.tt-table-frame > tbody > tr:not(.tt-table-header) > :first-child {
+  border-left: 1px solid var(--tt-table-frame-border);
+}
+
+.tt-table-frame > tbody > tr:not(.tt-table-header) > :last-child {
+  border-right: 1px solid var(--tt-table-frame-border);
+}
+
+.tt-table-header-cell {
+  @apply text-sidebar-foreground/75;
+}
+
+.tt-table-header-cell-muted {
+  @apply text-sidebar-foreground/65;
+}
+
+.tt-table-header-cell-strong {
+  @apply text-sidebar-foreground;
+}
+
+.tt-table-header-cell-today {
+  @apply bg-white/10 font-bold text-white;
+}
+
+.tt-table-header-cell-weekend {
+  background: color-mix(in oklab, var(--color-sidebar) 88%, white);
+}
+
+/* Inset divider — avoids fighting cell border-right */
+.tt-table-header-vline {
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.18);
+}
+
+.tt-table-header-sub {
+  @apply border-b border-black/10 bg-[#7a7f8c] text-white;
+}
+
+.tt-table-header-muted {
+  @apply border-b border-border/50 bg-muted/30 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground;
+}
+
+/* Month calendar focus / expand — maximize grid, hide chrome */
+html[data-calendar-expanded='true'] [data-page-header] {
+  display: none;
+}
+
+html[data-calendar-expanded='true'] [data-app-sticky-chrome] {
+  display: none;
+}
+
+html[data-calendar-expanded='true'] [data-mobile-bottom-nav] {
+  display: none !important;
+}
+
+html[data-calendar-expanded='true'] [data-app-main] {
+  max-width: none;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+html[data-calendar-expanded='true'] [data-app-main-column] {
+  padding-bottom: 0.5rem;
+}
+
+html[data-calendar-expanded='true'] .tt-calendar-expanded-root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Keep natural row height + vertical scroll (esp. 2m / 3m). Do not force 1fr rows. */
+html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > * {
+  min-height: 8.5rem;
+}
+
+/* Workout Block (calendar-native) */
 .tt-workout-block {
-  @apply relative w-full min-w-0 overflow-hidden border text-left shadow-none;
+  @apply relative w-full min-w-0 overflow-hidden border text-left;
   border-radius: var(--radius-workout);
+  /* drop-shadow survives overflow:hidden (box-shadow does not) */
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.05))
+    drop-shadow(0 1px 2px rgb(0 0 0 / 0.04));
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
 }
 
 .tt-workout-block-planned {
@@ -157,6 +346,204 @@ body {
 .tt-workout-block-adjusted {
   border-color: var(--color-sport-race);
   background: var(--color-tt-adjusted-bg);
+}
+
+/* Completion / race hover — intensify (not grey out) */
+.group\/card:hover .tt-workout-block-planned {
+  background: color-mix(in oklab, var(--color-muted) 28%, var(--color-card));
+}
+.group\/card:hover .tt-workout-block-completed {
+  background: color-mix(in oklab, var(--color-tt-completed-bg) 70%, #86d39a);
+}
+.group\/card:hover .tt-workout-block-skipped {
+  background: color-mix(in oklab, var(--color-tt-skipped-bg) 70%, #f5a3a3);
+}
+
+/* Soft sport washes — explicit light bg / border from sport palette */
+.tt-calendar-card-sport-run {
+  --tt-sport-color: var(--color-sport-run);
+  --tt-sport-bg: var(--color-sport-run-bg);
+  --tt-sport-border: var(--color-sport-run-border);
+}
+.tt-calendar-card-sport-bike {
+  --tt-sport-color: var(--color-sport-bike);
+  --tt-sport-bg: var(--color-sport-bike-bg);
+  --tt-sport-border: var(--color-sport-bike-border);
+}
+.tt-calendar-card-sport-swim {
+  --tt-sport-color: var(--color-sport-swim);
+  --tt-sport-bg: var(--color-sport-swim-bg);
+  --tt-sport-border: var(--color-sport-swim-border);
+}
+.tt-calendar-card-sport-strength {
+  --tt-sport-color: var(--color-sport-strength);
+  --tt-sport-bg: var(--color-sport-strength-bg);
+  --tt-sport-border: var(--color-sport-strength-border);
+}
+.tt-calendar-card-sport-hyrox {
+  --tt-sport-color: var(--color-sport-hyrox);
+  --tt-sport-bg: var(--color-sport-hyrox-bg);
+  --tt-sport-border: var(--color-sport-hyrox-border);
+}
+.tt-calendar-card-sport-triathlon {
+  --tt-sport-color: var(--color-sport-tri);
+  --tt-sport-bg: var(--color-sport-tri-bg);
+  --tt-sport-border: var(--color-sport-tri-border);
+}
+.tt-calendar-card-sport-recovery {
+  --tt-sport-color: var(--color-sport-recovery);
+  --tt-sport-bg: var(--color-sport-recovery-bg);
+  --tt-sport-border: var(--color-sport-recovery-border);
+}
+.tt-calendar-card-sport-rest {
+  --tt-sport-color: var(--color-sport-rest);
+  --tt-sport-bg: var(--color-sport-rest-bg);
+  --tt-sport-border: var(--color-sport-rest-border);
+}
+
+.tt-calendar-card-sport:not(.tt-calendar-card-white):not(
+  .tt-calendar-card-completion
+) {
+  background: var(--tt-sport-bg);
+  border-color: var(--tt-sport-border);
+}
+.tt-calendar-card-sport:not(.tt-calendar-card-white):not(
+    .tt-calendar-card-completion
+  ):has(.tt-workout-block) {
+  background: transparent;
+  border-color: transparent;
+}
+.tt-calendar-card-sport:not(.tt-calendar-card-white):not(
+    .tt-calendar-card-completion
+  )
+  .tt-workout-block {
+  background: var(--tt-sport-bg) !important;
+  border-color: var(--tt-sport-border) !important;
+}
+
+/* Sport hover — deepen the tint slightly */
+.group\/card:hover
+  .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
+    .tt-calendar-card-completion
+  )
+  .tt-workout-block,
+.tt-calendar-card-sport:not(.tt-calendar-card-white):not(
+    .tt-calendar-card-completion
+  ):hover
+  .tt-workout-block {
+  background: color-mix(
+    in oklab,
+    var(--tt-sport-color) 10%,
+    var(--tt-sport-bg)
+  ) !important;
+  border-color: color-mix(
+    in oklab,
+    var(--tt-sport-color) 22%,
+    var(--tt-sport-border)
+  ) !important;
+}
+
+.group\/card:hover
+  .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
+    .tt-calendar-card-completion
+  ):not(:has(.tt-workout-block)),
+.tt-calendar-card-sport:not(.tt-calendar-card-white):not(
+    .tt-calendar-card-completion
+  ):hover:not(:has(.tt-workout-block)) {
+  background: color-mix(in oklab, var(--tt-sport-color) 10%, var(--tt-sport-bg));
+  border-color: color-mix(
+    in oklab,
+    var(--tt-sport-color) 22%,
+    var(--tt-sport-border)
+  );
+}
+
+/* Left accent bar by sport */
+.tt-calendar-card-sport {
+  position: relative;
+}
+
+.tt-calendar-card-sport::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: var(--radius-workout) 0 0 var(--radius-workout);
+  background: var(--tt-sport-color);
+}
+
+/*
+ * Plain (white) mode — after sport washes so overrides win:
+ * white card fill, keep sport left accent (::before).
+ */
+.tt-calendar-card-white.tt-calendar-card-sport:has(.tt-workout-block) {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.tt-calendar-card-white .tt-workout-block {
+  background: var(--color-card, #fff) !important;
+  border-color: var(--color-border) !important;
+}
+
+.tt-calendar-card-white.tt-calendar-card-sport:not(:has(.tt-workout-block)) {
+  background: var(--color-card, #fff) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* Plain hover — wash in a bit of sport color */
+.group\/card:hover .tt-calendar-card-white.tt-calendar-card-sport .tt-workout-block,
+.tt-calendar-card-white.tt-calendar-card-sport:hover .tt-workout-block {
+  background: color-mix(in oklab, var(--tt-sport-color) 12%, #fff) !important;
+  border-color: color-mix(in oklab, var(--tt-sport-color) 28%, #fff) !important;
+}
+
+.group\/card:hover
+  .tt-calendar-card-white.tt-calendar-card-sport:not(:has(.tt-workout-block)),
+.tt-calendar-card-white.tt-calendar-card-sport:hover:not(:has(.tt-workout-block)) {
+  background: color-mix(in oklab, var(--tt-sport-color) 12%, #fff) !important;
+  border-color: color-mix(in oklab, var(--tt-sport-color) 28%, #fff) !important;
+}
+
+/*
+ * Completion mode — keep done/open/skipped surfaces, add sport left accent only.
+ */
+.tt-calendar-card-completion.tt-calendar-card-sport:has(.tt-workout-block) {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+/* Workout card PNG export themes (story overlays) */
+.tt-export-card .tt-workout-block {
+  transition: none;
+  /* Surface lives on the capture wrapper (inline styles); keep block clear. */
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+.tt-export-card[data-export-text='white'] .tt-workout-block,
+.tt-export-card[data-export-text='white'] .tt-workout-block :is(p, span, div) {
+  color: #ffffff !important;
+}
+
+.tt-export-card[data-export-text='white'] .tt-workout-block :is(svg) {
+  color: #ffffff !important;
+  stroke: currentColor;
+}
+
+.tt-export-card[data-export-text='black'] .tt-workout-block,
+.tt-export-card[data-export-text='black'] .tt-workout-block :is(p, span, div) {
+  color: #0a0a0a !important;
+}
+
+.tt-export-card[data-export-text='black'] .tt-workout-block :is(svg) {
+  color: #0a0a0a !important;
+  stroke: currentColor;
 }
 
 /* ——— Typography scale ——— */

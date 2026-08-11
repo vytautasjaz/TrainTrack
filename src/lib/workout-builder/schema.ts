@@ -79,6 +79,7 @@ export const workoutStructureSchema = z.object({
 
 export const builderPayloadSchema = z.object({
   title: z.string().min(1),
+  description: z.string().optional(),
   sportType: z.nativeEnum(WorkoutType),
   sessionType: z.nativeEnum(SessionType),
   scheduledDate: z.string().optional(),

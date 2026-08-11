@@ -8,37 +8,40 @@ import { useTrainingLibrary } from '@/components/training/training-library-conte
 import { PlanSportFilterControl } from '@/components/training/plan-sport-filter-control'
 import { cn } from '@/lib/utils'
 
-type TrainingView = 'week' | 'month' | 'list'
+type TrainingView = 'week' | 'list' | 'calendar'
 
 type TrainingCalendarControlsProps = {
   view: TrainingView
   weekHref: string
-  monthHref: string
   listHref: string
+  calendarHref: string
   canLogWorkout: boolean
   /** Show desktop library panel toggle (coach plan). */
   showLibraryToggle?: boolean
+  /** Compact Filters dropdown (List view). Week/Month use the inline bar. */
+  showSportFilter?: boolean
 }
 
 const VIEW_OPTIONS: { id: TrainingView; label: string }[] = [
   { id: 'list', label: 'List' },
   { id: 'week', label: 'Week' },
-  { id: 'month', label: 'Month' },
+  { id: 'calendar', label: 'Month' },
 ]
 
 export function TrainingCalendarControls({
   view,
   weekHref,
-  monthHref,
   listHref,
+  calendarHref,
   canLogWorkout,
   showLibraryToggle = false,
+  showSportFilter = true,
 }: TrainingCalendarControlsProps) {
   const library = useTrainingLibrary()
   const viewHrefs: Record<TrainingView, string> = {
     week: weekHref,
-    month: monthHref,
     list: listHref,
+    calendar: calendarHref,
   }
 
   return (
@@ -77,7 +80,9 @@ export function TrainingCalendarControls({
         ))}
       </div>
 
-      <PlanSportFilterControl compactOnMobile />
+      {showSportFilter ? (
+        <PlanSportFilterControl compactOnMobile />
+      ) : null}
 
       {showLibraryToggle && library ? (
         <button

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import type { SessionContext } from '@/lib/session'
-import { getCoachAthletes, isCoach } from '@/lib/session'
+import { getCoachAthletes, isCoachView } from '@/lib/session'
 import { switchAthlete, switchUser } from '@/app/actions/session'
 import { Badge } from '@/components/ui/badge'
 import { Select } from '@/components/ui/select'
@@ -23,13 +23,17 @@ export async function RoleSwitcher({
   const users = demoEnabled
     ? await prisma.user.findMany({ orderBy: { name: 'asc' } })
     : []
-  const athletes = isCoach(session) ? await getCoachAthletes(session.userId) : []
+  const athletes = isCoachView(session) ? await getCoachAthletes(session.userId) : []
 
   const isSidebar = layout === 'sidebar'
   const roleLabel =
-    session.roles.length > 0
-      ? session.roles.map((r) => r.toLowerCase()).join(' · ')
-      : 'no role'
+    session.hasAthlete && session.hasCoach
+      ? session.viewMode === 'coach'
+        ? 'coach view'
+        : 'athlete view'
+      : session.roles.length > 0
+        ? session.roles.map((r) => r.toLowerCase()).join(' · ')
+        : 'no role'
 
   return (
     <div
@@ -82,7 +86,7 @@ export async function RoleSwitcher({
         </form>
       ) : null}
 
-      {isCoach(session) && athletes.length > 0 && (
+      {isCoachView(session) && athletes.length > 0 && (
         <form
           action={switchAthlete}
           className={cn(isSidebar ? 'space-y-2' : 'flex items-center gap-1.5')}

@@ -27,7 +27,7 @@ export function RacePlanItem({
       className={planWorkoutItemShellClass(
         workout,
         cn(
-          'group/card relative w-full min-w-0 overflow-hidden',
+          'group/card relative w-full min-w-0',
           tableCell && PLAN_WORKOUT_ITEM_CLASS,
           className,
         ),

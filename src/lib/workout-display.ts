@@ -3,26 +3,38 @@ import type { LucideIcon } from 'lucide-react'
 import { Bike, Dumbbell, Footprints, Heart, Layers, Moon, Waves, Zap } from 'lucide-react'
 
 export const WORKOUT_TYPE_DOT_CLASS: Record<WorkoutType, string> = {
-  RUN: 'bg-orange-500',
-  BIKE: 'bg-sky-500',
-  SWIM: 'bg-cyan-500',
-  STRENGTH: 'bg-emerald-500',
-  HYROX: 'bg-rose-500',
-  TRIATHLON: 'bg-indigo-500',
-  RECOVERY: 'bg-violet-500',
-  REST: 'bg-zinc-400',
+  RUN: 'bg-[var(--color-sport-run)]',
+  BIKE: 'bg-[var(--color-sport-bike)]',
+  SWIM: 'bg-[var(--color-sport-swim)]',
+  STRENGTH: 'bg-[var(--color-sport-strength)]',
+  HYROX: 'bg-[var(--color-sport-hyrox)]',
+  TRIATHLON: 'bg-[var(--color-sport-tri)]',
+  RECOVERY: 'bg-[var(--color-sport-recovery)]',
+  REST: 'bg-[var(--color-sport-rest)]',
 }
 
 /** Ultra-soft wash for week-table sport label cells */
 export const WORKOUT_TYPE_CELL_TINT: Record<WorkoutType, string> = {
-  RUN: 'bg-orange-500/[0.04]',
-  BIKE: 'bg-sky-500/[0.04]',
-  SWIM: 'bg-cyan-500/[0.04]',
-  STRENGTH: 'bg-emerald-500/[0.04]',
-  HYROX: 'bg-rose-500/[0.04]',
-  TRIATHLON: 'bg-indigo-500/[0.04]',
-  RECOVERY: 'bg-violet-500/[0.04]',
-  REST: 'bg-zinc-500/[0.04]',
+  RUN: 'bg-[var(--color-sport-run-bg)]',
+  BIKE: 'bg-[var(--color-sport-bike-bg)]',
+  SWIM: 'bg-[var(--color-sport-swim-bg)]',
+  STRENGTH: 'bg-[var(--color-sport-strength-bg)]',
+  HYROX: 'bg-[var(--color-sport-hyrox-bg)]',
+  TRIATHLON: 'bg-[var(--color-sport-tri-bg)]',
+  RECOVERY: 'bg-[var(--color-sport-recovery-bg)]',
+  REST: 'bg-[var(--color-sport-rest-bg)]',
+}
+
+/** Soft sport wash for Calendar view cards (overrides status surfaces). */
+export const WORKOUT_TYPE_CALENDAR_SURFACE: Record<WorkoutType, string> = {
+  RUN: 'tt-calendar-card-sport tt-calendar-card-sport-run',
+  BIKE: 'tt-calendar-card-sport tt-calendar-card-sport-bike',
+  SWIM: 'tt-calendar-card-sport tt-calendar-card-sport-swim',
+  STRENGTH: 'tt-calendar-card-sport tt-calendar-card-sport-strength',
+  HYROX: 'tt-calendar-card-sport tt-calendar-card-sport-hyrox',
+  TRIATHLON: 'tt-calendar-card-sport tt-calendar-card-sport-triathlon',
+  RECOVERY: 'tt-calendar-card-sport tt-calendar-card-sport-recovery',
+  REST: 'tt-calendar-card-sport tt-calendar-card-sport-rest',
 }
 
 export const RACE_PLAN_DOT_CLASS = 'bg-emerald-500'

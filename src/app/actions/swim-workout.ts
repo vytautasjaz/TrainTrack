@@ -145,6 +145,7 @@ export async function createSwimWorkoutFromModal(payload: unknown) {
       plannedDistanceMeters: resolvedDistanceMeters(parsed),
       plannedDuration: parsed.plannedDuration ?? null,
       coachNotes: parsed.coachNotes ?? null,
+      coachNotesPrivate: Boolean(parsed.coachNotesPrivate),
       swimStructure: swimStructureJson(parsed.swimStructure),
       templateId: parsed.templateId,
     },
@@ -174,6 +175,7 @@ export async function updateSwimWorkoutFromModal(workoutId: string, payload: unk
       plannedDistanceMeters: resolvedDistanceMeters(parsed),
       plannedDuration: parsed.plannedDuration ?? null,
       coachNotes: parsed.coachNotes ?? null,
+      coachNotesPrivate: Boolean(parsed.coachNotesPrivate),
       swimStructure:
         parsed.builderEnabled && parsed.swimStructure
           ? swimStructureJson(parsed.swimStructure)

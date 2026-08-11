@@ -7,9 +7,11 @@ import { WorkoutCardDiagram } from '@/components/plan/workout-card-diagram'
 import { PlanWorkoutCardInlineEdit } from '@/components/plan/plan-workout-card-inline-edit'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import { WorkoutStatusIcon } from '@/components/ui/workout-status-icon'
+import { useOptionalPlanSportFilter } from '@/components/training/plan-sport-filter-context'
 import { surfaces } from '@/lib/design-tokens'
 import { RACE_PRIORITY_BLOCK } from '@/lib/race-day'
 import { isStravaSynced, type PlanWorkoutDetail } from '@/lib/plan-workout'
+import type { PlanColorMode } from '@/lib/plan-sport-filter'
 import {
   getWorkoutCardDuration,
   getWorkoutCardHero,
@@ -17,7 +19,10 @@ import {
   isWorkoutCardCompleted,
   isWorkoutCardSkipped,
 } from '@/lib/workout-card'
-import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
+import {
+  WORKOUT_TYPE_CALENDAR_SURFACE,
+  WORKOUT_TYPE_ICONS,
+} from '@/lib/workout-display'
 import { cn } from '@/lib/utils'
 import {
   densityToDiagramSize,
@@ -37,6 +42,8 @@ type WorkoutBlockProps = {
   hideCompletedBadge?: boolean
   /** Coach inline edit for title / distance / duration (week/list densities). */
   editable?: boolean
+  /** Override shared training filter color mode when set. */
+  colorMode?: PlanColorMode
 }
 
 const DENSITY = {
@@ -102,10 +109,17 @@ const DENSITY = {
   },
 } as const
 
-function blockSurfaceClass(workout: PlanWorkoutDetail, status: WorkoutStatus) {
+function blockSurfaceClass(
+  workout: PlanWorkoutDetail,
+  status: WorkoutStatus,
+  colorMode: PlanColorMode,
+) {
   if (workout.isRace) {
     const priority = workout.racePriority ?? 'C'
     return cn(surfaces.workoutBlock, RACE_PRIORITY_BLOCK[priority])
+  }
+  if (colorMode === 'sport' || colorMode === 'white') {
+    return surfaces.workoutBlock
   }
   const kind = workoutStatusToBlockStatus(status)
   return cn(
@@ -130,7 +144,10 @@ export function WorkoutBlock({
   actions,
   hideCompletedBadge = false,
   editable = false,
+  colorMode: colorModeProp,
 }: WorkoutBlockProps) {
+  const filterColorMode = useOptionalPlanSportFilter()?.colorMode
+  const colorMode = colorModeProp ?? filterColorMode ?? 'completion'
   const styles = DENSITY[density]
   const completed = !workout.isRace && isWorkoutCardCompleted(status)
   const skipped = !workout.isRace && isWorkoutCardSkipped(status)
@@ -139,7 +156,8 @@ export function WorkoutBlock({
   const secondary = styles.showSecondary
     ? getWorkoutCardDuration(workout, status)
     : null
-  const showCompletedBadge = completed && !hideCompletedBadge
+  const showCompletedBadge =
+    completed && !hideCompletedBadge && colorMode === 'completion'
   const SportIcon = workout.isRace ? Flag : WORKOUT_TYPE_ICONS[workout.type]
   const stravaSynced = isStravaSynced(workout)
   const showFingerprint =
@@ -151,17 +169,25 @@ export function WorkoutBlock({
     !skipped &&
     (density === 'md' || density === 'lg')
 
-  const completedStatus = showCompletedBadge ? (
-    stravaSynced ? (
-      <StravaSyncedIndicator
-        workout={workout}
-        variant={density === 'xs' || density === 'sm' ? 'mark' : 'wordmark'}
-        size={density === 'lg' ? 'sm' : 'xs'}
-      />
-    ) : (
-      <WorkoutStatusIcon kind="completed" size="xs" aria-label="Completed" />
-    )
+  // Always keep Strava when synced; completion check only in Completion mode.
+  const completedStatus = stravaSynced ? (
+    <StravaSyncedIndicator
+      workout={workout}
+      variant="wordmark"
+      size={density === 'lg' ? 'sm' : 'xs'}
+    />
+  ) : showCompletedBadge ? (
+    <WorkoutStatusIcon kind="completed" size="xs" aria-label="Completed" />
   ) : null
+
+  // Title-row only — keeps metrics full-width while title truncates before logo/menu.
+  const titleTrailing =
+    completedStatus || actions ? (
+      <div className="flex shrink-0 items-center gap-0.5 self-start">
+        {completedStatus}
+        {actions}
+      </div>
+    ) : null
 
   const fingerprint = showFingerprint ? (
     <div className={density === 'lg' ? 'mt-1.5' : 'mt-1'}>
@@ -175,24 +201,23 @@ export function WorkoutBlock({
   ) : null
 
   const metricPrimary = hero ? (
-    <div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-      <span className="inline-flex max-w-full items-baseline">
-        {hero.approximate ? (
-          <span className={cn('font-medium text-muted-foreground', styles.unit)}>
-            ~
-          </span>
-        ) : null}
-        <span className={cn('tabular-nums', styles.hero)}>{hero.value}</span>
-        {hero.unit ? (
-          <span className={styles.unit}>
-            {'\u00a0'}
-            {hero.unit}
-          </span>
-        ) : null}
-      </span>
+    <div className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+      {hero.approximate ? (
+        <span className={cn('font-medium text-muted-foreground', styles.unit)}>
+          ~
+        </span>
+      ) : null}
+      <span className={cn('tabular-nums', styles.hero)}>{hero.value}</span>
+      {hero.unit ? (
+        <span className={styles.unit}>
+          {'\u00a0'}
+          {hero.unit}
+        </span>
+      ) : null}
       {hero.plannedValue ? (
         <span className={cn('tabular-nums', styles.planned)}>
-          / {hero.plannedValue}
+          {'\u00a0/\u00a0'}
+          {hero.plannedValue}
           {hero.plannedUnit ? `\u00a0${hero.plannedUnit}` : ''}
         </span>
       ) : null}
@@ -200,21 +225,27 @@ export function WorkoutBlock({
   ) : null
 
   const metricSecondary = secondary ? (
-    <div className={cn('flex min-w-0 flex-wrap items-center gap-x-1', styles.secondary)}>
-      <span className="inline-flex items-center gap-1">
-        {hero?.kind === 'distance' ? (
-          <Clock
-            className={cn(styles.clock, 'shrink-0 text-muted-foreground')}
-            aria-hidden
-            strokeWidth={1.75}
-          />
-        ) : null}
-        <span className="font-semibold text-foreground">{secondary.actual}</span>
-      </span>
+    <div
+      className={cn(
+        'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap',
+        styles.secondary,
+      )}
+    >
+      {hero?.kind === 'distance' ? (
+        <Clock
+          className={cn(
+            styles.clock,
+            'mr-1 inline-block shrink-0 align-[-0.1em] text-muted-foreground',
+          )}
+          aria-hidden
+          strokeWidth={1.75}
+        />
+      ) : null}
+      <span className="font-semibold text-foreground">{secondary.actual}</span>
       {secondary.planned ? (
-        <span className="inline-flex items-center gap-1 text-tt-muted">
-          <span>/</span>
-          <span>{secondary.planned}</span>
+        <span className="text-tt-muted">
+          {'\u00a0/\u00a0'}
+          {secondary.planned}
         </span>
       ) : null}
     </div>
@@ -235,14 +266,7 @@ export function WorkoutBlock({
         subtitle={subtitle}
         subtitleClassName={styles.subtitle}
         gapClassName={styles.gap}
-        titleActions={
-          !styles.showSportIcon ? (
-            <div className="flex h-0 shrink-0 items-start gap-0.5 overflow-visible">
-              {completedStatus}
-              {actions}
-            </div>
-          ) : null
-        }
+        titleActions={titleTrailing}
       />
       {fingerprint}
     </div>
@@ -253,7 +277,7 @@ export function WorkoutBlock({
         subtitle ? styles.gap : 'gap-0',
       )}
     >
-      <div className="flex min-w-0 items-start justify-between gap-0.5">
+      <div className="flex min-w-0 items-start gap-1">
         <p className={cn('min-w-0 flex-1 truncate', styles.title)}>
           {workout.isRace ? (
             <span className="inline-flex max-w-full items-center gap-1">
@@ -274,12 +298,7 @@ export function WorkoutBlock({
             workout.title
           )}
         </p>
-        {!styles.showSportIcon ? (
-          <div className="flex h-0 shrink-0 items-start gap-0.5 overflow-visible">
-            {completedStatus}
-            {actions}
-          </div>
-        ) : null}
+        {titleTrailing}
       </div>
 
       {subtitle ? (
@@ -298,14 +317,14 @@ export function WorkoutBlock({
     </div>
   )
 
-  return (
+  const block = (
     <div
       className={cn(
-        blockSurfaceClass(workout, status),
+        blockSurfaceClass(workout, status, colorMode),
         styles.pad,
         styles.showSportIcon
           ? 'flex flex-row items-start gap-2'
-          : 'relative flex flex-col',
+          : 'flex flex-col',
         className,
       )}
       data-density={density}
@@ -321,9 +340,11 @@ export function WorkoutBlock({
             className={cn(
               'mt-0.5 flex shrink-0 items-center justify-center',
               density === 'lg' ? 'h-6 w-6' : 'h-4 w-4',
-              completed && 'text-success',
-              skipped && 'text-tt-muted',
-              !completed && !skipped && 'text-muted-foreground',
+              completed && colorMode === 'completion' && 'text-success',
+              skipped && colorMode === 'completion' && 'text-tt-muted',
+              !(completed && colorMode === 'completion') &&
+                !(skipped && colorMode === 'completion') &&
+                'text-muted-foreground',
             )}
             aria-hidden
           >
@@ -333,16 +354,26 @@ export function WorkoutBlock({
             />
           </span>
           {textBlock}
-          {(showCompletedBadge || actions) && (
-            <div className="flex h-0 shrink-0 items-start gap-0.5 overflow-visible">
-              {completedStatus}
-              {actions}
-            </div>
-          )}
         </>
       ) : (
         textBlock
       )}
+    </div>
+  )
+
+  if (workout.isRace) {
+    return block
+  }
+
+  return (
+    <div
+      className={cn(
+        WORKOUT_TYPE_CALENDAR_SURFACE[workout.type],
+        colorMode === 'white' && 'tt-calendar-card-white',
+        colorMode === 'completion' && 'tt-calendar-card-completion',
+      )}
+    >
+      {block}
     </div>
   )
 }

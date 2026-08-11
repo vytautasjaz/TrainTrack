@@ -22,11 +22,15 @@ import {
 } from '@/lib/nav-items'
 import { cn } from '@/lib/utils'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
+import { ViewModeSwitcher } from '@/components/layout/view-mode-switcher'
+import type { AppViewMode } from '@/lib/session'
 
 type MobileNavMenuProps = {
   showPreferences?: boolean
   showConnectCoach?: boolean
   isCoach?: boolean
+  canSwitchView?: boolean
+  viewMode?: AppViewMode
   dashboardNotificationCount?: number
   menuFooter?: ReactNode
   athleteProfile?: { name: string; avatarUrl: string | null } | null
@@ -36,6 +40,8 @@ export function MobileNavMenu({
   showPreferences = true,
   showConnectCoach = false,
   isCoach = false,
+  canSwitchView = false,
+  viewMode = 'athlete',
   dashboardNotificationCount = 0,
   menuFooter,
   athleteProfile = null,
@@ -67,6 +73,9 @@ export function MobileNavMenu({
           <DialogHeader>
             <DialogTitle>Menu</DialogTitle>
           </DialogHeader>
+          {canSwitchView ? (
+            <ViewModeSwitcher viewMode={viewMode} tone="light" className="mb-2" />
+          ) : null}
           <nav className="flex flex-col gap-0.5">
             {mainItems.map(({ href, label, icon: Icon }) => {
               const active = pathname.startsWith(href)

@@ -29,7 +29,7 @@ export function PlanWorkoutRow({ workout, isCoach }: PlanWorkoutRowProps) {
     <div
       className={planWorkoutItemShellClass(
         workout,
-        cn('group/card relative w-full min-w-0 overflow-hidden'),
+        cn('group/card relative w-full min-w-0'),
       )}
     >
       <WorkoutModalTrigger

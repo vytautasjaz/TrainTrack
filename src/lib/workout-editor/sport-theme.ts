@@ -19,99 +19,136 @@ export type WorkoutEditorSportTheme = {
   sectionText: string
   /** Focus ring / open select accent */
   focus: string
+  /** Modal hero gradient (`bg-gradient-to-b` from/to). */
+  heroGradient: string
 }
 
 const THEMES: Record<WorkoutType, WorkoutEditorSportTheme> = {
   RUN: {
-    card: 'border-orange-400/55 bg-orange-500/[0.08]',
-    iconWrap: 'bg-orange-500/20 text-orange-700',
-    chipOn: 'bg-orange-500/25 text-orange-800',
-    chipOff: 'border border-orange-400/40 text-orange-700/75 hover:bg-orange-500/10',
-    controlOn: 'border-orange-400 bg-orange-500/20 text-orange-800',
-    unitAccent: 'text-orange-700 hover:bg-orange-500/15',
-    section: 'bg-orange-500/[0.08] hover:bg-orange-500/[0.12]',
-    sectionText: 'text-orange-800',
-    focus: 'data-[state=open]:border-orange-400',
+    card: 'border-[var(--color-sport-run-border)] bg-[var(--color-sport-run-bg)]',
+    iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-run)_20%,white)] text-[var(--color-sport-run)]',
+    chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-run)_22%,white)] text-[var(--color-sport-run)]',
+    chipOff:
+      'border border-[var(--color-sport-run-border)] text-[var(--color-sport-run)]/75 hover:bg-[var(--color-sport-run-bg)]',
+    controlOn:
+      'border-[var(--color-sport-run)] bg-[color-mix(in_oklab,var(--color-sport-run)_18%,white)] text-[var(--color-sport-run)]',
+    unitAccent: 'text-[var(--color-sport-run)] hover:bg-[var(--color-sport-run-bg)]',
+    section: 'bg-[var(--color-sport-run-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-run)_12%,white)]',
+    sectionText: 'text-[var(--color-sport-run)]',
+    focus: 'data-[state=open]:border-[var(--color-sport-run)]',
+    heroGradient: 'from-white to-[var(--color-sport-run-bg)]',
   },
   BIKE: {
-    card: 'border-sky-400/55 bg-sky-500/[0.08]',
-    iconWrap: 'bg-sky-500/20 text-sky-700',
-    chipOn: 'bg-sky-500/25 text-sky-800',
-    chipOff: 'border border-sky-400/40 text-sky-700/75 hover:bg-sky-500/10',
-    controlOn: 'border-sky-400 bg-sky-500/20 text-sky-800',
-    unitAccent: 'text-sky-700 hover:bg-sky-500/15',
-    section: 'bg-sky-500/[0.08] hover:bg-sky-500/[0.12]',
-    sectionText: 'text-sky-800',
-    focus: 'data-[state=open]:border-sky-400',
+    card: 'border-[var(--color-sport-bike-border)] bg-[var(--color-sport-bike-bg)]',
+    iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-bike)_20%,white)] text-[var(--color-sport-bike)]',
+    chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-bike)_22%,white)] text-[var(--color-sport-bike)]',
+    chipOff:
+      'border border-[var(--color-sport-bike-border)] text-[var(--color-sport-bike)]/75 hover:bg-[var(--color-sport-bike-bg)]',
+    controlOn:
+      'border-[var(--color-sport-bike)] bg-[color-mix(in_oklab,var(--color-sport-bike)_18%,white)] text-[var(--color-sport-bike)]',
+    unitAccent: 'text-[var(--color-sport-bike)] hover:bg-[var(--color-sport-bike-bg)]',
+    section: 'bg-[var(--color-sport-bike-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-bike)_12%,white)]',
+    sectionText: 'text-[var(--color-sport-bike)]',
+    focus: 'data-[state=open]:border-[var(--color-sport-bike)]',
+    heroGradient: 'from-white to-[var(--color-sport-bike-bg)]',
   },
   SWIM: {
-    card: 'border-cyan-400/55 bg-cyan-500/[0.08]',
-    iconWrap: 'bg-cyan-500/20 text-cyan-700',
-    chipOn: 'bg-cyan-500/25 text-cyan-800',
-    chipOff: 'border border-cyan-400/40 text-cyan-700/75 hover:bg-cyan-500/10',
-    controlOn: 'border-cyan-400 bg-cyan-500/20 text-cyan-800',
-    unitAccent: 'text-cyan-700 hover:bg-cyan-500/15',
-    section: 'bg-cyan-500/[0.08] hover:bg-cyan-500/[0.12]',
-    sectionText: 'text-cyan-800',
-    focus: 'data-[state=open]:border-cyan-400',
+    card: 'border-[var(--color-sport-swim-border)] bg-[var(--color-sport-swim-bg)]',
+    iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-swim)_20%,white)] text-[var(--color-sport-swim)]',
+    chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-swim)_22%,white)] text-[var(--color-sport-swim)]',
+    chipOff:
+      'border border-[var(--color-sport-swim-border)] text-[var(--color-sport-swim)]/75 hover:bg-[var(--color-sport-swim-bg)]',
+    controlOn:
+      'border-[var(--color-sport-swim)] bg-[color-mix(in_oklab,var(--color-sport-swim)_18%,white)] text-[var(--color-sport-swim)]',
+    unitAccent: 'text-[var(--color-sport-swim)] hover:bg-[var(--color-sport-swim-bg)]',
+    section: 'bg-[var(--color-sport-swim-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-swim)_12%,white)]',
+    sectionText: 'text-[var(--color-sport-swim)]',
+    focus: 'data-[state=open]:border-[var(--color-sport-swim)]',
+    heroGradient: 'from-white to-[var(--color-sport-swim-bg)]',
   },
   STRENGTH: {
-    card: 'border-emerald-400/55 bg-emerald-500/[0.08]',
-    iconWrap: 'bg-emerald-500/20 text-emerald-700',
-    chipOn: 'bg-emerald-500/25 text-emerald-800',
-    chipOff: 'border border-emerald-400/40 text-emerald-700/75 hover:bg-emerald-500/10',
-    controlOn: 'border-emerald-400 bg-emerald-500/20 text-emerald-800',
-    unitAccent: 'text-emerald-700 hover:bg-emerald-500/15',
-    section: 'bg-emerald-500/[0.08] hover:bg-emerald-500/[0.12]',
-    sectionText: 'text-emerald-800',
-    focus: 'data-[state=open]:border-emerald-400',
+    card: 'border-[var(--color-sport-strength-border)] bg-[var(--color-sport-strength-bg)]',
+    iconWrap:
+      'bg-[color-mix(in_oklab,var(--color-sport-strength)_20%,white)] text-[var(--color-sport-strength)]',
+    chipOn:
+      'bg-[color-mix(in_oklab,var(--color-sport-strength)_22%,white)] text-[var(--color-sport-strength)]',
+    chipOff:
+      'border border-[var(--color-sport-strength-border)] text-[var(--color-sport-strength)]/75 hover:bg-[var(--color-sport-strength-bg)]',
+    controlOn:
+      'border-[var(--color-sport-strength)] bg-[color-mix(in_oklab,var(--color-sport-strength)_18%,white)] text-[var(--color-sport-strength)]',
+    unitAccent: 'text-[var(--color-sport-strength)] hover:bg-[var(--color-sport-strength-bg)]',
+    section:
+      'bg-[var(--color-sport-strength-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-strength)_12%,white)]',
+    sectionText: 'text-[var(--color-sport-strength)]',
+    focus: 'data-[state=open]:border-[var(--color-sport-strength)]',
+    heroGradient: 'from-white to-[var(--color-sport-strength-bg)]',
   },
   HYROX: {
-    card: 'border-rose-400/55 bg-rose-500/[0.08]',
-    iconWrap: 'bg-rose-500/20 text-rose-700',
-    chipOn: 'bg-rose-500/25 text-rose-800',
-    chipOff: 'border border-rose-400/40 text-rose-700/75 hover:bg-rose-500/10',
-    controlOn: 'border-rose-400 bg-rose-500/20 text-rose-800',
-    unitAccent: 'text-rose-700 hover:bg-rose-500/15',
-    section: 'bg-rose-500/[0.08] hover:bg-rose-500/[0.12]',
-    sectionText: 'text-rose-800',
-    focus: 'data-[state=open]:border-rose-400',
+    card: 'border-[var(--color-sport-hyrox-border)] bg-[var(--color-sport-hyrox-bg)]',
+    iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-hyrox)_20%,white)] text-[var(--color-sport-hyrox)]',
+    chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-hyrox)_22%,white)] text-[var(--color-sport-hyrox)]',
+    chipOff:
+      'border border-[var(--color-sport-hyrox-border)] text-[var(--color-sport-hyrox)]/75 hover:bg-[var(--color-sport-hyrox-bg)]',
+    controlOn:
+      'border-[var(--color-sport-hyrox)] bg-[color-mix(in_oklab,var(--color-sport-hyrox)_18%,white)] text-[var(--color-sport-hyrox)]',
+    unitAccent: 'text-[var(--color-sport-hyrox)] hover:bg-[var(--color-sport-hyrox-bg)]',
+    section: 'bg-[var(--color-sport-hyrox-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-hyrox)_12%,white)]',
+    sectionText: 'text-[var(--color-sport-hyrox)]',
+    focus: 'data-[state=open]:border-[var(--color-sport-hyrox)]',
+    heroGradient: 'from-white to-[var(--color-sport-hyrox-bg)]',
   },
   TRIATHLON: {
-    card: 'border-indigo-400/55 bg-indigo-500/[0.08]',
-    iconWrap: 'bg-indigo-500/20 text-indigo-700',
-    chipOn: 'bg-indigo-500/25 text-indigo-800',
-    chipOff: 'border border-indigo-400/40 text-indigo-700/75 hover:bg-indigo-500/10',
-    controlOn: 'border-indigo-400 bg-indigo-500/20 text-indigo-800',
-    unitAccent: 'text-indigo-700 hover:bg-indigo-500/15',
-    section: 'bg-indigo-500/[0.08] hover:bg-indigo-500/[0.12]',
-    sectionText: 'text-indigo-800',
-    focus: 'data-[state=open]:border-indigo-400',
+    card: 'border-[var(--color-sport-tri-border)] bg-[var(--color-sport-tri-bg)]',
+    iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-tri)_20%,white)] text-[var(--color-sport-tri)]',
+    chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-tri)_22%,white)] text-[var(--color-sport-tri)]',
+    chipOff:
+      'border border-[var(--color-sport-tri-border)] text-[var(--color-sport-tri)]/75 hover:bg-[var(--color-sport-tri-bg)]',
+    controlOn:
+      'border-[var(--color-sport-tri)] bg-[color-mix(in_oklab,var(--color-sport-tri)_18%,white)] text-[var(--color-sport-tri)]',
+    unitAccent: 'text-[var(--color-sport-tri)] hover:bg-[var(--color-sport-tri-bg)]',
+    section: 'bg-[var(--color-sport-tri-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-tri)_12%,white)]',
+    sectionText: 'text-[var(--color-sport-tri)]',
+    focus: 'data-[state=open]:border-[var(--color-sport-tri)]',
+    heroGradient: 'from-white to-[var(--color-sport-tri-bg)]',
   },
   RECOVERY: {
-    card: 'border-violet-400/55 bg-violet-500/[0.08]',
-    iconWrap: 'bg-violet-500/20 text-violet-700',
-    chipOn: 'bg-violet-500/25 text-violet-800',
-    chipOff: 'border border-violet-400/40 text-violet-700/75 hover:bg-violet-500/10',
-    controlOn: 'border-violet-400 bg-violet-500/20 text-violet-800',
-    unitAccent: 'text-violet-700 hover:bg-violet-500/15',
-    section: 'bg-violet-500/[0.08] hover:bg-violet-500/[0.12]',
-    sectionText: 'text-violet-800',
-    focus: 'data-[state=open]:border-violet-400',
+    card: 'border-[var(--color-sport-recovery-border)] bg-[var(--color-sport-recovery-bg)]',
+    iconWrap:
+      'bg-[color-mix(in_oklab,var(--color-sport-recovery)_20%,white)] text-[var(--color-sport-recovery)]',
+    chipOn:
+      'bg-[color-mix(in_oklab,var(--color-sport-recovery)_22%,white)] text-[var(--color-sport-recovery)]',
+    chipOff:
+      'border border-[var(--color-sport-recovery-border)] text-[var(--color-sport-recovery)]/75 hover:bg-[var(--color-sport-recovery-bg)]',
+    controlOn:
+      'border-[var(--color-sport-recovery)] bg-[color-mix(in_oklab,var(--color-sport-recovery)_18%,white)] text-[var(--color-sport-recovery)]',
+    unitAccent: 'text-[var(--color-sport-recovery)] hover:bg-[var(--color-sport-recovery-bg)]',
+    section:
+      'bg-[var(--color-sport-recovery-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-recovery)_12%,white)]',
+    sectionText: 'text-[var(--color-sport-recovery)]',
+    focus: 'data-[state=open]:border-[var(--color-sport-recovery)]',
+    heroGradient: 'from-white to-[var(--color-sport-recovery-bg)]',
   },
   REST: {
-    card: 'border-zinc-400/55 bg-zinc-500/[0.08]',
-    iconWrap: 'bg-zinc-500/20 text-zinc-700',
-    chipOn: 'bg-zinc-500/25 text-zinc-800',
-    chipOff: 'border border-zinc-400/40 text-zinc-700/75 hover:bg-zinc-500/10',
-    controlOn: 'border-zinc-400 bg-zinc-500/20 text-zinc-800',
-    unitAccent: 'text-zinc-700 hover:bg-zinc-500/15',
-    section: 'bg-zinc-500/[0.08] hover:bg-zinc-500/[0.12]',
-    sectionText: 'text-zinc-800',
-    focus: 'data-[state=open]:border-zinc-400',
+    card: 'border-[var(--color-sport-rest-border)] bg-[var(--color-sport-rest-bg)]',
+    iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-rest)_20%,white)] text-[var(--color-sport-rest)]',
+    chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-rest)_22%,white)] text-[var(--color-sport-rest)]',
+    chipOff:
+      'border border-[var(--color-sport-rest-border)] text-[var(--color-sport-rest)]/75 hover:bg-[var(--color-sport-rest-bg)]',
+    controlOn:
+      'border-[var(--color-sport-rest)] bg-[color-mix(in_oklab,var(--color-sport-rest)_18%,white)] text-[var(--color-sport-rest)]',
+    unitAccent: 'text-[var(--color-sport-rest)] hover:bg-[var(--color-sport-rest-bg)]',
+    section: 'bg-[var(--color-sport-rest-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-rest)_12%,white)]',
+    sectionText: 'text-[var(--color-sport-rest)]',
+    focus: 'data-[state=open]:border-[var(--color-sport-rest)]',
+    heroGradient: 'from-white to-[var(--color-sport-rest-bg)]',
   },
 }
 
 export function getWorkoutEditorSportTheme(sport: WorkoutType): WorkoutEditorSportTheme {
   return THEMES[sport]
+}
+
+/** Modal / detail hero wash — always from globals sport palette. */
+export function getSportHeroGradientClass(sport: WorkoutType): string {
+  return THEMES[sport].heroGradient
 }

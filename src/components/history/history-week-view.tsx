@@ -4,6 +4,12 @@ import type { WorkoutHistoryItem } from '@/lib/workout-history'
 import { HistoryWorkoutCard } from '@/components/history/history-workout-card'
 import { cn } from '@/lib/utils'
 import { WORKOUT_DAY_CARD_CLASS } from '@/lib/workout-display'
+import {
+  TABLE_HEADER,
+  TABLE_HEADER_CELL,
+  TABLE_HEADER_CELL_TODAY,
+  TABLE_SHELL,
+} from '@/lib/table-styles'
 
 type HistoryDay = {
   dateKey: string
@@ -65,20 +71,20 @@ export function HistoryWeekView({ days, byDate, isCoach }: HistoryWeekViewProps)
       </div>
 
       {/* Landscape + desktop: full week table */}
-      <div className="hidden w-full overflow-hidden rounded-[6px] border border-border bg-card shadow-none landscape:max-lg:block lg:block">
+      <div className={cn('hidden w-full landscape:max-lg:block lg:block', TABLE_SHELL)}>
         <table className="w-full table-fixed border-collapse text-left">
           <thead>
-            <tr className="border-b border-border/80 bg-muted/40">
+            <tr className={TABLE_HEADER}>
               {days.map((day) => (
                 <th
                   key={day.dateKey}
                   className={cn(
                     'px-0.5 py-1.5 text-center align-top landscape:max-lg:px-px landscape:max-lg:py-1 lg:px-2 lg:py-2',
-                    day.isToday ? 'bg-brand/5 text-brand' : 'text-muted-foreground',
+                    day.isToday ? TABLE_HEADER_CELL_TODAY : TABLE_HEADER_CELL,
                   )}
                 >
                   <div className="text-[9px] font-medium landscape:max-lg:leading-tight lg:text-xs">{day.dayLabel}</div>
-                  <div className="font-normal tabular-nums landscape:max-lg:text-[8px] lg:text-xs">{day.dateLabel}</div>
+                  <div className="font-normal tabular-nums opacity-50 landscape:max-lg:text-[8px] lg:text-xs">{day.dateLabel}</div>
                 </th>
               ))}
             </tr>

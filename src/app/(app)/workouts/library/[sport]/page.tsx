@@ -1,5 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
-import { getSession, resolveAthleteId, isCoach} from '@/lib/session'
+import { getSession, resolveAthleteId, isCoachView} from '@/lib/session'
 import { parseSportSlug } from '@/lib/workout-library/config'
 import { getCoachLibraryTemplatesBySport } from '@/lib/workout-library/queries'
 import { resolveLibraryTemplateMetricsForAthlete } from '@/lib/workout-library/template-metrics'
@@ -19,7 +19,7 @@ export default async function SportLibraryPage({
 }: SportLibraryPageProps) {
   const session = await getSession()
   if (!session) redirect('/')
-  if (!isCoach(session)) redirect('/training')
+  if (!isCoachView(session)) redirect('/training')
 
   const { sport: sportSlug } = await params
   const sport = parseSportSlug(sportSlug)

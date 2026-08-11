@@ -11,6 +11,7 @@ import {
 } from '@/components/plan/athlete-workout-quick-actions'
 import { PlanWorkoutActionsMenu } from '@/components/plan/plan-workout-actions-menu'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
+import { useOptionalPlanSportFilter } from '@/components/training/plan-sport-filter-context'
 import {
   athleteHasQuickLogActions,
   isStravaSynced,
@@ -21,6 +22,7 @@ import { getSessionTypeLabel } from '@/lib/workout-builder/session-modes'
 import { getSessionIntensity } from '@/lib/workout-builder/session-intensity'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { RACE_PRIORITY_BLOCK } from '@/lib/race-day'
+import { WORKOUT_TYPE_CALENDAR_SURFACE } from '@/lib/workout-display'
 import { cn } from '@/lib/utils'
 import {
   isWorkoutCardCompleted,
@@ -28,7 +30,7 @@ import {
 } from '@/lib/workout-card'
 
 function workoutSubtitle(workout: PlanWorkoutDetail): string {
-  if (workout.isRace) return 'Race'
+  if (workout.isRace) return workout.description?.trim() || 'Race'
   const sport = WORKOUT_TYPE_LABELS[workout.type]
   const intensity = getSessionIntensity(workout.sessionType)?.label
   if (intensity) return `${sport} · ${intensity}`
@@ -52,6 +54,7 @@ export function TrainingListWorkoutRow({
   const dnd = usePlanWeekDnd()
   const [dragging, setDragging] = useState(false)
   const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout)
+  const colorMode = useOptionalPlanSportFilter()?.colorMode ?? 'completion'
   const metrics = getWorkoutPlanMetrics(workout, status)
   const completed = isWorkoutCardCompleted(status)
   const skipped = isWorkoutCardSkipped(status)
@@ -76,11 +79,23 @@ export function TrainingListWorkoutRow({
         'group/card relative flex w-full cursor-pointer items-center gap-2 rounded-[6px] border px-3 py-2.5 text-left transition sm:gap-3 sm:px-3.5 sm:py-3',
         isRace
           ? RACE_PRIORITY_BLOCK[workout.racePriority ?? 'C']
-          : completed
-            ? 'border-[#86D39A]/70 bg-[#F3FAF5]'
-            : skipped
-              ? 'border-[#F5A3A3]/70 bg-[#FDF2F2]'
-              : 'border-border/70 bg-card',
+          : colorMode === 'sport'
+            ? cn('border', WORKOUT_TYPE_CALENDAR_SURFACE[workout.type])
+            : colorMode === 'white'
+              ? cn(
+                  'border border-border/70 bg-card',
+                  WORKOUT_TYPE_CALENDAR_SURFACE[workout.type],
+                  'tt-calendar-card-white',
+                )
+              : cn(
+                  WORKOUT_TYPE_CALENDAR_SURFACE[workout.type],
+                  'tt-calendar-card-completion',
+                  completed
+                    ? 'border-[#86D39A]/70 bg-[#F3FAF5]'
+                    : skipped
+                      ? 'border-[#F5A3A3]/70 bg-[#FDF2F2]'
+                      : 'border-border/70 bg-card',
+                ),
         canDrag && 'cursor-grab active:cursor-grabbing',
         dragging && 'opacity-40',
       )}

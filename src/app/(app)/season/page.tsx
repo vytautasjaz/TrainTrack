@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import {
   getSession,
   resolveAthleteId,
-  isCoach,
+  isCoachView,
   coachCanAccessAthlete,
 } from '@/lib/session'
 import { PageHeader } from '@/components/ui/page-header'
@@ -21,14 +21,14 @@ export default async function SeasonPlanPage() {
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) redirect('/')
 
-  if (isCoach(session)) {
+  if (isCoachView(session)) {
     const allowed = await coachCanAccessAthlete(session.userId, athleteId)
     if (!allowed) redirect('/dashboard')
   }
 
   const [races, phaseBlocksRaw, seasonEventsRaw, athlete] = await Promise.all([
     prisma.race.findMany({
-      where: { athleteId },
+      where: { athleteId, resultsLogOnly: false },
       orderBy: { date: 'asc' },
       select: {
         id: true,
@@ -87,7 +87,7 @@ export default async function SeasonPlanPage() {
   const seasonEvents = seasonEventsRaw
   const { planned, watching } = splitPlannedWatching(seasonRaces)
   const watchingSorted = [...watching].sort((a, b) => a.date.getTime() - b.date.getTime())
-  const coachView = isCoach(session)
+  const coachView = isCoachView(session)
 
   return (
     <div className="space-y-8">

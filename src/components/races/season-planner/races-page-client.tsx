@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useTransition, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MoreVertical, Pencil, Trash2, Search, X, ChevronDown, Check } from 'lucide-react'
+import { MoreVertical, Pencil, Trash2, Search, X, ChevronDown, Check, Plus } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { RaceIntent, RacePriority, SeasonPhase } from '@prisma/client'
 import {
@@ -66,6 +66,14 @@ import {
   WORKOUT_TYPE_LABELS,
 } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import {
+  TABLE_HEADER,
+  TABLE_HEADER_CELL_MUTED,
+  TABLE_HEADER_CELL_STRONG,
+  TABLE_HEADER_SUB,
+  TABLE_HEADER_VLINE,
+  TABLE_SHELL,
+} from '@/lib/table-styles'
 import { toDateKey } from '@/lib/dates'
 
 type RacesPageClientProps = {
@@ -196,12 +204,22 @@ function SeasonPlannerView({
           ))}
         </SegmentedControl>
 
-        <AddRaceButton
-          variant="secondary"
-          size="sm"
-          className="shrink-0"
-          athleteId={athleteId}
-        />
+        <div className="flex shrink-0 items-center gap-2">
+          <AddRaceButton
+            variant="secondary"
+            size="sm"
+            athleteId={athleteId}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => setEventModal({ mode: 'create' })}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add event
+          </Button>
+        </div>
 
         <PlannerToolbar
           zoom={zoom}
@@ -230,7 +248,6 @@ function SeasonPlannerView({
         onSelectRace={setSelectedId}
         onAddPhase={(sport) => setPhaseModal({ mode: 'create', sport })}
         onEditPhase={(block) => setPhaseModal({ mode: 'edit', block })}
-        onAddEvent={() => setEventModal({ mode: 'create' })}
         onEditEvent={(event) => setEventModal({ mode: 'edit', event })}
       />
 
@@ -403,7 +420,6 @@ function SeasonPlannerBoard({
   onSelectRace,
   onAddPhase,
   onEditPhase,
-  onAddEvent,
   onEditEvent,
 }: {
   weeks: ReturnType<typeof buildPlannerWeekColumns>
@@ -423,7 +439,6 @@ function SeasonPlannerBoard({
   onSelectRace: (id: string) => void
   onAddPhase: (sport: PlannerSport) => void
   onEditPhase: (block: SeasonPhaseBlockData) => void
-  onAddEvent: () => void
   onEditEvent: (event: SeasonEventData) => void
 }) {
   const labelW = 112
@@ -440,16 +455,20 @@ function SeasonPlannerBoard({
     : []
 
   return (
-    <div className="overflow-hidden rounded-[6px] border border-border/70 bg-card">
+    <div className={TABLE_SHELL}>
       <div
         id="season-planner-scroller"
         className="season-planner-scroller overflow-x-auto"
       >
         <div style={{ width: labelW + gridW, minWidth: '100%' }} className="relative">
         {/* Month header */}
-        <div className="sticky top-0 z-20 flex border-b border-white/10 bg-sidebar text-sidebar-foreground">
+        <div className={cn('sticky top-0 z-20 flex', TABLE_HEADER)}>
           <div
-            className="sticky left-0 z-30 shrink-0 border-r border-white/18 bg-sidebar px-2 py-1.5 text-[10px] font-semibold text-sidebar-foreground/70"
+            className={cn(
+              'sticky left-0 z-30 shrink-0 bg-sidebar px-2 py-1.5 text-[10px] font-semibold',
+              TABLE_HEADER_VLINE,
+              TABLE_HEADER_CELL_MUTED,
+            )}
             style={{ width: labelW }}
           >
             Season
@@ -458,7 +477,10 @@ function SeasonPlannerBoard({
             {months.map((m) => (
               <div
                 key={m.key}
-                className="border-r border-white/15 px-1 py-1.5 text-center text-[10px] font-semibold text-sidebar-foreground"
+                className={cn(
+                  'border-r border-white/15 px-1 py-1.5 text-center text-[10px] font-semibold',
+                  TABLE_HEADER_CELL_STRONG,
+                )}
                 style={{ width: m.weekCount * colW }}
               >
                 <span>{m.label}</span>
@@ -469,9 +491,9 @@ function SeasonPlannerBoard({
         </div>
 
         {/* Week numbers — lighter than month header */}
-        <div className="sticky top-[30px] z-20 flex border-b border-black/10 bg-[#7a7f8c] text-white">
+        <div className={cn('sticky top-[30px] z-20 flex', TABLE_HEADER_SUB)}>
           <div
-            className="sticky left-0 z-10 shrink-0 border-r border-white/20 bg-[#7a7f8c]"
+            className={cn('sticky left-0 z-10 shrink-0 border-r border-white/20 bg-[#7a7f8c]')}
             style={{ width: labelW }}
           />
           <div className="flex" style={{ width: gridW }}>
@@ -581,8 +603,6 @@ function SeasonPlannerBoard({
             colW={colW}
             weeks={weeks}
             todayIdx={todayIdx}
-            onLabelAction={onAddEvent}
-            labelActionTitle="Add event"
             contentMinHeight={eventLaneMinHeight(seasonEvents, weeks, colW)}
             thickBottom
           >
@@ -1495,12 +1515,12 @@ function SeasonRaceTable({
   const sportFilterActive = Object.values(filters.sportFilter).some((v) => !v)
 
   return (
-    <div className="overflow-x-auto rounded-[6px] border border-border/70 bg-white">
+    <div className={cn("overflow-x-auto", TABLE_SHELL)}>
       <table className="w-full min-w-[40rem] text-left text-sm">
-        <thead className="border-b border-white/10 bg-sidebar text-[10px] uppercase tracking-wide text-sidebar-foreground">
+        <thead className={cn(TABLE_HEADER, 'text-[10px] uppercase tracking-wide')}>
           <tr>
-            <th className="px-3 py-2.5 font-semibold text-sidebar-foreground/80">Date</th>
-            <th className="px-3 py-2.5 font-semibold text-sidebar-foreground/80">Race</th>
+            <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Date</th>
+            <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Race</th>
             <th className="px-3 py-2.5 font-semibold">
               <HeaderFilterMenu
                 label="Status"
@@ -1523,7 +1543,7 @@ function SeasonRaceTable({
               </HeaderFilterMenu>
             </th>
             {isPast ? (
-              <th className="px-3 py-2.5 font-semibold text-sidebar-foreground/80">Result</th>
+              <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Result</th>
             ) : null}
             <th className="px-3 py-2.5 font-semibold">
               <HeaderFilterMenu
@@ -1564,13 +1584,13 @@ function SeasonRaceTable({
                 ))}
               </HeaderFilterMenu>
             </th>
-            <th className="px-3 py-2.5 font-semibold text-sidebar-foreground/80">Location</th>
-            <th className="px-3 py-2.5 font-semibold text-sidebar-foreground/80">Goal</th>
+            <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Location</th>
+            <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Goal</th>
             {!isPast ? (
-              <th className="px-3 py-2.5 font-semibold text-sidebar-foreground/80">Weeks</th>
+              <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Weeks</th>
             ) : null}
             {!isPast ? (
-              <th className="px-3 py-2.5 font-semibold text-sidebar-foreground/80">Prep</th>
+              <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Prep</th>
             ) : null}
             <th className="px-3 py-2.5 font-semibold"> </th>
           </tr>

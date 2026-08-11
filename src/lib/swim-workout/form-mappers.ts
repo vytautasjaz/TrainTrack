@@ -9,6 +9,7 @@ export function swimWorkoutToForm(workout: {
   plannedDistanceMeters: number | null
   plannedDuration: number | null
   coachNotes: string | null
+  coachNotesPrivate?: boolean
   swimStructure: unknown
 }): SwimWorkoutForm {
   const structure = parseSwimStructure(workout.swimStructure)
@@ -19,6 +20,7 @@ export function swimWorkoutToForm(workout: {
     plannedDistanceMeters: workout.plannedDistanceMeters,
     plannedDuration: workout.plannedDuration,
     coachNotes: workout.coachNotes,
+    coachNotesPrivate: Boolean(workout.coachNotesPrivate),
     swimStructure: structure,
     builderEnabled: Boolean(structure?.sections.length),
   }

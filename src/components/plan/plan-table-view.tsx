@@ -32,6 +32,13 @@ import {
 import { getDayRacePriority, raceDayCellClass } from "@/lib/race-day";
 import { CalendarPeriodNav } from "@/components/plan/calendar-period-nav";
 import { cn, formatDuration } from "@/lib/utils";
+import {
+  TABLE_FRAME,
+  TABLE_HEADER,
+  TABLE_HEADER_CELL_MUTED,
+  TABLE_HEADER_CELL_TODAY,
+  TABLE_HEADER_VLINE,
+} from "@/lib/table-styles";
 import { DayNoteSection } from "@/components/plan/day-note-section";
 import { RecoveryDaySection } from "@/components/plan/recovery-day-section";
 import { PlanDayAddMenu } from "@/components/plan/plan-day-add-menu";
@@ -65,6 +72,10 @@ type PlanTableViewProps = {
   swimCssSecPer100m?: number | null;
   /** Hide weekly volume + add-day footer rows (e.g. combined multi-week table). */
   hideFooterRows?: boolean;
+  /** Show Notes row / day notes (toolbar layer). Default true. */
+  showNotes?: boolean;
+  /** Show Events row / day events (toolbar layer). Default true. */
+  showEvents?: boolean;
   /**
    * Render only table section contents for embedding in a shared multi-week table.
    * `thead` = first week day header; `tbody-row` = day header as first body row.
@@ -81,9 +92,14 @@ const COACH_SPORT_ROWS_FALLBACK = SPORT_ROW_ORDER.filter(
 /** Week table horizontal rules */
 const PLAN_TABLE_LINE = "border-foreground/12";
 const PLAN_TABLE_LINE_STRONG = "border-foreground/18";
-/** Soft vertical guidelines between day columns (light, low-contrast). */
+/** Soft vertical guidelines between day columns (not on the last day — shell is the outer edge). */
 const PLAN_TABLE_VLINE = "border-r border-black/[0.07] dark:border-white/12";
-const PLAN_TABLE_VLINE_HEADER = "border-r border-white/18";
+
+function dayColVline(days: PlanDay[], dateKey: string) {
+  return dateKey !== days[days.length - 1]?.dateKey
+    ? PLAN_TABLE_VLINE
+    : undefined;
+}
 
 function dayHeaderClass(day: PlanDay) {
   if (dayHasRecovery(day.workouts)) {
@@ -93,7 +109,7 @@ function dayHeaderClass(day: PlanDay) {
     );
   }
   if (day.isToday) {
-    return "bg-white/10 font-bold text-white";
+    return TABLE_HEADER_CELL_TODAY;
   }
   return "text-sidebar-foreground/75";
 }
@@ -113,22 +129,28 @@ function DayHeaderRow({
   days,
   as = "th",
   emphasizeTop = false,
+  /** When true, this row owns TABLE_HEADER (tbody embedded weeks). Thead parents own it instead. */
+  embedded = false,
 }: {
   days: PlanDay[];
   as?: "th" | "td";
   emphasizeTop?: boolean;
+  embedded?: boolean;
 }) {
   const Cell = as;
+  const lastDayKey = days[days.length - 1]?.dateKey;
   return (
     <tr
       className={cn(
-        "border-b border-white/10 bg-sidebar text-sidebar-foreground",
+        embedded && TABLE_HEADER,
         emphasizeTop && "border-t-2 border-t-white/20",
       )}
     >
       <Cell
         className={cn(
-          "border-r border-white/18 bg-sidebar px-1 py-1.5 text-left text-[9px] font-medium text-sidebar-foreground/65 landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-xs",
+          TABLE_HEADER_VLINE,
+          "bg-sidebar px-1 py-1.5 text-left text-[9px] font-medium landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-xs",
+          TABLE_HEADER_CELL_MUTED,
         )}
       >
         Sport
@@ -137,8 +159,8 @@ function DayHeaderRow({
         <Cell
           key={day.dateKey}
           className={cn(
-            "px-0.5 py-1.5 text-center align-top landscape:max-lg:px-px lg:px-1 lg:py-2",
-            PLAN_TABLE_VLINE_HEADER,
+            "bg-sidebar px-0.5 py-1.5 text-center align-top landscape:max-lg:px-px lg:px-1 lg:py-2",
+            day.dateKey !== lastDayKey && TABLE_HEADER_VLINE,
             dayHeaderClass(day),
           )}
         >
@@ -183,9 +205,9 @@ function EventsTableRow({ days }: { days: PlanDay[] }) {
             key={day.dateKey}
             className={cn(
               "align-top landscape:max-lg:px-px",
-              PLAN_TABLE_VLINE,
+              dayColVline(days, day.dateKey),
               events.length > 0
-                ? "bg-amber-200/90 p-1.5 dark:bg-amber-500/25 landscape:max-lg:p-1 lg:min-h-[3.25rem] lg:p-2"
+                ? "p-1 landscape:max-lg:p-0.5 lg:min-h-[3.25rem] lg:p-1.5"
                 : cn("p-0.5 lg:p-1.5", dayColumnClass(day)),
             )}
           >
@@ -214,16 +236,16 @@ function NoteTableRow({
           PLAN_TABLE_VLINE,
         )}
       >
-        Note
+        Notes
       </th>
       {days.map((day) => (
         <td
           key={day.dateKey}
           className={cn(
             "p-0.5 align-top landscape:max-lg:px-px lg:p-1.5",
-            PLAN_TABLE_VLINE,
+            dayColVline(days, day.dateKey),
             day.dayNote
-              ? "bg-yellow-100 dark:bg-yellow-500/20"
+              ? undefined
               : dayColumnClass(day),
           )}
         >
@@ -264,7 +286,7 @@ function RecoveryTableRow({
           key={day.dateKey}
           className={cn(
             "p-0.5 align-top landscape:max-lg:px-px lg:p-1.5",
-            PLAN_TABLE_VLINE,
+            dayColVline(days, day.dateKey),
             dayColumnClass(day),
           )}
         >
@@ -336,7 +358,7 @@ function VolumeTableRow({
           key={day.dateKey}
           className={cn(
             "p-0.5 landscape:max-lg:px-px lg:p-1",
-            PLAN_TABLE_VLINE,
+            dayColVline(days, day.dateKey),
             showDayAdd && "h-px align-top",
             dayColumnClass(day),
           )}
@@ -442,7 +464,7 @@ function SportTableRows({
                   key={day.dateKey}
                   className={cn(
                     "p-0.5 align-top landscape:max-lg:px-px lg:p-1",
-                    PLAN_TABLE_VLINE,
+                    dayColVline(days, day.dateKey),
                     emptyCoachCell && "h-px",
                     PLAN_TABLE_CELL_HOVER_CLASS,
                     dayColumnClass(day),
@@ -487,6 +509,8 @@ function PlanTableViewInner({
   nextWeekHref,
   swimCssSecPer100m = null,
   hideFooterRows = false,
+  showNotes = true,
+  showEvents = true,
   tableFragment = false,
 }: PlanTableViewProps) {
   const days = useFilteredPlanDays(daysProp);
@@ -521,8 +545,9 @@ function PlanTableViewInner({
   const dragEnabled = isCoach;
 
   const hasAnyDayNotes = days.some((d) => d.dayNote);
-  const showNoteRow = hasAnyDayNotes;
-  const showEventsRow = days.some((d) => (d.seasonEvents?.length ?? 0) > 0);
+  const showNoteRow = showNotes && hasAnyDayNotes;
+  const showEventsRow =
+    showEvents && days.some((d) => (d.seasonEvents?.length ?? 0) > 0);
   const showRecoveryRow = days.some((d) => dayHasRecovery(d.workouts));
   const showEmptyWorkoutsRow =
     !isCoach && sportRows.length === 0 && !showRecoveryRow;
@@ -604,16 +629,9 @@ function PlanTableViewInner({
   const bodyRows = (
     <>
       {tableFragment === "tbody-row" && (
-        <DayHeaderRow days={days} as="th" emphasizeTop />
+        <DayHeaderRow days={days} as="th" emphasizeTop embedded />
       )}
       {showEventsRow && <EventsTableRow days={days} />}
-      {showNoteRow && (
-        <NoteTableRow
-          days={days}
-          canEditDayNotes={canEditDayNotes}
-          athleteId={athleteId}
-        />
-      )}
       <SportTableRows
         days={days}
         sportRows={sportRows}
@@ -643,6 +661,13 @@ function PlanTableViewInner({
       {showRecoveryRow && (
         <RecoveryTableRow days={days} isCoach={isCoach} />
       )}
+      {showNoteRow && (
+        <NoteTableRow
+          days={days}
+          canEditDayNotes={canEditDayNotes}
+          athleteId={athleteId}
+        />
+      )}
       {!hideFooterRows && (
         <VolumeTableRow
           days={days}
@@ -659,7 +684,7 @@ function PlanTableViewInner({
     return (
       <>
         {tableFragment === "thead" && (
-          <thead>
+          <thead className={TABLE_HEADER}>
             <DayHeaderRow days={days} as="th" />
           </thead>
         )}
@@ -719,6 +744,8 @@ function PlanTableViewInner({
           headerAddMenu={isCoach || canEditDayNotes}
           daySectionIdPrefix={daySectionPrefix}
           daySectionScrollMarginClass="scroll-mt-[7.5rem]"
+          showNotes={showNotes}
+          showEvents={showEvents}
         />
       </div>
 
@@ -727,7 +754,7 @@ function PlanTableViewInner({
         {(weekLabel ||
           (isCoach && athleteId && athleteName && weekStartKey)) && (
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            {weekLabel ? (
+            {weekLabel && (prevWeekHref || nextWeekHref) ? (
               <CalendarPeriodNav
                 label={weekLabel}
                 prevHref={prevWeekHref}
@@ -756,13 +783,18 @@ function PlanTableViewInner({
             )}
           </div>
         )}
-        <div className="@container overflow-x-auto rounded-[6px] border border-foreground/15 bg-card shadow-none">
-          <table className="w-full table-fixed border-collapse text-left landscape:max-lg:text-[9px] lg:text-sm">
+        <div className="@container overflow-x-auto">
+          <table
+            className={cn(
+              TABLE_FRAME,
+              "w-full table-fixed text-left landscape:max-lg:text-[9px] lg:text-sm",
+            )}
+          >
             <colgroup>
               <col className="w-[11%]" />
               <col span={7} />
             </colgroup>
-            <thead>
+            <thead className={TABLE_HEADER}>
               <DayHeaderRow days={days} as="th" />
             </thead>
             <tbody>{bodyRows}</tbody>

@@ -61,11 +61,11 @@ export const PLANNER_PRIORITY_SHADOW: Record<RacePriority, string> = {
 }
 
 export const PLANNER_SPORT_TINT: Record<PlannerSport, string> = {
-  RUN: 'border-sky-200/80 bg-sky-50/90 text-sky-900',
-  BIKE: 'border-orange-200/80 bg-orange-50/90 text-orange-900',
-  SWIM: 'border-teal-200/80 bg-teal-50/90 text-teal-900',
-  TRIATHLON: 'border-violet-200/80 bg-violet-50/90 text-violet-900',
-  HYROX: 'border-rose-200/80 bg-rose-50/90 text-rose-900',
+  RUN: 'border-[var(--color-sport-run-border)] bg-[var(--color-sport-run-bg)] text-[var(--color-sport-run)]',
+  BIKE: 'border-[var(--color-sport-bike-border)] bg-[var(--color-sport-bike-bg)] text-[var(--color-sport-bike)]',
+  SWIM: 'border-[var(--color-sport-swim-border)] bg-[var(--color-sport-swim-bg)] text-[var(--color-sport-swim)]',
+  TRIATHLON: 'border-[var(--color-sport-tri-border)] bg-[var(--color-sport-tri-bg)] text-[var(--color-sport-tri)]',
+  HYROX: 'border-[var(--color-sport-hyrox-border)] bg-[var(--color-sport-hyrox-bg)] text-[var(--color-sport-hyrox)]',
 }
 
 /** Suggested preparation length (weeks) by race type — used only as form hints. */

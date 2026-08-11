@@ -74,14 +74,14 @@ export const RACE_TYPE_DISTANCE_LABELS: Record<RaceType, string> = {
 }
 
 export const WORKOUT_TYPE_COLORS: Record<WorkoutType, string> = {
-  RUN: 'bg-orange-500/15 text-orange-600 dark:text-orange-400',
-  BIKE: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
-  SWIM: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400',
-  STRENGTH: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-  HYROX: 'bg-rose-500/15 text-rose-600 dark:text-rose-400',
-  TRIATHLON: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400',
-  RECOVERY: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
-  REST: 'bg-zinc-500/15 text-zinc-600 dark:text-zinc-400',
+  RUN: 'bg-[var(--color-sport-run-bg)] text-[var(--color-sport-run)]',
+  BIKE: 'bg-[var(--color-sport-bike-bg)] text-[var(--color-sport-bike)]',
+  SWIM: 'bg-[var(--color-sport-swim-bg)] text-[var(--color-sport-swim)]',
+  STRENGTH: 'bg-[var(--color-sport-strength-bg)] text-[var(--color-sport-strength)]',
+  HYROX: 'bg-[var(--color-sport-hyrox-bg)] text-[var(--color-sport-hyrox)]',
+  TRIATHLON: 'bg-[var(--color-sport-tri-bg)] text-[var(--color-sport-tri)]',
+  RECOVERY: 'bg-[var(--color-sport-recovery-bg)] text-[var(--color-sport-recovery)]',
+  REST: 'bg-[var(--color-sport-rest-bg)] text-[var(--color-sport-rest)]',
 }
 
 export const STATUS_COLORS: Record<WorkoutStatus, string> = {

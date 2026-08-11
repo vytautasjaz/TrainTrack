@@ -32,6 +32,8 @@ type PlanDayAddMenuProps = {
   menuPlacement?: "top" | "bottom";
   /** Lighter + for table add row. */
   variant?: "default" | "subtle";
+  /** Hide until parent `group/day` hover (or menu open). */
+  revealOnHover?: boolean;
   className?: string;
 };
 
@@ -67,6 +69,7 @@ export function PlanDayAddMenu({
   recoveryWorkout,
   menuPlacement = "bottom",
   variant = "default",
+  revealOnHover = false,
   className,
 }: PlanDayAddMenuProps) {
   const canAddWorkout = !isCoach;
@@ -142,17 +145,35 @@ export function PlanDayAddMenu({
   const isSubtle = variant === "subtle";
 
   return (
-    <div className={cn("relative shrink-0", className)} ref={menuRef}>
+    <div
+      className={cn(
+        "relative shrink-0",
+        revealOnHover &&
+          !menuOpen &&
+          "opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/day:opacity-100 [@media(hover:hover)]:group-focus-within/day:opacity-100",
+        revealOnHover && menuOpen && "opacity-100",
+        className,
+      )}
+      ref={menuRef}
+    >
       <button
         type="button"
-        onClick={handleAddClick}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleAddClick();
+        }}
         className={cn(
-          "group flex min-h-9 min-w-9 items-center justify-center rounded-lg transition-colors",
-          isSubtle
-            ? "hover:bg-muted/30 active:bg-muted/40"
-            : "h-8 w-8 text-muted-foreground hover:bg-muted/50 hover:text-brand",
-          !isSubtle && menuOpen && "bg-muted/50 text-brand",
-          isSubtle && menuOpen && "bg-muted/30",
+          "group flex items-center justify-center rounded-lg transition-colors",
+          revealOnHover
+            ? "h-6 w-6 cursor-default text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+            : "min-h-9 min-w-9",
+          !revealOnHover &&
+            (isSubtle
+              ? "hover:bg-muted/30 active:bg-muted/40"
+              : "h-8 w-8 text-muted-foreground hover:bg-muted/50 hover:text-muted-foreground"),
+          !isSubtle && !revealOnHover && menuOpen && "bg-muted/50 text-muted-foreground",
+          isSubtle && !revealOnHover && menuOpen && "bg-muted/30",
+          revealOnHover && menuOpen && "bg-muted/70 text-muted-foreground",
         )}
         aria-label={
           isCoach || canAddWorkout
@@ -162,12 +183,15 @@ export function PlanDayAddMenu({
         aria-expanded={isCoach || canAddWorkout ? menuOpen : undefined}
       >
         <Plus
+          strokeWidth={1.5}
           className={cn(
             "shrink-0 transition-colors",
-            isSubtle
-              ? "h-5 w-5 text-muted-foreground/50 group-hover:text-brand/70 landscape:max-lg:h-4 landscape:max-lg:w-4"
-              : "h-4 w-4",
-            isSubtle && menuOpen && "text-brand/70",
+            revealOnHover
+              ? "h-3.5 w-3.5"
+              : isSubtle
+                ? "h-5 w-5 text-muted-foreground/50 group-hover:text-muted-foreground landscape:max-lg:h-4 landscape:max-lg:w-4"
+                : "h-4 w-4",
+            isSubtle && !revealOnHover && menuOpen && "text-muted-foreground",
           )}
         />
       </button>

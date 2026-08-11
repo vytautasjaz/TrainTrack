@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
 import { Textarea } from '@/components/ui/textarea'
+import { PrivateNoteToggle } from '@/components/ui/private-note-toggle'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { updateStravaWorkoutComment } from '@/app/actions/workouts'
 
@@ -24,17 +25,21 @@ function StravaCommentForm({
   const [isSaving, startSave] = useTransition()
   const stravaDescription = workout.result?.stravaActivityDescription?.trim() || ''
   const savedNotes = workout.result?.athleteNotes?.trim() || ''
+  const savedPrivate = Boolean(workout.result?.athleteNotesPrivate)
   const [notes, setNotes] = useState(savedNotes)
+  const [notesPrivate, setNotesPrivate] = useState(savedPrivate)
 
   useEffect(() => {
     setNotes(workout.result?.athleteNotes?.trim() || '')
-  }, [workout.id, workout.result?.athleteNotes])
+    setNotesPrivate(Boolean(workout.result?.athleteNotesPrivate))
+  }, [workout.id, workout.result?.athleteNotes, workout.result?.athleteNotesPrivate])
 
   function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const formData = new FormData()
     formData.set('workoutId', workout.id)
     formData.set('athleteNotes', notes)
+    if (notesPrivate) formData.set('athleteNotesPrivate', 'true')
     startSave(async () => {
       await updateStravaWorkoutComment(formData)
       router.refresh()
@@ -51,11 +56,23 @@ function StravaCommentForm({
           rows={3}
           placeholder="Write your own comment, or leave empty"
         />
+        <PrivateNoteToggle
+          hideFrom="coach"
+          checked={notesPrivate}
+          onCheckedChange={setNotesPrivate}
+          className="mt-2"
+        />
       </FormField>
 
       <div className="flex flex-wrap items-center gap-2">
         <Button type="submit" variant="secondary" size="sm" disabled={isSaving}>
-          {isSaving ? 'Saving…' : notes.trim() ? 'Share comment' : 'Clear comment'}
+          {isSaving
+            ? 'Saving…'
+            : notes.trim()
+              ? notesPrivate
+                ? 'Save private note'
+                : 'Share comment'
+              : 'Clear comment'}
         </Button>
         {savedNotes && notes.trim() !== savedNotes ? (
           <Button
@@ -63,7 +80,10 @@ function StravaCommentForm({
             variant="ghost"
             size="sm"
             disabled={isSaving}
-            onClick={() => setNotes(savedNotes)}
+            onClick={() => {
+              setNotes(savedNotes)
+              setNotesPrivate(savedPrivate)
+            }}
           >
             Reset
           </Button>

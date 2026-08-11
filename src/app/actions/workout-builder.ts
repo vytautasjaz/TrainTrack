@@ -40,6 +40,7 @@ export type CreateWorkoutModalPayload = {
   plannedDistance?: number
   plannedDuration?: number
   coachNotes?: string
+  coachNotesPrivate?: boolean
   structure?: unknown
   templateId?: string
   tags?: string[]
@@ -100,6 +101,7 @@ export async function getWorkoutBuilderPrefsForModal(): Promise<WorkoutBuilderPr
 export type SaveRecoveryDayPayload = {
   date: string
   coachNotes?: string
+  coachNotesPrivate?: boolean
   workoutId?: string
 }
 
@@ -112,11 +114,12 @@ export async function saveRecoveryDay(payload: SaveRecoveryDayPayload) {
 
   const coachNotes =
     payload.coachNotes?.trim() || RECOVERY_DAY_DEFAULT_NOTE
+  const coachNotesPrivate = Boolean(payload.coachNotesPrivate)
 
   if (payload.workoutId) {
     await prisma.workout.update({
       where: { id: payload.workoutId },
-      data: { coachNotes },
+      data: { coachNotes, coachNotesPrivate },
     })
   } else {
     const existing = await prisma.workout.findFirst({
@@ -125,7 +128,7 @@ export async function saveRecoveryDay(payload: SaveRecoveryDayPayload) {
     if (existing) {
       await prisma.workout.update({
         where: { id: existing.id },
-        data: { coachNotes },
+        data: { coachNotes, coachNotesPrivate },
       })
     } else {
       const sortOrder = await getNextWorkoutSortOrder(athleteId, date)
@@ -138,6 +141,7 @@ export async function saveRecoveryDay(payload: SaveRecoveryDayPayload) {
           sessionType: SessionType.RECOVERY_RUN,
           title: 'Recovery',
           coachNotes,
+          coachNotesPrivate,
         },
       })
     }
@@ -190,6 +194,7 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
         plannedDistance: metrics.plannedDistance ?? null,
         plannedDuration: metrics.plannedDuration ?? null,
         coachNotes: payload.coachNotes,
+        coachNotesPrivate: Boolean(payload.coachNotesPrivate),
         tags,
       },
     })
@@ -215,6 +220,7 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
         plannedDuration: metrics.plannedDuration ?? null,
         plannedDistance: metrics.plannedDistance ?? null,
         coachNotes: data.structure.coachNotes ?? payload.coachNotes,
+        coachNotesPrivate: Boolean(payload.coachNotesPrivate),
         structure: data.structure as Prisma.InputJsonValue,
         tags: data.tags,
       },
@@ -272,6 +278,7 @@ export async function updateWorkoutFromModal(
         plannedDistance: metrics.plannedDistance ?? null,
         plannedDuration: metrics.plannedDuration ?? null,
         coachNotes: payload.coachNotes,
+        coachNotesPrivate: Boolean(payload.coachNotesPrivate),
         structure: Prisma.DbNull,
         tags,
       },
@@ -296,6 +303,7 @@ export async function updateWorkoutFromModal(
         plannedDuration: metrics.plannedDuration ?? null,
         plannedDistance: metrics.plannedDistance ?? null,
         coachNotes: data.structure.coachNotes ?? payload.coachNotes,
+        coachNotesPrivate: Boolean(payload.coachNotesPrivate),
         structure: data.structure as Prisma.InputJsonValue,
         tags: data.tags,
       },
@@ -388,6 +396,7 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
       where: { id: workoutId },
       data: {
         title: data.title,
+        description: data.description?.trim() || null,
         type: data.sportType,
         sessionType: data.sessionType,
         date: parseDateOnly(data.scheduledDate),
@@ -409,6 +418,7 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
     data: {
       athleteId,
       title: data.title,
+      description: data.description?.trim() || null,
       type: data.sportType,
       sessionType: data.sessionType,
       date: parseDateOnly(data.scheduledDate),
@@ -445,6 +455,7 @@ export async function saveTemplateBuilder(payload: unknown, templateId?: string)
       where: { id: templateId, coachId: session.userId },
       data: {
         title: parsed.title,
+        description: parsed.description?.trim() || null,
         type: parsed.sportType,
         sessionType: parsed.sessionType,
         durationMin: estimatedDuration || undefined,
@@ -462,6 +473,7 @@ export async function saveTemplateBuilder(payload: unknown, templateId?: string)
     data: {
       coachId: session.userId,
       title: parsed.title,
+      description: parsed.description?.trim() || null,
       type: parsed.sportType,
       sessionType: parsed.sessionType,
       durationMin: estimatedDuration || undefined,
@@ -489,6 +501,7 @@ export async function saveWorkoutAsTemplate(workoutId: string) {
     data: {
       coachId: session.userId,
       title: workout.title,
+      description: workout.description ?? undefined,
       type: workout.type,
       sessionType: workout.sessionType,
       durationMin: workout.plannedDuration ?? undefined,

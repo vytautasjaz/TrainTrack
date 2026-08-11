@@ -9,19 +9,20 @@ import { cn } from '@/lib/utils'
 
 type StravaSyncedIndicatorProps = {
   workout: PlanWorkoutDetail
-  /** `wordmark` = horizontal STRAVA (week/list/large cards); `mark` = circled A (small cards only). */
+  /**
+   * `wordmark` = horizontal STRAVA; `mark` / `icon` = grey A (no circle);
+   * `dot` = tiny corner pip; `badge` = grey pill.
+   */
   variant?: 'badge' | 'icon' | 'dot' | 'mark' | 'wordmark'
-  /** Size for mark circle / wordmark height. */
   size?: WorkoutStatusIconSize
   className?: string
 }
 
-/** Logo inside the circle — slightly smaller than the outline. */
-const INNER_MARK_CLASS: Record<WorkoutStatusIconSize, string> = {
-  xs: 'h-[9px] w-[9px]',
-  sm: 'h-2.5 w-2.5',
-  md: 'h-3 w-3',
-  lg: 'h-3.5 w-3.5',
+const MARK_CLASS: Record<WorkoutStatusIconSize, string> = {
+  xs: 'h-2.5 w-2.5',
+  sm: 'h-3 w-3',
+  md: 'h-3.5 w-3.5',
+  lg: 'h-4 w-4',
 }
 
 const WORDMARK_CLASS: Record<WorkoutStatusIconSize, string> = {
@@ -31,9 +32,12 @@ const WORDMARK_CLASS: Record<WorkoutStatusIconSize, string> = {
   lg: 'h-4 w-auto',
 }
 
+const GREY = 'text-muted-foreground/55'
+const GREY_HOVER = 'transition hover:text-muted-foreground'
+
 export function StravaSyncedIndicator({
   workout,
-  variant = 'mark',
+  variant = 'wordmark',
   size = 'xs',
   className,
 }: StravaSyncedIndicatorProps) {
@@ -45,7 +49,7 @@ export function StravaSyncedIndicator({
     const dot = (
       <span
         className={cn(
-          'pointer-events-none absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-[#FC4C02] ring-1 ring-card',
+          'pointer-events-none absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-muted-foreground/45 ring-1 ring-card',
           className,
         )}
         title="Synced from Strava"
@@ -63,16 +67,14 @@ export function StravaSyncedIndicator({
         title="View on Strava"
         aria-label="View on Strava"
       >
-        <span className="pointer-events-none block h-1.5 w-1.5 rounded-full bg-[#FC4C02] ring-1 ring-card" />
+        <span className="pointer-events-none block h-1.5 w-1.5 rounded-full bg-muted-foreground/45 ring-1 ring-card" />
       </a>
     )
   }
 
   if (variant === 'wordmark') {
     const wordmark = (
-      <StravaWordmark
-        className={cn('text-muted-foreground/55', WORDMARK_CLASS[size], className)}
-      />
+      <StravaWordmark className={cn(GREY, WORDMARK_CLASS[size], className)} />
     )
     if (!url) {
       return (
@@ -87,7 +89,7 @@ export function StravaSyncedIndicator({
         target="_blank"
         rel="noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className="inline-flex shrink-0 items-center rounded-sm px-0.5 py-1 text-muted-foreground/55 transition hover:text-[#FC4C02]/80"
+        className={cn('inline-flex shrink-0 items-center rounded-sm px-0.5 py-1', GREY, GREY_HOVER)}
         title="View on Strava"
         aria-label="View on Strava"
       >
@@ -97,23 +99,24 @@ export function StravaSyncedIndicator({
   }
 
   if (variant === 'mark' || variant === 'icon') {
-    const circled = (
+    const mark = (
       <span
         className={cn(
-          'inline-flex shrink-0 items-center justify-center rounded-full border border-[#FC4C02]/70 text-[#FC4C02]',
+          'inline-flex shrink-0 items-center justify-center',
+          GREY,
           workoutStatusIconClass(size),
           className,
         )}
         aria-hidden={Boolean(url)}
       >
-        <StravaMark className={INNER_MARK_CLASS[size]} />
+        <StravaMark className={MARK_CLASS[size]} />
       </span>
     )
 
     if (!url) {
       return (
         <span title="Synced from Strava" aria-label="Synced from Strava" className="inline-flex">
-          {circled}
+          {mark}
         </span>
       )
     }
@@ -124,11 +127,11 @@ export function StravaSyncedIndicator({
         target="_blank"
         rel="noreferrer"
         onClick={(e) => e.stopPropagation()}
-        className="inline-flex shrink-0 items-center justify-center rounded-full transition hover:bg-[#FC4C02]/10"
+        className={cn('inline-flex shrink-0 items-center justify-center rounded-sm', GREY_HOVER)}
         title="View on Strava"
         aria-label="View on Strava"
       >
-        {circled}
+        {mark}
       </a>
     )
   }
@@ -136,7 +139,7 @@ export function StravaSyncedIndicator({
   const badge = (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[#FC4C02]/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#FC4C02]',
+        'inline-flex shrink-0 items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground',
         className,
       )}
       title="Synced from Strava"

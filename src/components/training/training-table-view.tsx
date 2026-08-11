@@ -21,6 +21,7 @@ import { TrainingListWorkoutRow } from '@/components/training/training-list-work
 import type { PlanDay } from '@/lib/plan-week'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { useFilteredPlanDays } from '@/components/training/use-plan-sport-filter-data'
+import { collapseTriathlonRaceWorkouts } from '@/lib/triathlon-race-summary'
 import { addDateOnlyDays, parseDateOnly, toDateKey } from '@/lib/dates'
 import { yesterdayKey } from '@/lib/training-timeline'
 import { cn } from '@/lib/utils'
@@ -273,8 +274,8 @@ export function TrainingTableView({
   const displayDays = useMemo(() => {
     const mapped = filteredDays.map((day) => ({
       ...day,
-      workouts: day.workouts.filter(
-        (w) => w.type !== 'REST' && w.type !== 'RECOVERY',
+      workouts: collapseTriathlonRaceWorkouts(
+        day.workouts.filter((w) => w.type !== 'REST' && w.type !== 'RECOVERY'),
       ),
     }))
     if (!showEmptyDropDays) {

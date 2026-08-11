@@ -60,8 +60,8 @@ export function useDayDropTarget({
   }
 
   const dropHighlightClass = cn(
-    canDrop && isOver && 'bg-brand/10 ring-2 ring-inset ring-brand/40',
-    canDrop && !isOver && isDragging && 'ring-1 ring-inset ring-brand/20',
+    canDrop && isOver && 'bg-muted ring-2 ring-inset ring-foreground/25',
+    canDrop && !isOver && isDragging && 'ring-1 ring-inset ring-foreground/15',
   )
 
   return {

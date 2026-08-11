@@ -167,7 +167,7 @@ export function WorkoutPlanDetails({
         <div className={cn('flex flex-wrap items-center gap-1.5', isCompact ? 'pt-0.5' : 'pt-1')}>
           <StravaSyncedIndicator
             workout={workout}
-            variant={isCompact ? 'mark' : 'wordmark'}
+            variant="wordmark"
             size={isCompact ? 'xs' : 'sm'}
           />
           {showManualCompletionBadge && completionSource && (

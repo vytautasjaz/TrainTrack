@@ -7,6 +7,7 @@ import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { PrivateNoteToggle } from '@/components/ui/private-note-toggle'
 import {
   Dialog,
   DialogContent,
@@ -102,6 +103,11 @@ export function LogManualWorkoutModal({ open, onOpenChange }: LogManualWorkoutMo
 
           <FormField label="Notes">
             <Textarea name="athleteNotes" rows={3} placeholder="How did it feel?" />
+            <PrivateNoteToggle
+              hideFrom="coach"
+              name="athleteNotesPrivate"
+              className="mt-2"
+            />
           </FormField>
 
           <div className="flex justify-end gap-2 pt-1">

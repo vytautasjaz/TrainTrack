@@ -8,7 +8,8 @@ import {
   getSession,
   getCoachAthletes,
   resolveAthleteId,
-  isCoach,
+  isCoachView,
+  canSwitchViewMode,
   athleteHasConnectedCoach,
 } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -21,7 +22,9 @@ import {
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession()
   const showPreferences = Boolean(session)
-  const coach = session ? isCoach(session) : false
+  const coach = session ? isCoachView(session) : false
+  const canSwitchView = session ? canSwitchViewMode(session) : false
+  const viewMode = session?.viewMode ?? 'athlete'
 
   let dashboardNotificationCount = 0
   let coachAthletes: Awaited<ReturnType<typeof getCoachAthletes>> = []
@@ -29,7 +32,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   let athleteProfile: { name: string; avatarUrl: string | null } | null = null
   let showConnectCoach = false
 
-  if (session?.hasAthlete) {
+  if (session?.hasAthlete && (!coach || session.viewMode === 'athlete')) {
     const ownAthlete = await prisma.athlete.findUnique({
       where: { userId: session.userId },
       select: { id: true },
@@ -96,21 +99,25 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       <Suspense fallback={null}>
         <AppNav
           showPreferences={showPreferences}
-          showConnectCoach={showConnectCoach}
+          showConnectCoach={showConnectCoach && !coach}
           isCoach={coach}
+          canSwitchView={canSwitchView}
+          viewMode={viewMode}
           dashboardNotificationCount={dashboardNotificationCount}
           sidebarFooter={roleSwitcher}
           athleteProfile={athleteProfile}
         />
       </Suspense>
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] portrait:max-lg:pb-[calc(4.5rem+env(safe-area-inset-bottom))] landscape:max-lg:pb-2 lg:pb-0">
+      <div className="flex min-h-dvh min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] portrait:max-lg:pb-[calc(4.5rem+env(safe-area-inset-bottom))] landscape:max-lg:pb-2 lg:pb-0" data-app-main-column>
         <div className="sticky top-0 z-40 bg-background/90 backdrop-blur-md" data-app-sticky-chrome>
           <header className="flex items-center gap-2 border-b border-border/40 px-3 py-2.5 landscape:max-lg:py-1.5 lg:hidden">
             <Suspense fallback={null}>
               <MobileNavMenu
                 showPreferences={showPreferences}
-                showConnectCoach={showConnectCoach}
+                showConnectCoach={showConnectCoach && !coach}
                 isCoach={coach}
+                canSwitchView={canSwitchView}
+                viewMode={viewMode}
                 dashboardNotificationCount={dashboardNotificationCount}
                 menuFooter={roleSwitcher}
                 athleteProfile={athleteProfile}
@@ -120,9 +127,14 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
               TrainTrack
             </p>
           </header>
-          {athleteBar}
+          {athleteBar ? (
+            <div data-coach-athlete-bar>{athleteBar}</div>
+          ) : null}
         </div>
-        <main className="w-full min-w-0 max-w-6xl flex-1 px-4 pb-4 pt-3 landscape:max-lg:px-2 lg:max-w-[90rem] lg:px-8 lg:pb-6 lg:pt-0">
+        <main
+          data-app-main
+          className="w-full min-w-0 max-w-6xl flex-1 px-4 pb-4 pt-3 landscape:max-lg:px-2 lg:max-w-[90rem] lg:px-8 lg:pb-6 lg:pt-0"
+        >
           {children}
         </main>
       </div>

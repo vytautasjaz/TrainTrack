@@ -25,6 +25,7 @@ import {
 import { filterPlanSportRows } from "@/lib/plan-sport-filter";
 import { useFilteredPlanDays } from "@/components/training/use-plan-sport-filter-data";
 import { useOptionalPlanSportFilter } from "@/components/training/plan-sport-filter-context";
+import { collapseTriathlonRaceWorkouts } from "@/lib/triathlon-race-summary";
 
 const COACH_SPORT_ROWS_FALLBACK = SPORT_ROW_ORDER.filter(
   (t) => t !== WorkoutType.REST && t !== WorkoutType.RECOVERY,
@@ -45,6 +46,8 @@ export type PlanMobileDayStackProps = {
   daySectionScrollMarginClass?: string;
   headerAddMenu?: boolean;
   trainingMode?: boolean;
+  showNotes?: boolean;
+  showEvents?: boolean;
 };
 
 function daySectionClass(
@@ -94,6 +97,8 @@ export function PlanMobileDayStack({
   daySectionScrollMarginClass,
   headerAddMenu = false,
   trainingMode = false,
+  showNotes = true,
+  showEvents = true,
 }: PlanMobileDayStackProps) {
   const days = useFilteredPlanDays(daysProp);
   const sportFilter = useOptionalPlanSportFilter();
@@ -118,8 +123,9 @@ export function PlanMobileDayStack({
     : resolvedSportRows;
 
   const hasAnyDayNotes = days.some((d) => d.dayNote);
-  const showNoteRow = hasAnyDayNotes;
-  const showEventsRow = days.some((d) => (d.seasonEvents?.length ?? 0) > 0);
+  const showNoteRow = showNotes && hasAnyDayNotes;
+  const showEventsRow =
+    showEvents && days.some((d) => (d.seasonEvents?.length ?? 0) > 0);
   const showRecoveryRow = days.some((d) => dayHasRecovery(d.workouts));
 
   return (
@@ -131,7 +137,9 @@ export function PlanMobileDayStack({
             w.type !== WorkoutType.RECOVERY &&
             !w.isRace,
         );
-        const raceWorkouts = day.workouts.filter((w) => w.isRace);
+        const raceWorkouts = collapseTriathlonRaceWorkouts(
+          day.workouts.filter((w) => w.isRace),
+        );
         const hasListWorkouts =
           trainingWorkouts.length > 0 || raceWorkouts.length > 0;
         const hasWorkoutContent =
@@ -253,7 +261,7 @@ export function PlanMobileDayStack({
               )}
             </div>
             {showEventsRow && (day.seasonEvents?.length ?? 0) > 0 && (
-              <div className="border-b border-border/60 bg-amber-200/90 px-3 py-2.5 dark:bg-amber-500/25">
+              <div className="border-b border-border/60 px-3 py-2.5">
                 <SeasonEventChips
                   events={day.seasonEvents ?? []}
                   variant="note"
@@ -262,12 +270,7 @@ export function PlanMobileDayStack({
               </div>
             )}
             {showNoteRow && coachEditable && (
-              <div
-                className={cn(
-                  "border-b border-border/60 px-3 py-2",
-                  day.dayNote && "bg-yellow-100 dark:bg-yellow-500/20",
-                )}
-              >
+              <div className="border-b border-border/60 px-3 py-2">
                 <DayNoteSection
                   dateKey={day.dateKey}
                   note={day.dayNote}

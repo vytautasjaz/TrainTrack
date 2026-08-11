@@ -57,7 +57,7 @@ function plannedSwimDurationMin(
 }
 
 export function sumSportWeekTotals(
-  days: PlanDay[],
+  days: { workouts: PlanDay['workouts'] }[],
   sport: WorkoutType,
   options?: WeekTotalsOptions,
 ): SportWeekTotals {

@@ -35,7 +35,7 @@ export function DraggableWorkoutItem({
       className={planWorkoutItemShellClass(
         workout,
         cn(
-          'relative w-full min-w-0 overflow-hidden',
+          'relative w-full min-w-0',
           'group/card',
           tableCell && PLAN_WORKOUT_ITEM_CLASS,
           isDragging && 'opacity-40',

@@ -8,6 +8,7 @@ import { PriorityBadge } from '@/components/races/priority-badge'
 import { ItemActions } from '@/components/ui/item-actions'
 import { deleteRace } from '@/app/actions/workouts'
 import { cn } from '@/lib/utils'
+import { TABLE_HEADER_MUTED, TABLE_SHELL } from '@/lib/table-styles'
 
 type PastRaceTableProps = {
   races: SeasonRace[]
@@ -26,7 +27,7 @@ export function PastRaceTable({ races, className }: PastRaceTableProps) {
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-[6px] border border-border/70 bg-muted/20">
+      <div className={cn(TABLE_SHELL, 'bg-muted/20')}>
         {races.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm text-muted-foreground">
             No past races yet.
@@ -35,7 +36,7 @@ export function PastRaceTable({ races, className }: PastRaceTableProps) {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[36rem] border-collapse text-left text-sm">
               <thead>
-                <tr className="border-b border-border/50 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <tr className={TABLE_HEADER_MUTED}>
                   <th className="px-4 py-3 font-semibold">Race</th>
                   <th className="px-3 py-3 font-semibold">Date</th>
                   <th className="px-3 py-3 font-semibold">Result</th>

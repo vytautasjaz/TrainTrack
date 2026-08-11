@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { RaceOutcome, RaceType } from '@prisma/client'
 import { Flag } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -10,8 +10,10 @@ import { Textarea } from '@/components/ui/textarea'
 import { logRaceOutcome } from '@/app/actions/workouts'
 import { RaceLegsResultFields } from '@/components/races/race-legs-fields'
 import { RaceStravaLinkPicker } from '@/components/races/race-strava-link-picker'
+import { PersonalBestUpdateModal } from '@/components/races/personal-best-update-modal'
 import { RACE_TYPE_LABELS } from '@/lib/constants'
 import { raceUsesLegs, type RaceLegView } from '@/lib/race-legs'
+import type { PersonalBestSuggestion } from '@/lib/personal-bests'
 import { cn } from '@/lib/utils'
 
 export type PendingRaceFollowUp = {
@@ -34,6 +36,9 @@ type AthleteRaceFollowUpProps = {
 type OutcomeChoice = 'FINISHED' | 'DID_NOT_START' | 'DNF'
 
 export function AthleteRaceFollowUp({ races, className }: AthleteRaceFollowUpProps) {
+  const [pbSuggestion, setPbSuggestion] = useState<PersonalBestSuggestion | null>(null)
+  const [pbOpen, setPbOpen] = useState(false)
+
   if (races.length === 0) return null
 
   return (
@@ -46,15 +51,34 @@ export function AthleteRaceFollowUp({ races, className }: AthleteRaceFollowUpPro
       </div>
       <div className="space-y-3">
         {races.map((race) => (
-          <RaceFollowUpCard key={race.id} race={race} />
+          <RaceFollowUpCard
+            key={race.id}
+            race={race}
+            onPbSuggestion={(suggestion) => {
+              setPbSuggestion(suggestion)
+              setPbOpen(true)
+            }}
+          />
         ))}
       </div>
+      <PersonalBestUpdateModal
+        suggestion={pbSuggestion}
+        open={pbOpen}
+        onOpenChange={setPbOpen}
+      />
     </section>
   )
 }
 
-function RaceFollowUpCard({ race }: { race: PendingRaceFollowUp }) {
+function RaceFollowUpCard({
+  race,
+  onPbSuggestion,
+}: {
+  race: PendingRaceFollowUp
+  onPbSuggestion: (suggestion: PersonalBestSuggestion) => void
+}) {
   const [choice, setChoice] = useState<OutcomeChoice>('FINISHED')
+  const [pending, startTransition] = useTransition()
   const isTri = raceUsesLegs(race.type as RaceType)
   const legs = race.legs ?? []
 
@@ -65,6 +89,15 @@ function RaceFollowUpCard({ race }: { race: PendingRaceFollowUp }) {
     year: 'numeric',
     timeZone: 'UTC',
   })
+
+  function submit(formData: FormData) {
+    startTransition(async () => {
+      const result = await logRaceOutcome(formData)
+      if (result?.pbSuggestion) {
+        onPbSuggestion(result.pbSuggestion)
+      }
+    })
+  }
 
   return (
     <div className="rounded-[6px] border border-border bg-card p-4 sm:p-5">
@@ -110,7 +143,7 @@ function RaceFollowUpCard({ race }: { race: PendingRaceFollowUp }) {
         ))}
       </div>
 
-      <form action={logRaceOutcome} className="mt-4 space-y-3">
+      <form action={submit} className="mt-4 space-y-3">
         <input type="hidden" name="raceId" value={race.id} />
         <input type="hidden" name="outcome" value={choice} />
 
@@ -161,17 +194,18 @@ function RaceFollowUpCard({ race }: { race: PendingRaceFollowUp }) {
         <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           <Button
             type="submit"
-            formAction={async (formData) => {
+            formAction={(formData) => {
               formData.set('outcome', RaceOutcome.DISMISSED)
-              await logRaceOutcome(formData)
+              submit(formData)
             }}
             variant="ghost"
             size="sm"
+            disabled={pending}
           >
             Dismiss
           </Button>
-          <Button type="submit" variant="secondary" size="sm">
-            Save
+          <Button type="submit" variant="secondary" size="sm" disabled={pending}>
+            {pending ? 'Saving…' : 'Save'}
           </Button>
         </div>
       </form>

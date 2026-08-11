@@ -44,9 +44,21 @@ export async function getAthleteDashboard(athleteId: string) {
   const weekEnd = endOfWeekDateOnly(today)
   const monthStart = startOfMonthDateOnly(today)
   const monthEnd = endOfMonthDateOnly(today)
+  /** Current week ±4 weeks for dashboard week-stats navigation. */
+  const weekStatsWindowStart = addDateOnlyDays(weekStart, -28)
+  const weekStatsWindowEnd = addDateOnlyDays(weekEnd, 28)
 
-  const [todayWorkouts, upcomingWorkouts, nextRace, pendingRaceFollowUpsRaw, weekWorkouts, monthWorkouts, weekRaces, monthRaces] =
-    await Promise.all([
+  const [
+    todayWorkouts,
+    upcomingWorkouts,
+    nextRace,
+    pendingRaceFollowUpsRaw,
+    weekStatsWindowWorkouts,
+    monthWorkouts,
+    weekRaces,
+    monthRaces,
+    athletePlan,
+  ] = await Promise.all([
       prisma.workout.findMany({
         where: { athleteId, date: today },
         include: WORKOUT_PLAN_INCLUDE,
@@ -59,13 +71,19 @@ export async function getAthleteDashboard(athleteId: string) {
         take: 5,
       }),
       prisma.race.findFirst({
-        where: { athleteId, intent: 'PLANNED', date: { gte: today } },
+        where: {
+          athleteId,
+          intent: 'PLANNED',
+          resultsLogOnly: false,
+          date: { gte: today },
+        },
         orderBy: { date: 'asc' },
       }),
       prisma.race.findMany({
         where: {
           athleteId,
           intent: 'PLANNED',
+          resultsLogOnly: false,
           date: { lt: today },
           outcome: null,
         },
@@ -76,8 +94,12 @@ export async function getAthleteDashboard(athleteId: string) {
         take: 5,
       }),
       prisma.workout.findMany({
-        where: { athleteId, date: { gte: weekStart, lte: weekEnd } },
+        where: {
+          athleteId,
+          date: { gte: weekStatsWindowStart, lte: weekStatsWindowEnd },
+        },
         include: WORKOUT_PLAN_INCLUDE,
+        orderBy: WORKOUT_LIST_ORDER_BY,
       }),
       prisma.workout.findMany({
         where: {
@@ -89,7 +111,15 @@ export async function getAthleteDashboard(athleteId: string) {
       }),
       getRacesForRange(athleteId, weekStart, weekEnd),
       getRacesForRange(athleteId, monthStart, monthEnd),
+      prisma.athlete.findUnique({
+        where: { id: athleteId },
+        select: { planSportRows: true, swimCssSecPer100m: true },
+      }),
     ])
+
+  const weekWorkouts = weekStatsWindowWorkouts.filter(
+    (w) => w.date >= weekStart && w.date <= weekEnd,
+  )
 
   const { ensureTriathlonLegsForRace } = await import('@/lib/strava/sync')
   const pendingRaceFollowUps = await Promise.all(
@@ -178,6 +208,10 @@ export async function getAthleteDashboard(athleteId: string) {
     monthDuration,
     monthWorkoutsCompleted: monthWorkouts.length,
     unreadCoachReplies: await getUnreadCoachReplies(athleteId),
+    weekStatsWindowWorkouts,
+    weekStatsAnchorStartKey: toDateKey(weekStart),
+    planSportRows: athletePlan?.planSportRows ?? [],
+    swimCssSecPer100m: athletePlan?.swimCssSecPer100m ?? null,
   }
 }
 
@@ -246,6 +280,7 @@ export async function getUnreadCoachFeedbackCount(coachId: string) {
       where: {
         workout: { athlete: athleteWhere },
         athleteNotes: { not: null },
+        athleteNotesPrivate: false,
         feedbackDismissedAt: null,
       },
     }),
@@ -328,6 +363,7 @@ export async function getCoachDashboard(coachId: string) {
       where: {
         workout: { athlete: athleteWhere },
         athleteNotes: { not: null },
+        athleteNotesPrivate: false,
         feedbackDismissedAt: null,
       },
       include: {
@@ -394,6 +430,7 @@ export async function getRacesForRange(athleteId: string, start: Date, end: Date
     where: {
       athleteId,
       intent: 'PLANNED',
+      resultsLogOnly: false,
       date: { gte: start, lte: end },
     },
     orderBy: [{ date: 'asc' }, { name: 'asc' }],
@@ -529,6 +566,7 @@ export async function getCalendarRaceEvents(athleteId: string, from: Date) {
     where: {
       athleteId,
       intent: 'PLANNED',
+      resultsLogOnly: false,
       date: { gte: from },
     },
     orderBy: [{ date: 'asc' }, { name: 'asc' }],

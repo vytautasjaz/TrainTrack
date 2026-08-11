@@ -1,17 +1,14 @@
 import { notFound, redirect } from 'next/navigation'
-import { RaceIntent, RaceOutcome } from '@prisma/client'
+import { RaceIntent } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { getSession, resolveAthleteId, isCoach, athleteOwnedByCoachWhere } from '@/lib/session'
+import { getSession, resolveAthleteId, isCoachView, athleteOwnedByCoachWhere } from '@/lib/session'
 import { Button } from '@/components/ui/button'
 import { BackButton } from '@/components/ui/back-button'
-import { FormField } from '@/components/ui/form-field'
-import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
 import { PageHeader } from '@/components/ui/page-header'
 import { raceUsesLegs } from '@/lib/race-legs'
-import { setRaceIntent, logRaceOutcome } from '@/app/actions/workouts'
-import { RaceLegsResultFields } from '@/components/races/race-legs-fields'
+import { setRaceIntent } from '@/app/actions/workouts'
 import { RaceStravaLinkPicker } from '@/components/races/race-strava-link-picker'
+import { RaceResultForm } from '@/components/races/race-result-form'
 import { EditRaceDetailsForm } from '@/components/races/edit-race-details-form'
 
 type EditRacePageProps = {
@@ -34,7 +31,7 @@ export default async function EditRacePage({
       : '/season'
 
   const race =
-    isCoach(session)
+    isCoachView(session)
       ? await prisma.race.findFirst({
           where: { id, athlete: athleteOwnedByCoachWhere(session.userId) },
           include: { legs: { orderBy: { sortOrder: 'asc' } } },
@@ -123,49 +120,16 @@ export default async function EditRacePage({
             )}
           </div>
         ) : null}
-        <form action={logRaceOutcome} className="space-y-3">
-          <input type="hidden" name="raceId" value={race.id} />
-          <FormField label="Outcome">
-            <Select
-              name="outcome"
-              defaultValue={
-                race.outcome && race.outcome !== 'DISMISSED'
-                  ? race.outcome
-                  : 'FINISHED'
-              }
-              required
-            >
-              <option value={RaceOutcome.FINISHED}>Finished</option>
-              <option value={RaceOutcome.DID_NOT_START}>Did not start</option>
-              <option value={RaceOutcome.DNF}>DNF</option>
-            </Select>
-          </FormField>
-          <FormField label="Overall result" hint="e.g. 3:27:16">
-            <Input
-              name="resultTime"
-              defaultValue={race.resultTime ?? ''}
-              placeholder="3:27:16"
-              autoComplete="off"
-            />
-          </FormField>
-          {raceUsesLegs(race.type) && race.legs.length > 0 ? (
-            <RaceLegsResultFields
-              raceId={race.id}
-              legs={race.legs}
-              allowStravaLink={session.hasAthlete}
-            />
-          ) : null}
-          <FormField label="Notes" hint="Optional">
-            <Input
-              name="resultNotes"
-              defaultValue={race.resultNotes ?? ''}
-              placeholder="How did it go?"
-            />
-          </FormField>
-          <Button type="submit" variant="secondary" size="sm">
-            Save result
-          </Button>
-        </form>
+
+        <RaceResultForm
+          raceId={race.id}
+          raceType={race.type}
+          outcome={race.outcome}
+          resultTime={race.resultTime}
+          resultNotes={race.resultNotes}
+          legs={race.legs}
+          allowStravaLink={session.hasAthlete}
+        />
 
         <div className="border-t border-border/60 pt-4">
           {isWatching ? (

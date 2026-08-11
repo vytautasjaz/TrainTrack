@@ -44,6 +44,7 @@ import { smartBlockAccentDisplay } from '@/lib/workout-builder/smart-blocks'
 import { hasStructureContent } from '@/lib/workout-builder/utils'
 import { hasSwimStructureContent } from '@/lib/swim-workout/calculations'
 import { getSportEditorConfig } from '@/lib/workout-editor/types'
+import { getSportHeroGradientClass } from '@/lib/workout-editor/sport-theme'
 import { parseDateOnly } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
@@ -55,25 +56,6 @@ function formatWorkoutDate(dateKey: string) {
     year: 'numeric',
     timeZone: 'UTC',
   })
-}
-
-function heroGradientClass(sportType: WorkoutType) {
-  switch (sportType) {
-    case WorkoutType.RUN:
-      return 'from-white to-orange-100'
-    case WorkoutType.BIKE:
-      return 'from-white to-sky-100'
-    case WorkoutType.SWIM:
-      return 'from-white to-cyan-100'
-    case WorkoutType.STRENGTH:
-      return 'from-white to-emerald-100'
-    case WorkoutType.HYROX:
-      return 'from-white to-rose-100'
-    case WorkoutType.TRIATHLON:
-      return 'from-white to-violet-100'
-    default:
-      return 'from-white to-slate-100'
-  }
 }
 
 function splitDistanceDisplay(distance: string): { value: string; unit: string } {
@@ -339,6 +321,13 @@ export function AthleteWorkoutDetailCard({
         })
       : null
 
+  const fullDescription = workout.description?.trim() || null
+  /** Strength / notes workouts store the session in description — show full text, not just first line. */
+  const showDescriptionDetails =
+    Boolean(fullDescription) &&
+    !hasSwimStructure &&
+    !(structureDisplay && structureDisplay.blocks.length > 0)
+
   const dateLabel = formatWorkoutDate(workout.dateKey)
   const showMetricsRow =
     Boolean(intensityLabel) || distanceOnCard || durationOnCard
@@ -348,12 +337,12 @@ export function AthleteWorkoutDetailCard({
       <div
         className={cn(
           'relative -mx-5 -mt-3 rounded-none border-0 border-b border-black/20 bg-gradient-to-b px-5 pb-6 pt-5',
-          heroGradientClass(workout.type),
+          getSportHeroGradientClass(workout.type),
         )}
       >
         <div className="absolute right-3 top-3 z-10 flex items-center gap-1 sm:right-4">
           {stravaSynced ? (
-            <StravaSyncedIndicator workout={workout} variant="mark" size="xs" />
+            <StravaSyncedIndicator workout={workout} variant="wordmark" size="xs" />
           ) : null}
           {statusKind && statusKind !== 'planned' ? (
             <WorkoutStatusIcon kind={statusKind} size="xs" />
@@ -454,7 +443,7 @@ export function AthleteWorkoutDetailCard({
             <h2 className="text-[17px] font-semibold leading-snug text-[#111827]">
               {workout.title}
             </h2>
-            {subtitle ? (
+            {subtitle && !showDescriptionDetails ? (
               <p className="text-[13px] leading-snug text-[#6B7280]">{subtitle}</p>
             ) : null}
           </div>
@@ -547,14 +536,26 @@ export function AthleteWorkoutDetailCard({
             ))}
           </div>
         </section>
-      ) : workout.description?.trim() && !subtitle ? (
-        <p className="text-sm leading-relaxed whitespace-pre-wrap">{workout.description.trim()}</p>
+      ) : showDescriptionDetails && fullDescription ? (
+        <section className="space-y-1.5 pt-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Workout Details
+          </p>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+            {fullDescription}
+          </p>
+        </section>
       ) : null}
 
       {workout.coachNotes?.trim() ? (
         <section className="space-y-1">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Coach notes
+            {workout.coachNotesPrivate ? (
+              <span className="ml-1.5 font-medium normal-case tracking-normal">
+                · private
+              </span>
+            ) : null}
           </p>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
             {workout.coachNotes.trim()}

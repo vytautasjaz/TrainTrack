@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { getSession, isCoach} from '@/lib/session'
+import { getSession, isCoachView} from '@/lib/session'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { FormField } from '@/components/ui/form-field'
+import { PrivateNoteToggle } from '@/components/ui/private-note-toggle'
 import { completeWorkout, deleteWorkout, updateWorkout } from '@/app/actions/workouts'
 import { WORKOUT_PLAN_INCLUDE } from '@/lib/queries'
 import { WorkoutStatus } from '@prisma/client'
@@ -46,7 +47,11 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
   if (!workout) notFound()
 
   const result = workout.result
-  const coachView = isCoach(session)
+  const coachView = isCoachView(session)
+  const visibleCoachNotes =
+    coachView || !workout.coachNotesPrivate ? workout.coachNotes : null
+  const visibleAthleteNotes =
+    !coachView || !result?.athleteNotesPrivate ? result?.athleteNotes : null
   const dateValue = workout.date.toISOString().slice(0, 10)
   const structure = parseStructure(workout.structure)
 
@@ -158,6 +163,12 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
                 className="sm:col-span-2"
                 rows={2}
               />
+              <PrivateNoteToggle
+                hideFrom="athlete"
+                name="coachNotesPrivate"
+                defaultChecked={workout.coachNotesPrivate}
+                className="sm:col-span-2"
+              />
               <Button type="submit" variant="secondary" size="sm" className="sm:col-span-2 w-fit">
                 Save changes
               </Button>
@@ -176,8 +187,13 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
             Target: {formatDistance(workout.plannedDistance)} ·{' '}
             {formatDuration(workout.plannedDuration)}
           </p>
-          {workout.coachNotes && (
-            <p className="rounded-2xl bg-muted/60 p-3 text-sm">Coach: {workout.coachNotes}</p>
+          {visibleCoachNotes && (
+            <p className="rounded-2xl bg-muted/60 p-3 text-sm">
+              Coach: {visibleCoachNotes}
+              {coachView && workout.coachNotesPrivate ? (
+                <span className="ml-2 text-xs text-muted-foreground">(private)</span>
+              ) : null}
+            </p>
           )}
         </CardContent>
       </Card>
@@ -207,7 +223,16 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
               </div>
             </div>
             {result.rpe != null && <p>RPE: {result.rpe}/10</p>}
-            {result.athleteNotes && <p className="italic">&ldquo;{result.athleteNotes}&rdquo;</p>}
+            {visibleAthleteNotes && (
+              <p className="italic">
+                &ldquo;{visibleAthleteNotes}&rdquo;
+                {!coachView && result?.athleteNotesPrivate ? (
+                  <span className="ml-2 not-italic text-xs text-muted-foreground">
+                    (private)
+                  </span>
+                ) : null}
+              </p>
+            )}
             {result.coachReply && <CoachReplyBlock reply={result.coachReply} />}
           </CardContent>
         </Card>
@@ -284,6 +309,12 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
                   defaultValue={result?.athleteNotes ?? ''}
                   rows={3}
                   placeholder="How did it feel?"
+                />
+                <PrivateNoteToggle
+                  hideFrom="coach"
+                  name="athleteNotesPrivate"
+                  defaultChecked={Boolean(result?.athleteNotesPrivate)}
+                  className="mt-2"
                 />
               </FormField>
               <Button type="submit" variant="secondary" size="sm">

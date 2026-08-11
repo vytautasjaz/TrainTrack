@@ -1,7 +1,7 @@
 'use server'
 
 import { eachDayOfInterval } from 'date-fns'
-import { requireSession, resolveAthleteId } from '@/lib/session'
+import { requireSession, resolveAthleteId, isCoachView } from '@/lib/session'
 import {
   getDayNotesForRange,
   getPlanWorkoutsInRange,
@@ -9,7 +9,10 @@ import {
   groupDayNotesByDate,
   groupWorkoutsByDate,
 } from '@/lib/queries'
-import { toPlanWorkoutDetail } from '@/lib/plan-workout'
+import {
+  toPlanWorkoutDetail,
+  redactPlanWorkoutNotesForViewer,
+} from '@/lib/plan-workout'
 import { mergeRacesIntoByDate } from '@/lib/races'
 import { buildPlanTableDays } from '@/lib/plan-week'
 import { parseDateOnly } from '@/lib/dates'
@@ -51,8 +54,14 @@ export async function fetchTrainingTableDays(
 
   const rawWorkouts = await getPlanWorkoutsInRange(athleteId, start, end)
   const byDateRaw = groupWorkoutsByDate(rawWorkouts)
+  const noteViewer = isCoachView(session) ? 'coach' : 'athlete'
   const byDateWorkouts = new Map(
-    [...byDateRaw.entries()].map(([key, list]) => [key, list.map(toPlanWorkoutDetail)]),
+    [...byDateRaw.entries()].map(([key, list]) => [
+      key,
+      list.map((w) =>
+        redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), noteViewer),
+      ),
+    ]),
   )
   const races = await getRacesForRange(athleteId, start, end)
   const byDate = mergeRacesIntoByDate(byDateWorkouts, races)

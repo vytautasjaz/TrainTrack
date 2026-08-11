@@ -35,7 +35,7 @@ function AthleteWorkoutItem({
   }
 
   return (
-    <div className="group/card relative w-full min-w-0 overflow-hidden">
+    <div className="group/card relative w-full min-w-0">
       <WorkoutModalTrigger
         workout={workout}
         isCoach={false}
@@ -133,8 +133,8 @@ export function AddWorkoutCell({
     tableCell
       ? 'min-h-[5rem] px-1 py-2 landscape:max-lg:min-h-0 landscape:max-lg:px-0.5 landscape:max-lg:py-0.5 lg:min-h-[5rem]'
       : 'min-h-[4rem] px-1 py-2',
-    canDrop && isOver && 'bg-brand/10 ring-2 ring-inset ring-brand/30',
-    canDrop && !isOver && isDraggingSomething && 'ring-1 ring-inset ring-brand/15',
+    canDrop && isOver && 'bg-muted ring-2 ring-inset ring-foreground/25',
+    canDrop && !isOver && isDraggingSomething && 'ring-1 ring-inset ring-foreground/15',
   )
 
   if (hasWorkouts) {
@@ -178,12 +178,21 @@ export function AddWorkoutCell({
           layout === 'table'
             ? 'h-full min-h-[4.5rem] landscape:max-lg:min-h-[2.5rem] landscape:max-lg:py-2 lg:min-h-[5rem]'
             : 'min-h-[3.5rem]',
-          canDrop && isOver && 'bg-brand/10 ring-2 ring-inset ring-brand/30',
-          canDrop && !isOver && isDraggingSomething && 'ring-1 ring-inset ring-brand/15',
+          canDrop && isOver && 'bg-muted ring-2 ring-inset ring-foreground/25',
+          canDrop && !isOver && isDraggingSomething && 'ring-1 ring-inset ring-foreground/15',
         )}
         aria-label={`Add ${sportLabel} workout on ${date}`}
       >
-        <Plus className="h-5 w-5 shrink-0 text-muted-foreground/20 transition-colors group-hover:text-brand/40" />
+        <Plus
+          strokeWidth={1.5}
+          className={cn(
+            'h-5 w-5 shrink-0 transition-all',
+            tableCell
+              ? // Match month view: visible on touch; on hover devices only after cell hover
+                'text-muted-foreground/50 group-hover:text-muted-foreground opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:group-focus-within:opacity-100'
+              : 'text-muted-foreground/20 group-hover:text-muted-foreground/60',
+          )}
+        />
       </button>
       <WorkoutEditorDialog open={open} onOpenChange={setOpen} date={date} sport={sport} />
     </>
