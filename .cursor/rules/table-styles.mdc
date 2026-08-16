@@ -1,27 +1,33 @@
 ---
-description: Shared table header and shell chrome — square frames, consistent borders
+description: Shared table chrome — calendar grids vs editorial data tables
 globs: src/components/**/*.{tsx,ts}, src/app/**/*.{tsx,ts,css}
 alwaysApply: false
 ---
 
 # Table chrome
 
-Use shared table chrome from `src/lib/table-styles.ts` (CSS in `globals.css`). Do not invent one-off table frames or header backgrounds.
+Use shared classes from `src/lib/table-styles.ts` (CSS in `globals.css`). Do not invent one-off table frames or header backgrounds.
 
-## Variants
+## Two families
 
-| Variant | Classes | When |
+| Family | Classes | When |
 |---|---|---|
-| **Shell** | `TABLE_SHELL` | Outer wrapper around **div** grids (Month calendar) |
-| **Frame** | `TABLE_FRAME` | Border on the **`<table>`** itself (Week plan) — avoids wrapper/cell gaps |
-| **Primary header** | `TABLE_HEADER`, `TABLE_HEADER_CELL*`, `TABLE_HEADER_VLINE` | Week plan, Month calendar, Season planner |
-| **Sub header** | `TABLE_HEADER_SUB` | Secondary strip under a primary header |
-| **Muted header** | `TABLE_HEADER_MUTED` | Sparse list tables (race lists, results, personal bests) |
+| **Calendar grids** | `TABLE_SHELL`, `TABLE_FRAME`, `TABLE_HEADER`, `TABLE_HEADER_*`, `TABLE_BODY` | Week plan, Month calendar, Season planner **timeline** |
+| **Editorial data tables** | `DATA_TABLE_SHELL`, `DATA_TABLE` (+ `data-density`), `DATA_CELL_*`, `DATA_NUM` | Races, Results, Personal bests, sparse list tables |
 
-## Rules
+## Data table rules
 
-- Table frames are **square** (`rounded-none`) — never rounded corners on table chrome.
-- Week plan tables use `TABLE_FRAME` on `<table>`, not a bordered wrapper around the table.
-- Do not put `border-r` on the last day column — the frame/shell is the outer edge.
-- Prefer importing constants from `@/lib/table-styles` over duplicating border strings.
-- Add new variants only in `globals.css` + `table-styles.ts`.
+- Continuous surface: white sheet (`#FFFFFF`) on white page — **no** heavy outer box, **no** vertical cell borders; hierarchy from horizontal dividers only
+- Header: Manrope 11–12px / 600 / uppercase / `letter-spacing: 0.04em` / secondary gray / **white** bg
+- Rows: white; dividers `#E5E7EB`; hover `#FAFAF9`; selected `rgba(244,81,30,.05)` + orange left edge
+- Densities: comfortable ~56–64px / compact ~48–52px
+- Primary cell text vs secondary hierarchy; numbers use `DATA_NUM` (`tabular-nums` + semibold)
+- Status → `StatusPill`; Priority → `PriorityBadge`; Sport → `SportDot` / icon + label (not full-row color)
+- Poster typography (`TablePosterHeading`) goes **above** the table, never inside cells
+
+## Calendar grid rules
+
+- Frames are **square** (`rounded-none`)
+- Week plan uses `TABLE_FRAME` on `<table>`
+- Prefer importing constants over duplicating border strings
+- Add new variants only in `globals.css` + `table-styles.ts`

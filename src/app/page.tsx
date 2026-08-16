@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Zap } from 'lucide-react'
+import { TrainTrackAppIcon } from '@/components/brand/traintrack-logo'
 
 const demoEnabled =
   process.env.NODE_ENV === 'development' || process.env.ALLOW_DEMO_LOGIN === '1'
@@ -87,10 +87,13 @@ export default async function HomePage({
   return (
     <div className="app-gradient flex min-h-dvh flex-col items-center justify-center px-5 py-8 sm:px-6">
       <div className="mb-8 w-full max-w-md text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[6px] bg-foreground text-background sm:mb-5 sm:h-16 sm:w-16">
-          <Zap className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2.25} />
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">TrainTrack</h1>
+        <TrainTrackAppIcon
+          className="mx-auto mb-4 h-14 w-14 sm:mb-5 sm:h-16 sm:w-16"
+          aria-label="TrainTrack"
+        />
+        <h1 className="traintrack-wordmark text-3xl tracking-[0.075em] sm:text-4xl">
+          TRAINTRACK
+        </h1>
         <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground sm:mt-3">
           Plan training, log workouts, and track progress — built for coaches and athletes.
         </p>

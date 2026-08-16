@@ -74,8 +74,62 @@ function stopEditEvent(e: React.SyntheticEvent) {
   e.stopPropagation()
 }
 
-function contentWidthCh(value: string, min = 2) {
-  return `${Math.max(value.length, min)}ch`
+const fieldChrome =
+  'appearance-none bg-transparent outline-none rounded-[2px] cursor-text'
+
+type MetricInputProps = {
+  value: string
+  ariaLabel: string
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']
+  onChange: (value: string) => void
+  onCommit: () => void
+  className?: string
+  minChars?: number
+}
+
+function MetricInput({
+  value,
+  ariaLabel,
+  inputMode,
+  onChange,
+  onCommit,
+  className,
+  minChars = 2,
+}: MetricInputProps) {
+  const display = value || '0'
+  return (
+    <input
+      type="text"
+      draggable={false}
+      inputMode={inputMode}
+      value={value}
+      size={Math.max(display.length, minChars)}
+      aria-label={ariaLabel}
+      onChange={(e) => onChange(e.target.value)}
+      onBlur={onCommit}
+      onMouseDown={stopEditEvent}
+      onPointerDown={stopEditEvent}
+      onClick={stopEditEvent}
+      onDoubleClick={stopEditEvent}
+      onDragStart={(e) => e.preventDefault()}
+      onKeyDown={(e) => {
+        e.stopPropagation()
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          ;(e.target as HTMLInputElement).blur()
+        }
+      }}
+      className={cn(
+        fieldChrome,
+        // Content-sized width (no ch guesswork); ring instead of border so focus
+        // chrome doesn't push the unit away.
+        'm-0 w-auto min-h-0 shrink-0 border-0 p-0 tabular-nums',
+        '[field-sizing:content]',
+        'ring-1 ring-inset ring-transparent hover:ring-[#D1D5DB]/90 focus:ring-[#9CA3AF]',
+        className,
+      )}
+    />
+  )
 }
 
 type PlanWorkoutCardInlineEditProps = {
@@ -93,6 +147,8 @@ type PlanWorkoutCardInlineEditProps = {
   gapClassName: string
   /** Title row only — keeps actions aligned like the read-only card. */
   titleActions?: ReactNode
+  /** e.g. Self-added badge under title on dense cards */
+  belowTitle?: ReactNode
 }
 
 export function PlanWorkoutCardInlineEdit({
@@ -109,6 +165,7 @@ export function PlanWorkoutCardInlineEdit({
   subtitleClassName,
   gapClassName,
   titleActions,
+  belowTitle,
 }: PlanWorkoutCardInlineEditProps) {
   const durationUnit = resolveDurationUnit(workout)
   const isSwim = workout.type === WorkoutType.SWIM
@@ -204,9 +261,6 @@ export function PlanWorkoutCardInlineEdit({
     save({ workoutId: workout.id, plannedDuration: normalized })
   }
 
-  const inputShell =
-    'm-0 min-h-0 min-w-0 max-w-full appearance-none bg-transparent p-0 outline-none rounded-sm border border-transparent hover:border-[#E5E7EB]/80 focus:border-brand/40'
-
   const heroIsDistance = !hero || hero.kind === 'distance'
   const heroValue = heroIsDistance ? distance : duration
   const setHeroValue = heroIsDistance ? setDistance : setDuration
@@ -220,58 +274,66 @@ export function PlanWorkoutCardInlineEdit({
       data-inline-edit
       className={cn(
         'flex min-w-0 flex-1 flex-col',
-        showSubtitle && subtitle ? gapClassName : 'gap-0',
+        (belowTitle || (showSubtitle && subtitle)) ? gapClassName : 'gap-0',
         pending && 'opacity-80',
       )}
       onMouseDown={stopEditEvent}
       onClick={stopEditEvent}
       onPointerDown={stopEditEvent}
+      onDoubleClick={stopEditEvent}
     >
       <div className="flex min-w-0 items-start justify-between gap-0.5">
         <input
           type="text"
+          draggable={false}
           value={title}
           aria-label="Workout title"
           onChange={(e) => setTitle(e.target.value)}
           onBlur={commitTitle}
+          onMouseDown={stopEditEvent}
+          onPointerDown={stopEditEvent}
+          onClick={stopEditEvent}
+          onDoubleClick={stopEditEvent}
+          onDragStart={(e) => e.preventDefault()}
           onKeyDown={(e) => {
+            e.stopPropagation()
             if (e.key === 'Enter') {
               e.preventDefault()
               ;(e.target as HTMLInputElement).blur()
             }
           }}
-          className={cn(inputShell, 'min-w-0 flex-1 truncate px-0', titleClassName)}
+          className={cn(
+            fieldChrome,
+            'm-0 min-h-0 min-w-0 flex-1 truncate px-0.5 py-px',
+            titleClassName,
+          )}
         />
         {titleActions}
       </div>
+
+      {belowTitle}
 
       {showSubtitle && subtitle ? (
         <p className={cn('truncate text-[#6B7280]', subtitleClassName)}>{subtitle}</p>
       ) : null}
 
       {hero || heroValue ? (
-        <div className={cn('flex items-baseline', heroPadClassName)}>
+        <div className={cn('flex min-w-0 items-baseline', heroPadClassName)}>
           {hero?.approximate ? (
-            <span className={cn('font-medium text-[#6B7280]', unitClassName)}>~</span>
+            <span className={cn('shrink-0 font-medium text-[#6B7280]', unitClassName)}>
+              ~
+            </span>
           ) : null}
-          <input
-            type="text"
-            inputMode={heroIsDistance ? 'decimal' : 'numeric'}
+          <MetricInput
             value={heroValue}
-            aria-label={heroIsDistance ? 'Planned distance' : 'Planned duration'}
-            onChange={(e) => setHeroValue(e.target.value)}
-            onBlur={commitHero}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                ;(e.target as HTMLInputElement).blur()
-              }
-            }}
-            style={{ width: contentWidthCh(heroValue || '0', 2) }}
-            className={cn(inputShell, 'px-0 tabular-nums', heroClassName)}
+            ariaLabel={heroIsDistance ? 'Planned distance' : 'Planned duration'}
+            inputMode={heroIsDistance ? 'decimal' : 'numeric'}
+            onChange={setHeroValue}
+            onCommit={commitHero}
+            className={heroClassName}
           />
           {heroUnitLabel ? (
-            <span className={unitClassName}>
+            <span className={cn('shrink-0', unitClassName)}>
               {'\u00a0'}
               {heroUnitLabel}
             </span>
@@ -280,53 +342,37 @@ export function PlanWorkoutCardInlineEdit({
       ) : null}
 
       {showDuration && durationLabel ? (
-        <div className={cn('flex items-center gap-1 text-[#6B7280]', durationClassName)}>
+        <div className={cn('flex min-w-0 items-center gap-1 text-[#6B7280]', durationClassName)}>
           {hero?.kind === 'distance' || (!hero && heroIsDistance) ? (
             <Clock className={cn(clockClassName, 'shrink-0')} aria-hidden />
           ) : null}
           {hero?.kind === 'distance' || (!hero && heroIsDistance) ? (
             <>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MetricInput
                 value={duration}
-                aria-label={
+                ariaLabel={
                   durationUnit === 'hours'
                     ? 'Planned duration (h:mm)'
                     : 'Planned duration (min)'
                 }
-                onChange={(e) => setDuration(e.target.value)}
-                onBlur={commitDuration}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    ;(e.target as HTMLInputElement).blur()
-                  }
-                }}
-                style={{ width: contentWidthCh(duration || '0', 2) }}
-                className={cn(inputShell, 'px-0 tabular-nums text-[#6B7280]', durationClassName)}
+                inputMode="numeric"
+                onChange={setDuration}
+                onCommit={commitDuration}
+                className={cn('text-[#6B7280]', durationClassName)}
               />
-              <span>{durationUnit === 'hours' ? 'h' : 'min'}</span>
+              <span className="shrink-0">{durationUnit === 'hours' ? 'h' : 'min'}</span>
             </>
           ) : (
             <>
-              <input
-                type="text"
-                inputMode="decimal"
+              <MetricInput
                 value={distance}
-                aria-label={`Planned distance (${distanceUnit})`}
-                onChange={(e) => setDistance(e.target.value)}
-                onBlur={commitDistance}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    ;(e.target as HTMLInputElement).blur()
-                  }
-                }}
-                style={{ width: contentWidthCh(distance || '0', 2) }}
-                className={cn(inputShell, 'px-0 tabular-nums text-[#6B7280]', durationClassName)}
+                ariaLabel={`Planned distance (${distanceUnit})`}
+                inputMode="decimal"
+                onChange={setDistance}
+                onCommit={commitDistance}
+                className={cn('text-[#6B7280]', durationClassName)}
               />
-              <span>{distanceUnit}</span>
+              <span className="shrink-0">{distanceUnit}</span>
             </>
           )}
         </div>

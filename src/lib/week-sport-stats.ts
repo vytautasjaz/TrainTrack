@@ -76,7 +76,7 @@ export function weekSportMetric(
     const sportWorkouts = workouts.filter(
       (w) => w.type === WorkoutType.STRENGTH && !w.isRace,
     )
-    const planned = sportWorkouts.length
+    const planned = sportWorkouts.filter((w) => !w.selfLogged).length
     const actual = sportWorkouts.filter(
       (w) => w.status === WorkoutStatus.COMPLETED,
     ).length
@@ -135,7 +135,7 @@ export function countWeekWorkouts(workouts: PlanWorkoutDetail[]): {
     (w) => w.type !== WorkoutType.REST && w.type !== WorkoutType.RECOVERY,
   )
   return {
-    planned: countable.length,
+    planned: countable.filter((w) => !w.selfLogged).length,
     completed: countable.filter((w) => w.status === WorkoutStatus.COMPLETED)
       .length,
   }
@@ -164,14 +164,28 @@ export function sportHasPlannedWork(
   workouts: PlanWorkoutDetail[],
 ): boolean {
   if (sport === WorkoutType.SWIM) {
-    return totals.distanceMeters > 0 || totals.durationMin > 0
+    return (
+      totals.distanceMeters > 0 ||
+      totals.durationMin > 0 ||
+      totals.actualDistanceMeters > 0 ||
+      totals.actualDurationMin > 0
+    )
   }
   if (sport === WorkoutType.STRENGTH) {
-    if (totals.durationMin > 0) return true
-    return workouts.some((w) => w.type === WorkoutType.STRENGTH && !w.isRace)
+    if (totals.durationMin > 0 || totals.actualDurationMin > 0) return true
+    return workouts.some(
+      (w) => w.type === WorkoutType.STRENGTH && !w.isRace && !w.selfLogged,
+    )
   }
-  if (totals.distanceKm > 0 || totals.durationMin > 0) return true
-  return workouts.some((w) => w.type === sport && !w.isRace)
+  if (
+    totals.distanceKm > 0 ||
+    totals.durationMin > 0 ||
+    totals.actualDistanceKm > 0 ||
+    totals.actualDurationMin > 0
+  ) {
+    return true
+  }
+  return workouts.some((w) => w.type === sport && !w.isRace && !w.selfLogged)
 }
 
 /** Sports that have planned work in the given week days. */

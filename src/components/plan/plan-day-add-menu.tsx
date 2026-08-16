@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CalendarRange, Flag, Plus } from "lucide-react";
+import { CalendarRange, Flag, Plus, StickyNote } from "lucide-react";
 import { RaceIntent, WorkoutType } from "@prisma/client";
 import { WorkoutEditorDialog } from "@/components/workout-editor/workout-editor-dialog";
 import { DayNoteModal } from "@/components/plan/day-note-modal";
@@ -10,7 +10,11 @@ import { SeasonEventModal } from "@/components/plan/season-event-modal";
 import { AddRaceModal } from "@/components/races/add-race-modal";
 import { WorkoutSportIcon } from "@/components/plan/workout-sport-icon";
 import { SPORT_ROW_ORDER, WORKOUT_TYPE_LABELS } from "@/lib/constants";
-import type { DayNoteData } from "@/lib/day-notes";
+import {
+  dayNoteKindHasContent,
+  type DayNoteData,
+  type DayNoteKind,
+} from "@/lib/day-notes";
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
 import { cn } from "@/lib/utils";
 
@@ -242,7 +246,21 @@ export function PlanDayAddMenu({
           )}
           {canShowNoteOption && (
             <MenuItem
-              label={dayNote ? "Edit note" : "Note"}
+              label={
+                dayNoteKindHasContent(dayNote, isCoach ? "coach" : "athlete")
+                  ? isCoach
+                    ? "Edit coach note"
+                    : "Edit athlete note"
+                  : isCoach
+                    ? "Coach note"
+                    : "Athlete note"
+              }
+              icon={
+                <StickyNote
+                  className="h-3.5 w-3.5 shrink-0 text-amber-700 dark:text-amber-400"
+                  strokeWidth={2}
+                />
+              }
               onClick={openNote}
             />
           )}
@@ -269,6 +287,7 @@ export function PlanDayAddMenu({
         <DayNoteModal
           dateKey={dateKey}
           note={dayNote}
+          noteKind={(isCoach ? "coach" : "athlete") as DayNoteKind}
           athleteId={athleteId}
           open={noteOpen}
           onOpenChange={setNoteOpen}

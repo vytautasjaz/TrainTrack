@@ -91,7 +91,7 @@ export function TrainingZonesTabs({ preferences, className }: TrainingZonesTabsP
   return (
     <section className={cn('card-elevated space-y-4 p-5', className)}>
       <div>
-        <SectionTitle>Training paces & zones</SectionTitle>
+        <SectionTitle variant="ui">Training paces & zones</SectionTitle>
         <Caption>
           Switch sport to edit run paces, bike speeds, swim CSS, or heart-rate limits.
         </Caption>

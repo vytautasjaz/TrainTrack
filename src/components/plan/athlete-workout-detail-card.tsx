@@ -7,6 +7,8 @@ import { Clock, ExternalLink, Link2, MoreHorizontal, Unlink, X } from 'lucide-re
 import { WorkoutType } from '@prisma/client'
 import { DialogClose } from '@/components/ui/dialog'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
+import { SelfAddedBadge } from '@/components/plan/self-added-badge'
+import { RescheduleBadge } from '@/components/plan/reschedule-badge'
 import { SwimWorkoutBuilder } from '@/components/swim-workout/swim-workout-builder'
 import {
   StravaDetachButton,
@@ -440,9 +442,13 @@ export function AthleteWorkoutDetailCard({
             className="mt-0.5 shrink-0"
           />
           <div className="flex min-w-0 flex-1 flex-col gap-1.5 pr-8">
-            <h2 className="text-[17px] font-semibold leading-snug text-[#111827]">
-              {workout.title}
-            </h2>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <h2 className="text-[17px] font-semibold leading-snug text-[#111827]">
+                {workout.title}
+              </h2>
+              {workout.selfLogged ? <SelfAddedBadge /> : null}
+              <RescheduleBadge workout={workout} />
+            </div>
             {subtitle && !showDescriptionDetails ? (
               <p className="text-[13px] leading-snug text-[#6B7280]">{subtitle}</p>
             ) : null}

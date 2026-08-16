@@ -8,7 +8,12 @@ import {
   type ReactNode,
 } from 'react'
 import { WorkoutType } from '@prisma/client'
-import { moveWorkoutToDate, createWorkoutFromTemplate, createTemplateFromWorkout } from '@/app/actions/workouts'
+import {
+  moveWorkoutToDate,
+  createWorkoutFromTemplate,
+  createTemplateFromWorkout,
+  rescheduleWorkout,
+} from '@/app/actions/workouts'
 
 export type DragPlanWorkout = {
   kind: 'plan'
@@ -32,7 +37,10 @@ export type DragWorkout = {
   dateKey: string
 }
 
+type PlanWeekDndMode = 'coach' | 'athlete'
+
 type PlanWeekDndContextValue = {
+  mode: PlanWeekDndMode
   dragItem: DragItem | null
   setDragItem: (item: DragItem | null) => void
   /** Plan-workout drag only (legacy shape). */
@@ -46,14 +54,26 @@ type PlanWeekDndContextValue = {
 
 const PlanWeekDndContext = createContext<PlanWeekDndContextValue | null>(null)
 
-export function PlanWeekDndProvider({ children }: { children: ReactNode }) {
+export function PlanWeekDndProvider({
+  children,
+  mode = 'coach',
+}: {
+  children: ReactNode
+  mode?: PlanWeekDndMode
+}) {
   const existing = useContext(PlanWeekDndContext)
   if (existing) return <>{children}</>
 
-  return <PlanWeekDndProviderInner>{children}</PlanWeekDndProviderInner>
+  return <PlanWeekDndProviderInner mode={mode}>{children}</PlanWeekDndProviderInner>
 }
 
-function PlanWeekDndProviderInner({ children }: { children: ReactNode }) {
+function PlanWeekDndProviderInner({
+  children,
+  mode,
+}: {
+  children: ReactNode
+  mode: PlanWeekDndMode
+}) {
   const [dragItem, setDragItem] = useState<DragItem | null>(null)
   const [isMoving, startTransition] = useTransition()
 
@@ -72,12 +92,20 @@ function PlanWeekDndProviderInner({ children }: { children: ReactNode }) {
 
   function moveWorkoutToCell(workoutId: string, dateKey: string) {
     startTransition(async () => {
-      await moveWorkoutToDate(workoutId, dateKey)
+      if (mode === 'athlete') {
+        const formData = new FormData()
+        formData.set('workoutId', workoutId)
+        formData.set('rescheduledDate', dateKey)
+        await rescheduleWorkout(formData)
+      } else {
+        await moveWorkoutToDate(workoutId, dateKey)
+      }
       setDragItem(null)
     })
   }
 
   function scheduleTemplateToCell(templateId: string, dateKey: string) {
+    if (mode !== 'coach') return
     startTransition(async () => {
       const formData = new FormData()
       formData.set('templateId', templateId)
@@ -88,18 +116,19 @@ function PlanWeekDndProviderInner({ children }: { children: ReactNode }) {
   }
 
   function savePlanWorkoutToLibrary(workoutId: string) {
+    if (mode !== 'coach') return
     startTransition(async () => {
       await createTemplateFromWorkout(workoutId)
       setDragItem(null)
     })
   }
 
-  const dragWorkout =
-    dragItem?.kind === 'plan' ? dragItem : null
+  const dragWorkout = dragItem?.kind === 'plan' ? dragItem : null
 
   return (
     <PlanWeekDndContext.Provider
       value={{
+        mode,
         dragItem,
         setDragItem,
         dragWorkout,

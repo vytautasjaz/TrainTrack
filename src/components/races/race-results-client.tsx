@@ -41,7 +41,15 @@ import {
 } from '@/lib/race-results'
 import { RACE_OUTCOME_LABELS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
-import { TABLE_HEADER_MUTED, TABLE_SHELL } from '@/lib/table-styles'
+import {
+  DATA_CELL_PRIMARY,
+  DATA_CELL_SECONDARY,
+  DATA_EMPTY,
+  DATA_NUM,
+  DATA_TABLE,
+  DATA_TABLE_SHELL,
+  DATA_TOOLBAR,
+} from '@/lib/table-styles'
 
 type RaceResultsClientProps = {
   results: RaceResultRow[]
@@ -182,16 +190,21 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
 
       {error ? <FormMessage variant="error">{error}</FormMessage> : null}
 
-      <div className={TABLE_SHELL}>
+      <div className={DATA_TABLE_SHELL}>
         {filtered.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-            {results.length === 0
-              ? 'No race results yet. Log a past race or finish a season-plan race.'
-              : 'No results match these filters.'}
-          </p>
+          <div className={DATA_EMPTY}>
+            <p className="text-sm">
+              {results.length === 0
+                ? 'No race results yet. Log a past race or finish a season-plan race.'
+                : 'No results match these filters.'}
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[36rem] table-fixed border-collapse text-left text-sm">
+            <table
+              className={cn(DATA_TABLE, 'min-w-[36rem] table-fixed')}
+              data-density="comfortable"
+            >
               <colgroup>
                 <col className="w-auto" />
                 <col className="w-[6.75rem]" />
@@ -202,14 +215,14 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
                 <col className="w-10" />
               </colgroup>
               <thead>
-                <tr className={TABLE_HEADER_MUTED}>
-                  <th className="px-4 py-3 font-semibold">Race</th>
-                  <th className="px-2 py-3 font-semibold">Date</th>
-                  <th className="px-2 py-3 font-semibold">Sport</th>
-                  <th className="px-2 py-3 font-semibold">Distance</th>
-                  <th className="px-3 py-3 font-semibold">Result</th>
-                  <th className="px-2 py-3 font-semibold">Source</th>
-                  <th className="px-1 py-3">
+                <tr>
+                  <th>Race</th>
+                  <th>Date</th>
+                  <th>Sport</th>
+                  <th>Distance</th>
+                  <th>Result</th>
+                  <th>Source</th>
+                  <th>
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
@@ -222,15 +235,12 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
                   const hasTimes = Boolean(row.resultTime || showSplits)
                   const isFinished = row.outcome === RaceOutcome.FINISHED
                   return (
-                    <tr
-                      key={row.id}
-                      className="border-b border-border/40 last:border-b-0"
-                    >
-                      <td className="px-4 py-3 align-middle">
+                    <tr key={row.id}>
+                      <td>
                         <div className="min-w-0">
                           {row.resultsLogOnly ? (
                             <p
-                              className="line-clamp-2 font-medium leading-snug text-foreground"
+                              className={cn('line-clamp-2 leading-snug', DATA_CELL_PRIMARY)}
                               title={row.name}
                             >
                               {row.name}
@@ -238,31 +248,31 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
                           ) : (
                             <Link
                               href={`/season/${row.id}/edit`}
-                              className="line-clamp-2 font-medium leading-snug text-foreground hover:underline"
+                              className={cn('line-clamp-2 leading-snug hover:underline', DATA_CELL_PRIMARY)}
                               title={row.name}
                             >
                               {row.name}
                             </Link>
                           )}
                           {row.location ? (
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            <p className={cn('mt-0.5 truncate', DATA_CELL_SECONDARY)}>
                               {row.location}
                             </p>
                           ) : null}
                           {row.resultNotes ? (
-                            <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                            <p className={cn('mt-0.5 line-clamp-1', DATA_CELL_SECONDARY)}>
                               {row.resultNotes}
                             </p>
                           ) : null}
                         </div>
                       </td>
-                      <td className="px-2 py-3 align-middle tabular-nums text-muted-foreground">
+                      <td className={cn(DATA_NUM, DATA_CELL_SECONDARY)}>
                         {row.date}
                       </td>
-                      <td className="px-2 py-3 align-middle text-muted-foreground">
+                      <td className={DATA_CELL_SECONDARY}>
                         {WORKOUT_TYPE_LABELS[row.sport]}
                       </td>
-                      <td className="px-2 py-3 align-middle font-medium tabular-nums text-foreground">
+                      <td className={cn(DATA_NUM, DATA_CELL_PRIMARY)}>
                         {raceResultDistanceLabel(row)}
                       </td>
                       <td className="px-3 py-3 align-middle">

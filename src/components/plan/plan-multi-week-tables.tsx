@@ -361,11 +361,9 @@ export function PlanMultiWeekTables({
       {header}
       {toolbar}
       {showCombined ? (
-        isCoach ? (
-          <PlanWeekDndProvider>{combinedContent}</PlanWeekDndProvider>
-        ) : (
-          combinedContent
-        )
+        <PlanWeekDndProvider mode={isCoach ? 'coach' : 'athlete'}>
+          {combinedContent}
+        </PlanWeekDndProvider>
       ) : (
         <div className="space-y-6">
           {weeks.map((block) => (

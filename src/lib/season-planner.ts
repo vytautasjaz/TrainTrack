@@ -40,24 +40,24 @@ export const PLANNER_PRIORITY_LANES: {
     { priority: 'C', label: 'C Training', shortLabel: 'Training' },
   ]
 
-/** Race card surfaces — A red, B blue, C mint. */
+/** Race card surfaces — A strongest (goal), B important, C quiet training. */
 export const PLANNER_PRIORITY_CARD: Record<RacePriority, string> = {
-  A: 'border-red-300/80 bg-red-50 text-red-950',
-  B: 'border-blue-300/80 bg-blue-50 text-blue-950',
-  C: 'border-emerald-300/80 bg-emerald-50 text-emerald-950',
+  A: 'border-[rgb(244_81_30/0.55)] bg-[rgb(244_81_30/0.12)] text-[#111111] shadow-[0_0_0_1px_rgb(244_81_30/0.08)]',
+  B: 'border-[rgb(49_130_206/0.32)] bg-[rgb(49_130_206/0.05)] text-[#111111]',
+  C: 'border-[rgb(16_185_129/0.22)] bg-[rgb(16_185_129/0.04)] text-[#111111]',
 }
 
 export const PLANNER_PRIORITY_DOT: Record<RacePriority, string> = {
-  A: 'bg-red-500',
-  B: 'bg-blue-500',
+  A: 'bg-[var(--color-accent)]',
+  B: 'bg-[#3182CE]',
   C: 'bg-emerald-500',
 }
 
 /** Prep-week fills — slightly deeper than race-card surfaces, muted countdown. */
 export const PLANNER_PRIORITY_SHADOW: Record<RacePriority, string> = {
-  A: 'bg-red-100/80 text-red-900/30',
-  B: 'bg-blue-100/80 text-blue-900/30',
-  C: 'bg-emerald-100/80 text-emerald-900/30',
+  A: 'bg-[rgb(244_81_30/0.12)] text-[rgb(244_81_30/0.35)]',
+  B: 'bg-[rgb(49_130_206/0.12)] text-[rgb(49_130_206/0.35)]',
+  C: 'bg-emerald-100/70 text-emerald-900/30',
 }
 
 export const PLANNER_SPORT_TINT: Record<PlannerSport, string> = {
@@ -316,4 +316,4 @@ export function formatSeasonEventLabel(event: { title: string }): string {
 
 /** Soft amber blocks — distinct from A/B/C race cards. */
 export const SEASON_EVENT_CARD =
-  'border-amber-300/80 bg-amber-100/90 text-amber-950'
+  'border-[rgb(245_190_50/0.35)] bg-[rgb(245_190_50/0.10)] text-[#111111]'

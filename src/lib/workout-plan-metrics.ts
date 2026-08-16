@@ -39,13 +39,17 @@ export function getWorkoutPlanMetrics(
 ): WorkoutPlanMetrics {
   const isCompleted = status === WorkoutStatus.COMPLETED
   const result = workout.result
+  // Self-added sessions are athlete-logged volume, not coach plan — never compare vs planned.
+  const isSelfLogged = Boolean(workout.selfLogged)
 
-  const plannedDuration = formatWorkoutDuration(workout.plannedDuration)
-  const plannedDistance = formatWorkoutDistance(
+  const rawPlannedDuration = formatWorkoutDuration(workout.plannedDuration)
+  const rawPlannedDistance = formatWorkoutDistance(
     workout,
     workout.plannedDistance,
     workout.plannedDistanceMeters,
   )
+  const plannedDuration = isSelfLogged ? null : rawPlannedDuration
+  const plannedDistance = isSelfLogged ? null : rawPlannedDistance
 
   const actualDuration = formatWorkoutDuration(result?.actualDuration)
   // Swim actuals are stored in km; convert to meters so cards match planned (m).
@@ -61,10 +65,23 @@ export function getWorkoutPlanMetrics(
     actualDistanceMeters,
   )
 
-  const duration = isCompleted && actualDuration ? actualDuration : plannedDuration
-  const distance = isCompleted && actualDistance ? actualDistance : plannedDistance
+  // Self-added: prefer actual when done; otherwise show the entered values as the session size
+  // (not as "planned" for comparison).
+  const duration =
+    isCompleted && actualDuration
+      ? actualDuration
+      : isSelfLogged
+        ? actualDuration ?? rawPlannedDuration
+        : plannedDuration
+  const distance =
+    isCompleted && actualDistance
+      ? actualDistance
+      : isSelfLogged
+        ? actualDistance ?? rawPlannedDistance
+        : plannedDistance
 
   const showPlannedComparison =
+    !isSelfLogged &&
     isCompleted &&
     Boolean(plannedDuration || plannedDistance) &&
     (actualDuration !== plannedDuration || actualDistance !== plannedDistance)

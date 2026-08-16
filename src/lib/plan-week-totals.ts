@@ -10,6 +10,13 @@ export function sportUsesPlannedDistance(sport: WorkoutType): boolean {
   return !SPORTS_WITHOUT_PLANNED_DISTANCE.has(sport)
 }
 
+/** Athlete self-logged sessions are done volume, not coach plan. */
+export function countsTowardPlannedTotals(workout: {
+  selfLogged?: boolean | null
+}): boolean {
+  return !workout.selfLogged
+}
+
 export type SportWeekTotals = {
   distanceKm: number
   durationMin: number
@@ -112,15 +119,21 @@ export function sumSportWeekTotals(
 
       if (workout.type !== sport) continue
 
+      const countsPlanned = countsTowardPlannedTotals(workout)
+
       if (sport === WorkoutType.SWIM) {
-        distanceMeters += plannedSwimMeters(workout)
-        durationMin += plannedSwimDurationMin(workout, css)
+        if (countsPlanned) {
+          distanceMeters += plannedSwimMeters(workout)
+          durationMin += plannedSwimDurationMin(workout, css)
+        }
         if (workout.result?.actualDistance) {
           actualDistanceMeters += Math.round(workout.result.actualDistance * 1000)
         }
       } else {
-        if (workout.plannedDuration) durationMin += workout.plannedDuration
-        if (workout.plannedDistance) distanceKm += workout.plannedDistance
+        if (countsPlanned) {
+          if (workout.plannedDuration) durationMin += workout.plannedDuration
+          if (workout.plannedDistance) distanceKm += workout.plannedDistance
+        }
         if (workout.result?.actualDistance) actualDistanceKm += workout.result.actualDistance
       }
 
@@ -160,10 +173,12 @@ export function sumWeekDurationMinutes(
         }
         continue
       }
-      if (workout.type === WorkoutType.SWIM) {
-        planned += plannedSwimDurationMin(workout, css)
-      } else if (workout.plannedDuration) {
-        planned += workout.plannedDuration
+      if (countsTowardPlannedTotals(workout)) {
+        if (workout.type === WorkoutType.SWIM) {
+          planned += plannedSwimDurationMin(workout, css)
+        } else if (workout.plannedDuration) {
+          planned += workout.plannedDuration
+        }
       }
       if (workout.result?.actualDuration) actual += workout.result.actualDuration
     }

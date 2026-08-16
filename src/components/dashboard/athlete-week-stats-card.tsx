@@ -100,51 +100,50 @@ export function AthleteWeekStatsCard({
           : `Week ${weekNum}`
 
   return (
-    <section className={cn('card-elevated overflow-hidden p-5', className)}>
-      <div className="mb-1 flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setWeekOffset((o) => Math.max(-WEEK_NAV_LIMIT, o - 1))}
-          disabled={!canPrev}
-          aria-label="Previous week"
-          className={cn(
-            'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition',
-            canPrev
-              ? 'hover:bg-muted/70 hover:text-foreground'
-              : 'pointer-events-none opacity-30',
-          )}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-
-        <div className="min-w-0 flex-1 text-center">
-          <h2 className="text-lg font-semibold leading-tight tracking-tight">
-            {title}
-          </h2>
-          <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
-            <span className="font-semibold text-foreground/80">Week {weekNum}</span>
+    <section className={cn('tt-dashboard-card overflow-hidden', className)}>
+      <div className="mb-1 flex items-center justify-between gap-1">
+        <div className="min-w-0 flex-1">
+          <h2 className="title-section">{title}</h2>
+          <p className="mt-0.5 text-[11px] tabular-nums text-[#737986]">
+            <span className="font-semibold text-[#111111]/80">Week {weekNum}</span>
             {' · '}
             {rangeLabel}
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setWeekOffset((o) => Math.min(WEEK_NAV_LIMIT, o + 1))}
-          disabled={!canNext}
-          aria-label="Next week"
-          className={cn(
-            'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition',
-            canNext
-              ? 'hover:bg-muted/70 hover:text-foreground'
-              : 'pointer-events-none opacity-30',
-          )}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => setWeekOffset((o) => Math.max(-WEEK_NAV_LIMIT, o - 1))}
+            disabled={!canPrev}
+            aria-label="Previous week"
+            className={cn(
+              'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-muted-foreground transition',
+              canPrev
+                ? 'hover:bg-black/[0.04] hover:text-foreground'
+                : 'pointer-events-none opacity-30',
+            )}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setWeekOffset((o) => Math.min(WEEK_NAV_LIMIT, o + 1))}
+            disabled={!canNext}
+            aria-label="Next week"
+            className={cn(
+              'inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-muted-foreground transition',
+              canNext
+                ? 'hover:bg-black/[0.04] hover:text-foreground'
+                : 'pointer-events-none opacity-30',
+            )}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
-      <p className="mb-4 text-center text-xs tabular-nums text-muted-foreground">
+      <p className="mb-4 text-xs tabular-nums text-muted-foreground">
         <span className="font-semibold text-foreground">
           {weekCounts.completed}
         </span>
@@ -158,7 +157,7 @@ export function AthleteWeekStatsCard({
           No planned training this week.
         </p>
       ) : (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           {sports.map((sport) => {
             const totals = sumSportWeekTotals(planDays, sport, {
               swimCssSecPer100m,
@@ -182,7 +181,7 @@ export function AthleteWeekStatsCard({
                     {WORKOUT_TYPE_LABELS[sport]}
                   </span>
                 </div>
-                <div className="h-1.5 overflow-hidden rounded-full bg-foreground/6">
+                <div className="h-[5px] overflow-hidden rounded-full bg-[#eeeeec]">
                   <div
                     className={cn(
                       'h-full rounded-full transition-[width]',

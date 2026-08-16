@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, coachCanAccessAthlete } from '@/lib/session'
 import { parseDateOnly, toDateKey } from '@/lib/dates'
-import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, CoachAthleteLinkStatus } from '@prisma/client'
+import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, CoachAthleteLinkStatus, PlannedMetricSource } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
 import { defaultSportForRaceType } from '@/lib/races'
 import {
@@ -25,6 +25,7 @@ import {
 import { sportSlug } from '@/lib/workout-library/config'
 import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-athlete-preferences'
 import { resolveLibraryTemplateMetricsForAthlete } from '@/lib/workout-library/template-metrics'
+import { syncApproxTagsFromSources } from '@/lib/workout-metric-source'
 
 function parseOptionalFloat(value: FormDataEntryValue | null) {
   if (!value || value === '') return undefined
@@ -304,55 +305,206 @@ export async function rescheduleWorkout(formData: FormData) {
   const workoutId = formData.get('workoutId') as string
   const rescheduledDate = formData.get('rescheduledDate') as string
   if (!workoutId || !rescheduledDate) throw new Error('Workout and date required')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(rescheduledDate)) {
+    throw new Error('Enter a valid date')
+  }
 
-  const athleteNotesRaw = (formData.get('athleteNotes') as string)?.trim()
-  const athleteNotes = athleteNotesRaw || undefined
   const newDate = parseDateOnly(rescheduledDate)
-  const actualDistance = parseOptionalFloat(formData.get('actualDistance'))
-  const actualDuration = parseOptionalInt(formData.get('actualDuration'))
 
   const workout = await prisma.workout.findFirst({
     where: { id: workoutId, athleteId },
-    include: { result: true, rescheduledCopy: true },
+    include: {
+      result: true,
+      rescheduledCopy: { select: { id: true } },
+      rescheduledFrom: { select: { id: true, isRescheduleGhost: true, date: true } },
+    },
   })
   if (!workout) throw new Error('Workout not found')
+  if (workout.isRescheduleGhost) {
+    throw new Error('This is a placeholder for a moved workout')
+  }
+  if (workout.status === WorkoutStatus.COMPLETED) {
+    throw new Error('Cannot reschedule completed workouts')
+  }
   assertNotStravaSynced(workout)
 
-  const activeWorkoutId = await cleanupLegacyRescheduleArtifacts(workout)
-  const activeWorkout = await prisma.workout.findFirstOrThrow({
-    where: { id: activeWorkoutId, athleteId },
-  })
-
-  const originalPlanDate = activeWorkout.rescheduledFromDate ?? activeWorkout.date
-  const movingBackToOriginal = toDateKey(originalPlanDate) === rescheduledDate
   const sortOrder = await getNextWorkoutSortOrder(athleteId, newDate)
 
-  const resultData = {
-    logType: AthleteLogTypeValues.ADJUSTED,
-    ...(actualDistance !== undefined ? { actualDistance } : {}),
-    ...(actualDuration !== undefined ? { actualDuration } : {}),
-    ...(athleteNotes !== undefined ? { athleteNotes } : {}),
-  }
+  // Already has a ghost on the original plan day — move the active card again.
+  if (workout.rescheduledFromId && workout.rescheduledFrom?.isRescheduleGhost) {
+    const originalPlanDate = workout.rescheduledFromDate ?? workout.rescheduledFrom.date
+    const movingBack = toDateKey(originalPlanDate) === rescheduledDate
 
-  await prisma.$transaction([
-    prisma.workout.update({
-      where: { id: activeWorkout.id },
+    if (movingBack) {
+      const restoreSortOrder = await getNextWorkoutSortOrder(athleteId, originalPlanDate)
+      await prisma.$transaction([
+        prisma.workout.delete({ where: { id: workout.rescheduledFromId } }),
+        prisma.workout.update({
+          where: { id: workout.id },
+          data: {
+            date: originalPlanDate,
+            sortOrder: restoreSortOrder,
+            rescheduledFromId: null,
+            rescheduledFromDate: null,
+          },
+        }),
+      ])
+      revalidateWorkoutPaths(workout.id)
+      return
+    }
+
+    await prisma.workout.update({
+      where: { id: workout.id },
       data: {
         date: newDate,
         sortOrder,
-        rescheduledFromDate: movingBackToOriginal ? null : originalPlanDate,
-        isRescheduleGhost: false,
-        rescheduledFromId: null,
       },
-    }),
-    prisma.workoutResult.upsert({
-      where: { workoutId: activeWorkout.id },
-      create: { workoutId: activeWorkout.id, ...resultData },
-      update: resultData,
+    })
+    revalidateWorkoutPaths(workout.id)
+    return
+  }
+
+  // First move — leave a ghost on the original day, move this workout.
+  const originalDate = workout.date
+  if (toDateKey(originalDate) === rescheduledDate) {
+    revalidateWorkoutPaths(workout.id)
+    return
+  }
+
+  // Clear any stale non-ghost link first.
+  if (workout.rescheduledFromId) {
+    await prisma.workout.update({
+      where: { id: workout.id },
+      data: { rescheduledFromId: null },
+    })
+  }
+  if (workout.rescheduledCopy) {
+    await prisma.workout.delete({ where: { id: workout.rescheduledCopy.id } })
+  }
+
+  const ghost = await prisma.workout.create({
+    data: {
+      athleteId,
+      date: originalDate,
+      sortOrder: workout.sortOrder,
+      type: workout.type,
+      sessionType: workout.sessionType,
+      title: workout.title,
+      description: workout.description,
+      plannedDistance: workout.plannedDistance,
+      plannedDuration: workout.plannedDuration,
+      coachNotes: workout.coachNotes,
+      coachNotesPrivate: workout.coachNotesPrivate,
+      structure: workout.structure ?? undefined,
+      swimEnvironment: workout.swimEnvironment,
+      swimStructure: workout.swimStructure ?? undefined,
+      plannedDistanceMeters: workout.plannedDistanceMeters,
+      tags: workout.tags,
+      status: WorkoutStatus.PLANNED,
+      selfLogged: false,
+      isRescheduleGhost: true,
+      templateId: workout.templateId,
+    },
+  })
+
+  await prisma.workout.update({
+    where: { id: workout.id },
+    data: {
+      date: newDate,
+      sortOrder,
+      rescheduledFromId: ghost.id,
+      rescheduledFromDate: originalDate,
+      isRescheduleGhost: false,
+    },
+  })
+
+  revalidateWorkoutPaths(workout.id)
+}
+
+/**
+ * Coach accepts an athlete reschedule: remove the ghost, keep the workout on the new day.
+ */
+export async function acceptAthleteReschedule(workoutId: string) {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Coach only')
+
+  const pair = await resolvePendingReschedulePairForCoach(session.userId, workoutId)
+  await prisma.$transaction([
+    prisma.workout.delete({ where: { id: pair.ghostId } }),
+    prisma.workout.update({
+      where: { id: pair.activeId },
+      data: {
+        rescheduledFromId: null,
+        rescheduledFromDate: null,
+      },
     }),
   ])
 
-  revalidateWorkoutPaths(activeWorkout.id)
+  revalidateWorkoutPaths(pair.activeId)
+  await onTrainingCalendarDataChanged(pair.athleteId)
+}
+
+/**
+ * Coach rejects an athlete reschedule: restore the workout to the original day and remove the ghost.
+ */
+export async function rejectAthleteReschedule(workoutId: string) {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Coach only')
+
+  const pair = await resolvePendingReschedulePairForCoach(session.userId, workoutId)
+  const sortOrder = await getNextWorkoutSortOrder(pair.athleteId, pair.originalDate)
+
+  await prisma.$transaction([
+    prisma.workout.update({
+      where: { id: pair.activeId },
+      data: {
+        date: pair.originalDate,
+        sortOrder,
+        rescheduledFromId: null,
+        rescheduledFromDate: null,
+      },
+    }),
+    prisma.workout.delete({ where: { id: pair.ghostId } }),
+  ])
+
+  revalidateWorkoutPaths(pair.activeId)
+  await onTrainingCalendarDataChanged(pair.athleteId)
+}
+
+async function resolvePendingReschedulePairForCoach(coachUserId: string, workoutId: string) {
+  const workout = await prisma.workout.findFirst({
+    where: {
+      id: workoutId,
+      athlete: athleteOwnedByCoachWhere(coachUserId),
+    },
+    include: {
+      rescheduledCopy: { select: { id: true, date: true } },
+      rescheduledFrom: { select: { id: true, isRescheduleGhost: true, date: true } },
+    },
+  })
+  if (!workout) throw new Error('Workout not found')
+
+  if (workout.isRescheduleGhost) {
+    const activeId = workout.rescheduledCopy?.id
+    if (!activeId) throw new Error('No moved workout linked to this ghost')
+    return {
+      ghostId: workout.id,
+      activeId,
+      originalDate: workout.date,
+      athleteId: workout.athleteId,
+    }
+  }
+
+  if (workout.rescheduledFromId && workout.rescheduledFrom?.isRescheduleGhost) {
+    return {
+      ghostId: workout.rescheduledFromId,
+      activeId: workout.id,
+      originalDate: workout.rescheduledFrom.date,
+      athleteId: workout.athleteId,
+    }
+  }
+
+  throw new Error('No pending reschedule to review')
 }
 
 export async function unlogWorkout(formData: FormData) {
@@ -367,33 +519,48 @@ export async function unlogWorkout(formData: FormData) {
 
   const workout = await prisma.workout.findFirst({
     where: { id: workoutId, athleteId },
-    include: { result: true, rescheduledCopy: true },
+    include: {
+      result: true,
+      rescheduledFrom: { select: { id: true, isRescheduleGhost: true, date: true } },
+    },
   })
   if (!workout) throw new Error('Workout not found')
   assertNotStravaSynced(workout)
 
-  const activeWorkoutId = await cleanupLegacyRescheduleArtifacts(workout)
-  const activeWorkout = await prisma.workout.findFirstOrThrow({
-    where: { id: activeWorkoutId, athleteId },
-  })
-
-  const restoreDate = activeWorkout.rescheduledFromDate
+  const ghostId =
+    workout.rescheduledFromId && workout.rescheduledFrom?.isRescheduleGhost
+      ? workout.rescheduledFromId
+      : null
+  const restoreDate = workout.rescheduledFromDate ?? workout.rescheduledFrom?.date ?? null
   const sortOrder = restoreDate
     ? await getNextWorkoutSortOrder(athleteId, restoreDate)
     : undefined
 
-  await prisma.workoutResult.deleteMany({ where: { workoutId: activeWorkout.id } })
-  await prisma.workout.update({
-    where: { id: activeWorkout.id },
-    data: {
-      status: WorkoutStatus.PLANNED,
-      ...(restoreDate
-        ? { date: restoreDate, rescheduledFromDate: null, sortOrder }
-        : {}),
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.workoutResult.deleteMany({ where: { workoutId: workout.id } })
+    if (ghostId) {
+      await tx.workout.delete({ where: { id: ghostId } })
+    }
+    await tx.workout.update({
+      where: { id: workout.id },
+      data: {
+        status: WorkoutStatus.PLANNED,
+        ...(restoreDate
+          ? {
+              date: restoreDate,
+              rescheduledFromDate: null,
+              rescheduledFromId: null,
+              sortOrder,
+            }
+          : {
+              rescheduledFromDate: null,
+              rescheduledFromId: null,
+            }),
+      },
+    })
   })
 
-  revalidateWorkoutPaths(activeWorkout.id)
+  revalidateWorkoutPaths(workout.id)
 }
 
 export async function markWorkoutDone(formData: FormData) {
@@ -483,11 +650,10 @@ export async function createWorkoutFromTemplate(formData: FormData) {
   const sortOrder = await getNextWorkoutSortOrder(athleteId, workoutDate)
   const preferences = await loadAthletePreferencesForBuilder(athleteId)
   const metrics = resolveLibraryTemplateMetricsForAthlete(template, preferences)
-  const tags = [
-    ...template.tags.filter((t) => t !== 'approx:duration' && t !== 'approx:distance'),
-    ...(metrics.durationApprox ? ['approx:duration'] : []),
-    ...(metrics.distanceApprox ? ['approx:distance'] : []),
-  ]
+  const tags = syncApproxTagsFromSources(template.tags, {
+    distance: metrics.distanceSource,
+    duration: metrics.durationSource,
+  })
 
   await prisma.workout.create({
     data: {
@@ -501,11 +667,14 @@ export async function createWorkoutFromTemplate(formData: FormData) {
       description: template.description,
       plannedDistance: metrics.distanceKm,
       plannedDuration: metrics.durationMin,
+      plannedDistanceSource: metrics.distanceSource,
+      plannedDurationSource: metrics.durationSource,
       coachNotes: template.notes,
       structure: template.structure ?? undefined,
       swimEnvironment: template.swimEnvironment ?? undefined,
       swimStructure: template.swimStructure ?? undefined,
       plannedDistanceMeters: template.plannedDistanceMeters ?? undefined,
+      plannedDistanceMetersSource: template.plannedDistanceMetersSource ?? undefined,
       tags,
     },
   })
@@ -537,11 +706,14 @@ export async function createTemplateFromWorkout(workoutId: string) {
       description: workout.description,
       distanceKm: workout.plannedDistance,
       durationMin: workout.plannedDuration,
+      distanceSource: workout.plannedDistanceSource ?? undefined,
+      durationSource: workout.plannedDurationSource ?? undefined,
       notes: workout.coachNotes,
       structure: workout.structure ?? undefined,
       swimEnvironment: workout.swimEnvironment ?? undefined,
       swimStructure: workout.swimStructure ?? undefined,
       plannedDistanceMeters: workout.plannedDistanceMeters ?? undefined,
+      plannedDistanceMetersSource: workout.plannedDistanceMetersSource ?? undefined,
       tags: workout.tags,
     },
     select: {
@@ -752,6 +924,14 @@ export async function moveWorkout(formData: FormData) {
   const workoutId = formData.get('workoutId') as string
   const date = formData.get('date') as string
 
+  const workout = await prisma.workout.findUniqueOrThrow({
+    where: { id: workoutId },
+    select: { athleteId: true, status: true },
+  })
+  if (workout.status === WorkoutStatus.COMPLETED) {
+    throw new Error('Cannot move completed workouts')
+  }
+
   await prisma.workout.update({
     where: { id: workoutId },
     data: { date: parseDateOnly(date) },
@@ -767,8 +947,11 @@ export async function moveWorkoutToDate(workoutId: string, dateKey: string) {
 
   const workout = await prisma.workout.findUniqueOrThrow({
     where: { id: workoutId },
-    select: { athleteId: true },
+    select: { athleteId: true, status: true },
   })
+  if (workout.status === WorkoutStatus.COMPLETED) {
+    throw new Error('Cannot move completed workouts')
+  }
   const date = parseDateOnly(dateKey)
   const sortOrder = await getNextWorkoutSortOrder(workout.athleteId, date)
 
@@ -981,7 +1164,14 @@ export async function patchPlanWorkoutCard(input: {
       id: workoutId,
       athlete: athleteOwnedByCoachWhere(session.userId),
     },
-    select: { id: true, type: true },
+    select: {
+      id: true,
+      type: true,
+      tags: true,
+      plannedDistanceSource: true,
+      plannedDurationSource: true,
+      plannedDistanceMetersSource: true,
+    },
   })
   if (!existing) throw new Error('Workout not found')
 
@@ -990,6 +1180,10 @@ export async function patchPlanWorkoutCard(input: {
     plannedDistance?: number | null
     plannedDuration?: number | null
     plannedDistanceMeters?: number | null
+    plannedDistanceSource?: PlannedMetricSource | null
+    plannedDurationSource?: PlannedMetricSource | null
+    plannedDistanceMetersSource?: PlannedMetricSource | null
+    tags?: string[]
   } = {}
 
   if (input.title !== undefined) {
@@ -999,15 +1193,40 @@ export async function patchPlanWorkoutCard(input: {
   }
   if (input.plannedDistance !== undefined) {
     data.plannedDistance = input.plannedDistance
+    data.plannedDistanceSource =
+      input.plannedDistance != null && input.plannedDistance > 0
+        ? PlannedMetricSource.MANUAL
+        : null
   }
   if (input.plannedDuration !== undefined) {
     data.plannedDuration = input.plannedDuration
+    data.plannedDurationSource =
+      input.plannedDuration != null && input.plannedDuration > 0
+        ? PlannedMetricSource.MANUAL
+        : null
   }
   if (input.plannedDistanceMeters !== undefined) {
     data.plannedDistanceMeters = input.plannedDistanceMeters
+    data.plannedDistanceMetersSource =
+      input.plannedDistanceMeters != null && input.plannedDistanceMeters > 0
+        ? PlannedMetricSource.MANUAL
+        : null
   }
 
   if (Object.keys(data).length === 0) return
+
+  const nextDistanceSource =
+    data.plannedDistanceSource !== undefined
+      ? data.plannedDistanceSource
+      : existing.plannedDistanceSource
+  const nextDurationSource =
+    data.plannedDurationSource !== undefined
+      ? data.plannedDurationSource
+      : existing.plannedDurationSource
+  data.tags = syncApproxTagsFromSources(existing.tags, {
+    distance: nextDistanceSource,
+    duration: nextDurationSource,
+  })
 
   await prisma.workout.update({
     where: { id: workoutId },
@@ -1031,9 +1250,29 @@ export async function deleteWorkout(formData: FormData) {
   const workoutId = formData.get('workoutId') as string
   const workout = await prisma.workout.findUnique({
     where: { id: workoutId },
-    select: { athleteId: true },
+    select: {
+      athleteId: true,
+      isRescheduleGhost: true,
+      rescheduledFromId: true,
+      rescheduledCopy: { select: { id: true } },
+    },
   })
-  await prisma.workout.delete({ where: { id: workoutId } })
+
+  if (workout?.isRescheduleGhost) {
+    // Removing the placeholder — keep the moved workout, clear its link.
+    await prisma.workout.updateMany({
+      where: { rescheduledFromId: workoutId },
+      data: { rescheduledFromId: null, rescheduledFromDate: null },
+    })
+    await prisma.workout.delete({ where: { id: workoutId } })
+  } else if (workout?.rescheduledFromId) {
+    // Removing the moved workout — remove the original-day ghost too.
+    await prisma.workout.deleteMany({
+      where: { id: { in: [workoutId, workout.rescheduledFromId] } },
+    })
+  } else {
+    await prisma.workout.delete({ where: { id: workoutId } })
+  }
 
   revalidatePath('/training')
   revalidatePath('/dashboard')

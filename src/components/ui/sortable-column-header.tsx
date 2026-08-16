@@ -32,7 +32,7 @@ export function SortableColumnHeader({
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex items-center gap-1 rounded px-0.5 font-semibold uppercase tracking-wide transition',
+        'inline-flex items-center gap-1 rounded px-0.5 text-[11px] font-semibold uppercase tracking-[0.04em] transition',
         'outline-none focus-visible:ring-1 focus-visible:ring-foreground/30',
         active
           ? 'text-foreground'

@@ -1,6 +1,6 @@
 'use client'
 
-import { formatDateKey } from '@/lib/dates'
+import { getRescheduleBadgeLabel } from '@/components/plan/reschedule-badge'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { cn } from '@/lib/utils'
 
@@ -11,13 +11,7 @@ type ReschedulePlanIndicatorProps = {
 }
 
 export function getReschedulePlanLabel(workout: PlanWorkoutDetail): string | null {
-  if (
-    workout.rescheduledFromDateKey &&
-    workout.rescheduledFromDateKey !== workout.dateKey
-  ) {
-    return `Moved from ${formatDateKey(workout.rescheduledFromDateKey)}`
-  }
-  return null
+  return getRescheduleBadgeLabel(workout)
 }
 
 export function hasReschedulePlanIndicator(workout: PlanWorkoutDetail): boolean {

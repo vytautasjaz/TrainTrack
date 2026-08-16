@@ -39,7 +39,10 @@ import { PersonalBestDistanceHistoryModal } from '@/components/settings/personal
 import { usePreferenceForm } from '@/hooks/use-preference-form'
 import type { RaceResultRow } from '@/lib/race-results'
 import { cn } from '@/lib/utils'
-import { TABLE_HEADER_MUTED, TABLE_SHELL } from '@/lib/table-styles'
+import {
+  DATA_TABLE,
+  DATA_TABLE_SHELL,
+} from '@/lib/table-styles'
 
 type PersonalBestsFormProps = {
   records: PersonalBestRecord[]
@@ -202,22 +205,22 @@ export function PersonalBestsForm({ records, raceResults = [] }: PersonalBestsFo
             </p>
           </div>
 
-          <div className={cn('overflow-x-auto', TABLE_SHELL)}>
-            <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
+          <div className={cn('overflow-x-auto', DATA_TABLE_SHELL)}>
+            <table className={cn(DATA_TABLE, 'min-w-[32rem]')} data-density="compact">
               <thead>
-                <tr className={cn(TABLE_HEADER_MUTED, 'text-[11px] font-medium')}>
-                  <th className="px-3 py-2.5 font-medium sm:px-4">Name</th>
-                  <th className="px-3 py-2.5 font-medium sm:px-4">Result</th>
-                  <th className="px-3 py-2.5 font-medium sm:px-4">Date</th>
-                  <th className="px-3 py-2.5 font-medium sm:px-4">Event</th>
-                  <th className="w-10 px-2 py-2.5">
+                <tr>
+                  <th>Name</th>
+                  <th>Result</th>
+                  <th>Date</th>
+                  <th>Event</th>
+                  <th>
                     <span className="sr-only">Delete</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {visibleRows.map((row) => (
-                  <tr key={row.id} className="border-b border-border/40 last:border-b-0">
+                  <tr key={row.id}>
                     <td className="px-2 py-1.5 align-middle sm:px-3">
                       <input type="hidden" name="id" value={row.id} />
                       <input type="hidden" name={`${row.id}_metric`} value={row.metric} />

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { Prisma, SessionType, SwimEnvironment, WorkoutType } from '@prisma/client'
+import { Prisma, SessionType, SwimEnvironment, WorkoutType, PlannedMetricSource } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
 import { requireSession, resolveAthleteId, isCoach} from '@/lib/session'
@@ -132,6 +132,7 @@ export async function createSwimWorkoutFromModal(payload: unknown) {
   const scheduledDate = parseDateOnly(parsed.scheduledDate ?? new Date().toISOString().slice(0, 10))
   const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
 
+  const meters = resolvedDistanceMeters(parsed)
   const workout = await prisma.workout.create({
     data: {
       athleteId,
@@ -142,8 +143,14 @@ export async function createSwimWorkoutFromModal(payload: unknown) {
       title: parsed.title,
       description: parsed.description || null,
       swimEnvironment: parsed.swimEnvironment,
-      plannedDistanceMeters: resolvedDistanceMeters(parsed),
+      plannedDistanceMeters: meters,
+      plannedDistanceMetersSource:
+        meters != null && meters > 0 ? PlannedMetricSource.MANUAL : null,
       plannedDuration: parsed.plannedDuration ?? null,
+      plannedDurationSource:
+        parsed.plannedDuration != null && parsed.plannedDuration > 0
+          ? PlannedMetricSource.MANUAL
+          : null,
       coachNotes: parsed.coachNotes ?? null,
       coachNotesPrivate: Boolean(parsed.coachNotesPrivate),
       swimStructure: swimStructureJson(parsed.swimStructure),
@@ -353,7 +360,17 @@ export async function scheduleSwimFromTemplate(formData: FormData) {
       description: template.description,
       swimEnvironment: template.swimEnvironment,
       plannedDistanceMeters: template.plannedDistanceMeters,
+      plannedDistanceMetersSource:
+        template.plannedDistanceMetersSource ??
+        (template.plannedDistanceMeters != null && template.plannedDistanceMeters > 0
+          ? PlannedMetricSource.MANUAL
+          : null),
       plannedDuration: template.durationMin,
+      plannedDurationSource:
+        template.durationSource ??
+        (template.durationMin != null && template.durationMin > 0
+          ? PlannedMetricSource.MANUAL
+          : null),
       coachNotes: template.notes,
       swimStructure: template.swimStructure ?? undefined,
       templateId: template.id,

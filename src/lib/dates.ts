@@ -109,6 +109,12 @@ export function eachDateOnlyDay(start: Date, end: Date): Date[] {
   return days
 }
 
+/** Compact calendar label for badges (e.g. Mar 12). */
+export function formatDateKeyCompact(dateKey: string): string {
+  const [y, m, d] = dateKey.split('-').map(Number)
+  return format(new Date(y, m - 1, d), 'MMM d')
+}
+
 /** Human-readable label for a YYYY-MM-DD date key. */
 export function formatDateKey(dateKey: string): string {
   const [y, m, d] = dateKey.split('-').map(Number)

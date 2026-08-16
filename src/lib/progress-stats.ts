@@ -15,6 +15,7 @@ export type ProgressWorkoutRow = {
   date: Date
   type: WorkoutType
   status: WorkoutStatus
+  selfLogged?: boolean
   plannedDistance: number | null
   plannedDuration: number | null
   result: {
@@ -67,18 +68,22 @@ function isStatWorkout(w: ProgressWorkoutRow) {
 
 function aggregateWorkouts(workouts: ProgressWorkoutRow[]): ProgressMonthBucket {
   const relevant = workouts.filter(isStatWorkout)
+  const plannedRows = relevant.filter((w) => !w.selfLogged)
+  const completedRows = relevant.filter((w) => w.status === WorkoutStatus.COMPLETED)
   return {
-    planned: relevant.length,
-    completed: relevant.filter((w) => w.status === WorkoutStatus.COMPLETED).length,
+    planned: plannedRows.length,
+    completed: completedRows.length,
     skipped: relevant.filter((w) => w.status === WorkoutStatus.SKIPPED).length,
-    plannedDistance: relevant.reduce((s, w) => s + (w.plannedDistance ?? 0), 0),
-    completedDistance: relevant
-      .filter((w) => w.status === WorkoutStatus.COMPLETED)
-      .reduce((s, w) => s + (w.result?.actualDistance ?? w.plannedDistance ?? 0), 0),
-    plannedDuration: relevant.reduce((s, w) => s + (w.plannedDuration ?? 0), 0),
-    completedDuration: relevant
-      .filter((w) => w.status === WorkoutStatus.COMPLETED)
-      .reduce((s, w) => s + (w.result?.actualDuration ?? w.plannedDuration ?? 0), 0),
+    plannedDistance: plannedRows.reduce((s, w) => s + (w.plannedDistance ?? 0), 0),
+    completedDistance: completedRows.reduce(
+      (s, w) => s + (w.result?.actualDistance ?? w.plannedDistance ?? 0),
+      0,
+    ),
+    plannedDuration: plannedRows.reduce((s, w) => s + (w.plannedDuration ?? 0), 0),
+    completedDuration: completedRows.reduce(
+      (s, w) => s + (w.result?.actualDuration ?? w.plannedDuration ?? 0),
+      0,
+    ),
   }
 }
 

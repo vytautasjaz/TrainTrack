@@ -75,7 +75,7 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
             <Badge className={WORKOUT_TYPE_COLORS[workout.type]}>
               {WORKOUT_TYPE_LABELS[workout.type]}
             </Badge>
-            <Badge className="bg-accent text-accent-foreground">
+            <Badge className="bg-muted text-muted-foreground">
               {WORKOUT_STATUS_LABELS[workout.status]}
             </Badge>
           </div>

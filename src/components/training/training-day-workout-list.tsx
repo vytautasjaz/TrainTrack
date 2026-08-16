@@ -6,7 +6,7 @@ import { reorderDayWorkouts } from '@/app/actions/workouts'
 import { RacePlanItem } from '@/components/plan/race-plan-item'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import { TrainingWorkoutCard } from '@/components/training/training-workout-card'
-import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import { canDragPlanWorkout, type PlanWorkoutDetail } from '@/lib/plan-workout'
 import { cn } from '@/lib/utils'
 
 type TrainingDayWorkoutListProps = {
@@ -59,7 +59,9 @@ export function TrainingDayWorkoutList({
       {raceWorkouts.map((w) => (
         <RacePlanItem key={w.id} workout={w} isCoach={isCoach} compact tableCell />
       ))}
-      {ordered.map((w) => (
+      {ordered.map((w) => {
+        const canDrag = canDragPlanWorkout(w)
+        return (
         <div
           key={w.id}
           className={cn(
@@ -86,7 +88,7 @@ export function TrainingDayWorkoutList({
             setDropTargetId(null)
           }}
         >
-          {reorderEnabled && (
+          {reorderEnabled && canDrag && (
             <button
               type="button"
               draggable
@@ -118,7 +120,8 @@ export function TrainingDayWorkoutList({
             className={cn('min-w-0', reorderEnabled && 'flex-1')}
           />
         </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

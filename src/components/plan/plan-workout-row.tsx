@@ -6,6 +6,10 @@ import {
   useOptimisticWorkoutStatus,
 } from '@/components/plan/athlete-workout-quick-actions'
 import { RacePlanItem } from '@/components/plan/race-plan-item'
+import {
+  CoachRescheduleReviewActions,
+  needsCoachRescheduleReview,
+} from '@/components/plan/coach-reschedule-review-actions'
 import { WorkoutBlock } from '@/components/workout-block'
 import { planWorkoutItemShellClass } from '@/components/plan/plan-workout-item-shell'
 import { athleteHasQuickLogActions, type PlanWorkoutDetail } from '@/lib/plan-workout'
@@ -20,6 +24,7 @@ type PlanWorkoutRowProps = {
 export function PlanWorkoutRow({ workout, isCoach }: PlanWorkoutRowProps) {
   const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout)
   const showQuickActions = athleteHasQuickLogActions(workout, isCoach)
+  const showReview = isCoach && needsCoachRescheduleReview(workout)
 
   if (workout.isRace) {
     return <RacePlanItem workout={workout} isCoach={isCoach} compact tableCell />
@@ -35,6 +40,7 @@ export function PlanWorkoutRow({ workout, isCoach }: PlanWorkoutRowProps) {
       <WorkoutModalTrigger
         workout={workout}
         isCoach={isCoach}
+        nestedInteractive={showReview}
         className={cn(PLAN_WORKOUT_ITEM_CLASS, 'block w-full min-w-0')}
       >
         <WorkoutBlock
@@ -43,14 +49,19 @@ export function PlanWorkoutRow({ workout, isCoach }: PlanWorkoutRowProps) {
           status={status}
           hideCompletedBadge={showQuickActions}
           actions={
-            showQuickActions ? (
+            showQuickActions || isCoach ? (
               <span className="inline-block w-[2.75rem]" aria-hidden />
+            ) : null
+          }
+          footer={
+            showReview ? (
+              <CoachRescheduleReviewActions workout={workout} isCoach={isCoach} />
             ) : null
           }
         />
       </WorkoutModalTrigger>
       {showQuickActions ? (
-        <div className="absolute right-1 top-1 z-10 opacity-60 transition group-hover/card:opacity-100">
+        <div className="absolute right-1 top-1 z-10 opacity-80 transition group-hover/card:opacity-100">
           <AthleteWorkoutQuickActions
             workout={workout}
             isCoach={isCoach}

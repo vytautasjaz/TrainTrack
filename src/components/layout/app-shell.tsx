@@ -4,6 +4,7 @@ import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
 import { RoleSwitcher } from '@/components/layout/role-switcher'
 import { CoachAthleteBar } from '@/components/coach/coach-athlete-bar'
 import { StravaAutoSync } from '@/components/integrations/strava-auto-sync'
+import { TrainTrackMark } from '@/components/brand/traintrack-logo'
 import {
   getSession,
   getCoachAthletes,
@@ -123,8 +124,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
                 athleteProfile={athleteProfile}
               />
             </Suspense>
-            <p className="truncate text-sm font-bold tracking-tight portrait:max-lg:inline landscape:max-lg:hidden">
-              TrainTrack
+            <p className="flex min-w-0 items-center gap-2 portrait:max-lg:inline landscape:max-lg:hidden">
+              <TrainTrackMark className="h-7 w-7 shrink-0" />
+              <span className="traintrack-wordmark truncate text-[15px]">TRAINTRACK</span>
             </p>
           </header>
           {athleteBar ? (

@@ -13,6 +13,7 @@ import {
   SPORT_ROW_ORDER,
 } from "@/lib/constants";
 import type { PlanDay } from "@/lib/plan-week";
+import { dayNoteHasVisibleContent } from "@/lib/day-notes";
 import { resolveCoachPlanSportRows } from "@/lib/plan-sports";
 import { dayHasRecovery, getRecoveryWorkout } from "@/lib/recovery-day";
 import { dayHasRace, getDayRacePriority, raceDaySectionClass } from "@/lib/race-day";
@@ -122,7 +123,7 @@ export function PlanMobileDayStack({
     ? filterPlanSportRows(resolvedSportRows, sportFilter.visibleSportSet)
     : resolvedSportRows;
 
-  const hasAnyDayNotes = days.some((d) => d.dayNote);
+  const hasAnyDayNotes = days.some((d) => dayNoteHasVisibleContent(d.dayNote));
   const showNoteRow = showNotes && hasAnyDayNotes;
   const showEventsRow =
     showEvents && days.some((d) => (d.seasonEvents?.length ?? 0) > 0);
@@ -145,7 +146,8 @@ export function PlanMobileDayStack({
         const hasWorkoutContent =
           hasListWorkouts || dayHasRecovery(day.workouts);
 
-        const dayDropEnabled = isCoach && (trainingMode || dragEnabled);
+        const dayDropEnabled = dragEnabled || (isCoach && trainingMode);
+        const sportDividedLayout = !(trainingMode && !coachEditable);
 
         return (
           <div key={day.dateKey}>
@@ -164,7 +166,7 @@ export function PlanMobileDayStack({
             )}
           <DayDropSection
             dateKey={day.dateKey}
-            enabled={dayDropEnabled}
+            enabled={dayDropEnabled && !sportDividedLayout}
             id={
               daySectionIdPrefix
                 ? `${daySectionIdPrefix}-${day.dateKey}`
@@ -275,6 +277,7 @@ export function PlanMobileDayStack({
                   dateKey={day.dateKey}
                   note={day.dayNote}
                   canEdit={canEditDayNotes}
+                  noteKind={isCoach ? "coach" : "athlete"}
                   athleteId={athleteId}
                   compact
                   hideEmptyAdd={headerAddMenu}
@@ -300,7 +303,13 @@ export function PlanMobileDayStack({
                   if (!coachEditable && sportWorkouts.length === 0) return null;
 
                   return (
-                    <div key={sport} className="px-3 py-2">
+                    <DayDropSection
+                      key={sport}
+                      dateKey={day.dateKey}
+                      sport={sport}
+                      enabled={dayDropEnabled}
+                      className="px-3 py-2"
+                    >
                       <div className="mb-1 px-1">
                         <span
                           className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${WORKOUT_TYPE_COLORS[sport]}`}
@@ -323,7 +332,7 @@ export function PlanMobileDayStack({
                           isCoach={isCoach}
                         />
                       )}
-                    </div>
+                    </DayDropSection>
                   );
                 })}
               </div>
@@ -357,18 +366,18 @@ export function PlanMobileDayStack({
             )}
             {showNoteRow &&
               !coachEditable &&
-              (!headerAddMenu || day.dayNote) && (
+              (!headerAddMenu || dayNoteHasVisibleContent(day.dayNote)) && (
                 <div
                   className={cn(
                     "border-t border-border/40 px-3 py-2",
                     trainingMode && "px-3",
-                    day.dayNote && "bg-yellow-100 dark:bg-yellow-500/20",
                   )}
                 >
                   <DayNoteSection
                     dateKey={day.dateKey}
                     note={day.dayNote}
                     canEdit={canEditDayNotes}
+                    noteKind={isCoach ? "coach" : "athlete"}
                     athleteId={athleteId}
                     compact
                     hideEmptyAdd={headerAddMenu}

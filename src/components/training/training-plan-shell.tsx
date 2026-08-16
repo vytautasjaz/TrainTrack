@@ -57,14 +57,16 @@ export function TrainingPlanShell({
   templates,
   children,
 }: TrainingPlanShellProps) {
-  const body = isCoach ? (
-    <PlanWeekDndProvider>
-      <TrainingLibraryProvider templates={templates}>
-        <TrainingPlanShellLayout>{children}</TrainingPlanShellLayout>
-      </TrainingLibraryProvider>
+  const body = (
+    <PlanWeekDndProvider mode={isCoach ? 'coach' : 'athlete'}>
+      {isCoach ? (
+        <TrainingLibraryProvider templates={templates}>
+          <TrainingPlanShellLayout>{children}</TrainingPlanShellLayout>
+        </TrainingLibraryProvider>
+      ) : (
+        <div className="space-y-6 landscape:max-lg:space-y-3">{children}</div>
+      )}
     </PlanWeekDndProvider>
-  ) : (
-    <div className="space-y-6 landscape:max-lg:space-y-3">{children}</div>
   )
 
   return <PlanSportFilterProvider>{body}</PlanSportFilterProvider>

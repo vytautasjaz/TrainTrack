@@ -3,6 +3,7 @@ import { getSession, resolveAthleteId, isCoachView} from '@/lib/session'
 import { parseSportSlug } from '@/lib/workout-library/config'
 import { getCoachLibraryTemplatesBySport } from '@/lib/workout-library/queries'
 import { resolveLibraryTemplateMetricsForAthlete } from '@/lib/workout-library/template-metrics'
+import { syncApproxTagsFromSources } from '@/lib/workout-metric-source'
 import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-athlete-preferences'
 import type { LibrarySort, WorkoutLibraryTemplate } from '@/lib/workout-library/types'
 import { WorkoutLibrarySportView } from '@/components/workout-library/workout-library-sport-view'
@@ -38,12 +39,12 @@ export default async function SportLibraryPage({
       ...t,
       distanceKm: metrics.distanceKm,
       durationMin: metrics.durationMin,
-      // Preserve approx markers in tags for card formatting
-      tags: [
-        ...t.tags.filter((tag) => tag !== 'approx:duration' && tag !== 'approx:distance'),
-        ...(metrics.durationApprox ? ['approx:duration'] : []),
-        ...(metrics.distanceApprox ? ['approx:distance'] : []),
-      ],
+      distanceSource: metrics.distanceSource,
+      durationSource: metrics.durationSource,
+      tags: syncApproxTagsFromSources(t.tags, {
+        distance: metrics.distanceSource,
+        duration: metrics.durationSource,
+      }),
     }
   })
   const sort = (queryParams.sort as LibrarySort) || 'title'

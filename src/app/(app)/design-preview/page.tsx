@@ -1,7 +1,15 @@
+import Link from 'next/link'
 import { Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { PageHeader } from '@/components/ui/page-header'
+import {
+  PosterHero,
+  PosterMetric,
+  PosterQuote,
+  PosterStat,
+  PosterTitle,
+} from '@/components/design/poster'
 import {
   CompareColumns,
   MinimalCard,
@@ -15,7 +23,11 @@ import { SessionType, WorkoutStatus, WorkoutType } from '@prisma/client'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import type { WorkoutStructure } from '@/lib/workout-builder/types'
 import { cn } from '@/lib/utils'
-import { TABLE_HEADER, TABLE_HEADER_MUTED, TABLE_SHELL } from '@/lib/table-styles'
+import { TABLE_HEADER, TABLE_SHELL, DATA_TABLE, DATA_TABLE_SHELL, DATA_CELL_PRIMARY, DATA_CELL_SECONDARY, DATA_NUM } from '@/lib/table-styles'
+import { StatusPill } from '@/components/ui/status-pill'
+import { PriorityBadge } from '@/components/races/priority-badge'
+import { SportDot } from '@/components/ui/sport-dot'
+import { TablePosterHeading } from '@/components/ui/table-poster-heading'
 
 const thresholdStructure: WorkoutStructure = {
   warmup: [
@@ -142,24 +154,68 @@ export default function DesignPreviewPage() {
     <div className="mx-auto max-w-5xl space-y-8 px-4 pb-16 pt-2 lg:px-0">
       <PageHeader
         title="Design preview"
-        description="Design System v3 — dark sidebar shell, Workout Block densities, status matrix. Legacy minimal kit kept below for comparison."
+        description="Component lab — workout blocks, tables, legacy samples. Canonical system docs live on the Style Guide."
+        action={
+          <Button asChild variant="secondary" size="sm">
+            <Link href="/style-guide">Open style guide</Link>
+          </Button>
+        }
       />
+
+      <section className="space-y-5">
+        <div>
+          <h2 className="title-section">Title system</h2>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Hierarchy is semantic. Same role → same style on every page. Never invent one-off headings.
+          </p>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <div className="space-y-2 rounded-[10px] border border-[#e2e3e1] bg-white p-5">
+            <p className="title-eyebrow">Level 1 · Display</p>
+            <h1 className="title-display">PLAN THE SEASON.</h1>
+            <p className="text-caption">Barlow · single color · editorial page H1</p>
+          </div>
+          <div className="space-y-2 rounded-[10px] border border-[#e2e3e1] bg-white p-5">
+            <p className="title-eyebrow">Level 1 · Page</p>
+            <h1 className="title-page">Training</h1>
+            <p className="text-caption">Manrope · functional page H1 · Training, Results, Stats, Tools</p>
+          </div>
+          <div className="space-y-2 rounded-[10px] border border-[#e2e3e1] bg-white p-5">
+            <p className="title-eyebrow">Level 2 · Section</p>
+            <h2 className="title-section">Upcoming</h2>
+            <p className="text-caption">Manrope · 16px · not italic · uppercase</p>
+          </div>
+          <div className="space-y-2 rounded-[10px] border border-[#e2e3e1] bg-white p-5">
+            <p className="title-eyebrow">Level 3 · Eyebrow</p>
+            <p className="title-eyebrow">Next race</p>
+            <p className="mt-3 title-card">Molėtų triatlonas</p>
+            <p className="text-caption">Manrope · metadata above card content</p>
+          </div>
+          <div className="space-y-2 rounded-[10px] border border-[#e2e3e1] bg-white p-5">
+            <p className="title-eyebrow">Level 4 · Card + day</p>
+            <p className="title-day mb-2">Wednesday 12 Aug</p>
+            <p className="title-card">Easy Ride</p>
+            <p className="text-caption">Sentence case for content · never EASY RIDE</p>
+          </div>
+        </div>
+      </section>
 
       <section className="space-y-4">
         <div>
           <h2 className="text-section-title">Shell & tokens</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Workspace background #F8F8F6, surface white, sidebar #111318. Calendar Workout Blocks use radius 0; shell cards use 12px.
+            Background #FFFFFF, table/card sheets #FFFFFF, accent #F4511E. Calendar grids keep charcoal headers. App sidebar is light with abstract motion.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
           {[
             ['Background', 'bg-background border'],
-            ['Surface', 'bg-card border'],
-            ['Sidebar', 'bg-sidebar text-sidebar-foreground'],
+            ['Surface', 'bg-surface border'],
+            ['Accent', 'bg-accent text-accent-foreground'],
             ['Run', 'bg-sport-run text-white'],
             ['Bike', 'bg-sport-bike text-white'],
             ['Swim', 'bg-sport-swim text-white'],
+            ['Strength', 'bg-sport-strength text-white'],
             ['Success', 'bg-success text-white'],
           ].map(([label, cls]) => (
             <div
@@ -169,6 +225,35 @@ export default function DesignPreviewPage() {
               {label}
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-section-title">Poster moments</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Reusable editorial components — use sparingly for heroes, empty states, and key metrics. Not for ordinary UI labels.
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <PosterHero>
+            <PosterStat
+              title="BUILD THE NEXT WEEK."
+              accentWord="NEXT"
+              support="Sparse poster statement with orange accent word."
+            />
+          </PosterHero>
+          <PosterHero atmosphere="soft">
+            <PosterMetric label="This week" value="52.4" unit="KM" />
+          </PosterHero>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <PosterQuote support="4 × 1 km · @ 4:00 / km">THRESHOLD INTERVALS</PosterQuote>
+          <div className="poster-surface p-6">
+            <PosterTitle size="sm">
+              RACE <span className="poster-title-accent">READY.</span>
+            </PosterTitle>
+          </div>
         </div>
       </section>
 
@@ -353,53 +438,90 @@ export default function DesignPreviewPage() {
         <MinimalSection title="Table">
           <CompareColumns
             current={
-              <div className="space-y-4">
-                <div className={TABLE_SHELL}>
-                  <p className="border-b border-border/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Primary header
+              <div className="space-y-6">
+                <div>
+                  <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Calendar grid (unchanged)
                   </p>
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className={TABLE_HEADER}>
-                        <th className="px-3 py-2 font-semibold">Day</th>
-                        <th className="px-3 py-2 font-semibold">Workout</th>
-                        <th className="px-3 py-2 font-semibold">Distance</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-border/40">
-                        <td className="px-3 py-2.5">Mon</td>
-                        <td className="px-3 py-2.5">Easy Run</td>
-                        <td className="px-3 py-2.5">10 km</td>
-                      </tr>
-                      <tr>
-                        <td className="px-3 py-2.5">Tue</td>
-                        <td className="px-3 py-2.5">Threshold</td>
-                        <td className="px-3 py-2.5">13 km</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div className={TABLE_SHELL}>
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className={TABLE_HEADER}>
+                          <th className="px-3 py-2 font-semibold">Day</th>
+                          <th className="px-3 py-2 font-semibold">Workout</th>
+                          <th className="px-3 py-2 font-semibold">Distance</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-border/40">
+                          <td className="px-3 py-2.5">Mon</td>
+                          <td className="px-3 py-2.5">Easy Run</td>
+                          <td className="px-3 py-2.5">10 km</td>
+                        </tr>
+                        <tr>
+                          <td className="px-3 py-2.5">Tue</td>
+                          <td className="px-3 py-2.5">Threshold</td>
+                          <td className="px-3 py-2.5">13 km</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-                <div className={TABLE_SHELL}>
-                  <p className="border-b border-border/60 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Muted header
-                  </p>
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className={TABLE_HEADER_MUTED}>
-                        <th className="px-3 py-2 font-semibold">Day</th>
-                        <th className="px-3 py-2 font-semibold">Workout</th>
-                        <th className="px-3 py-2 font-semibold">Distance</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-border/40">
-                        <td className="px-3 py-2.5">Mon</td>
-                        <td className="px-3 py-2.5">Easy Run</td>
-                        <td className="px-3 py-2.5">10 km</td>
-                      </tr>
-                    </tbody>
-                  </table>
+                <div className="space-y-4">
+                  <TablePosterHeading
+                    lines={['Upcoming races']}
+                    meta="3 EVENTS"
+                  />
+                  <div className={DATA_TABLE_SHELL}>
+                    <table className={DATA_TABLE} data-density="comfortable">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Race</th>
+                          <th>Status</th>
+                          <th>Sport</th>
+                          <th>Priority</th>
+                          <th className="text-right">Weeks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td className={DATA_CELL_SECONDARY}>Aug 22, 2026</td>
+                          <td>
+                            <p className={DATA_CELL_PRIMARY}>Molėtų triatlonas</p>
+                            <p className={DATA_CELL_SECONDARY}>Triathlon</p>
+                          </td>
+                          <td>
+                            <StatusPill tone="planned">Planned</StatusPill>
+                          </td>
+                          <td>
+                            <SportDot sport="TRIATHLON" label="Triathlon" />
+                          </td>
+                          <td>
+                            <PriorityBadge priority="A" />
+                          </td>
+                          <td className={cn('text-right', DATA_NUM)}>1w</td>
+                        </tr>
+                        <tr>
+                          <td className={DATA_CELL_SECONDARY}>Aug 22, 2026</td>
+                          <td>
+                            <p className={DATA_CELL_PRIMARY}>Temple pusmaratonis</p>
+                            <p className={DATA_CELL_SECONDARY}>Half Marathon</p>
+                          </td>
+                          <td>
+                            <StatusPill tone="watching">Watching</StatusPill>
+                          </td>
+                          <td>
+                            <SportDot sport="RUN" label="Run" />
+                          </td>
+                          <td>
+                            <PriorityBadge priority="B" />
+                          </td>
+                          <td className={cn('text-right', DATA_NUM)}>1w</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             }

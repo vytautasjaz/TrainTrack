@@ -21,7 +21,7 @@ type SectionCardHeaderProps = {
 export function SectionCardHeader({ title, action, className }: SectionCardHeaderProps) {
   return (
     <div className={cn('flex flex-wrap items-start justify-between gap-3 p-5', className)}>
-      <SectionTitle>{title}</SectionTitle>
+      <SectionTitle variant="ui">{title}</SectionTitle>
       {action}
     </div>
   )
@@ -59,7 +59,7 @@ type SectionCardDividerProps = {
 export function SectionCardDivider({ title, className }: SectionCardDividerProps) {
   return (
     <div className={cn('border-b border-border/40 px-5 py-3', className)}>
-      <SectionTitle>{title}</SectionTitle>
+      <SectionTitle variant="ui">{title}</SectionTitle>
     </div>
   )
 }

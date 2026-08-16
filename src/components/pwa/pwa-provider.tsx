@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { Share, X, Zap } from 'lucide-react'
+import { Share, X } from 'lucide-react'
+import { TrainTrackAppIcon } from '@/components/brand/traintrack-logo'
 import { Button } from '@/components/ui/button'
 
 const DISMISS_KEY = 'traintrack-install-dismissed'
@@ -106,9 +107,7 @@ export function PwaProvider() {
   return (
     <div className="fixed inset-x-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-[60] portrait:max-lg:block landscape:max-lg:bottom-[calc(0.75rem+env(safe-area-inset-bottom))] lg:hidden">
       <div className="flex items-start gap-3 rounded-[6px] border border-border bg-card p-3 shadow-none">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] bg-foreground text-background">
-          <Zap className="h-5 w-5" />
-        </div>
+        <TrainTrackAppIcon className="h-10 w-10 shrink-0" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">Install TrainTrack</p>
           {clientPwa.ios ? (

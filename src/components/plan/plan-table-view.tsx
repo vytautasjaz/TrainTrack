@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { WorkoutType } from "@prisma/client";
 import { AddWorkoutCell } from "@/components/plan/add-workout-cell";
+import { DayDropTd } from "@/components/plan/day-drop-td";
 import { PlanMobileDayStack } from "@/components/plan/plan-mobile-day-stack";
 import { SeasonEventChips } from "@/components/plan/season-event-chips";
-import { PlanWorkoutCell } from "@/components/plan/plan-workout-row";
 import { PlanWeekDndProvider } from "@/components/plan/plan-week-dnd";
 import { PlanWeekDayStrip } from "@/components/plan/week-day-strip";
 import {
@@ -40,6 +40,7 @@ import {
   TABLE_HEADER_VLINE,
 } from "@/lib/table-styles";
 import { DayNoteSection } from "@/components/plan/day-note-section";
+import { dayNoteHasVisibleContent } from "@/lib/day-notes";
 import { RecoveryDaySection } from "@/components/plan/recovery-day-section";
 import { PlanDayAddMenu } from "@/components/plan/plan-day-add-menu";
 import {
@@ -223,10 +224,12 @@ function NoteTableRow({
   days,
   canEditDayNotes,
   athleteId,
+  isCoach,
 }: {
   days: PlanDay[];
   canEditDayNotes: boolean;
   athleteId?: string;
+  isCoach: boolean;
 }) {
   return (
     <tr className={cn("border-b bg-muted/10", PLAN_TABLE_LINE)}>
@@ -244,15 +247,14 @@ function NoteTableRow({
           className={cn(
             "p-0.5 align-top landscape:max-lg:px-px lg:p-1.5",
             dayColVline(days, day.dateKey),
-            day.dayNote
-              ? undefined
-              : dayColumnClass(day),
+            dayColumnClass(day),
           )}
         >
           <DayNoteSection
             dateKey={day.dateKey}
             note={day.dayNote}
             canEdit={canEditDayNotes}
+            noteKind={isCoach ? "coach" : "athlete"}
             athleteId={athleteId}
             compact
             showFullText
@@ -460,31 +462,28 @@ function SportTableRows({
               const sportWorkouts = workoutsForSport(day, sport);
               const emptyCoachCell = isCoach && sportWorkouts.length === 0;
               return (
-                <td
+                <DayDropTd
                   key={day.dateKey}
+                  dateKey={day.dateKey}
+                  sport={sport}
+                  enabled={dragEnabled}
                   className={cn(
-                    "p-0.5 align-top landscape:max-lg:px-px lg:p-1",
+                    "p-0.5 align-top landscape:max-lg:px-px lg:p-1.5",
                     dayColVline(days, day.dateKey),
                     emptyCoachCell && "h-px",
                     PLAN_TABLE_CELL_HOVER_CLASS,
                     dayColumnClass(day),
                   )}
                 >
-                  {isCoach ? (
-                    <AddWorkoutCell
-                      date={day.dateKey}
-                      sport={sport}
-                      workouts={sportWorkouts}
-                      isCoach={isCoach}
-                      layout="table"
-                      dragEnabled={dragEnabled}
-                    />
-                  ) : (
-                    <div className="min-h-0 px-0.5 py-0.5 landscape:max-lg:min-h-0 lg:min-h-[5rem] lg:px-2 lg:py-2">
-                      <PlanWorkoutCell workouts={sportWorkouts} isCoach={isCoach} />
-                    </div>
-                  )}
-                </td>
+                  <AddWorkoutCell
+                    date={day.dateKey}
+                    sport={sport}
+                    workouts={sportWorkouts}
+                    isCoach={isCoach}
+                    layout="table"
+                    dragEnabled={dragEnabled}
+                  />
+                </DayDropTd>
               );
             })}
           </tr>
@@ -542,9 +541,9 @@ function PlanTableViewInner({
           weekHiddenPlanSportRows,
         )
       : [];
-  const dragEnabled = isCoach;
+  const dragEnabled = true;
 
-  const hasAnyDayNotes = days.some((d) => d.dayNote);
+  const hasAnyDayNotes = days.some((d) => dayNoteHasVisibleContent(d.dayNote));
   const showNoteRow = showNotes && hasAnyDayNotes;
   const showEventsRow =
     showEvents && days.some((d) => (d.seasonEvents?.length ?? 0) > 0);
@@ -666,6 +665,7 @@ function PlanTableViewInner({
           days={days}
           canEditDayNotes={canEditDayNotes}
           athleteId={athleteId}
+          isCoach={isCoach}
         />
       )}
       {!hideFooterRows && (
@@ -809,9 +809,9 @@ export function PlanTableView({
   skipDndProvider = false,
   ...props
 }: PlanTableViewProps) {
-  if (props.isCoach && !skipDndProvider) {
+  if (!skipDndProvider) {
     return (
-      <PlanWeekDndProvider>
+      <PlanWeekDndProvider mode={props.isCoach ? 'coach' : 'athlete'}>
         <PlanTableViewInner {...props} />
       </PlanWeekDndProvider>
     );

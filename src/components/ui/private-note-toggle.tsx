@@ -43,7 +43,7 @@ export function PrivateNoteToggle({
             ? (e) => onCheckedChange(e.target.checked)
             : undefined
         }
-        className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-foreground"
+        className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-brand"
       />
       <span>{label}</span>
     </label>

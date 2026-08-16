@@ -1,6 +1,8 @@
-import { AthleteLogType, WorkoutStatus, WorkoutType } from '@prisma/client'
+import { AthleteLogType, SessionType, WorkoutStatus, WorkoutType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { addDateOnlyDays, parseDateOnly, toDateKey } from '@/lib/dates'
+import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
+import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 import {
   formatElapsedClock,
   raceLegSupportsStrava,
@@ -839,6 +841,162 @@ export async function unlinkStravaFromRaceLegForAthlete(
       actualDurationMin: null,
     },
   })
+}
+
+function sessionTypeForImportedWorkout(type: WorkoutType): SessionType {
+  if (type === WorkoutType.STRENGTH) return SessionType.STRENGTH
+  if (type === WorkoutType.HYROX) return SessionType.HYROX
+  return SessionType.CUSTOM
+}
+
+export type StravaImportActivityItem = ReturnType<typeof formatActivityPreview> & {
+  workoutType: WorkoutType
+  linked: boolean
+}
+
+/**
+ * Recent Strava activities that can be imported as new self-logged workouts
+ * (not already linked, mappable sport, optional date window).
+ */
+export async function listUnmatchedStravaActivitiesForAthlete(
+  userId: string,
+  athleteId: string,
+  options?: { fromKey?: string; toKey?: string },
+): Promise<StravaImportActivityItem[]> {
+  const athlete = await prisma.athlete.findFirst({
+    where: { id: athleteId, userId },
+    select: { id: true },
+  })
+  if (!athlete) throw new Error('You can only import Strava activities for your own account')
+
+  const connection = await prisma.stravaConnection.findUnique({ where: { userId } })
+  if (!connection) throw new Error('Strava is not connected')
+
+  const today = toDateKey(new Date())
+  const defaultFrom = toDateKey(addDateOnlyDays(parseDateOnly(today), -14))
+  const window = resolveSyncWindow(
+    {
+      fromKey: options?.fromKey?.trim() || defaultFrom,
+      toKey: options?.toKey?.trim() || today,
+      updateLastSyncedAt: false,
+    },
+    null,
+  )
+
+  const accessToken = await getValidAccessToken(userId)
+  const activitiesRaw = await fetchAllRecentActivities(accessToken, {
+    afterUnix: window.afterUnix,
+    beforeUnix: window.beforeUnix,
+  })
+  const activities =
+    window.filterFromKey && window.filterToKey
+      ? activitiesRaw.filter((activity) => {
+          const key = activityDateKey(activity)
+          return key >= window.filterFromKey! && key <= window.filterToKey!
+        })
+      : activitiesRaw
+
+  const activityIds = activities.map((a) => String(a.id))
+  const links = await findRaceActivityLinks(activityIds)
+  const linkedIds = new Set([
+    ...links.workoutIds.keys(),
+    ...links.raceIds.keys(),
+    ...links.legIds.keys(),
+  ])
+
+  return activities
+    .map((activity) => {
+      const workoutType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+      if (!workoutType || workoutType === WorkoutType.REST) return null
+      const id = String(activity.id)
+      return {
+        ...formatActivityPreview(activity),
+        workoutType,
+        linked: linkedIds.has(id),
+      }
+    })
+    .filter((item): item is StravaImportActivityItem => item != null)
+    .sort((a, b) =>
+      a.date === b.date
+        ? b.startTimeLocal.localeCompare(a.startTimeLocal)
+        : b.date.localeCompare(a.date),
+    )
+}
+
+/**
+ * Create a completed self-logged workout from a Strava activity that was not on the plan.
+ */
+export async function importStravaActivityAsWorkoutForAthlete(
+  userId: string,
+  athleteId: string,
+  activityId: string,
+): Promise<{ workoutId: string }> {
+  const athlete = await prisma.athlete.findFirst({
+    where: { id: athleteId, userId },
+    select: { id: true },
+  })
+  if (!athlete) throw new Error('You can only import Strava activities for your own account')
+
+  const connection = await prisma.stravaConnection.findUnique({ where: { userId } })
+  if (!connection) throw new Error('Strava is not connected')
+
+  const numericId = Number(activityId)
+  if (!Number.isFinite(numericId)) throw new Error('Invalid Strava activity')
+
+  const alreadyLinked = await prisma.workoutResult.findUnique({
+    where: { stravaActivityId: String(numericId) },
+  })
+  if (alreadyLinked) {
+    throw new Error('That Strava activity is already linked to a workout')
+  }
+  const raceLinks = await findRaceActivityLinks([String(numericId)])
+  if (
+    raceLinks.raceIds.has(String(numericId)) ||
+    raceLinks.legIds.has(String(numericId))
+  ) {
+    throw new Error('That Strava activity is already linked to a race')
+  }
+
+  const accessToken = await getValidAccessToken(userId)
+  const activity = await fetchStravaActivity(accessToken, numericId)
+  if (activity.commute) {
+    throw new Error('Commute activities cannot be imported as workouts')
+  }
+
+  const workoutType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+  if (!workoutType || workoutType === WorkoutType.REST) {
+    throw new Error('That Strava activity type is not supported')
+  }
+
+  const dateKey = activityDateKey(activity)
+  const workoutDate = parseDateOnly(dateKey)
+  const durationMin = secondsToMinutes(activity.moving_time || activity.elapsed_time)
+  const distanceKm = activity.distance > 0 ? metersToKm(activity.distance) : null
+  const title =
+    activity.name?.trim() || WORKOUT_TYPE_LABELS[workoutType] || 'Workout'
+  const sortOrder = await getNextWorkoutSortOrder(athleteId, workoutDate)
+
+  const workout = await prisma.workout.create({
+    data: {
+      athleteId,
+      date: workoutDate,
+      sortOrder,
+      type: workoutType,
+      sessionType: sessionTypeForImportedWorkout(workoutType),
+      title,
+      status: WorkoutStatus.PLANNED,
+      selfLogged: true,
+      plannedDuration: durationMin,
+      plannedDistance: workoutType === WorkoutType.SWIM ? null : distanceKm,
+      plannedDistanceMeters:
+        workoutType === WorkoutType.SWIM && activity.distance > 0
+          ? Math.round(activity.distance)
+          : null,
+    },
+  })
+
+  await applyActivityToWorkout(workout.id, activity, accessToken)
+  return { workoutId: workout.id }
 }
 
 export async function ensureTriathlonLegsForRace(raceId: string, type: import('@prisma/client').RaceType) {

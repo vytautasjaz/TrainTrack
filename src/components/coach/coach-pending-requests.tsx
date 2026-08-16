@@ -18,7 +18,7 @@ export function CoachPendingRequests({ coachingCode, requests }: CoachPendingReq
   return (
     <section className="card-elevated space-y-4 border border-brand/20 bg-brand-soft/30 p-5">
       <div>
-        <SectionTitle>Pending athlete requests</SectionTitle>
+        <SectionTitle variant="ui">Pending athlete requests</SectionTitle>
         <Caption>
           {requests.length === 1
             ? '1 athlete wants to connect'

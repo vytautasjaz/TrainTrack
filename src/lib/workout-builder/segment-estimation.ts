@@ -1,5 +1,5 @@
 import type { SessionType, WorkoutType } from '@prisma/client'
-import { WorkoutType as SportEnum } from '@prisma/client'
+import { PlannedMetricSource, WorkoutType as SportEnum } from '@prisma/client'
 import {
   bikeSpeedKphForSessionType,
   estimateDistanceKmFromBikeSpeed,
@@ -625,6 +625,8 @@ export function resolvePlannedWorkoutMetrics({
   sessionType,
   sportType,
   allowPaceEstimate = true,
+  distanceSource: inputDistanceSource = null,
+  durationSource: inputDurationSource = null,
 }: {
   plannedDistance?: number
   plannedDuration?: number
@@ -635,9 +637,21 @@ export function resolvePlannedWorkoutMetrics({
   sportType?: WorkoutType | null
   /** When false, do not invent the missing duration/distance from pace/speed zones. */
   allowPaceEstimate?: boolean
-}): { plannedDistance?: number; plannedDuration?: number } {
+  /** Client-declared provenance for the provided distance (MANUAL / STRUCTURE / COMPANION). */
+  distanceSource?: PlannedMetricSource | null
+  durationSource?: PlannedMetricSource | null
+}): {
+  plannedDistance?: number
+  plannedDuration?: number
+  distanceSource: PlannedMetricSource | null
+  durationSource: PlannedMetricSource | null
+} {
   let dist = plannedDistance
   let dur = plannedDuration
+  let distanceSource: PlannedMetricSource | null =
+    dist && dist > 0 ? inputDistanceSource ?? PlannedMetricSource.MANUAL : null
+  let durationSource: PlannedMetricSource | null =
+    dur && dur > 0 ? inputDurationSource ?? PlannedMetricSource.MANUAL : null
 
   const hasStructure =
     structure &&
@@ -646,8 +660,14 @@ export function resolvePlannedWorkoutMetrics({
   if (hasStructure && structure) {
     const estDist = estimateStructureDistanceKm(structure, preferences, sportType)
     const estDur = estimateStructureDurationMinutes(structure, preferences, sportType)
-    if (estDist > 0) dist = dist ?? estDist
-    if (estDur > 0) dur = dur ?? estDur
+    if (estDist > 0 && !(dist && dist > 0)) {
+      dist = estDist
+      distanceSource = PlannedMetricSource.STRUCTURE
+    }
+    if (estDur > 0 && !(dur && dur > 0)) {
+      dur = estDur
+      durationSource = PlannedMetricSource.STRUCTURE
+    }
   }
 
   if (allowPaceEstimate && sportUsesDistance && dist && !dur) {
@@ -657,7 +677,10 @@ export function resolvePlannedWorkoutMetrics({
       sessionType,
       sportType,
     )
-    if (derived > 0) dur = derived
+    if (derived > 0) {
+      dur = derived
+      durationSource = PlannedMetricSource.COMPANION
+    }
   }
   if (allowPaceEstimate && sportUsesDistance && dur && !dist) {
     const derived = estimateDistanceKmFromDurationMinutes(
@@ -666,12 +689,17 @@ export function resolvePlannedWorkoutMetrics({
       sessionType,
       sportType,
     )
-    if (derived > 0) dist = derived
+    if (derived > 0) {
+      dist = derived
+      distanceSource = PlannedMetricSource.COMPANION
+    }
   }
 
   return {
     plannedDistance: dist && dist > 0 ? dist : undefined,
     plannedDuration: dur && dur > 0 ? dur : undefined,
+    distanceSource: dist && dist > 0 ? distanceSource : null,
+    durationSource: dur && dur > 0 ? durationSource : null,
   }
 }
 

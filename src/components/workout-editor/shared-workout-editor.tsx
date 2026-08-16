@@ -53,6 +53,7 @@ import {
   primaryMetricFromTags,
   secondaryMetricVisibleFromTags,
 } from '@/lib/workout-approx-tags'
+import { metricSourceFromEditorIntent } from '@/lib/workout-metric-source'
 import {
   BIKE_WORKOUT_KINDS,
   autoBikeSubtitle,
@@ -354,9 +355,15 @@ export function SharedWorkoutEditor({
       )
       const hasSwimStructure = hasSwimStructureContent(workout.swimStructure)
       const durationIsManual =
-        hasDuration && (hasSavedStructure || hasSwimStructure || !approx.duration)
+        hasDuration &&
+        (workout.plannedDurationSource
+          ? workout.plannedDurationSource === 'MANUAL'
+          : hasSavedStructure || hasSwimStructure || !approx.duration)
       const distanceIsManual =
-        hasDistance && (hasSavedStructure || hasSwimStructure || !approx.distance)
+        hasDistance &&
+        (workout.plannedDistanceSource
+          ? workout.plannedDistanceSource === 'MANUAL'
+          : hasSavedStructure || hasSwimStructure || !approx.distance)
       setDurationManual(durationIsManual)
       setDistanceManual(distanceIsManual)
       setAutoDurationInput(
@@ -827,6 +834,26 @@ export function SharedWorkoutEditor({
     setLibraryOpen(false)
   }
 
+  function buildMetricSources() {
+    const fromStructure = Boolean(metricsFromDetails)
+    return {
+      plannedDurationSource: metricSourceFromEditorIntent({
+        hasValue: durationMin > 0 && typeSelected,
+        manual: durationManual,
+        fromStructure,
+      }),
+      plannedDistanceSource: metricSourceFromEditorIntent({
+        hasValue:
+          config.showDistance &&
+          config.distanceUnit === 'km' &&
+          distanceKm > 0 &&
+          typeSelected,
+        manual: distanceManual,
+        fromStructure,
+      }),
+    }
+  }
+
   function buildTags() {
     const approx = {
       duration: !metricsFromDetails && !durationManual && durationMin > 0 && typeSelected,
@@ -1043,6 +1070,7 @@ export function SharedWorkoutEditor({
           config.showDistance && config.distanceUnit === 'km' && distanceKm > 0
             ? distanceKm
             : undefined,
+        ...buildMetricSources(),
         coachNotes: coachNotes.trim() || undefined,
         coachNotesPrivate,
         structure: persistDetails || hasIncludeItems ? structureToSave : undefined,

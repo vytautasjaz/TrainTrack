@@ -150,6 +150,18 @@ enum SwimEnvironment {
   OPEN_WATER
 }
 
+/**
+ * Provenance for a planned distance/duration value.
+ * MANUAL — user entered (or locked); keep absolute when applying templates.
+ * STRUCTURE — derived from workout blocks; recompute per athlete prefs.
+ * COMPANION — derived from the other metric via pace/speed/CSS; recompute per athlete.
+ */
+enum PlannedMetricSource {
+  MANUAL
+  STRUCTURE
+  COMPANION
+}
+
 enum CalendarFeedType {
   TRAINING
   RACES
@@ -553,11 +565,16 @@ model WorkoutTemplate {
   description String?
   durationMin Int?
   distanceKm  Float?
+  /** Provenance for durationMin — drives per-athlete recompute on schedule. */
+  durationSource PlannedMetricSource?
+  /** Provenance for distanceKm. */
+  distanceSource PlannedMetricSource?
   notes       String?
   structure   Json?
   swimEnvironment       SwimEnvironment?
   swimStructure         Json?
   plannedDistanceMeters Int?
+  plannedDistanceMetersSource PlannedMetricSource?
   tags        String[]     @default([])
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
@@ -579,6 +596,10 @@ model Workout {
   description     String?
   plannedDistance Float?
   plannedDuration Int?
+  /** Provenance for plannedDistance (manual vs auto). */
+  plannedDistanceSource PlannedMetricSource?
+  /** Provenance for plannedDuration (manual vs auto). */
+  plannedDurationSource PlannedMetricSource?
   coachNotes      String?
   /** When true, coachNotes are hidden from the athlete. */
   coachNotesPrivate Boolean @default(false)
@@ -586,6 +607,7 @@ model Workout {
   swimEnvironment       SwimEnvironment?
   swimStructure         Json?
   plannedDistanceMeters Int?
+  plannedDistanceMetersSource PlannedMetricSource?
   tags            String[]      @default([])
   status          WorkoutStatus @default(PLANNED)
   sortOrder       Int           @default(0)
@@ -634,13 +656,16 @@ model WorkoutResult {
 }
 
 model DayNote {
-  id        String         @id @default(cuid())
-  athleteId String
-  date      DateTime       @db.Date
-  status    DayNoteStatus  @default(AVAILABLE)
-  notes     String?
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  id                   String        @id @default(cuid())
+  athleteId            String
+  date                 DateTime      @db.Date
+  status               DayNoteStatus @default(AVAILABLE)
+  athleteNotes         String?
+  athleteNotesPrivate  Boolean       @default(false)
+  coachNotes           String?
+  coachNotesPrivate    Boolean       @default(false)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
 

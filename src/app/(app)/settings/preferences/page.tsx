@@ -103,7 +103,7 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
       {isAthlete ? (
         <section id="integrations" className="card-elevated scroll-mt-24 space-y-4 p-5">
           <div>
-            <SectionTitle>Integrations</SectionTitle>
+            <SectionTitle variant="ui">Integrations</SectionTitle>
             <Caption>Connect external services to sync training data.</Caption>
           </div>
           <StravaConnectCard
@@ -131,7 +131,7 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
         <>
           <section className="card-elevated space-y-4 p-5">
             <div>
-              <SectionTitle>Plan-ahead reminders</SectionTitle>
+              <SectionTitle variant="ui">Plan-ahead reminders</SectionTitle>
               <Caption>
                 Warn on the dashboard when an active athlete has no workouts planned this many days
                 ahead. Mark athletes Active / Inactive when editing their profile.
@@ -141,7 +141,7 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
           </section>
           <section className="card-elevated space-y-4 p-5">
             <div>
-              <SectionTitle>Workout builder preferences</SectionTitle>
+              <SectionTitle variant="ui">Workout builder preferences</SectionTitle>
               <Caption>
                 Customize Add Block presets per sport — order, labels, and default duration /
                 intensity when you insert a block.

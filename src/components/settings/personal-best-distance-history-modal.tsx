@@ -20,7 +20,11 @@ import {
 } from '@/lib/personal-best-distance-history'
 import type { PersonalBestRecord } from '@/lib/personal-bests'
 import type { RaceResultRow } from '@/lib/race-results'
-import { TABLE_HEADER_MUTED, TABLE_SHELL } from '@/lib/table-styles'
+import { cn } from '@/lib/utils'
+import {
+  DATA_TABLE,
+  DATA_TABLE_SHELL,
+} from '@/lib/table-styles'
 
 const PAGE_SIZE = 8
 
@@ -115,10 +119,10 @@ export function PersonalBestDistanceHistoryModal({
               Add a result for this personal best, or log a matching race below.
             </p>
           ) : (
-            <div className={TABLE_SHELL}>
-              <table className="w-full border-collapse text-left text-sm">
+            <div className={DATA_TABLE_SHELL}>
+              <table className={cn(DATA_TABLE, "min-w-full")} data-density="compact">
                 <thead>
-                  <tr className={`${TABLE_HEADER_MUTED} text-[11px]`}>
+                  <tr>
                     <th className="px-3 py-2">
                       <SortableColumnHeader
                         label="Date"

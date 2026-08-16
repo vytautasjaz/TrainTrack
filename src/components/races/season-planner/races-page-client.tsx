@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, useTransition, type MouseEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MoreVertical, Pencil, Trash2, Search, X, ChevronDown, Check, Plus } from 'lucide-react'
@@ -20,6 +20,7 @@ import { Select } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
 import { PriorityBadge } from '@/components/races/priority-badge'
+import { StatusPill } from '@/components/ui/status-pill'
 import { AddRaceButton, WatchRaceButton } from '@/components/races/add-race-modal'
 import { RaceDetailSheet } from '@/components/races/race-detail-sheet'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
@@ -30,8 +31,15 @@ import {
   updateSeasonPhaseBlock,
 } from '@/app/actions/season-phases'
 import { SeasonEventModal } from '@/components/plan/season-event-modal'
-import { raceOutcomeSummary, type SeasonRace } from '@/lib/season-races'
+import { raceOutcomeSummary, raceDistanceLabel, type SeasonRace } from '@/lib/season-races'
 import { daysUntil } from '@/lib/utils'
+import { WORKOUT_TYPE_DOT_CLASS } from '@/lib/workout-display'
+import {
+  PlannerTipMeta,
+  PlannerTipRow,
+  PlannerTipTitle,
+  usePlannerFollowTooltip,
+} from '@/components/races/season-planner/planner-follow-tooltip'
 import {
   DEFAULT_PLANNER_ZOOM,
   PLANNER_PRIORITY_CARD,
@@ -73,6 +81,12 @@ import {
   TABLE_HEADER_SUB,
   TABLE_HEADER_VLINE,
   TABLE_SHELL,
+  DATA_TABLE,
+  DATA_TABLE_SHELL,
+  DATA_CELL_PRIMARY,
+  DATA_CELL_SECONDARY,
+  DATA_CELL_META,
+  DATA_NUM,
 } from '@/lib/table-styles'
 import { toDateKey } from '@/lib/dates'
 
@@ -97,7 +111,7 @@ export function RacesPageClient({
   )
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <SeasonPlannerView
         planned={allPlanned}
         watching={watching}
@@ -109,6 +123,8 @@ export function RacesPageClient({
     </div>
   )
 }
+
+const SEASON_CTA_CLASS = 'tt-season-cta'
 
 type LaneMode = 'priority' | 'sport'
 
@@ -184,7 +200,7 @@ function SeasonPlannerView({
   const selected = boardRaces.find((r) => r.id === selectedId) ?? null
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <div className="flex flex-nowrap items-center gap-x-2 overflow-x-auto pb-0.5">
         <SegmentedControl aria-label="Board layout" className="shrink-0">
           {(
@@ -209,6 +225,7 @@ function SeasonPlannerView({
             variant="secondary"
             size="sm"
             athleteId={athleteId}
+            className={SEASON_CTA_CLASS}
           />
           <Button
             type="button"
@@ -251,39 +268,110 @@ function SeasonPlannerView({
         onEditEvent={(event) => setEventModal({ mode: 'edit', event })}
       />
 
-      <div className="flex flex-nowrap items-center gap-x-2 overflow-x-auto pb-0.5">
-        {PLANNER_PRIORITY_LANES.map(({ priority }) => (
-          <FilterChip
-            key={priority}
-            active={priorityFilter[priority]}
-            onClick={() =>
-              setPriorityFilter((prev) => ({ ...prev, [priority]: !prev[priority] }))
-            }
-            dotClass={PLANNER_PRIORITY_DOT[priority]}
-            label={priority}
+      <div className="tt-season-filters flex flex-nowrap items-center gap-3 overflow-x-auto pb-0.5 pt-1">
+        <div
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#E1E3E6] bg-white px-1.5 py-1"
+          role="group"
+          aria-label="Priority filters"
+        >
+          <span className="hidden pl-1.5 pr-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground sm:inline">
+            Priority
+          </span>
+          {PLANNER_PRIORITY_LANES.map(({ priority }) => (
+            <FilterChip
+              key={priority}
+              active={priorityFilter[priority]}
+              onClick={() =>
+                setPriorityFilter((prev) => ({ ...prev, [priority]: !prev[priority] }))
+              }
+              dotClass={PLANNER_PRIORITY_DOT[priority]}
+              label={priority}
+              nested
+            />
+          ))}
+          <FilterGroupAllNone
+            allSelected={priorityFilter.A && priorityFilter.B && priorityFilter.C}
+            noneSelected={!priorityFilter.A && !priorityFilter.B && !priorityFilter.C}
+            onAll={() => setPriorityFilter({ A: true, B: true, C: true })}
+            onNone={() => setPriorityFilter({ A: false, B: false, C: false })}
           />
-        ))}
-        <FilterChip
-          active={showWatching}
-          onClick={() => setShowWatching((prev) => !prev)}
-          label="Watching"
-        />
-        <FilterChip
-          active={showEvents}
-          onClick={() => setShowEvents((prev) => !prev)}
-          label="Events"
-        />
-        <div className="mx-0.5 h-5 w-px shrink-0 bg-foreground/20" aria-hidden />
-        {PLANNER_SPORTS.map((sport) => (
+        </div>
+
+        <div
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#E1E3E6] bg-white px-1.5 py-1"
+          role="group"
+          aria-label="Lane filters"
+        >
+          <span className="hidden pl-1.5 pr-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground sm:inline">
+            Lanes
+          </span>
           <FilterChip
-            key={sport}
-            active={sportFilter[sport]}
-            onClick={() =>
-              setSportFilter((prev) => ({ ...prev, [sport]: !prev[sport] }))
-            }
-            label={PLANNER_SPORT_LABELS[sport]}
+            active={showWatching}
+            onClick={() => setShowWatching((prev) => !prev)}
+            label="Watching"
+            nested
           />
-        ))}
+          <FilterChip
+            active={showEvents}
+            onClick={() => setShowEvents((prev) => !prev)}
+            label="Events"
+            nested
+          />
+          <FilterGroupAllNone
+            allSelected={showWatching && showEvents}
+            noneSelected={!showWatching && !showEvents}
+            onAll={() => {
+              setShowWatching(true)
+              setShowEvents(true)
+            }}
+            onNone={() => {
+              setShowWatching(false)
+              setShowEvents(false)
+            }}
+          />
+        </div>
+
+        <div
+          className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#E1E3E6] bg-white px-1.5 py-1"
+          role="group"
+          aria-label="Sport filters"
+        >
+          <span className="hidden pl-1.5 pr-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground sm:inline">
+            Sport
+          </span>
+          {PLANNER_SPORTS.map((sport) => (
+            <FilterChip
+              key={sport}
+              active={sportFilter[sport]}
+              onClick={() =>
+                setSportFilter((prev) => ({ ...prev, [sport]: !prev[sport] }))
+              }
+              dotClass={WORKOUT_TYPE_DOT_CLASS[sport]}
+              label={PLANNER_SPORT_LABELS[sport]}
+              nested
+            />
+          ))}
+          <FilterGroupAllNone
+            allSelected={PLANNER_SPORTS.every((s) => sportFilter[s])}
+            noneSelected={PLANNER_SPORTS.every((s) => !sportFilter[s])}
+            onAll={() =>
+              setSportFilter(
+                Object.fromEntries(PLANNER_SPORTS.map((s) => [s, true])) as Record<
+                  PlannerSport,
+                  boolean
+                >,
+              )
+            }
+            onNone={() =>
+              setSportFilter(
+                Object.fromEntries(PLANNER_SPORTS.map((s) => [s, false])) as Record<
+                  PlannerSport,
+                  boolean
+                >,
+              )
+            }
+          />
+        </div>
       </div>
 
       <RaceDetailSheet
@@ -365,13 +453,59 @@ function PlannerToolbar({
   )
 }
 
+function FilterGroupAllNone({
+  allSelected,
+  noneSelected,
+  onAll,
+  onNone,
+}: {
+  allSelected: boolean
+  noneSelected: boolean
+  onAll: () => void
+  onNone: () => void
+}) {
+  return (
+    <span className="ml-0.5 flex items-center gap-0.5 border-l border-[#E1E3E6] pl-1.5 pr-0.5">
+      <button
+        type="button"
+        onClick={onAll}
+        disabled={allSelected}
+        className={cn(
+          'rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition',
+          allSelected
+            ? 'cursor-default text-foreground/40'
+            : 'cursor-pointer text-muted-foreground hover:text-foreground',
+        )}
+      >
+        All
+      </button>
+      <button
+        type="button"
+        onClick={onNone}
+        disabled={noneSelected}
+        className={cn(
+          'rounded px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide transition',
+          noneSelected
+            ? 'cursor-default text-foreground/40'
+            : 'cursor-pointer text-muted-foreground hover:text-foreground',
+        )}
+      >
+        None
+      </button>
+    </span>
+  )
+}
+
 function FilterChip({
   active,
+  nested = false,
   onClick,
   label,
   dotClass,
 }: {
   active: boolean
+  /** Inside a grouped filter shell — quieter idle borders. */
+  nested?: boolean
   onClick: () => void
   label: string
   dotClass?: string
@@ -382,10 +516,11 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition',
+        'inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold transition',
+        nested ? 'border border-transparent' : 'border border-[#E1E3E6]',
         active
-          ? 'border-foreground/25 bg-white text-foreground shadow-sm'
-          : 'border-transparent bg-transparent text-muted-foreground/55 line-through decoration-muted-foreground/40 hover:bg-muted/40 hover:text-muted-foreground',
+          ? 'bg-black/[0.06] text-foreground'
+          : 'bg-transparent text-muted-foreground/55 hover:bg-black/[0.03] hover:text-muted-foreground',
       )}
     >
       {dotClass ? (
@@ -393,7 +528,7 @@ function FilterChip({
           className={cn(
             'h-1.5 w-1.5 rounded-full',
             dotClass,
-            !active && 'opacity-40',
+            !active && 'opacity-45',
           )}
         />
       ) : null}
@@ -455,7 +590,7 @@ function SeasonPlannerBoard({
     : []
 
   return (
-    <div className={TABLE_SHELL}>
+    <div className={cn(TABLE_SHELL, 'tt-season-timeline')}>
       <div
         id="season-planner-scroller"
         className="season-planner-scroller overflow-x-auto"
@@ -465,7 +600,7 @@ function SeasonPlannerBoard({
         <div className={cn('sticky top-0 z-20 flex', TABLE_HEADER)}>
           <div
             className={cn(
-              'sticky left-0 z-30 shrink-0 bg-sidebar px-2 py-1.5 text-[10px] font-semibold',
+              'sticky left-0 z-30 shrink-0 bg-[#3a3f48] px-2 py-1.5 text-[10px] font-semibold',
               TABLE_HEADER_VLINE,
               TABLE_HEADER_CELL_MUTED,
             )}
@@ -478,22 +613,22 @@ function SeasonPlannerBoard({
               <div
                 key={m.key}
                 className={cn(
-                  'border-r border-white/15 px-1 py-1.5 text-center text-[10px] font-semibold',
+                  'border-r border-white/8 px-1 py-1.5 text-center text-[10px] font-semibold',
                   TABLE_HEADER_CELL_STRONG,
                 )}
                 style={{ width: m.weekCount * colW }}
               >
                 <span>{m.label}</span>
-                <span className="ml-1 text-sidebar-foreground/55">{m.year}</span>
+                <span className="ml-1 text-white/45">{m.year}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Week numbers — lighter than month header */}
+        {/* Week numbers — light strip; today = orange week badge */}
         <div className={cn('sticky top-[30px] z-20 flex', TABLE_HEADER_SUB)}>
           <div
-            className={cn('sticky left-0 z-10 shrink-0 border-r border-white/20 bg-[#7a7f8c]')}
+            className="sticky left-0 z-10 shrink-0 border-r border-[#ECECEA] bg-[#f4f4f2]"
             style={{ width: labelW }}
           />
           <div className="flex" style={{ width: gridW }}>
@@ -501,36 +636,40 @@ function SeasonPlannerBoard({
               <div
                 key={w.key}
                 className={cn(
-                  'border-r py-1 text-center text-[9px] tabular-nums text-white/85',
+                  'flex items-center justify-center border-r py-1 text-center text-[9px] tabular-nums',
                   isPlannerMonthEnd(weeks, i)
-                    ? 'border-white/35'
-                    : 'border-white/15',
-                  i === todayIdx && 'bg-white/20 font-semibold text-white',
+                    ? 'border-black/10'
+                    : 'border-black/[0.04]',
+                  i === todayIdx ? 'bg-[rgb(244_81_30/0.04)]' : 'text-[#9CA3AF]',
                 )}
                 style={{ width: colW }}
               >
-                {w.isoWeek}
+                {i === todayIdx ? (
+                  <span className="tt-season-today-badge" title="Today">
+                    {w.isoWeek}
+                  </span>
+                ) : (
+                  w.isoWeek
+                )}
               </div>
             ))}
           </div>
         </div>
 
         {/* Breathing room between week header and race lanes — keep week guidelines */}
-        <div className="flex h-2 bg-card" aria-hidden>
+        <div className="flex h-2 bg-white" aria-hidden>
           <div
-            className="sticky left-0 z-10 shrink-0 border-r border-border/60 bg-card"
+            className="tt-season-lane-label sticky left-0 z-10 shrink-0 border-r bg-white"
             style={{ width: labelW }}
           />
           <div className="relative" style={{ width: gridW }}>
             {weeks.map((w, i) => (
               <div
                 key={`gap-${w.key}`}
+                data-month-end={isPlannerMonthEnd(weeks, i) ? 'true' : undefined}
                 className={cn(
-                  'absolute inset-y-0 border-r',
-                  isPlannerMonthEnd(weeks, i)
-                    ? 'border-foreground/18'
-                    : 'border-black/[0.05]',
-                  i === todayIdx && 'bg-brand/[0.04]',
+                  'tt-season-week-line absolute inset-y-0',
+                  i === todayIdx && 'tt-season-today-col',
                 )}
                 style={{ left: i * colW, width: colW }}
               />
@@ -538,15 +677,12 @@ function SeasonPlannerBoard({
           </div>
         </div>
 
-        {/* Today line — below sticky lane labels so it clips under the left column */}
+        {/* Today line — secondary indicator; sits under race/event cards */}
         <div
-          className="pointer-events-none absolute bottom-0 top-0 z-[1] border-l border-dashed border-brand/70"
+          className="tt-season-today-line pointer-events-none absolute bottom-0 top-[52px] z-[1]"
           style={{ left: labelW + todayIdx * colW + colW / 2 }}
-        >
-          <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-brand px-1.5 py-0.5 text-[9px] font-semibold text-white">
-            Today
-          </span>
-        </div>
+          aria-hidden
+        />
 
         {/* Priority lanes — planned races only */}
         {visiblePriorityLanes.map(({ priority, label }) => {
@@ -644,7 +780,7 @@ function SeasonPlannerBoard({
                       type="button"
                       onClick={() => onEditPhase(block)}
                       className={cn(
-                        'absolute inset-y-1.5 z-[1] overflow-hidden rounded-[5px] border px-1.5 text-left text-[10px] font-semibold leading-tight',
+                        'absolute inset-y-1.5 z-[2] overflow-hidden rounded-[5px] border px-1.5 text-left text-[10px] font-semibold leading-tight',
                         PLANNER_SPORT_TINT[sport],
                       )}
                       style={{ left: start * colW + 1, width: span * colW - 2 }}
@@ -710,13 +846,13 @@ function PlannerLane({
   return (
     <div
       className={cn(
-        'relative flex',
-        thickBottom ? 'border-b-2 border-foreground/30' : 'border-b border-border/40',
+        'tt-season-lane relative flex',
+        thickBottom ? 'border-b-2 border-foreground/20' : 'border-b border-[#ECECEA]',
       )}
       style={{ minHeight: minH }}
     >
       <div
-        className="sticky left-0 z-10 flex shrink-0 items-center gap-1 border-r border-border/60 bg-card px-2"
+        className="tt-season-lane-label sticky left-0 z-10 flex shrink-0 items-center gap-1 border-r bg-white px-2"
         style={{ width: labelW }}
       >
         <span className="truncate text-[11px] font-semibold text-foreground">{label}</span>
@@ -735,12 +871,10 @@ function PlannerLane({
         {Array.from({ length: weekCount }).map((_, i) => (
           <div
             key={i}
+            data-month-end={isPlannerMonthEnd(weeks, i) ? 'true' : undefined}
             className={cn(
-              'absolute inset-y-0 border-r',
-              isPlannerMonthEnd(weeks, i)
-                ? 'border-foreground/18'
-                : 'border-black/[0.05]',
-              i === todayIdx && 'bg-brand/[0.04]',
+              'tt-season-week-line absolute inset-y-0 z-0',
+              i === todayIdx && 'tt-season-today-col',
             )}
             style={{ left: i * colW, width: colW }}
           />
@@ -867,23 +1001,36 @@ function StackedEventCards({
   const { items } = layoutStackedEvents(events, weeks, colW)
   const cardH = eventCardHeight(colW)
   const roomy = raceCardRoomy(colW)
+  const follow = usePlannerFollowTooltip()
+
   return (
     <>
       {items.map(({ event, left, width, stack }) => {
         const top = EVENT_CARD_TOP + stack * (cardH + EVENT_CARD_STACK_GAP)
         const label = formatSeasonEventLabel(event)
         const dateLabel = formatEventDateRange(event.startDate, event.endDate)
+        const tip = (
+          <>
+            <PlannerTipTitle>{label}</PlannerTipTitle>
+            <PlannerTipMeta>{dateLabel}</PlannerTipMeta>
+            {event.notes?.trim() ? (
+              <PlannerTipRow strong>{event.notes.trim()}</PlannerTipRow>
+            ) : null}
+          </>
+        )
         return (
           <button
             key={event.id}
             type="button"
             onClick={() => onEditEvent(event)}
+            onMouseEnter={(e) => follow.show(tip, e)}
+            onMouseMove={follow.move}
+            onMouseLeave={follow.hide}
             className={cn(
-              'absolute z-[1] overflow-hidden rounded-[6px] border px-1.5 py-0.5 text-left shadow-sm transition hover:brightness-[0.98]',
+              'absolute z-[2] overflow-hidden rounded-[6px] border px-1.5 py-0.5 text-left shadow-sm transition hover:brightness-[0.98]',
               SEASON_EVENT_CARD,
             )}
             style={{ left, width, top, height: cardH }}
-            title={`${dateLabel} · ${label}`}
           >
             <p className="truncate text-[9px] font-medium leading-tight opacity-70">
               {dateLabel}
@@ -899,6 +1046,7 @@ function StackedEventCards({
           </button>
         )
       })}
+      {follow.tooltip}
     </>
   )
 }
@@ -993,6 +1141,8 @@ function StackedRaceCards({
   const { items } = layoutStackedRaces(races, weeks, colW, today)
   const cardH = raceCardHeight(colW)
   const roomy = raceCardRoomy(colW)
+  const follow = usePlannerFollowTooltip()
+
   return (
     <>
       {items.map(({ race, left, width, stack, prepWin }) => {
@@ -1038,10 +1188,54 @@ function StackedRaceCards({
               height={cardH}
               nameLines={roomy ? 2 : 1}
               onSelect={() => onSelectRace(race.id)}
+              followTooltip={{
+                show: follow.show,
+                move: follow.move,
+                hide: follow.hide,
+              }}
             />
           </div>
         )
       })}
+      {follow.tooltip}
+    </>
+  )
+}
+
+function raceFollowTipContent(race: SeasonRace) {
+  const isWatching = race.intent === RaceIntent.WATCHING
+  const dateLabel = race.date.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+  const distance = raceDistanceLabel(race.type, {
+    triathlonDistance: race.triathlonDistance,
+    customDistanceKm: race.customDistanceKm,
+    legs: race.legs,
+  })
+  const sport = race.sport ? WORKOUT_TYPE_LABELS[race.sport] : null
+  const status = isWatching
+    ? RACE_INTENT_LABELS.WATCHING
+    : `${race.priority} ${RACE_PRIORITY_LABELS[race.priority]}`
+
+  return (
+    <>
+      <PlannerTipTitle>{race.name}</PlannerTipTitle>
+      <PlannerTipMeta>{dateLabel}</PlannerTipMeta>
+      <PlannerTipRow label="Status">{status}</PlannerTipRow>
+      {sport ? <PlannerTipRow label="Sport">{sport}</PlannerTipRow> : null}
+      <PlannerTipRow label="Type">{RACE_TYPE_LABELS[race.type]}</PlannerTipRow>
+      {distance ? <PlannerTipRow label="Distance">{distance}</PlannerTipRow> : null}
+      {race.location?.trim() ? (
+        <PlannerTipRow label="Location">{race.location.trim()}</PlannerTipRow>
+      ) : null}
+      {race.goal?.trim() ? (
+        <PlannerTipRow label="Goal" strong>
+          {race.goal.trim()}
+        </PlannerTipRow>
+      ) : null}
     </>
   )
 }
@@ -1054,6 +1248,7 @@ function RaceCard({
   height,
   nameLines,
   onSelect,
+  followTooltip,
 }: {
   race: SeasonRace
   left: number
@@ -1062,20 +1257,28 @@ function RaceCard({
   height: number
   nameLines: 1 | 2
   onSelect: () => void
+  followTooltip: {
+    show: (content: ReactNode, e: MouseEvent) => void
+    move: (e: MouseEvent) => void
+    hide: () => void
+  }
 }) {
   const isWatching = race.intent === RaceIntent.WATCHING
+  const tip = raceFollowTipContent(race)
   return (
     <button
       type="button"
       onClick={onSelect}
+      onMouseEnter={(e) => followTooltip.show(tip, e)}
+      onMouseMove={followTooltip.move}
+      onMouseLeave={followTooltip.hide}
       className={cn(
-        'absolute z-[2] overflow-hidden rounded-[6px] border px-1.5 py-0.5 text-left shadow-sm transition hover:brightness-[0.98]',
+        'absolute z-[2] overflow-hidden rounded-[6px] border px-1.5 py-0.5 text-left transition hover:brightness-[0.98]',
         isWatching
-          ? 'border-dashed border-muted-foreground/40 bg-muted/40 text-muted-foreground'
+          ? 'border-dashed border-[#C7CBD1] bg-white text-[#6B7280] shadow-none'
           : PLANNER_PRIORITY_CARD[race.priority],
       )}
       style={{ left, width, top, height }}
-      title={race.name}
     >
       <p className="truncate text-[9px] font-medium leading-tight opacity-70">
         {race.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
@@ -1158,10 +1361,10 @@ function RaceSearchField({
   return (
     <label
       className={cn(
-        'group relative flex h-9 w-full max-w-[14rem] items-center gap-2 rounded-full border bg-muted/40 pl-3 pr-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)] transition',
-        'border-border/60 hover:border-border hover:bg-muted/55',
-        'focus-within:border-foreground/25 focus-within:bg-card focus-within:shadow-sm',
-        hasSearch && 'border-foreground/20 bg-card',
+        'group relative flex h-9 w-full max-w-[14rem] items-center gap-2 rounded-full border bg-white pl-3 pr-2 transition',
+        'border-[#E1E3E6] hover:border-foreground/25',
+        'focus-within:border-foreground/25 focus-within:bg-white focus-within:shadow-sm',
+        hasSearch && 'border-foreground/20 bg-white',
       )}
     >
       <Search
@@ -1216,7 +1419,7 @@ function AllRacesTable({ races, athleteId }: { races: SeasonRace[]; athleteId: s
   const selected = races.find((r) => r.id === selectedId) ?? null
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <RaceListSection
         title="Upcoming races"
         description="Planned and watching — click a race for details"
@@ -1231,7 +1434,12 @@ function AllRacesTable({ races, athleteId }: { races: SeasonRace[]; athleteId: s
         headerActions={
           <div className="flex shrink-0 items-center gap-2">
             <WatchRaceButton variant="ghost" size="sm" athleteId={athleteId} />
-            <AddRaceButton variant="secondary" size="sm" athleteId={athleteId} />
+            <AddRaceButton
+              variant="secondary"
+              size="sm"
+              athleteId={athleteId}
+              className={SEASON_CTA_CLASS}
+            />
           </div>
         }
       />
@@ -1247,6 +1455,7 @@ function AllRacesTable({ races, athleteId }: { races: SeasonRace[]; athleteId: s
         emptyNoResults="No past races match your filters."
         emptyDefault="No past races yet."
         onSelect={setSelectedId}
+        quieter
       />
 
       <RaceDetailSheet
@@ -1273,9 +1482,10 @@ function RaceListSection({
   emptyDefault,
   onSelect,
   headerActions,
+  quieter = false,
 }: {
   title: string
-  description: string
+  description?: string
   races: SeasonRace[]
   today: Date
   variant: 'upcoming' | 'past'
@@ -1285,6 +1495,7 @@ function RaceListSection({
   emptyDefault: string
   onSelect: (id: string) => void
   headerActions?: ReactNode
+  quieter?: boolean
 }) {
   const [searchQuery, setSearchQuery] = useState('')
   const [sportFilter, setSportFilter] = useState<Record<PlannerSport, boolean>>(defaultSportFilter)
@@ -1333,13 +1544,18 @@ function RaceListSection({
   }
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-semibold tracking-tight">{title}</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
+    <section
+      className={cn('space-y-6', quieter && 'tt-season-past-section')}
+      aria-label={title}
+    >
+      <div className="flex flex-wrap items-end justify-between gap-x-3 gap-y-3">
+        <div className="min-w-0 flex-1 space-y-1">
+          <h2 className="title-section">{title}</h2>
+          {description ? (
+            <p className="text-xs text-muted-foreground">{description}</p>
+          ) : null}
         </div>
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2 pb-0.5">
           <RaceSearchField
             value={searchQuery}
             onChange={setSearchQuery}
@@ -1400,15 +1616,15 @@ function HeaderFilterMenu({
           type="button"
           className={cn(
             'inline-flex items-center gap-1 rounded px-0.5 font-semibold uppercase tracking-wide transition',
-            'text-sidebar-foreground/80 hover:text-sidebar-foreground',
-            'outline-none focus-visible:ring-1 focus-visible:ring-sidebar-foreground/40',
-            active && 'text-sidebar-foreground',
+            'text-text-secondary hover:text-foreground',
+            'outline-none focus-visible:ring-1 focus-visible:ring-foreground/30',
+            active && 'text-foreground',
           )}
         >
           {label}
           <ChevronDown className="h-3 w-3 opacity-70" aria-hidden />
           {active ? (
-            <span className="h-1.5 w-1.5 rounded-full bg-brand" aria-hidden />
+            <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
           ) : null}
         </button>
       </DropdownMenu.Trigger>
@@ -1515,13 +1731,13 @@ function SeasonRaceTable({
   const sportFilterActive = Object.values(filters.sportFilter).some((v) => !v)
 
   return (
-    <div className={cn("overflow-x-auto", TABLE_SHELL)}>
-      <table className="w-full min-w-[40rem] text-left text-sm">
-        <thead className={cn(TABLE_HEADER, 'text-[10px] uppercase tracking-wide')}>
+    <div className={cn('overflow-x-auto', DATA_TABLE_SHELL)}>
+      <table className={cn(DATA_TABLE, 'min-w-[40rem]')} data-density="comfortable">
+        <thead>
           <tr>
-            <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Date</th>
-            <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Race</th>
-            <th className="px-3 py-2.5 font-semibold">
+            <th>Date</th>
+            <th>Race</th>
+            <th>
               <HeaderFilterMenu
                 label="Status"
                 active={statusFilterActive}
@@ -1542,10 +1758,8 @@ function SeasonRaceTable({
                 />
               </HeaderFilterMenu>
             </th>
-            {isPast ? (
-              <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Result</th>
-            ) : null}
-            <th className="px-3 py-2.5 font-semibold">
+            {isPast ? <th>Result</th> : null}
+            <th>
               <HeaderFilterMenu
                 label="Sport"
                 active={sportFilterActive}
@@ -1564,7 +1778,7 @@ function SeasonRaceTable({
                 ))}
               </HeaderFilterMenu>
             </th>
-            <th className="px-3 py-2.5 font-semibold">
+            <th>
               <HeaderFilterMenu
                 label="Priority"
                 active={priorityFilterActive}
@@ -1584,15 +1798,13 @@ function SeasonRaceTable({
                 ))}
               </HeaderFilterMenu>
             </th>
-            <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Location</th>
-            <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Goal</th>
-            {!isPast ? (
-              <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Weeks</th>
-            ) : null}
-            {!isPast ? (
-              <th className={cn('px-3 py-2.5 font-semibold', TABLE_HEADER_CELL_MUTED)}>Prep</th>
-            ) : null}
-            <th className="px-3 py-2.5 font-semibold"> </th>
+            <th>Location</th>
+            <th>Goal</th>
+            {!isPast ? <th>Weeks</th> : null}
+            {!isPast ? <th>Prep</th> : null}
+            <th>
+              <span className="sr-only">Actions</span>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -1609,40 +1821,38 @@ function SeasonRaceTable({
             races.map((race) => {
               const weeks = weeksUntilRace(race.date, today)
               const prep = resolvePreparationWeeks(race.preparationWeeks)
-              const statusLabel =
-                race.intent === RaceIntent.WATCHING
-                  ? RACE_INTENT_LABELS.WATCHING
-                  : RACE_INTENT_LABELS.PLANNED
+              const isWatching = race.intent === RaceIntent.WATCHING
+              const statusLabel = isWatching
+                ? RACE_INTENT_LABELS.WATCHING
+                : RACE_INTENT_LABELS.PLANNED
               return (
-                <tr
-                  key={race.id}
-                  className={cn(
-                    'border-b border-border/40 bg-white last:border-0 hover:bg-zinc-50',
-                    isPast && 'opacity-80',
-                  )}
-                >
-                  <td className="whitespace-nowrap px-3 py-2 tabular-nums text-xs">
+                <tr key={race.id} className={cn(isPast && 'opacity-80')}>
+                  <td className={cn('whitespace-nowrap', DATA_CELL_SECONDARY)}>
                     {race.date.toLocaleDateString(undefined, {
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',
                     })}
                   </td>
-                  <td className="px-3 py-2">
+                  <td>
                     <button
                       type="button"
-                      className="text-left font-medium hover:underline"
+                      className={cn('text-left hover:underline', DATA_CELL_PRIMARY)}
                       onClick={() => onSelect(race.id)}
                     >
                       {race.name}
                     </button>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className={cn('mt-0.5', DATA_CELL_SECONDARY)}>
                       {RACE_TYPE_LABELS[race.type]}
                     </p>
                   </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{statusLabel}</td>
+                  <td>
+                    <StatusPill tone={isWatching ? 'watching' : 'planned'}>
+                      {statusLabel}
+                    </StatusPill>
+                  </td>
                   {isPast ? (
-                    <td className="max-w-[9rem] px-3 py-2 text-xs text-muted-foreground">
+                    <td className={cn('max-w-[9rem]', DATA_CELL_SECONDARY)}>
                       <button
                         type="button"
                         className="block max-w-full truncate text-left hover:underline"
@@ -1657,40 +1867,40 @@ function SeasonRaceTable({
                       </button>
                     </td>
                   ) : null}
-                  <td className="px-3 py-2 text-xs">
+                  <td>
                     {race.sport ? (
                       <span className="inline-flex items-center gap-2">
                         <WorkoutSportIcon type={race.sport} size="xs" />
-                        <span>{WORKOUT_TYPE_LABELS[race.sport]}</span>
+                        <span className={DATA_CELL_SECONDARY}>
+                          {WORKOUT_TYPE_LABELS[race.sport]}
+                        </span>
                       </span>
                     ) : (
-                      '—'
+                      <span className={DATA_CELL_META}>—</span>
                     )}
                   </td>
-                  <td className="px-3 py-2 text-xs">
-                    {race.intent === RaceIntent.WATCHING ? (
-                      '—'
+                  <td>
+                    {isWatching ? (
+                      <span className={DATA_CELL_META}>—</span>
                     ) : (
                       <PriorityBadge priority={race.priority} />
                     )}
                   </td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {race.location || '—'}
-                  </td>
-                  <td className="max-w-[8rem] truncate px-3 py-2 text-xs text-muted-foreground">
+                  <td className={DATA_CELL_SECONDARY}>{race.location || '—'}</td>
+                  <td className={cn('max-w-[8rem] truncate', DATA_CELL_SECONDARY)}>
                     {race.goal || '—'}
                   </td>
                   {!isPast ? (
-                    <td className="px-3 py-2 text-xs tabular-nums">
+                    <td className={cn(DATA_NUM, DATA_CELL_SECONDARY)}>
                       {weeks === 0 ? 'This week' : `${weeks}w`}
                     </td>
                   ) : null}
                   {!isPast ? (
-                    <td className="px-3 py-2 text-xs tabular-nums">
+                    <td className={cn(DATA_NUM, DATA_CELL_SECONDARY)}>
                       {prep == null ? '—' : `${prep}w`}
                     </td>
                   ) : null}
-                  <td className="px-3 py-2">
+                  <td>
                     <RaceRowMenu race={race} />
                   </td>
                 </tr>

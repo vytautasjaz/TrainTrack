@@ -29,7 +29,7 @@ type FormSectionProps = {
 export function FormSection({ title, description, children, className }: FormSectionProps) {
   return (
     <div className={cn('space-y-2', className)}>
-      <SectionTitle className="text-body font-medium">{title}</SectionTitle>
+      <SectionTitle variant="ui" className="text-body font-medium">{title}</SectionTitle>
       {description ? <Caption>{description}</Caption> : null}
       {children}
     </div>

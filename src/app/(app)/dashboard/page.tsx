@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { Flag, TrendingUp, Users } from 'lucide-react'
+import { Flag, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getSession, resolveAthleteId, isCoachView} from '@/lib/session'
 import { getAthleteDashboard, getCoachDashboard, countsTowardCompliance, getPendingCoachRequests } from '@/lib/queries'
@@ -20,11 +20,12 @@ import {
 } from '@/components/athlete/athlete-coach-reply-list'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { StatCard } from '@/components/ui/stat-card'
 import { PageHeader } from '@/components/ui/page-header'
 import { AthleteDashboardWorkouts } from '@/components/dashboard/athlete-dashboard-workouts'
+import { AthleteDashboardHeader } from '@/components/dashboard/athlete-dashboard-header'
 import { AthleteRaceFollowUp } from '@/components/dashboard/athlete-race-follow-up'
 import { AthleteWeekStatsCard } from '@/components/dashboard/athlete-week-stats-card'
+import { AthleteRecentActivity } from '@/components/dashboard/athlete-recent-activity'
 import { toPlanWorkoutDetail, redactPlanWorkoutNotesForViewer } from '@/lib/plan-workout'
 
 function formatGreetingName(name: string) {
@@ -207,94 +208,110 @@ export default async function DashboardPage() {
   )
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-1 pt-2 lg:pt-4">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-[34px]">
-          {formatGreeting()}, {formatGreetingName(session.name)}.
-        </h1>
-        <p className="text-sm text-muted-foreground">{formatTodayLabel()}</p>
-      </header>
-
-      {coachReplyItems.length > 0 && (
-        <section className="card-elevated p-5 sm:p-6">
-          <h2 className="mb-4 text-lg font-semibold leading-tight tracking-tight">Coach replies</h2>
-          <AthleteCoachReplyList replies={coachReplyItems} />
-        </section>
-      )}
-
-      {data.pendingRaceFollowUps.length > 0 && (
-        <AthleteRaceFollowUp
-          races={data.pendingRaceFollowUps.map((race) => ({
-            id: race.id,
-            name: race.name,
-            date: race.date,
-            location: race.location,
-            type: race.type,
-            goal: race.goal,
-            stravaActivityUrl: race.stravaActivityUrl,
-            stravaActivityName: race.stravaActivityName,
-            legs: 'legs' in race ? race.legs : [],
-          }))}
+    <div className="tt-dashboard-page -mx-4 px-4 pb-8 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
+      <div className="tt-dashboard-content">
+        <AthleteDashboardHeader
+          greeting={formatGreeting()}
+          name={formatGreetingName(session.name)}
+          dateLabel={formatTodayLabel()}
         />
-      )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.9fr)] lg:items-start lg:gap-8">
-        <div className="min-w-0">
-          <AthleteDashboardWorkouts
-            todayWorkouts={data.todayWorkouts.map((w) =>
-              redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+        {coachReplyItems.length > 0 && (
+          <section className="tt-dashboard-card mb-6 sm:mb-8">
+            <h2 className="title-section mb-4">Coach replies</h2>
+            <AthleteCoachReplyList replies={coachReplyItems} />
+          </section>
+        )}
+
+        {data.pendingRaceFollowUps.length > 0 && (
+          <div className="mb-6 sm:mb-8">
+            <AthleteRaceFollowUp
+              races={data.pendingRaceFollowUps.map((race) => ({
+                id: race.id,
+                name: race.name,
+                date: race.date,
+                location: race.location,
+                type: race.type,
+                goal: race.goal,
+                stravaActivityUrl: race.stravaActivityUrl,
+                stravaActivityName: race.stravaActivityName,
+                legs: 'legs' in race ? race.legs : [],
+              }))}
+            />
+          </div>
+        )}
+
+        <div className="tt-dashboard-grid">
+          <div className="min-w-0">
+            <AthleteDashboardWorkouts
+              todayWorkouts={data.todayWorkouts.map((w) =>
+                redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+              )}
+              upcomingWorkouts={data.upcomingWorkouts.map((w) =>
+                redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+              )}
+            />
+          </div>
+
+          <aside className="tt-dashboard-stack min-w-0 lg:sticky lg:top-4">
+            <AthleteWeekStatsCard
+              workouts={weekStatsWorkouts}
+              anchorWeekStartKey={data.weekStatsAnchorStartKey}
+              planSportRows={data.planSportRows}
+              swimCssSecPer100m={data.swimCssSecPer100m}
+            />
+
+            {data.nextRace ? (
+              <section className="tt-dashboard-card relative overflow-hidden">
+                <p className="title-eyebrow">Next race</p>
+                <p className="mt-2 text-base font-semibold text-[#111111]">
+                  {data.nextRace.name}
+                </p>
+                <p className="tt-dashboard-race-countdown mt-3">
+                  {daysUntil(data.nextRace.date)}{' '}
+                  <span className="text-lg font-bold tracking-tight text-[#737986]">
+                    days to go
+                  </span>
+                </p>
+                <p className="mt-2 text-sm text-[#737986]">
+                  {new Date(data.nextRace.date).toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    timeZone: 'UTC',
+                  })}
+                </p>
+                <Flag
+                  className="pointer-events-none absolute -bottom-2 -right-2 h-24 w-24 text-[#111111]/[0.04]"
+                  aria-hidden
+                />
+              </section>
+            ) : (
+              <section className="tt-dashboard-card">
+                <p className="title-eyebrow">Next race</p>
+                <p className="mt-3 text-2xl font-bold tracking-tight text-[#111111]">—</p>
+                <p className="mt-1 text-sm text-[#737986]">None scheduled</p>
+              </section>
             )}
-            upcomingWorkouts={data.upcomingWorkouts.map((w) =>
-              redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
-            )}
-          />
-        </div>
 
-        <aside className="min-w-0 space-y-4 lg:sticky lg:top-4">
-          <AthleteWeekStatsCard
-            workouts={weekStatsWorkouts}
-            anchorWeekStartKey={data.weekStatsAnchorStartKey}
-            planSportRows={data.planSportRows}
-            swimCssSecPer100m={data.swimCssSecPer100m}
-          />
-
-          {data.nextRace ? (
-            <section className="card-elevated space-y-2 p-5">
-              <p className="text-label">Next race</p>
-              <p className="text-base font-semibold text-foreground">{data.nextRace.name}</p>
-              <p className="text-3xl font-bold tracking-tight text-foreground">
-                {daysUntil(data.nextRace.date)} days to go
+            <section className="tt-dashboard-card tt-dashboard-volume-card">
+              <p className="title-eyebrow">Monthly volume</p>
+              <p className="mt-3 text-3xl font-extrabold tracking-tight text-[#111111] tabular-nums">
+                {formatDistance(data.monthDistance)}
               </p>
-              <p className="text-sm text-muted-foreground">
-                {new Date(data.nextRace.date).toLocaleDateString(undefined, {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                  timeZone: 'UTC',
-                })}
+              <p className="mt-1 text-sm text-[#737986]">
+                {data.monthWorkoutsCompleted} workouts done
               </p>
             </section>
-          ) : (
-            <StatCard
-              label="Next race"
-              value="—"
-              hint="None scheduled"
-              icon={Flag}
-              layout="row"
-              variant="flat"
-            />
-          )}
 
-          <StatCard
-            label="Monthly volume"
-            value={formatDistance(data.monthDistance)}
-            hint={`${data.monthWorkoutsCompleted} workouts done`}
-            icon={TrendingUp}
-            layout="row"
-            variant="flat"
-          />
-        </aside>
+            <AthleteRecentActivity
+              workouts={data.recentCompletedWorkouts.map((w) =>
+                redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+              )}
+            />
+          </aside>
+        </div>
       </div>
     </div>
   )

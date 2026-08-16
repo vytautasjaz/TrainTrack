@@ -50,7 +50,7 @@ export function AccountProfileSection({
   return (
     <section id="profile" className="card-elevated scroll-mt-24 space-y-5 p-5">
       <div>
-        <SectionTitle>Athlete profile</SectionTitle>
+        <SectionTitle variant="ui">Athlete profile</SectionTitle>
         <Caption>Your photo, name, role, and coach connection.</Caption>
       </div>
 

@@ -17,8 +17,8 @@ type WorkoutModalTriggerProps = {
   onDragStart?: (e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
   /**
-   * When true, uses a div host so nested inputs/buttons work (coach inline card edit).
-   * Clicks on interactive descendants do not open the modal.
+   * @deprecated Always treated as true — card hosts use a div so nested
+   * inputs/buttons (inline edit, review actions) work with mouse selection.
    */
   nestedInteractive?: boolean
 }
@@ -32,6 +32,12 @@ function isNestedControlTarget(target: EventTarget | null): boolean {
   )
 }
 
+function isTextField(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
+  )
+}
+
 export function WorkoutModalTrigger({
   workout,
   isCoach,
@@ -41,20 +47,27 @@ export function WorkoutModalTrigger({
   draggable = false,
   onDragStart,
   onDragEnd,
-  nestedInteractive = false,
 }: WorkoutModalTriggerProps) {
   const [open, setOpen] = useState(false)
+  /** While typing/selecting in an inline field, HTML5 drag must be off. */
+  const [textFieldActive, setTextFieldActive] = useState(false)
   const suppressClick = useRef(false)
+  const hostRef = useRef<HTMLDivElement>(null)
+
+  const dragEnabled = draggable && !textFieldActive
 
   const sharedClassName = cn(
     'text-left',
-    draggable && 'cursor-grab active:cursor-grabbing',
+    dragEnabled && 'cursor-grab active:cursor-grabbing',
     className,
   )
 
   function handleDragStart(e: React.DragEvent) {
-    if (!draggable) return
-    if (nestedInteractive && isNestedControlTarget(e.target)) {
+    if (!dragEnabled) {
+      e.preventDefault()
+      return
+    }
+    if (isNestedControlTarget(e.target)) {
       e.preventDefault()
       return
     }
@@ -72,8 +85,36 @@ export function WorkoutModalTrigger({
   function handleActivate(e: React.SyntheticEvent) {
     e.stopPropagation()
     if (suppressClick.current) return
-    if (nestedInteractive && isNestedControlTarget(e.target)) return
+    if (isNestedControlTarget(e.target)) return
     setOpen(true)
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key !== 'Enter' && e.key !== ' ') return
+    if (isNestedControlTarget(e.target)) return
+    e.preventDefault()
+    handleActivate(e)
+  }
+
+  function handleFocusIn(e: React.FocusEvent) {
+    if (isTextField(e.target)) setTextFieldActive(true)
+  }
+
+  function handleFocusOut(e: React.FocusEvent) {
+    if (!isTextField(e.target)) return
+    const next = e.relatedTarget
+    if (next instanceof Node && hostRef.current?.contains(next) && isTextField(next)) {
+      return
+    }
+    setTextFieldActive(false)
+  }
+
+  function handleMouseDownCapture(e: React.MouseEvent) {
+    // Must clear `draggable` synchronously — waiting for React state is too late
+    // and the browser will start a drag instead of placing the caret.
+    if (!isTextField(e.target)) return
+    setTextFieldActive(true)
+    if (hostRef.current) hostRef.current.draggable = false
   }
 
   const modal = workout.isRace ? (
@@ -87,37 +128,25 @@ export function WorkoutModalTrigger({
     />
   )
 
-  if (nestedInteractive) {
-    return (
-      <>
-        <div
-          title={title}
-          draggable={draggable}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onClick={handleActivate}
-          className={sharedClassName}
-        >
-          {children}
-        </div>
-        {modal}
-      </>
-    )
-  }
-
   return (
     <>
-      <button
-        type="button"
-        title={title}
-        draggable={draggable}
+      <div
+        ref={hostRef}
+        role="button"
+        tabIndex={0}
+        title={textFieldActive ? undefined : title}
+        draggable={dragEnabled}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
         onClick={handleActivate}
+        onKeyDown={handleKeyDown}
+        onFocusCapture={handleFocusIn}
+        onBlurCapture={handleFocusOut}
+        onMouseDownCapture={handleMouseDownCapture}
         className={sharedClassName}
       >
         {children}
-      </button>
+      </div>
       {modal}
     </>
   )

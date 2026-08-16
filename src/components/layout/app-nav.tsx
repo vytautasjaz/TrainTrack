@@ -3,8 +3,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { ChevronsLeft, ChevronsRight, Zap } from 'lucide-react'
+import { ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { TrainTrackMark } from '@/components/brand/traintrack-logo'
 import {
   CALENDAR_EXPAND_EVENT,
   type CalendarExpandDetail,
@@ -134,218 +135,228 @@ export function AppNav({
 
   return (
     <>
-      {/* Desktop sidebar — dark charcoal rail (Design System v3) */}
+      {/* Desktop sidebar — light editorial rail */}
       <aside
         className={cn(
-          'hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:max-h-dvh lg:flex-col lg:bg-sidebar lg:py-6',
-          'lg:text-sidebar-foreground lg:transition-[width] lg:duration-[var(--tt-motion-normal)]',
+          'tt-app-sidebar hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:max-h-dvh lg:shrink-0 lg:flex-col lg:self-start lg:py-6',
+          'lg:transition-[width] lg:duration-[var(--tt-motion-normal)]',
           effectiveCollapsed ? 'lg:w-[4.5rem] lg:px-2' : 'lg:w-64 lg:px-4',
         )}
       >
-        <div
-          className={cn(
-            'mb-8 flex shrink-0 items-center px-2',
-            effectiveCollapsed ? 'justify-center' : 'gap-3',
-          )}
-        >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-white text-sidebar">
-            <Zap className="h-4 w-4" strokeWidth={1.75} />
-          </div>
-          {!effectiveCollapsed && (
-            <div className="min-w-0">
-              <p className="text-[15px] font-bold uppercase tracking-[0.08em] text-sidebar-foreground">
-                TrainTrack
-              </p>
-              {canSwitchView ? (
-                <div className="mt-2">
-                  <ViewModeSwitcher viewMode={viewMode} />
-                </div>
-              ) : (
-                <p className="text-xs text-white/45">
-                  {isCoach ? 'Coach' : 'Athlete'}
-                </p>
+        <div className="tt-app-sidebar-content">
+          <div className="mb-6 shrink-0 space-y-2.5 px-2">
+            <Link
+              href="/dashboard"
+              className={cn(
+                'flex items-center rounded-lg outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand/40',
+                effectiveCollapsed ? 'justify-center' : 'gap-2.5',
               )}
-            </div>
-          )}
-        </div>
-        {canSwitchView && effectiveCollapsed ? (
-          <div className="mb-3 flex justify-center px-1">
-            <ViewModeSwitcher viewMode={viewMode} compact />
+              aria-label="TrainTrack home"
+            >
+              <TrainTrackMark className="h-9 w-9" />
+              {!effectiveCollapsed ? (
+                <span className="traintrack-wordmark">TRAINTRACK</span>
+              ) : null}
+            </Link>
+            {canSwitchView ? (
+              <div className={cn(effectiveCollapsed && 'flex justify-center')}>
+                <ViewModeSwitcher
+                  viewMode={viewMode}
+                  tone="sidebar"
+                  compact={effectiveCollapsed}
+                />
+              </div>
+            ) : !effectiveCollapsed ? (
+              <p className="text-xs text-text-tertiary">
+                {isCoach ? 'Coach' : 'Athlete'}
+              </p>
+            ) : null}
           </div>
-        ) : null}
-        <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain">
-          {mainNav.map(({ href, label, icon: Icon }) => {
-            const active = isNavActive(pathname, href)
-            const showBadge = href === '/dashboard' && dashboardNotificationCount > 0
-            const isTools = href === '/tools'
-            return (
-              <div key={href}>
-                <Link
-                  href={href}
-                  title={label}
-                  className={cn(
-                    'flex items-center rounded-[10px] py-2.5 text-sm font-medium transition-colors',
-                    effectiveCollapsed ? 'justify-center px-2' : 'gap-3 px-3',
-                    active
-                      ? 'bg-white/10 text-white'
-                      : 'text-white/55 hover:bg-white/5 hover:text-white',
-                  )}
-                >
-                  <span className="relative shrink-0">
-                    <Icon className="h-4 w-4" strokeWidth={1.75} />
-                    {showBadge && (
-                      <span
-                        className={cn(
-                          'absolute flex items-center justify-center rounded-full bg-white font-bold text-sidebar',
-                          effectiveCollapsed
-                            ? '-right-1.5 -top-1.5 h-2 w-2'
-                            : '-right-1.5 -top-1.5 h-4 min-w-4 px-1 text-[10px]',
-                        )}
-                      >
-                        {!effectiveCollapsed &&
-                          (dashboardNotificationCount > 9
-                            ? '9+'
-                            : dashboardNotificationCount)}
-                      </span>
+          <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain">
+            {mainNav.map(({ href, label, icon: Icon }) => {
+              const active = isNavActive(pathname, href)
+              const showBadge = href === '/dashboard' && dashboardNotificationCount > 0
+              const isTools = href === '/tools'
+              return (
+                <div key={href}>
+                  <Link
+                    href={href}
+                    title={label}
+                    data-active={active ? 'true' : undefined}
+                    className={cn(
+                      'tt-app-sidebar-nav-link flex items-center rounded-[8px] py-2.5 text-sm font-medium transition-colors',
+                      effectiveCollapsed ? 'justify-center px-2' : 'gap-3 px-3',
                     )}
-                  </span>
-                  {!effectiveCollapsed && <span className="truncate">{label}</span>}
-                </Link>
-                {!effectiveCollapsed && isTools && toolsOpen ? (
-                  <div className="mt-1 ml-4 space-y-0.5 border-l border-white/15 pl-3">
-                    {CALCULATOR_NAV_TABS.map((tab) => {
-                      const tabActive = activeCalculatorTab === tab.id
-                      return (
-                        <Link
-                          key={tab.id}
-                          href={tab.href}
+                  >
+                    <span className="relative shrink-0">
+                      <Icon
+                        className="tt-app-sidebar-nav-icon h-4 w-4"
+                        strokeWidth={1.75}
+                      />
+                      {showBadge && (
+                        <span
                           className={cn(
-                            'block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors',
-                            tabActive
-                              ? 'bg-white/10 text-white'
-                              : 'text-white/45 hover:bg-white/5 hover:text-white',
+                            'absolute flex items-center justify-center rounded-full bg-accent font-bold text-accent-foreground',
+                            effectiveCollapsed
+                              ? '-right-1.5 -top-1.5 h-2 w-2'
+                              : '-right-1.5 -top-1.5 h-4 min-w-4 px-1 text-[10px]',
                           )}
                         >
-                          {tab.label}
+                          {!effectiveCollapsed &&
+                            (dashboardNotificationCount > 9
+                              ? '9+'
+                              : dashboardNotificationCount)}
+                        </span>
+                      )}
+                    </span>
+                    {!effectiveCollapsed && <span className="truncate">{label}</span>}
+                  </Link>
+                  {!effectiveCollapsed && isTools && toolsOpen ? (
+                    <div className="mt-1 ml-4 space-y-0.5 border-l border-black/10 pl-3">
+                      {CALCULATOR_NAV_TABS.map((tab) => {
+                        const tabActive = activeCalculatorTab === tab.id
+                        return (
+                          <Link
+                            key={tab.id}
+                            href={tab.href}
+                            className={cn(
+                              'block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors',
+                              tabActive
+                                ? 'bg-white/55 text-foreground backdrop-blur-sm'
+                                : 'text-[#667085] hover:bg-black/[0.035] hover:text-foreground',
+                            )}
+                          >
+                            {tab.label}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            })}
+          </nav>
+          <div className="mt-auto shrink-0 space-y-1 border-t border-black/[0.07] pt-3">
+            {showPreferences && athleteProfile ? (
+              <div>
+                {effectiveCollapsed ? (
+                  <Link
+                    href={SETTINGS_ENTRY_HREF}
+                    title={athleteProfile.name}
+                    className={cn(
+                      'flex justify-center rounded-[10px] py-1.5 transition-colors',
+                      settingsOpen
+                        ? 'bg-white/55 backdrop-blur-sm'
+                        : 'hover:bg-black/[0.035]',
+                    )}
+                  >
+                    <AthleteAvatar
+                      name={athleteProfile.name}
+                      avatarUrl={athleteProfile.avatarUrl}
+                      size="sm"
+                      className="ring-2 ring-black/5"
+                    />
+                  </Link>
+                ) : (
+                  <Link
+                    href={SETTINGS_ENTRY_HREF}
+                    title={athleteProfile.name}
+                    className={cn(
+                      'mb-1 flex items-center gap-3 rounded-[10px] px-3 py-2 transition-colors',
+                      settingsOpen
+                        ? 'bg-white/55 text-foreground backdrop-blur-sm'
+                        : 'text-foreground hover:bg-black/[0.035]',
+                    )}
+                  >
+                    <AthleteAvatar
+                      name={athleteProfile.name}
+                      avatarUrl={athleteProfile.avatarUrl}
+                      size="sm"
+                      className="ring-2 ring-black/5"
+                    />
+                    <p className="min-w-0 truncate text-sm font-semibold">
+                      {athleteProfile.name}
+                    </p>
+                  </Link>
+                )}
+                {!effectiveCollapsed && settingsOpen ? (
+                  <div className="mt-1 ml-4 space-y-0.5 border-l border-black/10 pl-3">
+                    {SETTINGS_SUBNAV.map(({ href, label }) => {
+                      const active = pathname.startsWith(href)
+                      return (
+                        <Link
+                          key={href}
+                          href={href}
+                          className={cn(
+                            'block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors',
+                            active
+                              ? 'bg-white/55 text-foreground backdrop-blur-sm'
+                              : 'text-[#667085] hover:bg-black/[0.035] hover:text-foreground',
+                          )}
+                        >
+                          {label}
                         </Link>
                       )
                     })}
                   </div>
                 ) : null}
               </div>
-            )
-          })}
-        </nav>
-        <div className="mt-auto shrink-0 space-y-1 border-t border-white/10 pt-3">
-          {showPreferences && athleteProfile ? (
-            <div>
-              {effectiveCollapsed ? (
-                <Link
-                  href={SETTINGS_ENTRY_HREF}
-                  title={athleteProfile.name}
-                  className={cn(
-                    'flex justify-center rounded-[10px] py-1.5 transition-colors',
-                    settingsOpen ? 'bg-white/10' : 'hover:bg-white/5',
-                  )}
-                >
-                  <AthleteAvatar
-                    name={athleteProfile.name}
-                    avatarUrl={athleteProfile.avatarUrl}
-                    size="sm"
-                    className="ring-2 ring-white/15"
-                  />
-                </Link>
-              ) : (
-                <Link
-                  href={SETTINGS_ENTRY_HREF}
-                  title={athleteProfile.name}
-                  className={cn(
-                    'mb-1 flex items-center gap-3 rounded-[10px] px-3 py-2 transition-colors',
-                    settingsOpen
-                      ? 'bg-white/10 text-white'
-                      : 'text-sidebar-foreground hover:bg-white/5 hover:text-white',
-                  )}
-                >
-                  <AthleteAvatar
-                    name={athleteProfile.name}
-                    avatarUrl={athleteProfile.avatarUrl}
-                    size="sm"
-                    className="ring-2 ring-white/15"
-                  />
-                  <p className="min-w-0 truncate text-sm font-semibold">
-                    {athleteProfile.name}
-                  </p>
-                </Link>
-              )}
-              {!effectiveCollapsed && settingsOpen ? (
-                <div className="mt-1 ml-4 space-y-0.5 border-l border-white/15 pl-3">
-                  {SETTINGS_SUBNAV.map(({ href, label }) => {
-                    const active = pathname.startsWith(href)
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        className={cn(
-                          'block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors',
-                          active
-                            ? 'bg-white/10 text-white'
-                            : 'text-white/45 hover:bg-white/5 hover:text-white',
-                        )}
-                      >
-                        {label}
-                      </Link>
-                    )
-                  })}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          {showConnectCoach ? (
-            <Link
-              href={CONNECT_COACH_NAV.href}
-              title={CONNECT_COACH_NAV.label}
+            ) : null}
+            {showConnectCoach ? (
+              <Link
+                href={CONNECT_COACH_NAV.href}
+                title={CONNECT_COACH_NAV.label}
+                className={cn(
+                  'flex items-center rounded-[10px] py-2.5 text-sm font-medium transition-colors',
+                  effectiveCollapsed ? 'justify-center px-2' : 'gap-3 px-3',
+                  'text-foreground hover:bg-accent-subtle',
+                )}
+              >
+                <CONNECT_COACH_NAV.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                {!effectiveCollapsed && CONNECT_COACH_NAV.label}
+              </Link>
+            ) : null}
+            <ThemeToggleButton
+              showLabel={!effectiveCollapsed}
               className={cn(
-                'flex items-center rounded-[10px] py-2.5 text-sm font-medium transition-colors',
-                effectiveCollapsed ? 'justify-center px-2' : 'gap-3 px-3',
-                'text-white/90 hover:bg-white/10 hover:text-white',
+                'mt-2 rounded-[10px] text-text-tertiary hover:bg-accent-subtle hover:text-foreground',
+                effectiveCollapsed ? 'w-full justify-center px-2' : 'justify-start gap-2',
               )}
+            />
+            <SignOutButton tone="sidebar" iconOnly={effectiveCollapsed} className="mt-1" />
+            {!effectiveCollapsed && (
+              <div
+                className={cn(
+                  'sidebar-footer text-foreground',
+                  '[&_.text-label]:text-text-tertiary [&_.text-caption]:text-text-tertiary',
+                  '[&_button]:rounded-[8px] [&_button]:bg-primary [&_button]:text-primary-foreground [&_button]:hover:bg-primary/90',
+                  '[&_select]:border [&_select]:border-border [&_select]:bg-[color-mix(in_oklab,var(--color-surface)_75%,transparent)] [&_select]:text-foreground',
+                  '[&_span.inline-flex]:bg-brand-soft [&_span.inline-flex]:text-brand',
+                )}
+              >
+                {sidebarFooter}
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              title={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-pressed={effectiveCollapsed}
+              className={cn(
+                'mt-2 rounded-[10px] text-text-tertiary hover:bg-accent-subtle hover:text-foreground',
+                effectiveCollapsed ? 'w-full justify-center px-2' : 'w-full justify-start gap-2',
+              )}
+              onClick={() => setSidebarCollapsed(!collapsed)}
             >
-              <CONNECT_COACH_NAV.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-              {!effectiveCollapsed && CONNECT_COACH_NAV.label}
-            </Link>
-          ) : null}
-          <ThemeToggleButton
-            showLabel={!effectiveCollapsed}
-            className={cn(
-              'mt-2 rounded-[10px] text-white/55 hover:bg-white/5 hover:text-white',
-              effectiveCollapsed ? 'w-full justify-center px-2' : 'justify-start gap-2',
-            )}
-          />
-          <SignOutButton tone="sidebar" iconOnly={effectiveCollapsed} className="mt-1" />
-          {!effectiveCollapsed && (
-            <div className="sidebar-footer text-sidebar-foreground [&_.text-label]:text-white/40 [&_.text-caption]:text-white/40 [&_button]:bg-white/10 [&_button]:text-white [&_select]:border-white/15 [&_select]:bg-white/5 [&_select]:text-white">
-              {sidebarFooter}
-            </div>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            title={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-label={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-pressed={effectiveCollapsed}
-            className={cn(
-              'mt-2 rounded-[10px] text-white/55 hover:bg-white/5 hover:text-white',
-              effectiveCollapsed ? 'w-full justify-center px-2' : 'w-full justify-start gap-2',
-            )}
-            onClick={() => setSidebarCollapsed(!collapsed)}
-          >
-            {effectiveCollapsed ? (
-              <ChevronsRight className="h-4 w-4" strokeWidth={1.75} />
-            ) : (
-              <ChevronsLeft className="h-4 w-4" strokeWidth={1.75} />
-            )}
-            {!effectiveCollapsed && 'Collapse'}
-          </Button>
+              {effectiveCollapsed ? (
+                <ChevronsRight className="h-4 w-4" strokeWidth={1.75} />
+              ) : (
+                <ChevronsLeft className="h-4 w-4" strokeWidth={1.75} />
+              )}
+              {!effectiveCollapsed && 'Collapse'}
+            </Button>
+          </div>
         </div>
       </aside>
 

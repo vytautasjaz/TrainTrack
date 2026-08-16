@@ -29,6 +29,9 @@ export type PlanWorkoutDetail = {
   plannedDistance: number | null
   plannedDistanceMeters: number | null
   plannedDuration: number | null
+  plannedDistanceSource?: import('@prisma/client').PlannedMetricSource | null
+  plannedDurationSource?: import('@prisma/client').PlannedMetricSource | null
+  plannedDistanceMetersSource?: import('@prisma/client').PlannedMetricSource | null
   swimEnvironment: SwimEnvironment | null
   coachNotes: string | null
   coachNotesPrivate?: boolean
@@ -37,6 +40,12 @@ export type PlanWorkoutDetail = {
   tags?: string[]
   selfLogged?: boolean
   rescheduledFromDateKey?: string | null
+  /** Ghost placeholder left on the original planned day. */
+  isRescheduleGhost?: boolean
+  /** Active copy’s date when this row is a ghost. */
+  rescheduledToDateKey?: string | null
+  /** Active workout id when this row is a ghost. */
+  rescheduledCopyId?: string | null
   isRace?: boolean
   raceId?: string
   raceType?: RaceType
@@ -71,6 +80,9 @@ export function toPlanWorkoutDetail(w: {
   description: string | null
   plannedDistance: number | null
   plannedDuration: number | null
+  plannedDistanceSource?: import('@prisma/client').PlannedMetricSource | null
+  plannedDurationSource?: import('@prisma/client').PlannedMetricSource | null
+  plannedDistanceMetersSource?: import('@prisma/client').PlannedMetricSource | null
   coachNotes: string | null
   coachNotesPrivate?: boolean
   structure?: unknown
@@ -80,6 +92,8 @@ export function toPlanWorkoutDetail(w: {
   tags?: string[]
   selfLogged?: boolean
   rescheduledFromDate?: Date | null
+  isRescheduleGhost?: boolean
+  rescheduledCopy?: { id: string; date: Date } | null
   result: {
     actualDistance: number | null
     actualDuration: number | null
@@ -105,6 +119,9 @@ export function toPlanWorkoutDetail(w: {
     plannedDistance: w.plannedDistance,
     plannedDistanceMeters: w.plannedDistanceMeters ?? null,
     plannedDuration: w.plannedDuration,
+    plannedDistanceSource: w.plannedDistanceSource ?? null,
+    plannedDurationSource: w.plannedDurationSource ?? null,
+    plannedDistanceMetersSource: w.plannedDistanceMetersSource ?? null,
     swimEnvironment: w.swimEnvironment ?? null,
     coachNotes: w.coachNotes,
     coachNotesPrivate: w.coachNotesPrivate ?? false,
@@ -113,6 +130,13 @@ export function toPlanWorkoutDetail(w: {
     tags: w.tags ?? [],
     selfLogged: w.selfLogged ?? false,
     rescheduledFromDateKey: w.rescheduledFromDate ? toDateKey(w.rescheduledFromDate) : null,
+    isRescheduleGhost: Boolean(w.isRescheduleGhost),
+    rescheduledToDateKey:
+      w.isRescheduleGhost && w.rescheduledCopy
+        ? toDateKey(w.rescheduledCopy.date)
+        : null,
+    rescheduledCopyId:
+      w.isRescheduleGhost && w.rescheduledCopy ? w.rescheduledCopy.id : null,
     result: w.result
       ? {
           actualDistance: w.result.actualDistance,
@@ -266,12 +290,32 @@ export function isStravaSynced(workout: PlanWorkoutDetail): boolean {
   return Boolean(workout.result?.stravaActivityUrl)
 }
 
+/** Plan DnD: completed (and race/ghost/rest) workouts stay fixed on their day. */
+export function canDragPlanWorkout(
+  workout: Pick<
+    PlanWorkoutDetail,
+    'isRace' | 'isRescheduleGhost' | 'type' | 'status'
+  >,
+  /** Optimistic UI status when the card has one. */
+  status?: WorkoutStatus,
+): boolean {
+  const resolved = status ?? workout.status
+  if (resolved === WorkoutStatus.COMPLETED) return false
+  if (workout.isRace) return false
+  if (workout.isRescheduleGhost) return false
+  if (workout.type === WorkoutType.REST || workout.type === WorkoutType.RECOVERY) {
+    return false
+  }
+  return true
+}
+
 export function athleteHasQuickLogActions(
   workout: PlanWorkoutDetail,
   isCoach: boolean,
 ): boolean {
   if (isCoach) return false
   if (workout.isRace) return false
+  if (workout.isRescheduleGhost) return false
   if (workout.type === WorkoutType.RECOVERY || workout.type === WorkoutType.REST) return false
   if (isStravaSynced(workout)) return false
   return true
@@ -279,8 +323,9 @@ export function athleteHasQuickLogActions(
 
 export function isRescheduledWorkout(workout: PlanWorkoutDetail): boolean {
   return Boolean(
-    workout.rescheduledFromDateKey &&
-    workout.rescheduledFromDateKey !== workout.dateKey,
+    !workout.isRescheduleGhost &&
+      workout.rescheduledFromDateKey &&
+      workout.rescheduledFromDateKey !== workout.dateKey,
   )
 }
 

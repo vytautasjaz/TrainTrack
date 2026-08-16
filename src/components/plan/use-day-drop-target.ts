@@ -1,36 +1,51 @@
 'use client'
 
 import { useState } from 'react'
+import { WorkoutType } from '@prisma/client'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import { cn } from '@/lib/utils'
 
 type UseDayDropTargetOptions = {
   dateKey: string
+  /**
+   * Sport row this cell belongs to (week table). When set, only workouts /
+   * templates of that sport may drop here.
+   */
+  sport?: WorkoutType
   /** When false, ignore drops (e.g. out-of-month cells). */
   enabled?: boolean
 }
 
 /**
- * Day-level drop target for library templates (any sport) and
- * relocating plan workouts onto another day.
+ * Day-level drop target for library templates and relocating plan workouts.
+ * In sport-divided week mode, drops stay on the matching sport row.
  */
 export function useDayDropTarget({
   dateKey,
+  sport,
   enabled = true,
 }: UseDayDropTargetOptions) {
   const dnd = usePlanWeekDnd()
   const [isOver, setIsOver] = useState(false)
 
+  const dragItem = dnd?.dragItem ?? null
+  const sportMatches = !sport || !dragItem || dragItem.sport === sport
+
   const canDropTemplate =
-    enabled && Boolean(dnd) && dnd?.dragItem?.kind === 'template'
+    enabled &&
+    Boolean(dnd) &&
+    dnd?.mode === 'coach' &&
+    dragItem?.kind === 'template' &&
+    sportMatches
 
   const canDropPlan =
     enabled &&
-    dnd?.dragItem?.kind === 'plan' &&
-    dnd.dragItem.dateKey !== dateKey
+    dragItem?.kind === 'plan' &&
+    dragItem.dateKey !== dateKey &&
+    sportMatches
 
   const canDrop = Boolean(canDropTemplate || canDropPlan)
-  const isDragging = Boolean(enabled && dnd?.dragItem)
+  const isDragging = Boolean(enabled && dragItem && sportMatches)
 
   function onDragOver(e: React.DragEvent) {
     if (!canDrop) return
@@ -60,8 +75,13 @@ export function useDayDropTarget({
   }
 
   const dropHighlightClass = cn(
-    canDrop && isOver && 'bg-muted ring-2 ring-inset ring-foreground/25',
-    canDrop && !isOver && isDragging && 'ring-1 ring-inset ring-foreground/15',
+    canDrop &&
+      isOver &&
+      'bg-[color-mix(in_oklab,var(--color-muted)_32%,var(--color-card))] ring-2 ring-inset ring-foreground/55',
+    canDrop &&
+      !isOver &&
+      isDragging &&
+      'ring-2 ring-inset ring-foreground/25',
   )
 
   return {

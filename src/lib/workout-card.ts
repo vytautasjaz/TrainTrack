@@ -9,6 +9,10 @@ import {
   secondaryMetricVisibleFromTags,
   type WorkoutDurationUnit,
 } from '@/lib/workout-approx-tags'
+import {
+  isApproximateMetricSource,
+  resolveMetricSource,
+} from '@/lib/workout-metric-source'
 import { hasStructureContent } from '@/lib/workout-builder/utils'
 
 export type WorkoutCardHero = {
@@ -56,6 +60,22 @@ function metricApproximate(
   metric: 'duration' | 'distance',
 ): boolean {
   if (workout.type !== WorkoutType.BIKE && workout.type !== WorkoutType.RUN) return false
+  // Structure totals are athlete-resolved estimates — still show ~ unless locked MANUAL.
+  const source =
+    metric === 'duration'
+      ? resolveMetricSource({
+          source: workout.plannedDurationSource,
+          tags: workout.tags,
+          metric: 'duration',
+          hasValue: Boolean(workout.plannedDuration),
+        })
+      : resolveMetricSource({
+          source: workout.plannedDistanceSource,
+          tags: workout.tags,
+          metric: 'distance',
+          hasValue: Boolean(workout.plannedDistance),
+        })
+  if (source) return isApproximateMetricSource(source)
   if (workout.structure && hasStructureContent(workout.structure)) return false
   const approx = approxMetricsFromTags(workout.tags)
   return metric === 'duration' ? approx.duration : approx.distance
@@ -130,7 +150,12 @@ export function getWorkoutCardHero(
     let plannedValue: string | undefined
     let plannedUnit: string | null | undefined
     // Use formatted planned distance (includes swim meters), not raw km number.
-    if (isCompleted && hasActualDistance && metrics.plannedDistance) {
+    if (
+      isCompleted &&
+      !workout.selfLogged &&
+      hasActualDistance &&
+      metrics.plannedDistance
+    ) {
       const planned = splitDistanceDisplay(metrics.plannedDistance)
       plannedValue = planned.value
       plannedUnit = planned.unit || unit || null
@@ -153,6 +178,7 @@ export function getWorkoutCardHero(
     let plannedUnit: string | null | undefined
     if (
       isCompleted &&
+      !workout.selfLogged &&
       workout.result?.actualDuration != null &&
       workout.result.actualDuration > 0 &&
       workout.plannedDuration != null &&
@@ -297,7 +323,7 @@ export function getWorkoutCardDuration(
     const hasActualDistance =
       workout.result?.actualDistance != null && workout.result.actualDistance > 0
     let planned: string | undefined
-    if (isCompleted && hasActualDistance && metrics.plannedDistance) {
+    if (isCompleted && !workout.selfLogged && hasActualDistance && metrics.plannedDistance) {
       planned = metrics.plannedDistance
     }
     return { actual, planned }
@@ -314,6 +340,7 @@ export function getWorkoutCardDuration(
   let planned: string | undefined
   if (
     isCompleted &&
+    !workout.selfLogged &&
     workout.result?.actualDuration != null &&
     workout.result.actualDuration > 0 &&
     workout.plannedDuration != null &&
@@ -384,4 +411,44 @@ export function isWorkoutCardCompleted(
 
 export function isWorkoutCardSkipped(status: WorkoutStatus): boolean {
   return status === WorkoutStatus.SKIPPED
+}
+
+/**
+ * Actual vs planned completion for completed workouts.
+ * Prefers distance when both sides exist; otherwise duration.
+ * Returns null when not comparable (planned missing, race, not completed).
+ */
+export function getWorkoutCompletionPercent(
+  workout: PlanWorkoutDetail,
+  status: WorkoutStatus = workout.status,
+): number | null {
+  if (status !== WorkoutStatus.COMPLETED || workout.isRace) return null
+
+  const actualDistanceKm = workout.result?.actualDistance
+  if (actualDistanceKm != null && actualDistanceKm > 0) {
+    let plannedKm = workout.plannedDistance
+    if (
+      workout.type === WorkoutType.SWIM &&
+      workout.plannedDistanceMeters != null &&
+      workout.plannedDistanceMeters > 0
+    ) {
+      plannedKm = workout.plannedDistanceMeters / 1000
+    }
+    if (plannedKm != null && plannedKm > 0) {
+      return Math.round((actualDistanceKm / plannedKm) * 100)
+    }
+  }
+
+  const actualDuration = workout.result?.actualDuration
+  const plannedDuration = workout.plannedDuration
+  if (
+    actualDuration != null &&
+    actualDuration > 0 &&
+    plannedDuration != null &&
+    plannedDuration > 0
+  ) {
+    return Math.round((actualDuration / plannedDuration) * 100)
+  }
+
+  return null
 }

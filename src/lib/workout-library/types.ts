@@ -8,6 +8,9 @@ export type WorkoutLibraryTemplate = {
   description: string | null
   distanceKm: number | null
   durationMin: number | null
+  distanceSource?: import('@prisma/client').PlannedMetricSource | null
+  durationSource?: import('@prisma/client').PlannedMetricSource | null
+  plannedDistanceMetersSource?: import('@prisma/client').PlannedMetricSource | null
   notes: string | null
   structure: unknown
   swimEnvironment: SwimEnvironment | null

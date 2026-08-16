@@ -28,7 +28,7 @@ export function SignInMethodsSection({
   return (
     <section id="sign-in" className="card-elevated scroll-mt-24 space-y-4 p-5">
       <div>
-        <SectionTitle>Sign-in methods</SectionTitle>
+        <SectionTitle variant="ui">Sign-in methods</SectionTitle>
         <Caption>Link providers or set a password so you can always get back in.</Caption>
       </div>
 

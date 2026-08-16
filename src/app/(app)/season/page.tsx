@@ -6,8 +6,8 @@ import {
   isCoachView,
   coachCanAccessAthlete,
 } from '@/lib/session'
-import { PageHeader } from '@/components/ui/page-header'
 import { RacesPageClient } from '@/components/races/season-planner/races-page-client'
+import { SeasonPlanHeader } from '@/components/races/season-planner/season-plan-header'
 import {
   splitPlannedWatching,
   type SeasonRace,
@@ -26,7 +26,7 @@ export default async function SeasonPlanPage() {
     if (!allowed) redirect('/dashboard')
   }
 
-  const [races, phaseBlocksRaw, seasonEventsRaw, athlete] = await Promise.all([
+  const [races, phaseBlocksRaw, seasonEventsRaw] = await Promise.all([
     prisma.race.findMany({
       where: { athleteId, resultsLogOnly: false },
       orderBy: { date: 'asc' },
@@ -76,10 +76,6 @@ export default async function SeasonPlanPage() {
         endDate: true,
       },
     }),
-    prisma.athlete.findUnique({
-      where: { id: athleteId },
-      select: { name: true },
-    }),
   ])
 
   const seasonRaces = races as SeasonRace[]
@@ -87,18 +83,10 @@ export default async function SeasonPlanPage() {
   const seasonEvents = seasonEventsRaw
   const { planned, watching } = splitPlannedWatching(seasonRaces)
   const watchingSorted = [...watching].sort((a, b) => a.date.getTime() - b.date.getTime())
-  const coachView = isCoachView(session)
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Season plan"
-        description={
-          coachView && athlete?.name
-            ? `Season plan for ${athlete.name}`
-            : 'Plan your season. Set your goals. Stay focused.'
-        }
-      />
+    <div className="tt-season-page -mx-4 space-y-8 px-4 pb-8 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
+      <SeasonPlanHeader />
 
       <RacesPageClient
         allPlanned={planned}

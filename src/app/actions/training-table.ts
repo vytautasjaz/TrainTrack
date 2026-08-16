@@ -66,7 +66,7 @@ export async function fetchTrainingTableDays(
   const races = await getRacesForRange(athleteId, start, end)
   const byDate = mergeRacesIntoByDate(byDateWorkouts, races)
   const dayNotes = await getDayNotesForRange(athleteId, start, end)
-  const notesByDate = groupDayNotesByDate(dayNotes)
+  const notesByDate = groupDayNotesByDate(dayNotes, noteViewer)
 
   const days = eachDayOfInterval({ start, end })
   return buildPlanTableDays(days, byDate, notesByDate).map((day) => ({

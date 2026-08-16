@@ -1,14 +1,24 @@
 'use client'
 
 import Link from 'next/link'
-import { Circle, Star } from 'lucide-react'
 import type { SeasonRace } from '@/lib/season-races'
 import { raceDistanceLabel, raceTypeLabel, weeksUntil } from '@/lib/season-races'
-import { PriorityBadge, priorityMarkerSurfaceClass } from '@/components/races/priority-badge'
+import { PriorityBadge } from '@/components/races/priority-badge'
 import { ItemActions } from '@/components/ui/item-actions'
+import { StatusPill } from '@/components/ui/status-pill'
+import { TablePosterHeading } from '@/components/ui/table-poster-heading'
 import { deleteRace } from '@/app/actions/workouts'
 import { daysUntil, cn } from '@/lib/utils'
-import { TABLE_HEADER_MUTED, TABLE_SHELL } from '@/lib/table-styles'
+import {
+  DATA_CELL_PRIMARY,
+  DATA_CELL_SECONDARY,
+  DATA_CELL_META,
+  DATA_EMPTY,
+  DATA_MOBILE_CARD,
+  DATA_NUM,
+  DATA_TABLE,
+  DATA_TABLE_SHELL,
+} from '@/lib/table-styles'
 
 type UpcomingRaceTableProps = {
   races: SeasonRace[]
@@ -17,124 +27,139 @@ type UpcomingRaceTableProps = {
 
 export function UpcomingRaceTable({ races, className }: UpcomingRaceTableProps) {
   return (
-    <section className={cn('space-y-3', className)}>
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h2 className="text-base font-semibold tracking-tight">Upcoming races</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Scheduled events for the rest of the season
-          </p>
-        </div>
-      </div>
+    <section className={cn('space-y-5', className)}>
+      <TablePosterHeading
+        lines={['Upcoming races']}
+        meta={races.length === 1 ? '1 EVENT' : `${races.length} EVENTS`}
+        description="Scheduled events for the rest of the season"
+      />
 
-      <div className={TABLE_SHELL}>
+      <div className={DATA_TABLE_SHELL}>
         {races.length === 0 ? (
-          <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-            No upcoming races. Add one to plan your season.
-          </p>
+          <div className={DATA_EMPTY}>
+            <p className="text-sm">No upcoming races. Add one to plan your season.</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[40rem] border-collapse text-left text-sm">
-              <thead>
-                <tr className={TABLE_HEADER_MUTED}>
-                  <th className="px-4 py-3 font-semibold">Race</th>
-                  <th className="px-3 py-3 font-semibold">Date</th>
-                  <th className="px-3 py-3 font-semibold">Distance</th>
-                  <th className="px-3 py-3 font-semibold">Priority</th>
-                  <th className="px-3 py-3 font-semibold">Goal</th>
-                  <th className="px-3 py-3 text-right font-semibold">Days</th>
-                  <th className="px-4 py-3 text-right font-semibold">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {races.map((race) => {
-                  const days = daysUntil(race.date)
-                  const weeks = weeksUntil(race.date)
-                  return (
-                    <tr
-                      key={race.id}
-                      className="group border-b border-border/40 last:border-0 transition hover:bg-muted/40"
-                    >
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/season/${race.id}/edit`}
-                          className="flex min-w-0 items-start gap-3"
-                        >
-                          <span
-                            className={cn(
-                              'mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border',
-                              priorityMarkerSurfaceClass(race.priority),
-                            )}
-                          >
-                            {race.priority === 'A' ? (
-                              <Star className="h-3.5 w-3.5 fill-current" />
-                            ) : (
-                              <Circle className="h-2.5 w-2.5 fill-current" />
-                            )}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block truncate font-semibold text-foreground">
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className={cn(DATA_TABLE, 'min-w-[40rem]')} data-density="comfortable">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Race</th>
+                    <th>Status</th>
+                    <th>Distance</th>
+                    <th>Priority</th>
+                    <th>Goal</th>
+                    <th className="text-right">Weeks</th>
+                    <th>
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {races.map((race) => {
+                    const days = daysUntil(race.date)
+                    const weeks = weeksUntil(race.date)
+                    return (
+                      <tr key={race.id} className="group">
+                        <td className={cn('whitespace-nowrap', DATA_CELL_SECONDARY)}>
+                          {race.date.toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            timeZone: 'UTC',
+                          })}
+                        </td>
+                        <td>
+                          <Link href={`/season/${race.id}/edit`} className="min-w-0 block">
+                            <span className={cn('block truncate', DATA_CELL_PRIMARY)}>
                               {race.name}
                             </span>
-                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            <span className={cn('mt-0.5 block truncate', DATA_CELL_SECONDARY)}>
                               {raceTypeLabel(race.type)}
                               {race.location ? ` · ${race.location}` : ''}
                             </span>
-                          </span>
-                        </Link>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
-                        {race.date.toLocaleDateString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          timeZone: 'UTC',
-                        })}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
-                        {raceDistanceLabel(race.type, {
-                          triathlonDistance: race.triathlonDistance,
-                          customDistanceKm: race.customDistanceKm,
-                          legs: race.legs,
-                        })}
-                      </td>
-                      <td className="px-3 py-3">
-                        <PriorityBadge priority={race.priority} />
-                      </td>
-                      <td className="max-w-[10rem] truncate px-3 py-3 text-muted-foreground">
-                        {race.goal || '—'}
-                      </td>
-                      <td className="px-3 py-3 text-right">
-                        <div className="flex flex-col items-end leading-tight">
-                          <span>
-                            <span className="text-base font-bold tabular-nums text-foreground">
+                          </Link>
+                        </td>
+                        <td>
+                          <StatusPill tone="planned">Planned</StatusPill>
+                        </td>
+                        <td className={cn('whitespace-nowrap', DATA_NUM, DATA_CELL_SECONDARY)}>
+                          {raceDistanceLabel(race.type, {
+                            triathlonDistance: race.triathlonDistance,
+                            customDistanceKm: race.customDistanceKm,
+                            legs: race.legs,
+                          })}
+                        </td>
+                        <td>
+                          <PriorityBadge priority={race.priority} />
+                        </td>
+                        <td className={cn('max-w-[10rem] truncate', DATA_CELL_SECONDARY)}>
+                          {race.goal || '—'}
+                        </td>
+                        <td className="text-right">
+                          <div className="flex flex-col items-end leading-tight">
+                            <span className={cn(DATA_NUM, 'text-sm text-foreground')}>
                               {days}
+                              <span className="ml-1 text-[10px] font-medium text-text-tertiary">
+                                d
+                              </span>
                             </span>
-                            <span className="ml-1 text-[10px] text-muted-foreground">days</span>
-                          </span>
-                          <span className="mt-0.5 text-[10px] tabular-nums text-muted-foreground">
-                            {weeks} {weeks === 1 ? 'week' : 'weeks'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <ItemActions
-                          editHref={`/season/${race.id}/edit`}
-                          deleteAction={deleteRace}
-                          deleteId={race.id}
-                          deleteIdField="raceId"
-                          deleteConfirmTitle="Remove race?"
-                          deleteConfirmMessage={`“${race.name}” will be removed from the calendar.`}
-                        />
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                            <span className={cn(DATA_NUM, 'mt-0.5 text-[11px] text-text-tertiary')}>
+                              {weeks}w
+                            </span>
+                          </div>
+                        </td>
+                        <td className="text-right">
+                          <ItemActions
+                            editHref={`/season/${race.id}/edit`}
+                            deleteAction={deleteRace}
+                            deleteId={race.id}
+                            deleteIdField="raceId"
+                            deleteConfirmTitle="Remove race?"
+                            deleteConfirmMessage={`“${race.name}” will be removed from the calendar.`}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="md:hidden">
+              {races.map((race) => {
+                const weeks = weeksUntil(race.date)
+                return (
+                  <Link
+                    key={race.id}
+                    href={`/season/${race.id}/edit`}
+                    className={cn(DATA_MOBILE_CARD, 'block')}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <p className={DATA_CELL_PRIMARY}>{race.name}</p>
+                      <StatusPill tone="planned">Planned</StatusPill>
+                    </div>
+                    <p className={cn('mt-1', DATA_CELL_SECONDARY)}>
+                      {race.date.toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        timeZone: 'UTC',
+                      })}
+                      {' · '}
+                      {raceTypeLabel(race.type)}
+                    </p>
+                    <p className={cn('mt-1', DATA_CELL_META)}>
+                      {race.location || '—'}
+                      {' · '}
+                      <span className={DATA_NUM}>{weeks}w</span>
+                    </p>
+                  </Link>
+                )
+              })}
+            </div>
+          </>
         )}
       </div>
     </section>

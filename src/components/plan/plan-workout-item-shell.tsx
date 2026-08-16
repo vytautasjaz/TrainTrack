@@ -1,14 +1,13 @@
 'use client'
 
-import { WorkoutStatus } from '@prisma/client'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { cn } from '@/lib/utils'
 
-/** Soft sky wash for athlete self-logged workouts (no label text). */
+/** Athlete-added workouts (self-logged) — planned or completed. */
 export function isAthleteAddedWorkout(
-  workout: Pick<PlanWorkoutDetail, 'selfLogged' | 'status'>,
+  workout: Pick<PlanWorkoutDetail, 'selfLogged'>,
 ) {
-  return Boolean(workout.selfLogged) && workout.status !== WorkoutStatus.COMPLETED
+  return Boolean(workout.selfLogged)
 }
 
 export function athleteAddedFieldClass(active: boolean) {

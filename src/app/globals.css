@@ -5,45 +5,64 @@
 @custom-variant landscape (@media (orientation: landscape));
 
 @theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  /* Design System v3 neutrals */
-  --color-background: #ffffff;
-  --color-foreground: #111318;
+  /* UI = Manrope (next/font → --font-ui); Display = Barlow Condensed */
+  --font-sans: var(--font-ui), 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-family), 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
+
+  /* Neutrals — premium endurance sports */
+  --color-background: #fafaf8;
+  --color-foreground: #111111;
   --color-card: #ffffff;
-  --color-card-foreground: #111318;
-  --color-muted: #f3f3f1;
+  --color-card-foreground: #111111;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #f5f5f3;
+  --color-muted: #f5f5f3;
   --color-muted-foreground: #6b7280;
-  --color-border: #dedede;
-  --color-primary: #111318;
+  --color-border: #e5e7eb;
+  --color-border-subtle: #eeeeec;
+  --color-primary: #111111;
   --color-primary-foreground: #ffffff;
-  --color-brand: #e84855;
+
+  /* Brand / accent — orange energy (accent, not large fills) */
+  --color-accent: #f4511e;
+  --color-accent-foreground: #ffffff;
+  --color-accent-subtle: rgb(244 81 30 / 0.06);
+  --color-accent-light: rgb(244 81 30 / 0.1);
+  --color-accent-medium: rgb(244 81 30 / 0.16);
+  --color-brand: #f4511e;
   --color-brand-foreground: #ffffff;
-  --color-brand-soft: #fff0f1;
-  --color-brand-muted: #ffd4d8;
+  --color-brand-soft: rgb(244 81 30 / 0.1);
+  --color-brand-muted: rgb(244 81 30 / 0.16);
+
   --color-hero: #ffffff;
-  --color-hero-foreground: #111318;
-  --color-accent: #f3f3f1;
-  --color-accent-foreground: #111318;
+  --color-hero-foreground: #111111;
   --color-destructive: #ef4444;
   --color-success: #2fbf71;
-  --color-chart-brand: #e84855;
+  --color-chart-brand: #f4511e;
   --color-chart-planned: #a1a1aa;
   --color-chart-success: #2fbf71;
-  --color-sport-run: #f97316;
-  --color-sport-run-bg: #fff7ed;
-  --color-sport-run-border: #fed7aa;
-  --color-sport-swim: #0ea5e9;
-  --color-sport-swim-bg: #f0f9ff;
-  --color-sport-swim-border: #bae6fd;
-  --color-sport-bike: #14b8a6;
-  --color-sport-bike-bg: #f0fdfa;
-  --color-sport-bike-border: #99f6e4;
+
+  /* Semantic text (also available as utilities via theme) */
+  --color-text-primary: #111111;
+  --color-text-secondary: #6b7280;
+  --color-text-tertiary: #9ca3af;
+
+  /* Sport semantic colors */
+  --color-sport-run: #f4511e;
+  --color-sport-run-bg: rgb(244 81 30 / 0.08);
+  --color-sport-run-border: rgb(244 81 30 / 0.22);
+  --color-sport-swim: #1e9bde;
+  --color-sport-swim-bg: rgb(30 155 222 / 0.08);
+  --color-sport-swim-border: rgb(30 155 222 / 0.22);
+  --color-sport-bike: #16b8a6;
+  --color-sport-bike-bg: rgb(22 184 166 / 0.08);
+  --color-sport-bike-border: rgb(22 184 166 / 0.22);
   --color-sport-strength: #8b5cf6;
-  --color-sport-strength-bg: #f5f3ff;
-  --color-sport-strength-border: #ddd6fe;
-  --color-sport-hyrox: #ef4444;
-  --color-sport-hyrox-bg: #fef2f2;
-  --color-sport-hyrox-border: #fecaca;
+  --color-sport-strength-bg: rgb(139 92 246 / 0.08);
+  --color-sport-strength-border: rgb(139 92 246 / 0.22);
+  --color-sport-hyrox: #f4511e;
+  --color-sport-hyrox-bg: rgb(244 81 30 / 0.08);
+  --color-sport-hyrox-border: rgb(244 81 30 / 0.22);
   /* Reserved — no WorkoutType yet */
   --color-sport-ski: #4f7fd9;
   --color-sport-ski-bg: #eff6ff;
@@ -51,13 +70,15 @@
   --color-sport-tri: #7c5cff;
   --color-sport-tri-bg: #f5f3ff;
   --color-sport-tri-border: #ddd6fe;
-  --color-sport-recovery: #a78bfa;
-  --color-sport-recovery-bg: #f5f3ff;
-  --color-sport-recovery-border: #ddd6fe;
+  --color-sport-recovery: #8b5cf6;
+  --color-sport-recovery-bg: rgb(139 92 246 / 0.08);
+  --color-sport-recovery-border: rgb(139 92 246 / 0.22);
   --color-sport-rest: #a1a1aa;
   --color-sport-rest-bg: #fafafa;
   --color-sport-rest-border: #e4e4e7;
-  --color-sport-race: #f5a623;
+  --color-sport-race: #f4511e;
+
+  /* Table headers keep charcoal rail (not the light app sidebar) */
   --color-sidebar: #111318;
   --color-sidebar-foreground: #f4f6fb;
   --color-tt-muted: #a1a1aa;
@@ -66,22 +87,34 @@
   --color-tt-skipped-bg: #fdf2f2;
   --color-tt-skipped-border: #f5a3a3;
   --color-tt-adjusted-bg: #fffbeb;
-  /* DS v3: shell cards 12px; calendar workout blocks use radius-none */
+  /* Shared left accent width (sport / completion / skipped) */
+  --tt-card-rail: 3px;
+
+  /* Radius — restrained */
   --radius-none: 0;
-  --radius-sm: 0.625rem;
+  --radius-sm: 0.5rem;
   --radius-md: 0.75rem;
   --radius-lg: 0.75rem;
   --radius-xl: 0.75rem;
-  --radius-2xl: 0.75rem;
-  --radius-3xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1rem;
   --radius-workout: 4px;
-  --shadow-card: 0 0 #0000;
-  --shadow-float: 0 0 #0000;
-  --shadow-nav: 0 -1px 0 rgb(17 19 24 / 0.08);
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.03);
+  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.03);
+  --shadow-nav: 0 -1px 0 rgb(17 17 17 / 0.06);
+
+  /* 4px spacing scale */
   --tt-space-4: 0.25rem;
   --tt-space-8: 0.5rem;
+  --tt-space-12: 0.75rem;
   --tt-space-16: 1rem;
+  --tt-space-20: 1.25rem;
   --tt-space-24: 1.5rem;
+  --tt-space-32: 2rem;
+  --tt-space-40: 2.5rem;
+  --tt-space-48: 3rem;
+  --tt-space-64: 4rem;
   --tt-motion-fast: 160ms;
   --tt-motion-normal: 180ms;
 }
@@ -91,20 +124,29 @@
   --color-foreground: #f4f6fb;
   --color-card: #1a1d26;
   --color-card-foreground: #f4f6fb;
+  --color-surface: #1a1d26;
+  --color-surface-subtle: #252932;
   --color-muted: #252932;
   --color-muted-foreground: #9ca3af;
   --color-border: #2d3139;
+  --color-border-subtle: #252932;
   --color-primary: #f4f6fb;
   --color-primary-foreground: #111827;
-  --color-brand: #ff5a67;
+  --color-accent: #f4511e;
+  --color-accent-foreground: #ffffff;
+  --color-accent-subtle: rgb(244 81 30 / 0.14);
+  --color-accent-light: rgb(244 81 30 / 0.2);
+  --color-accent-medium: rgb(244 81 30 / 0.28);
+  --color-brand: #f4511e;
   --color-brand-foreground: #ffffff;
-  --color-brand-soft: #3d2024;
-  --color-brand-muted: #5c2a30;
+  --color-brand-soft: rgb(244 81 30 / 0.18);
+  --color-brand-muted: rgb(244 81 30 / 0.28);
   --color-hero: #1a1d26;
   --color-hero-foreground: #f4f6fb;
-  --color-accent: #252932;
-  --color-accent-foreground: #f4f6fb;
-  --color-chart-brand: #ff5a67;
+  --color-text-primary: #f4f6fb;
+  --color-text-secondary: #9ca3af;
+  --color-text-tertiary: #6b7280;
+  --color-chart-brand: #f4511e;
   --color-chart-planned: hsl(215 14% 55%);
   --color-chart-success: #4ade80;
 }
@@ -115,6 +157,145 @@ html {
 
 html[data-sidebar-collapsed='true'] {
   --sidebar-width: 4.5rem;
+}
+
+/* Desktop app sidebar — light editorial rail (structure unchanged; atmosphere only) */
+.tt-app-sidebar {
+  --tt-sidebar-bg: #fafaf8;
+  --tt-sidebar-ink: #111111;
+  --tt-sidebar-muted: #667085;
+  --tt-sidebar-faint: #98a2b3;
+  --tt-sidebar-accent: var(--color-accent);
+  --tt-sidebar-accent-soft: rgb(255 255 255 / 0.55);
+  --tt-sidebar-hover: rgb(17 17 17 / 0.035);
+  --tt-sidebar-border: rgb(0 0 0 / 0.06);
+  /* Do not set position here — Tailwind `lg:sticky` must win so the rail stays fixed while content scrolls. */
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--tt-sidebar-bg);
+  color: var(--tt-sidebar-ink);
+  border-right: 1px solid var(--tt-sidebar-border);
+}
+
+/*
+  Background composition — diagonal orange + cool gray motion on the right,
+  left stays readable. Pseudo-elements only (no shape markup).
+*/
+.tt-app-sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    /* ORANGE — main diagonal motion */
+    radial-gradient(
+      ellipse 42% 30% at 103% 49%,
+      rgb(244 81 30 / 0.78) 0%,
+      rgb(244 81 30 / 0.48) 20%,
+      rgb(244 81 30 / 0.22) 42%,
+      rgb(244 81 30 / 0.06) 62%,
+      transparent 78%
+    ),
+    /* WARM ORANGE — lower continuation */
+    radial-gradient(
+      ellipse 55% 24% at 92% 60%,
+      rgb(244 81 30 / 0.38) 0%,
+      rgb(244 81 30 / 0.18) 35%,
+      transparent 72%
+    ),
+    /* COOL GRAY — upper diagonal mass */
+    radial-gradient(
+      ellipse 65% 28% at 102% 27%,
+      rgb(92 108 118 / 0.38) 0%,
+      rgb(92 108 118 / 0.22) 28%,
+      rgb(92 108 118 / 0.08) 55%,
+      transparent 78%
+    ),
+    /* BLUE-GRAY — behind orange */
+    radial-gradient(
+      ellipse 55% 25% at 112% 38%,
+      rgb(115 139 150 / 0.25) 0%,
+      rgb(115 139 150 / 0.12) 38%,
+      transparent 72%
+    ),
+    /* GENERAL WARM ATMOSPHERE */
+    radial-gradient(
+      ellipse 80% 38% at 75% 45%,
+      rgb(190 165 150 / 0.12),
+      transparent 70%
+    );
+  filter: blur(22px);
+  transform: scale(1.08);
+}
+
+/* Soft white / frosted veil — stronger on the left for nav readability */
+.tt-app-sidebar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0.72) 0%,
+    rgb(255 255 255 / 0.48) 35%,
+    rgb(255 255 255 / 0.2) 68%,
+    rgb(255 255 255 / 0.08) 100%
+  );
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.tt-app-sidebar-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  height: 100%;
+}
+
+.tt-app-sidebar-nav-link {
+  position: relative;
+  color: var(--tt-sidebar-muted);
+}
+
+.tt-app-sidebar-nav-link .tt-app-sidebar-nav-icon {
+  color: var(--tt-sidebar-muted);
+}
+
+.tt-app-sidebar-nav-link:hover {
+  background: var(--tt-sidebar-hover);
+  color: var(--tt-sidebar-ink);
+}
+
+.tt-app-sidebar-nav-link:hover .tt-app-sidebar-nav-icon {
+  color: var(--tt-sidebar-ink);
+}
+
+.tt-app-sidebar-nav-link[data-active='true'] {
+  background: var(--tt-sidebar-accent-soft);
+  color: var(--tt-sidebar-ink);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.tt-app-sidebar-nav-link[data-active='true']::before {
+  content: '';
+  position: absolute;
+  top: 14%;
+  bottom: 14%;
+  left: 0;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--tt-sidebar-accent);
+}
+
+.tt-app-sidebar-nav-link[data-active='true'] .tt-app-sidebar-nav-icon {
+  color: var(--tt-sidebar-accent);
 }
 
 body {
@@ -143,7 +324,10 @@ body {
 }
 
 .card-elevated {
-  @apply rounded-md border border-border bg-card shadow-none;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: none;
 }
 
 .workout-card-interactive {
@@ -155,7 +339,333 @@ body {
 }
 
 .workout-day-card {
-  @apply rounded-md border border-border bg-card shadow-none;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+/* ─── Athlete Home / Dashboard ──────────────────────────────────────────── */
+.tt-dashboard-page {
+  background: #fafaf8;
+  min-height: 100%;
+}
+
+.tt-dashboard-content {
+  max-width: 1500px;
+  margin-inline: auto;
+  padding-block: 1.5rem 3rem;
+}
+
+.tt-dashboard-card {
+  background: #ffffff;
+  border: 1px solid #e2e3e1;
+  border-radius: 10px;
+  box-shadow: none;
+  padding: 1.25rem;
+}
+
+.tt-dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.tt-dashboard-title {
+  /* Alias — Home greeting uses the shared Level 1 display size */
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2.2vw, 1.625rem); /* ~20–26px */
+  line-height: 0.92;
+  font-weight: 800;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  color: #111111;
+  margin: 0;
+}
+
+.tt-dashboard-date {
+  margin-top: 0.4375rem;
+  color: #737986;
+  font-size: 0.875rem;
+}
+
+.tt-dashboard-log-btn {
+  display: inline-flex;
+  height: 38px;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 15px;
+  background: #111111;
+  color: #ffffff;
+  border: 1px solid #111111;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition: background-color 120ms ease, opacity 120ms ease;
+}
+
+.tt-dashboard-log-btn:hover {
+  background: #222222;
+}
+
+.tt-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.75rem;
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .tt-dashboard-grid {
+    grid-template-columns: minmax(0, 1fr) 390px;
+  }
+}
+
+.tt-dashboard-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tt-dashboard-section-title {
+  /* Alias of title-section */
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #111111;
+}
+
+.tt-dashboard-today-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tt-dashboard-main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.tt-dashboard-today {
+  --tt-today-sport: var(--color-sport-run);
+  background: #ffffff;
+  border: 1px solid #e2e3e1;
+  border-left: var(--tt-card-rail) solid var(--tt-today-sport);
+  border-radius: 10px;
+  min-height: 0;
+  padding: 1rem 1.25rem;
+  box-shadow: none;
+}
+
+@media (min-width: 640px) {
+  .tt-dashboard-today {
+    padding: 1.125rem 1.5rem;
+  }
+}
+
+.tt-dashboard-today[data-sport='BIKE'] {
+  --tt-today-sport: var(--color-sport-bike);
+}
+.tt-dashboard-today[data-sport='SWIM'] {
+  --tt-today-sport: var(--color-sport-swim);
+}
+.tt-dashboard-today[data-sport='STRENGTH'] {
+  --tt-today-sport: var(--color-sport-strength);
+}
+.tt-dashboard-today[data-sport='TRIATHLON'] {
+  --tt-today-sport: var(--color-sport-tri);
+}
+.tt-dashboard-today[data-sport='HYROX'] {
+  --tt-today-sport: var(--color-sport-hyrox);
+}
+.tt-dashboard-today[data-sport='RUN'],
+.tt-dashboard-today[data-sport='RECOVERY'],
+.tt-dashboard-today[data-sport='REST'] {
+  --tt-today-sport: var(--color-sport-run);
+}
+
+/* Completion status — soft surface tint; left rail is status (not sport). */
+.tt-dashboard-today:has([data-status='completed']) {
+  border-top-color: color-mix(in srgb, var(--color-tt-completed-border) 70%, #e2e3e1);
+  border-right-color: color-mix(in srgb, var(--color-tt-completed-border) 70%, #e2e3e1);
+  border-bottom-color: color-mix(in srgb, var(--color-tt-completed-border) 70%, #e2e3e1);
+  border-left-color: var(--color-tt-completed-border);
+  background-color: var(--color-tt-completed-bg);
+  background-image: none;
+}
+
+.tt-dashboard-today:has([data-status='skipped']) {
+  border-top-color: color-mix(in srgb, var(--color-tt-skipped-border) 70%, #e2e3e1);
+  border-right-color: color-mix(in srgb, var(--color-tt-skipped-border) 70%, #e2e3e1);
+  border-bottom-color: color-mix(in srgb, var(--color-tt-skipped-border) 70%, #e2e3e1);
+  border-left-color: var(--color-tt-skipped-border);
+  background-color: var(--color-tt-skipped-bg);
+  background-image: none;
+}
+
+/* Completed with known % — left edge is a thin vertical meter. */
+.tt-dashboard-today[data-completion] {
+  border-left-color: transparent;
+  background-image: linear-gradient(
+    to top,
+    #86d39a 0,
+    #86d39a var(--tt-completion, 100%),
+    #d8f0e0 var(--tt-completion, 100%),
+    #d8f0e0 100%
+  );
+  background-size: var(--tt-card-rail) 100%;
+  background-repeat: no-repeat;
+  background-position: left top;
+}
+
+.tt-dashboard-upcoming-day {
+  margin-top: 1.375rem;
+}
+
+.tt-dashboard-upcoming-day:first-child {
+  margin-top: 0;
+}
+
+.tt-dashboard-upcoming-day .title-day {
+  margin-bottom: 0.625rem;
+}
+
+.tt-dashboard-upcoming-stack {
+  overflow: hidden;
+  border: 1px solid #e3e4e2;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.tt-dashboard-upcoming-stack .tt-dashboard-workout-row {
+  border-radius: 0;
+  border: none;
+  border-left: var(--tt-card-rail) solid var(--tt-row-sport, var(--color-border));
+  border-bottom: 1px solid #eeeeec;
+  min-height: 70px;
+  background: #ffffff;
+}
+
+.tt-dashboard-upcoming-stack .tt-dashboard-workout-row[data-status='skipped'] {
+  border-left-color: var(--color-tt-skipped-border);
+  background: var(--color-tt-skipped-bg);
+}
+
+.tt-dashboard-upcoming-stack .tt-dashboard-workout-row[data-status='completed'] {
+  border-left-color: var(--color-tt-completed-border);
+  background: var(--color-tt-completed-bg);
+}
+
+.tt-dashboard-upcoming-stack .tt-dashboard-workout-row[data-completion] {
+  border-left-color: transparent;
+  background-image: linear-gradient(
+    to top,
+    #86d39a 0,
+    #86d39a var(--tt-completion, 100%),
+    #d8f0e0 var(--tt-completion, 100%),
+    #d8f0e0 100%
+  );
+  background-size: var(--tt-card-rail) 100%;
+  background-repeat: no-repeat;
+  background-position: left top;
+}
+
+.tt-dashboard-upcoming-stack .tt-dashboard-workout-row:last-child {
+  border-bottom: none;
+}
+
+.tt-dashboard-race-countdown {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: #111111;
+}
+
+.tt-dashboard-volume-card {
+  min-height: 110px;
+}
+
+.tt-dashboard-activity-row {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+}
+
+/* Today hero: flatten nested WorkoutBlock chrome; soft sport icon. */
+.tt-dashboard-today .tt-calendar-card-sport {
+  border: none !important;
+  background: transparent !important;
+}
+
+.tt-dashboard-today .tt-calendar-card-sport::before {
+  content: none;
+}
+
+.tt-dashboard-today .tt-calendar-card-sport .tt-workout-block,
+.tt-dashboard-today .tt-workout-block {
+  border: none !important;
+  background: transparent !important;
+  filter: none !important;
+  box-shadow: none !important;
+  border-radius: 0;
+  padding: 0 !important;
+}
+
+.tt-dashboard-today .group\/card:hover .tt-calendar-card-sport .tt-workout-block,
+.tt-dashboard-today .group\/card:hover .tt-workout-block-planned,
+.tt-dashboard-today .group\/card:hover .tt-workout-block-completed,
+.tt-dashboard-today .group\/card:hover .tt-workout-block-skipped,
+.tt-dashboard-today
+  .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
+    .tt-calendar-card-completion
+  )
+  .tt-workout-block,
+.tt-dashboard-today
+  .group\/card:hover
+  .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
+    .tt-calendar-card-completion
+  )
+  .tt-workout-block {
+  border: none !important;
+  background: transparent !important;
+}
+
+.tt-dashboard-today .tt-workout-block[data-density='lg'] > span:first-child {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tt-today-sport) 8%, white);
+  color: var(--tt-today-sport);
+}
+
+.tt-dashboard-today:has([data-status='skipped'])
+  .tt-workout-block[data-density='lg']
+  > span:first-child {
+  background: color-mix(in srgb, var(--color-tt-skipped-border) 22%, white);
+  color: var(--color-tt-skipped-border);
+}
+
+.tt-dashboard-today:has([data-status='completed'])
+  .tt-workout-block[data-density='lg']
+  > span:first-child {
+  background: color-mix(in srgb, var(--color-tt-completed-border) 18%, white);
+  color: var(--color-tt-completed-border);
+}
+
+.tt-dashboard-today .tt-workout-block[data-density='lg'] > span:first-child svg {
+  width: 1.125rem;
+  height: 1.125rem;
 }
 
 /* ─── Table chrome (style guide) ─────────────────────────────────────────
@@ -283,6 +793,214 @@ tr.tt-table-header > :last-child {
   @apply border-b border-border/50 bg-muted/30 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground;
 }
 
+/* ─── Editorial data tables (races, results, PBs) ─────────────────────────
+ * White sheet on warm-grey page canvas — no heavy outer box, no vertical borders.
+ * Calendar grids keep `.tt-table-*` chrome above.
+ */
+.tt-data-table-shell {
+  background: var(--color-surface);
+  border: none;
+  border-radius: 0.75rem;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.tt-data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.tt-data-table thead th {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.75rem 1rem;
+  white-space: nowrap;
+}
+
+.tt-data-table tbody td {
+  font-family: var(--font-sans);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+  background: var(--color-surface);
+}
+
+.tt-data-table tbody tr:last-child td {
+  border-bottom-color: transparent;
+}
+
+.tt-data-table tbody tr:hover td {
+  background: #fafaf9;
+}
+
+.tt-data-table tbody tr[data-selected='true'] td {
+  background: rgb(244 81 30 / 0.05);
+}
+
+.tt-data-table tbody tr[data-selected='true'] td:first-child {
+  box-shadow: inset 2px 0 0 var(--color-accent);
+}
+
+.tt-data-table[data-density='comfortable'] tbody td {
+  padding: 1.125rem 1rem;
+  min-height: 3.5rem;
+}
+
+.tt-data-table[data-density='compact'] tbody td {
+  padding: 0.625rem 0.75rem;
+  min-height: 3rem;
+}
+
+.tt-data-table[data-density='comfortable'] thead th {
+  padding: 0.75rem 1rem;
+}
+
+.tt-data-table[data-density='compact'] thead th {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.6875rem;
+}
+
+.tt-data-cell-primary {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.3;
+}
+
+.tt-data-cell-secondary {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  line-height: 1.35;
+}
+
+.tt-data-cell-meta {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--color-text-tertiary);
+}
+
+.tt-data-num {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.tt-data-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tt-data-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tt-data-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3rem 1.5rem;
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+}
+
+.tt-status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.tt-status-planned {
+  background: rgb(49 130 206 / 0.08);
+  color: #3182ce;
+}
+
+.tt-status-watching {
+  background: rgb(244 81 30 / 0.07);
+  color: #d94a1b;
+}
+
+.tt-status-completed {
+  background: #f0faf4;
+  color: #1f7a4d;
+}
+
+.tt-status-neutral {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+}
+
+.tt-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.tt-priority-a {
+  background: #f4511e;
+  color: #ffffff;
+}
+
+.tt-priority-b {
+  background: #3182ce;
+  color: #ffffff;
+}
+
+.tt-priority-c {
+  background: #5b6b7a;
+  color: #ffffff;
+}
+
+.tt-sport-dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.tt-data-mobile-card {
+  border-bottom: 1px solid var(--color-border);
+  padding: 1rem;
+  background: var(--color-surface);
+}
+
+.tt-data-mobile-card:last-child {
+  border-bottom: none;
+}
+
 /* Month calendar focus / expand — maximize grid, hide chrome */
 html[data-calendar-expanded='true'] [data-page-header] {
   display: none;
@@ -335,12 +1053,53 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 
 .tt-workout-block-completed {
   border-color: var(--color-tt-completed-border);
-  background: var(--color-tt-completed-bg);
+  background-color: var(--color-tt-completed-bg);
 }
 
 .tt-workout-block-skipped {
   border-color: var(--color-tt-skipped-border);
-  background: var(--color-tt-skipped-bg);
+  background-color: var(--color-tt-skipped-bg);
+}
+
+/* Reschedule ghost — faded placeholder on the original plan day. */
+.tt-workout-block-ghost,
+.tt-workout-block[data-ghost='true'] {
+  opacity: 0.4;
+  filter: grayscale(0.4);
+  border-style: dashed;
+  background-color: color-mix(in srgb, var(--color-muted) 45%, var(--color-card));
+}
+
+/* Body fade when review footer stays crisp inside the same card. */
+.tt-workout-block-ghost-body {
+  opacity: 0.4;
+  filter: grayscale(0.4);
+}
+
+/* Soften sport wash / border that otherwise win via !important. */
+.tt-calendar-card-sport .tt-workout-block-ghost,
+.tt-calendar-card-sport .tt-workout-block[data-ghost='true'],
+.tt-calendar-card-sport:has([data-status='ghost']) > .tt-workout-block {
+  background: color-mix(in srgb, var(--color-muted) 45%, var(--color-card)) !important;
+  border-color: color-mix(in srgb, var(--color-border) 55%, transparent) !important;
+  border-style: dashed !important;
+}
+
+/* List / dashboard row ghosts — match workout-block ghost language. */
+.tt-list-workout-row-ghost {
+  border-style: dashed !important;
+  background-color: color-mix(in srgb, var(--color-muted) 45%, var(--color-card)) !important;
+  border-color: color-mix(in srgb, var(--color-border) 55%, transparent) !important;
+}
+
+.tt-list-workout-row-ghost:not(:has([data-review-footer])) {
+  opacity: 0.4;
+  filter: grayscale(0.4);
+}
+
+.tt-list-workout-row-ghost-body {
+  opacity: 0.4;
+  filter: grayscale(0.4);
 }
 
 .tt-workout-block-adjusted {
@@ -350,13 +1109,13 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 
 /* Completion / race hover — intensify (not grey out) */
 .group\/card:hover .tt-workout-block-planned {
-  background: color-mix(in oklab, var(--color-muted) 28%, var(--color-card));
+  background-color: color-mix(in oklab, var(--color-muted) 28%, var(--color-card));
 }
 .group\/card:hover .tt-workout-block-completed {
-  background: color-mix(in oklab, var(--color-tt-completed-bg) 70%, #86d39a);
+  background-color: color-mix(in oklab, var(--color-tt-completed-bg) 70%, #86d39a);
 }
 .group\/card:hover .tt-workout-block-skipped {
-  background: color-mix(in oklab, var(--color-tt-skipped-bg) 70%, #f5a3a3);
+  background-color: color-mix(in oklab, var(--color-tt-skipped-bg) 70%, #f5a3a3);
 }
 
 /* Soft sport washes — explicit light bg / border from sport palette */
@@ -458,7 +1217,7 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
   );
 }
 
-/* Left accent bar by sport */
+/* Left accent bar by sport (Color / Plain / unmarked Completion). */
 .tt-calendar-card-sport {
   position: relative;
 }
@@ -469,11 +1228,42 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
   top: 0;
   bottom: 0;
   left: 0;
-  width: 3px;
+  width: var(--tt-card-rail);
   z-index: 1;
   pointer-events: none;
   border-radius: var(--radius-workout) 0 0 var(--radius-workout);
   background: var(--tt-sport-color);
+}
+
+/* Ghost cards — mute the sport rail (it lives on the wrapper, outside opacity fade). */
+.tt-calendar-card-sport:has(.tt-workout-block-ghost)::before,
+.tt-calendar-card-sport:has(.tt-workout-block-ghost-body)::before,
+.tt-calendar-card-sport:has([data-status='ghost'])::before,
+.tt-list-workout-row-ghost::before,
+.tt-calendar-card-sport[data-ghost='true']::before {
+  background: color-mix(in srgb, var(--tt-sport-color) 35%, transparent);
+}
+
+/*
+ * Completion mode only — left rail becomes status (not sport).
+ * Color / Plain always keep the sport accent above.
+ */
+.tt-calendar-card-completion:has([data-status='completed'])::before {
+  background: var(--color-tt-completed-border);
+}
+
+.tt-calendar-card-completion[data-completion]::before {
+  background: linear-gradient(
+    to top,
+    #86d39a 0,
+    #86d39a var(--tt-completion, 100%),
+    #d8f0e0 var(--tt-completion, 100%),
+    #d8f0e0 100%
+  );
+}
+
+.tt-calendar-card-completion:has([data-status='skipped'])::before {
+  background: var(--color-tt-skipped-border);
 }
 
 /*
@@ -510,11 +1300,17 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 }
 
 /*
- * Completion mode — keep done/open/skipped surfaces, add sport left accent only.
+ * Completion mode — keep done/open/skipped surfaces on the block;
+ * left accent is sport until status overrides (::before rules above).
  */
 .tt-calendar-card-completion.tt-calendar-card-sport:has(.tt-workout-block) {
   background: transparent !important;
   border-color: transparent !important;
+}
+
+.tt-calendar-card-completion .tt-workout-block-planned {
+  background: var(--color-card, #fff) !important;
+  border-color: var(--color-border) !important;
 }
 
 /* Workout card PNG export themes (story overlays) */
@@ -546,45 +1342,320 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
   stroke: currentColor;
 }
 
-/* ——— Typography scale ——— */
+/* ——— Typography scale (Manrope UI) ——— */
+
+/*
+ * TrainTrack title hierarchy — choose by semantic role, not by page.
+ * ~10% editorial (Barlow) / ~90% functional UI (Manrope).
+ *
+ * 1 title-display     — editorial page H1 (Season, Home greeting) — Barlow only here
+ * 2 title-section     — section H2 (Upcoming, Today's workout, This week) — Manrope
+ * 3 title-eyebrow     — metadata labels (NEXT RACE, MONTHLY VOLUME)
+ * 4 title-card        — workout/race names (sentence case)
+ * 5 body / caption    — Manrope UI copy
+ * 6 metrics           — large tabular numbers
+ *
+ * Functional page H1 (Training, Results, Stats, Tools): title-page
+ * Never use Barlow in nav, tables, calendar headers, or section titles.
+ */
+.title-display {
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 2.2vw, 1.625rem); /* ~20–26px */
+  line-height: 0.92;
+  font-weight: 800;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  color: #111111;
+  margin: 0;
+}
+
+/* Deprecated — Level 1 display titles are single-color; do not accent words. */
+.title-display-accent {
+  color: inherit;
+}
+
+.title-page {
+  font-family: var(--font-sans);
+  font-size: clamp(1.25rem, 2vw, 1.625rem); /* ~20–26px */
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: #111111;
+  margin: 0;
+}
+
+.title-section {
+  font-family: var(--font-sans);
+  font-size: 1rem; /* 16px */
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #111111;
+  margin: 0;
+}
+
+.title-section--large {
+  /* Deprecated alias of title-section */
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #111111;
+  margin: 0;
+}
+
+.title-section-accent {
+  color: #f4511e;
+}
+
+/* Alias — Level 2 section */
+.title-sub {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #111111;
+  margin: 0;
+}
+
+.title-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.625rem; /* 10px */
+  line-height: 1;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #737986;
+  margin: 0;
+}
+
+.title-card {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  color: #111111;
+  margin: 0;
+}
+
+.title-day {
+  font-family: var(--font-sans);
+  font-size: 0.625rem; /* 10px */
+  line-height: 1;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #737986;
+  margin: 0;
+}
+
+/* Legacy aliases → hierarchy */
 .text-page-title {
-  @apply text-2xl font-bold tracking-tight landscape:max-lg:text-lg;
+  font-family: var(--font-sans);
+  font-size: clamp(1.25rem, 2vw, 1.625rem);
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  color: #111111;
 }
 
 .text-section-title {
-  @apply text-base font-semibold;
+  /* Prefer .title-section for content sections; this remains a functional UI heading */
+  font-family: var(--font-sans);
+  @apply text-lg font-bold leading-snug text-foreground sm:text-[1.25rem];
 }
 
 .text-card-title {
-  @apply text-base font-semibold leading-none;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.2;
+  font-weight: 750;
+  letter-spacing: -0.015em;
+  color: #111111;
 }
 
 .text-label {
-  @apply text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+  font-family: var(--font-sans);
+  font-size: 0.625rem;
+  line-height: 1;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #737986;
 }
 
 .text-body {
-  @apply text-sm;
+  font-family: var(--font-sans);
+  @apply text-sm font-normal text-foreground sm:text-[0.9375rem];
 }
 
 .text-caption {
-  @apply text-xs text-muted-foreground;
+  font-family: var(--font-sans);
+  @apply text-xs font-normal text-muted-foreground sm:text-[0.8125rem];
 }
 
 .text-hint {
+  font-family: var(--font-sans);
   @apply mt-1 text-xs leading-snug text-muted-foreground;
 }
 
 .text-metric-xl {
-  @apply font-mono text-2xl font-bold tabular-nums tracking-tight;
+  font-family: var(--font-sans);
+  @apply text-2xl font-bold tabular-nums tracking-tight;
 }
 
 .text-metric-hero {
-  @apply text-3xl font-bold tabular-nums tracking-tight sm:text-4xl;
+  font-family: var(--font-sans);
+  @apply text-3xl font-extrabold tabular-nums tracking-tight sm:text-4xl;
+}
+
+.traintrack-wordmark {
+  font-family: var(--font-sans);
+  font-size: 1.0625rem; /* 17px */
+  font-weight: 800;
+  letter-spacing: 0.075em;
+  text-transform: uppercase;
+  line-height: 1;
 }
 
 .text-tabular {
   @apply tabular-nums tracking-tight;
+}
+
+/* ——— Poster / editorial display (Barlow Condensed) ——— */
+.poster-title {
+  /* Alias of title-display for existing poster components */
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+  line-height: 0.92;
+  color: #111111;
+}
+
+.poster-title-sm {
+  font-size: clamp(1.25rem, 2.2vw, 1.625rem); /* legacy; prefer title-display */
+  line-height: 0.92;
+}
+
+.poster-title-md {
+  font-size: clamp(1.25rem, 2.2vw, 1.625rem); /* aligns with title-display */
+  line-height: 0.92;
+}
+
+.poster-title-lg {
+  font-size: clamp(2.75rem, 7vw, 4.5rem);
+}
+
+.poster-title-accent,
+.title-section-accent {
+  color: #f4511e;
+}
+
+.poster-metric {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
+  line-height: 0.85;
+  color: var(--color-text-primary);
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+}
+
+.poster-metric-unit {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--color-accent);
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+}
+
+.poster-kicker {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.poster-support {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+/* ——— Abstract motion atmosphere ——— */
+.abstract-motion {
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse at 70% 70%,
+      rgb(244 81 30 / 0.3),
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse at 25% 35%,
+      rgb(120 140 150 / 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse at 80% 20%,
+      rgb(176 183 194 / 0.16),
+      transparent 55%
+    );
+  filter: blur(35px);
+  opacity: 0.9;
+}
+
+.abstract-motion-soft {
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse at 65% 60%,
+      rgb(244 81 30 / 0.22),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse at 30% 40%,
+      rgb(148 163 184 / 0.14),
+      transparent 62%
+    );
+  filter: blur(48px);
+  opacity: 0.75;
+}
+
+.poster-surface {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.poster-surface__atmosphere {
+  position: absolute;
+  inset: -10%;
+  z-index: 0;
+}
+
+.poster-surface__content {
+  position: relative;
+  z-index: 1;
 }
 
 /* ——— Segmented control (tabs in a track) ——— */
@@ -1029,4 +2100,133 @@ input[type='number'] {
 
 .season-planner-scroller::-webkit-scrollbar-thumb:hover {
   background: #6b7280;
+}
+
+/* ─── Season Plan page (editorial canvas — visual only) ─────────────────── */
+.tt-season-page {
+  background: #fafaf8;
+  min-height: 100%;
+}
+
+.tt-season-header {
+  padding-bottom: 0;
+}
+
+.tt-season-header__abstract {
+  pointer-events: none;
+  position: absolute;
+  inset: -8% 45% -35% -8%;
+  background:
+    radial-gradient(
+      ellipse at 28% 70%,
+      rgb(244 81 30 / 0.1),
+      transparent 58%
+    ),
+    radial-gradient(
+      ellipse at 55% 40%,
+      rgb(148 163 184 / 0.08),
+      transparent 62%
+    ),
+    radial-gradient(
+      ellipse at 12% 20%,
+      rgb(176 183 194 / 0.06),
+      transparent 55%
+    );
+  filter: blur(40px);
+  opacity: 0.7;
+  z-index: 0;
+}
+
+.tt-season-header__poster {
+  /* Legacy — prefer .title-display; keep size in sync */
+  font-size: clamp(1.25rem, 2.2vw, 1.625rem);
+  line-height: 0.92;
+  max-width: none;
+}
+
+/* Charcoal primary CTA on Season Plan only */
+.tt-season-page .tt-season-cta {
+  border-color: transparent;
+  background: #111111;
+  color: #ffffff;
+}
+
+.tt-season-page .tt-season-cta:hover {
+  background: #2a2a2a;
+  color: #ffffff;
+}
+
+/* Season timeline — white map, softer header, quiet grid */
+.tt-season-timeline.tt-table-shell {
+  background: #ffffff;
+  border-top-color: #3a3f48;
+  border-bottom-color: #ececea;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.tt-season-timeline .tt-table-header {
+  background: #3a3f48;
+  color: #ffffff;
+  border-left: none;
+  border-right: none;
+  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.tt-season-timeline .tt-table-header-sub {
+  background: #f4f4f2 !important;
+  color: #9ca3af;
+  border-bottom: 1px solid #ececea;
+}
+
+.tt-season-timeline .tt-season-week-line {
+  border-right: 1px solid rgb(17 17 17 / 0.03);
+}
+
+.tt-season-timeline .tt-season-week-line[data-month-end='true'] {
+  border-right-color: rgb(17 17 17 / 0.1);
+}
+
+.tt-season-timeline .tt-season-today-col {
+  background: rgb(244 81 30 / 0.03);
+}
+
+.tt-season-timeline .tt-season-today-line {
+  width: 0;
+  border-left: 1px dashed rgb(244 81 30 / 0.6);
+}
+
+.tt-season-timeline .tt-season-today-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.2rem;
+  border-radius: 999px;
+  background: #f4511e;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tt-season-timeline .tt-season-lane {
+  border-bottom-color: #ececea;
+  background: transparent;
+}
+
+.tt-season-timeline .tt-season-lane-label {
+  background: #ffffff;
+  border-right-color: rgb(17 17 17 / 0.06);
+}
+
+.tt-season-past-section {
+  opacity: 0.95;
+}
+
+.tt-season-filters {
+  gap: 0.75rem;
+  margin-top: 0.25rem;
 }

@@ -8,7 +8,7 @@ type SignOutButtonProps = {
   className?: string
   /** Icon-only (e.g. collapsed sidebar) */
   iconOnly?: boolean
-  /** Visual style for dark sidebar vs light mobile menu */
+  /** Visual style for light editorial sidebar vs light mobile menu */
   tone?: 'sidebar' | 'menu'
 }
 
@@ -29,7 +29,7 @@ export function SignOutButton({
           'flex w-full items-center rounded-[10px] text-sm font-medium transition-colors',
           iconOnly ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
           sidebar
-            ? 'text-white/55 hover:bg-white/5 hover:text-white'
+            ? 'text-text-tertiary hover:bg-accent-subtle hover:text-foreground'
             : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
           className,
         )}

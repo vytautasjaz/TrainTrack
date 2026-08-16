@@ -8,7 +8,8 @@ import {
   todayDateOnly,
   toDateKey,
 } from '@/lib/dates'
-import type { DayNoteData } from '@/lib/day-notes'
+import type { DayNoteData, DayNoteViewer } from '@/lib/day-notes'
+import { redactDayNoteForViewer } from '@/lib/day-notes'
 import { AthleteStatus, WorkoutStatus, WorkoutType } from '@prisma/client'
 import { buildProgressStats } from '@/lib/progress-stats'
 import {
@@ -30,11 +31,46 @@ export function clampPlanningLeadDays(value: number): number {
 
 export const WORKOUT_PLAN_INCLUDE = {
   result: true,
+  rescheduledCopy: { select: { id: true, date: true } },
 } as const
 
 /** Workouts that count toward weekly compliance (not rest/recovery markers or day notes). */
-export function countsTowardCompliance(workout: { type: WorkoutType }): boolean {
+export function countsTowardCompliance(workout: {
+  type: WorkoutType
+  isRescheduleGhost?: boolean
+  selfLogged?: boolean
+}): boolean {
+  if (workout.isRescheduleGhost) return false
+  if (workout.selfLogged) return false
   return workout.type !== WorkoutType.REST && workout.type !== WorkoutType.RECOVERY
+}
+
+function workoutVolumeKm(workout: {
+  selfLogged?: boolean
+  status: WorkoutStatus
+  plannedDistance: number | null
+  result?: { actualDistance: number | null } | null
+}): number {
+  const actual = workout.result?.actualDistance ?? 0
+  const planned = workout.plannedDistance ?? 0
+  if (workout.selfLogged) {
+    return workout.status === WorkoutStatus.COMPLETED ? actual || planned : 0
+  }
+  return actual || planned
+}
+
+function workoutVolumeMin(workout: {
+  selfLogged?: boolean
+  status: WorkoutStatus
+  plannedDuration: number | null
+  result?: { actualDuration: number | null } | null
+}): number {
+  const actual = workout.result?.actualDuration ?? 0
+  const planned = workout.plannedDuration ?? 0
+  if (workout.selfLogged) {
+    return workout.status === WorkoutStatus.COMPLETED ? actual || planned : 0
+  }
+  return actual || planned
 }
 
 export async function getAthleteDashboard(athleteId: string) {
@@ -55,6 +91,7 @@ export async function getAthleteDashboard(athleteId: string) {
     pendingRaceFollowUpsRaw,
     weekStatsWindowWorkouts,
     monthWorkouts,
+    recentCompletedWorkouts,
     weekRaces,
     monthRaces,
     athletePlan,
@@ -109,6 +146,17 @@ export async function getAthleteDashboard(athleteId: string) {
         },
         include: WORKOUT_PLAN_INCLUDE,
       }),
+      prisma.workout.findMany({
+        where: {
+          athleteId,
+          status: WorkoutStatus.COMPLETED,
+          date: { lte: today },
+          type: { notIn: [WorkoutType.REST, WorkoutType.RECOVERY] },
+        },
+        include: WORKOUT_PLAN_INCLUDE,
+        orderBy: [{ date: 'desc' }, { updatedAt: 'desc' }],
+        take: 3,
+      }),
       getRacesForRange(athleteId, weekStart, weekEnd),
       getRacesForRange(athleteId, monthStart, monthEnd),
       prisma.athlete.findUnique({
@@ -137,18 +185,19 @@ export async function getAthleteDashboard(athleteId: string) {
 
   const weekPlanned = weekWorkouts.filter(countsTowardCompliance).length
   const weekCompleted = weekWorkouts.filter(
-    (w) => countsTowardCompliance(w) && w.status === WorkoutStatus.COMPLETED,
+    (w) =>
+      w.status === WorkoutStatus.COMPLETED &&
+      w.type !== WorkoutType.REST &&
+      w.type !== WorkoutType.RECOVERY &&
+      !w.isRescheduleGhost,
   ).length
 
   const weekDistance =
-    weekWorkouts.reduce(
-      (sum, w) =>
-        sum +
-        (countsTowardCompliance(w)
-          ? (w.result?.actualDistance ?? w.plannedDistance ?? 0)
-          : 0),
-      0,
-    ) +
+    weekWorkouts.reduce((sum, w) => {
+      if (w.type === WorkoutType.REST || w.type === WorkoutType.RECOVERY) return sum
+      if (w.isRescheduleGhost) return sum
+      return sum + workoutVolumeKm(w)
+    }, 0) +
     weekRaces.reduce((sum, race) => {
       const bySport = resolveRaceDistancesBySport(race)
       // Prefer actual when any exists; otherwise planned (upcoming races in the week).
@@ -156,14 +205,11 @@ export async function getAthleteDashboard(athleteId: string) {
       return sum + (actual > 0 ? actual : sumRaceDistancesKm(bySport, 'planned'))
     }, 0)
   const weekDuration =
-    weekWorkouts.reduce(
-      (sum, w) =>
-        sum +
-        (countsTowardCompliance(w)
-          ? (w.result?.actualDuration ?? w.plannedDuration ?? 0)
-          : 0),
-      0,
-    ) +
+    weekWorkouts.reduce((sum, w) => {
+      if (w.type === WorkoutType.REST || w.type === WorkoutType.RECOVERY) return sum
+      if (w.isRescheduleGhost) return sum
+      return sum + workoutVolumeMin(w)
+    }, 0) +
     weekRaces.reduce((sum, race) => {
       const bySport = resolveRaceDistancesBySport(race)
       const actual = sumRaceDurationsMin(bySport, 'actual')
@@ -207,6 +253,7 @@ export async function getAthleteDashboard(athleteId: string) {
     monthDistance,
     monthDuration,
     monthWorkoutsCompleted: monthWorkouts.length,
+    recentCompletedWorkouts,
     unreadCoachReplies: await getUnreadCoachReplies(athleteId),
     weekStatsWindowWorkouts,
     weekStatsAnchorStartKey: toDateKey(weekStart),
@@ -507,11 +554,31 @@ export async function getDayNotesForRange(athleteId: string, start: Date, end: D
 }
 
 export function groupDayNotesByDate(
-  notes: { date: Date; status: DayNoteData['status']; notes: string | null }[],
+  notes: {
+    date: Date
+    status: DayNoteData['status']
+    athleteNotes: string | null
+    athleteNotesPrivate: boolean
+    coachNotes: string | null
+    coachNotesPrivate: boolean
+  }[],
+  viewer: DayNoteViewer = 'athlete',
 ) {
   const map = new Map<string, DayNoteData>()
   for (const n of notes) {
-    map.set(toDateKey(n.date), { status: n.status, notes: n.notes })
+    map.set(
+      toDateKey(n.date),
+      redactDayNoteForViewer(
+        {
+          status: n.status,
+          athleteNotes: n.athleteNotes,
+          athleteNotesPrivate: n.athleteNotesPrivate,
+          coachNotes: n.coachNotes,
+          coachNotesPrivate: n.coachNotesPrivate,
+        },
+        viewer,
+      ),
+    )
   }
   return map
 }
@@ -607,6 +674,7 @@ export async function getProgressStats(athleteId: string) {
     date: w.date,
     type: w.type,
     status: w.status,
+    selfLogged: w.selfLogged,
     plannedDistance: w.plannedDistance,
     plannedDuration: w.plannedDuration,
     result: w.result

@@ -168,7 +168,7 @@ export default async function TrainingPage({
   const byDate = mergeRacesIntoByDate(byDateWorkouts, races);
 
   const dayNotes = await getDayNotesForRange(athleteId, rangeStart, rangeEnd);
-  const notesByDate = groupDayNotesByDate(dayNotes);
+  const notesByDate = groupDayNotesByDate(dayNotes, noteViewer);
 
   const seasonEventsRaw = await getSeasonEventsForRange(
     athleteId,

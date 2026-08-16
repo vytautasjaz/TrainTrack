@@ -14,6 +14,10 @@ import { CalendarPeriodNav } from "@/components/plan/calendar-period-nav";
 import { DayDropSection } from "@/components/plan/day-drop-section";
 import { DayNoteSection } from "@/components/plan/day-note-section";
 import { PlanDayAddMenu } from "@/components/plan/plan-day-add-menu";
+import {
+  CoachRescheduleReviewActions,
+  needsCoachRescheduleReview,
+} from "@/components/plan/coach-reschedule-review-actions";
 import { PlanWorkoutActionsMenu } from "@/components/plan/plan-workout-actions-menu";
 import { SeasonEventChips } from "@/components/plan/season-event-chips";
 import { WorkoutModalTrigger } from "@/components/plan/workout-modal-trigger";
@@ -29,7 +33,9 @@ import {
 import { useFilteredWorkoutsByDate } from "@/components/training/use-plan-sport-filter-data";
 import { useTrainingLibrary } from "@/components/training/training-library-context";
 import type { DayNoteData } from "@/lib/day-notes";
+import { dayNoteHasVisibleContent } from "@/lib/day-notes";
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
+import { canDragPlanWorkout } from "@/lib/plan-workout";
 import { getRecoveryWorkout } from "@/lib/recovery-day";
 import type { SeasonEventData } from "@/lib/season-planner";
 import { parseDateOnly } from "@/lib/dates";
@@ -109,20 +115,28 @@ function CalendarWorkoutCard({
 }) {
   const dnd = usePlanWeekDnd();
   const [dragging, setDragging] = useState(false);
-  const canDrag = isCoach && !workout.isRace && Boolean(dnd);
-  const showActions =
-    !workout.isRace && workout.type !== WorkoutType.RECOVERY;
+  const canDrag = Boolean(dnd) && canDragPlanWorkout(workout);
+  const showCoachMenu =
+    isCoach && !workout.isRace && workout.type !== WorkoutType.RECOVERY;
+  const showReview = isCoach && needsCoachRescheduleReview(workout);
 
   return (
     <div className="group/card relative w-full min-w-0">
       <WorkoutModalTrigger
         workout={workout}
         isCoach={isCoach}
+        nestedInteractive={showReview}
         className={cn(
           "block w-full min-w-0 cursor-default",
           dragging && "opacity-50",
         )}
-        title={canDrag ? `${workout.title} — drag to move` : undefined}
+        title={
+          canDrag
+            ? isCoach
+              ? `${workout.title} — drag to move`
+              : `${workout.title} — drag to reschedule`
+            : undefined
+        }
         draggable={canDrag}
         onDragStart={(e) => {
           if (!dnd || !canDrag) return;
@@ -145,15 +159,20 @@ function CalendarWorkoutCard({
             workout={workout}
             density="xs"
             actions={
-              showActions ? (
+              showCoachMenu ? (
                 <span className="inline-block w-5" aria-hidden />
+              ) : null
+            }
+            footer={
+              showReview ? (
+                <CoachRescheduleReviewActions workout={workout} isCoach={isCoach} />
               ) : null
             }
           />
         </div>
       </WorkoutModalTrigger>
-      {showActions ? (
-        <div className="absolute right-0.5 top-0.5 z-10 opacity-70 transition group-hover/card:opacity-100">
+      {showCoachMenu ? (
+        <div className="absolute right-0.5 top-0.5 z-10 opacity-80 transition group-hover/card:opacity-100">
           <PlanWorkoutActionsMenu workout={workout} compact />
         </div>
       ) : null}
@@ -542,7 +561,7 @@ function CalendarDayCell({
   return (
     <DayDropSection
       dateKey={day.dateKey}
-      enabled={isCoach}
+      enabled
       className={cn(
         "group/day flex min-h-[7.5rem] cursor-default flex-col gap-1 p-1 transition-colors [&_button]:cursor-default",
         isWeekend
@@ -612,11 +631,12 @@ function CalendarDayCell({
             isCoach={isCoach}
           />
         ))}
-        {showNotes && note ? (
+        {showNotes && dayNoteHasVisibleContent(note) ? (
           <DayNoteSection
             dateKey={day.dateKey}
             note={note}
             canEdit={canEditDayNotes}
+            noteKind={isCoach ? "coach" : "athlete"}
             athleteId={athleteId}
             compact
             hideEmptyAdd

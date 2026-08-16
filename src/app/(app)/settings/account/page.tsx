@@ -93,7 +93,7 @@ export default async function ProfileSettingsPage() {
       {(session.hasCoach || isCoach(session)) && user.coachProfile ? (
         <section id="pending-requests" className="card-elevated scroll-mt-24 space-y-4 p-5">
           <div>
-            <SectionTitle>Pending athlete requests</SectionTitle>
+            <SectionTitle variant="ui">Pending athlete requests</SectionTitle>
             <Caption>
               Share your code{' '}
               <span className="font-semibold text-foreground">

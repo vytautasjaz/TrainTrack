@@ -8,8 +8,10 @@ import {
   attachStravaActivityToRaceForAthlete,
   attachStravaActivityToRaceLegForAthlete,
   ensureTriathlonLegsForRace,
+  importStravaActivityAsWorkoutForAthlete,
   listStravaActivitiesForWorkoutForAthlete,
   listStravaActivitiesForRaceForAthlete,
+  listUnmatchedStravaActivitiesForAthlete,
   maybeAutoSyncStravaActivitiesForUser,
   setStravaAutoSyncEnabledForUser,
   syncStravaActivitiesForUser,
@@ -127,6 +129,27 @@ export async function attachStravaActivityToWorkout(workoutId: string, activityI
     activityId,
   )
   revalidateWorkoutPaths(workoutId)
+}
+
+/** Unmatched Strava activities to import as new self-logged workouts. */
+export async function listUnmatchedStravaActivities(fromKey?: string, toKey?: string) {
+  const session = await requireAthleteSession()
+  return listUnmatchedStravaActivitiesForAthlete(session.userId, session.athleteId, {
+    fromKey,
+    toKey,
+  })
+}
+
+/** Import a Strava activity as a completed self-logged workout (not on the plan). */
+export async function importStravaActivityAsWorkout(activityId: string) {
+  const session = await requireAthleteSession()
+  const result = await importStravaActivityAsWorkoutForAthlete(
+    session.userId,
+    session.athleteId,
+    activityId,
+  )
+  revalidateWorkoutPaths(result.workoutId)
+  return result
 }
 
 function revalidateRacePaths(athleteId: string, raceId?: string) {
