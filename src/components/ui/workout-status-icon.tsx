@@ -95,17 +95,20 @@ export function WorkoutStatusIcon({
           : 'Not completed')
   const hidden = Boolean(svgProps['aria-hidden'])
 
+  const tip = title ?? (hidden ? undefined : label)
+
   return (
-    <Icon
-      className={cn(
-        workoutStatusIconClass(size),
-        'shrink-0',
-        active ? ACTIVE_TEXT[resolved] : IDLE_TEXT,
-        className,
-      )}
-      aria-label={hidden ? undefined : label}
-      title={title ?? (hidden ? undefined : label)}
-      {...svgProps}
-    />
+    <span title={tip} className="inline-flex">
+      <Icon
+        className={cn(
+          workoutStatusIconClass(size),
+          'shrink-0',
+          active ? ACTIVE_TEXT[resolved] : IDLE_TEXT,
+          className,
+        )}
+        aria-label={hidden ? undefined : label}
+        {...svgProps}
+      />
+    </span>
   )
 }

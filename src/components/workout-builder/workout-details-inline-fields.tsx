@@ -100,7 +100,7 @@ function IntensityInline({
   const type = matchedCustom?.targetType ?? fallbackType
   const selectedValue = matchedCustom?.value ?? type
 
-  const options =
+  const options: IntensityOption[] =
     intensityOptions ??
     types.map((t) => ({
       value: t,

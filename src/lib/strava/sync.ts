@@ -915,7 +915,7 @@ export async function listUnmatchedStravaActivitiesForAthlete(
         linked: linkedIds.has(id),
       }
     })
-    .filter((item): item is StravaImportActivityItem => item != null)
+    .filter((item): item is NonNullable<typeof item> => item != null)
     .sort((a, b) =>
       a.date === b.date
         ? b.startTimeLocal.localeCompare(a.startTimeLocal)

@@ -113,7 +113,7 @@ export function IntensityFieldGroup({
   const selectedTypeValue = matchedCustom?.value ?? effectiveType
   const mode = intensityValueMode(effectiveType)
 
-  const typeOptions =
+  const typeOptions: IntensityOption[] =
     intensityOptions ??
     types.map((type) => ({
       value: type,
