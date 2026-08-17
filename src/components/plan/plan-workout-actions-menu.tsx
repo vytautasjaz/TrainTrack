@@ -18,11 +18,16 @@ type PlanWorkoutActionsMenuProps = {
   compact?: boolean
 }
 
+function openAfterMenuClose(open: () => void) {
+  window.setTimeout(open, 0)
+}
+
 export function PlanWorkoutActionsMenu({
   workout,
   className,
   compact = false,
 }: PlanWorkoutActionsMenuProps) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [copyOpen, setCopyOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -43,12 +48,11 @@ export function PlanWorkoutActionsMenu({
 
   return (
     <>
-      <DropdownMenu.Root>
+      <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger asChild>
           <button
             type="button"
             onClick={(e) => {
-              e.preventDefault()
               e.stopPropagation()
             }}
             onPointerDown={(e) => e.stopPropagation()}
@@ -73,16 +77,14 @@ export function PlanWorkoutActionsMenu({
             collisionPadding={8}
             className="z-[200] min-w-[9.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
             onClick={(e) => e.stopPropagation()}
+            onCloseAutoFocus={(e) => e.preventDefault()}
           >
             <DropdownMenu.Item
               className={cn(
                 'flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none',
                 'text-foreground data-[highlighted]:bg-foreground/[0.04]',
               )}
-              onSelect={(e) => {
-                e.preventDefault()
-                setEditOpen(true)
-              }}
+              onSelect={() => openAfterMenuClose(() => setEditOpen(true))}
             >
               <Pencil className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
               Edit
@@ -92,10 +94,7 @@ export function PlanWorkoutActionsMenu({
                 'flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none',
                 'text-foreground data-[highlighted]:bg-foreground/[0.04]',
               )}
-              onSelect={(e) => {
-                e.preventDefault()
-                setCopyOpen(true)
-              }}
+              onSelect={() => openAfterMenuClose(() => setCopyOpen(true))}
             >
               <Copy className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
               Copy
@@ -105,10 +104,7 @@ export function PlanWorkoutActionsMenu({
                 'flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none',
                 'text-destructive data-[highlighted]:bg-destructive/5',
               )}
-              onSelect={(e) => {
-                e.preventDefault()
-                setDeleteOpen(true)
-              }}
+              onSelect={() => openAfterMenuClose(() => setDeleteOpen(true))}
             >
               <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
               Delete

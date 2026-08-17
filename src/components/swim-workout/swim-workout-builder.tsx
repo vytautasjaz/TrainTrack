@@ -147,7 +147,7 @@ function SwimSetRow({
           </button>
         ) : null}
 
-        <DropdownMenu.Root>
+        <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger asChild>
             <button
               type="button"
@@ -162,6 +162,7 @@ function SwimSetRow({
               align="end"
               sideOffset={4}
               className="z-[220] min-w-[10rem] rounded-[6px] border border-border bg-card p-1 shadow-md"
+              onCloseAutoFocus={(e) => e.preventDefault()}
             >
               <DropdownMenu.Item
                 className="cursor-pointer rounded-[4px] px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-muted/60"

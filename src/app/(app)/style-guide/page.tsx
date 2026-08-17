@@ -185,7 +185,21 @@ export default function StyleGuidePage() {
             <Link href="/design-preview" className="font-semibold text-[#111111] underline-offset-2 hover:underline">
               /design-preview
             </Link>{' '}
-            for component lab samples.
+            for component lab samples,{' '}
+            <Link
+              href="/style-guide/athlete-cards"
+              className="font-semibold text-[#111111] underline-offset-2 hover:underline"
+            >
+              /style-guide/athlete-cards
+            </Link>{' '}
+            for Today cards, and{' '}
+            <Link
+              href="/style-guide/workout-modal"
+              className="font-semibold text-[#111111] underline-offset-2 hover:underline"
+            >
+              /style-guide/workout-modal
+            </Link>{' '}
+            for workout detail modal explorations.
           </p>
         </header>
 
@@ -433,6 +447,23 @@ export default function StyleGuidePage() {
               title="Workouts"
               description="Shared WorkoutBlock across sizes. Color: sport rail + sport fill. Plain: sport rail + white. Completion: green/% rail + green fill · red rail + red fill · sport rail + white unmarked."
             >
+              <p className="text-[13px] text-[#737986]">
+                Exploring athlete home cards? See{' '}
+                <Link
+                  href="/style-guide/athlete-cards"
+                  className="font-semibold text-[#F4511E] underline-offset-2 hover:underline"
+                >
+                  Athlete workout card explorations →
+                </Link>
+                {' · '}
+                Detail modal?{' '}
+                <Link
+                  href="/style-guide/workout-modal"
+                  className="font-semibold text-[#F4511E] underline-offset-2 hover:underline"
+                >
+                  Workout modal explorations →
+                </Link>
+              </p>
               <div className="grid gap-4 lg:grid-cols-3">
                 {(
                   [

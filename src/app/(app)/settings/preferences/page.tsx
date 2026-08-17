@@ -5,10 +5,12 @@ import { StravaConnectCard } from '@/components/integrations/strava-connect-card
 import { CalendarSyncCard } from '@/components/integrations/calendar-sync-card'
 import { CoachPlanningLeadForm } from '@/components/settings/coach-planning-lead-form'
 import { CoachWorkoutBuilderPrefsForm } from '@/components/settings/coach-workout-builder-prefs-form'
+import { CoachWorkoutTypePrefsForm } from '@/components/settings/coach-workout-type-prefs-form'
 import { SignInMethodsSection } from '@/components/settings/sign-in-methods-section'
 import { TrainingZonesTabs } from '@/components/settings/training-zones-tabs'
 import { getAthletePreferences } from '@/app/actions/preferences'
 import { getCalendarFeedSummaries } from '@/app/actions/preferences'
+import { WeatherLocationForm } from '@/components/settings/weather-location-form'
 import { getSession, resolveAthleteId, isCoach } from '@/lib/session'
 import { isStravaConfigured } from '@/lib/strava/config'
 import { getStravaConnectionSummary } from '@/lib/strava/sync'
@@ -17,6 +19,7 @@ import {
   DEFAULT_PLANNING_LEAD_DAYS,
 } from '@/lib/queries'
 import { parseWorkoutBuilderPrefs } from '@/lib/workout-builder/workout-builder-prefs'
+import { parseWorkoutTypePrefs } from '@/lib/workout-builder/workout-type-prefs'
 import { prisma } from '@/lib/prisma'
 
 const ERROR_MESSAGES: Record<string, string> = {
@@ -60,6 +63,7 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
     coachUser?.planningLeadDays ?? DEFAULT_PLANNING_LEAD_DAYS,
   )
   const workoutBuilderPrefs = parseWorkoutBuilderPrefs(coachUser?.workoutBuilderPrefs)
+  const workoutTypePrefs = parseWorkoutTypePrefs(coachUser?.workoutBuilderPrefs)
 
   const providers = new Set(authUser.accounts.map((a) => a.provider))
   const hasGoogle = providers.has('google')
@@ -85,6 +89,16 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
     editingSelectedAthlete && athleteId
       ? ((await getAthletePreferences(athleteId)) ?? {})
       : null
+  const weatherLocation = athleteId
+    ? await prisma.athlete.findUnique({
+        where: { id: athleteId },
+        select: {
+          weatherLocationName: true,
+          weatherLat: true,
+          weatherLon: true,
+        },
+      })
+    : null
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -141,6 +155,16 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
           </section>
           <section className="card-elevated space-y-4 p-5">
             <div>
+              <SectionTitle variant="ui">Workout types</SectionTitle>
+              <Caption>
+                Customize the workout-type dropdown per sport. Name is what you see when creating a
+                workout; pace and HR are zone targets, not the athlete’s numbers.
+              </Caption>
+            </div>
+            <CoachWorkoutTypePrefsForm initialPrefs={workoutTypePrefs} />
+          </section>
+          <section className="card-elevated space-y-4 p-5">
+            <div>
               <SectionTitle variant="ui">Workout builder preferences</SectionTitle>
               <Caption>
                 Customize Add Block presets per sport — order, labels, and default duration /
@@ -160,6 +184,16 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
           </Caption>
           <TrainingZonesTabs preferences={selectedPreferences} />
         </section>
+      ) : null}
+
+      {athleteId ? (
+        <WeatherLocationForm
+          initial={{
+            name: weatherLocation?.weatherLocationName ?? null,
+            lat: weatherLocation?.weatherLat ?? null,
+            lon: weatherLocation?.weatherLon ?? null,
+          }}
+        />
       ) : null}
     </div>
   )

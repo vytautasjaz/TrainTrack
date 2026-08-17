@@ -14,9 +14,16 @@ import {
   pickAthletePreferences,
 } from '@/lib/athlete-preferences'
 import {
+  mergeWorkoutBuilderPrefsJson,
   parseWorkoutBuilderPrefs,
+  sessionOptionsJsonFromRaw,
   type WorkoutBuilderPrefs,
 } from '@/lib/workout-builder/workout-builder-prefs'
+import {
+  parseWorkoutTypePrefs,
+  workoutTypePrefsToJson,
+  type WorkoutTypePrefs,
+} from '@/lib/workout-builder/workout-type-prefs'
 import { requireSession, resolveAthleteId, isCoach} from '@/lib/session'
 import {
   feedUrlFromToken,
@@ -39,6 +46,22 @@ function parseHrValue(raw: FormDataEntryValue | null): number | null {
   const value = parseInt(raw, 10)
   if (Number.isNaN(value) || value <= 0) return null
   return value
+}
+
+function parseCoordinate(
+  raw: FormDataEntryValue | null,
+  kind: 'lat' | 'lon',
+): number | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null
+  const value = Number(raw.trim())
+  if (!Number.isFinite(value)) throw new Error('Use valid numeric coordinates.')
+  if (kind === 'lat' && (value < -90 || value > 90)) {
+    throw new Error('Latitude must be between -90 and 90.')
+  }
+  if (kind === 'lon' && (value < -180 || value > 180)) {
+    throw new Error('Longitude must be between -180 and 180.')
+  }
+  return Math.round(value * 10000) / 10000
 }
 
 export async function updatePaceZones(formData: FormData) {
@@ -140,6 +163,57 @@ export async function updateHrZones(formData: FormData) {
 
   revalidatePath('/settings/preferences')
   revalidatePath('/settings/account')
+}
+
+export async function updateAthleteWeatherLocation(formData: FormData) {
+  const { athleteId } = await requireAthleteForPreferences()
+  if (String(formData.get('intent') ?? '') === 'clear') {
+    await prisma.athlete.update({
+      where: { id: athleteId },
+      data: {
+        weatherLocationName: null,
+        weatherLat: null,
+        weatherLon: null,
+      },
+    })
+    revalidatePath('/settings/preferences')
+    revalidatePath('/settings/account')
+    revalidatePath('/training')
+    revalidatePath('/dashboard')
+    return
+  }
+
+  const locationNameRaw = String(formData.get('weatherLocationName') ?? '').trim()
+  const weatherLat = parseCoordinate(formData.get('weatherLat'), 'lat')
+  const weatherLon = parseCoordinate(formData.get('weatherLon'), 'lon')
+
+  const hasCoords = weatherLat != null && weatherLon != null
+  if (!hasCoords && (weatherLat != null || weatherLon != null)) {
+    throw new Error('Set both latitude and longitude.')
+  }
+  if (locationNameRaw.length > 120) {
+    throw new Error('Location name is too long.')
+  }
+
+  await prisma.athlete.update({
+    where: { id: athleteId },
+    data: hasCoords
+      ? {
+          weatherLocationName: locationNameRaw || 'Default location',
+          weatherLat,
+          weatherLon,
+        }
+      : {
+          weatherLocationName: null,
+          weatherLat: null,
+          weatherLon: null,
+        },
+  })
+
+  revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
 }
 
 export async function updateAthleteName(formData: FormData) {
@@ -268,15 +342,19 @@ export async function updateCoachPlanningLeadDays(formData: FormData) {
   revalidatePath('/dashboard')
 }
 
-export async function getCoachWorkoutBuilderPrefs(): Promise<WorkoutBuilderPrefs> {
+async function loadCoachWorkoutBuilderPrefsJson() {
   const session = await requireSession()
-  if (!isCoach(session)) return {}
-
+  if (!isCoach(session)) return { session, raw: null as unknown }
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { workoutBuilderPrefs: true },
   })
-  return parseWorkoutBuilderPrefs(user?.workoutBuilderPrefs)
+  return { session, raw: user?.workoutBuilderPrefs ?? null }
+}
+
+export async function getCoachWorkoutBuilderPrefs(): Promise<WorkoutBuilderPrefs> {
+  const { raw } = await loadCoachWorkoutBuilderPrefsJson()
+  return parseWorkoutBuilderPrefs(raw)
 }
 
 export async function updateCoachWorkoutBuilderPrefs(prefs: WorkoutBuilderPrefs) {
@@ -285,11 +363,50 @@ export async function updateCoachWorkoutBuilderPrefs(prefs: WorkoutBuilderPrefs)
     throw new Error('Only coaches can update workout builder preferences.')
   }
 
+  const existing = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { workoutBuilderPrefs: true },
+  })
   const cleaned = parseWorkoutBuilderPrefs(prefs)
   await prisma.user.update({
     where: { id: session.userId },
     data: {
-      workoutBuilderPrefs: cleaned as Prisma.InputJsonValue,
+      workoutBuilderPrefs: mergeWorkoutBuilderPrefsJson(
+        cleaned,
+        sessionOptionsJsonFromRaw(existing?.workoutBuilderPrefs),
+      ) as Prisma.InputJsonValue,
+    },
+  })
+
+  revalidatePath('/settings/preferences')
+  revalidatePath('/training')
+  revalidatePath('/workouts')
+}
+
+export async function getCoachWorkoutTypePrefs(): Promise<WorkoutTypePrefs> {
+  const { raw } = await loadCoachWorkoutBuilderPrefsJson()
+  return parseWorkoutTypePrefs(raw)
+}
+
+export async function updateCoachWorkoutTypePrefs(prefs: WorkoutTypePrefs) {
+  const session = await requireSession()
+  if (!isCoach(session)) {
+    throw new Error('Only coaches can update workout preferences.')
+  }
+
+  const existing = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { workoutBuilderPrefs: true },
+  })
+  const builder = parseWorkoutBuilderPrefs(existing?.workoutBuilderPrefs)
+  const cleaned = parseWorkoutTypePrefs({ sessionOptions: workoutTypePrefsToJson(prefs) })
+  await prisma.user.update({
+    where: { id: session.userId },
+    data: {
+      workoutBuilderPrefs: mergeWorkoutBuilderPrefsJson(
+        builder,
+        workoutTypePrefsToJson(cleaned),
+      ) as Prisma.InputJsonValue,
     },
   })
 

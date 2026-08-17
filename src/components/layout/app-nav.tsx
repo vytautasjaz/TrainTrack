@@ -175,7 +175,7 @@ export function AppNav({
           <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain">
             {mainNav.map(({ href, label, icon: Icon }) => {
               const active = isNavActive(pathname, href)
-              const showBadge = href === '/dashboard' && dashboardNotificationCount > 0
+              const showBadge = href === '/inbox' && dashboardNotificationCount > 0
               const isTools = href === '/tools'
               return (
                 <div key={href}>
@@ -368,7 +368,7 @@ export function AppNav({
         <div className="flex items-stretch justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
           {mainNav.map(({ href, label, icon: Icon }) => {
             const active = isNavActive(pathname, href)
-            const showBadge = href === '/dashboard' && dashboardNotificationCount > 0
+            const showBadge = href === '/inbox' && dashboardNotificationCount > 0
             return (
               <Link
                 key={href}

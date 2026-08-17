@@ -23,8 +23,8 @@ import {
   createAthleteWorkoutFromModal,
   createWorkoutFromModal,
   getAthletePreferencesForWorkoutModal,
+  getCoachEditorPrefsForModal,
   getCoachTemplatesForPicker,
-  getWorkoutBuilderPrefsForModal,
   saveTemplateBuilder,
   saveTemplateBuilderAndRedirect,
   updateWorkoutFromModal,
@@ -57,10 +57,8 @@ import { metricSourceFromEditorIntent } from '@/lib/workout-metric-source'
 import {
   BIKE_WORKOUT_KINDS,
   autoBikeSubtitle,
-  autoBikeTitle,
   bikeEnvironmentFromTags,
   bikeKindFromTags,
-  bikeKindLabel,
   bikeKindMeta,
   bikeWorkoutTags,
   estimateBikeKmFromMinutes,
@@ -80,8 +78,13 @@ import {
   estimateStructureDistanceKm,
   estimateStructureDurationMinutes,
 } from '@/lib/workout-builder/segment-estimation'
-import { defaultWorkoutTitle } from '@/lib/workout-builder/default-structure'
-import { getSessionTypeLabel, sessionTypesForSport } from '@/lib/workout-builder/session-modes'
+import {
+  customBikeKindLabel,
+  customSessionTypeLabel,
+  enabledBikeOptionRows,
+  enabledSessionOptionRows,
+  type WorkoutTypePrefs,
+} from '@/lib/workout-builder/workout-type-prefs'
 import { WORKOUT_TYPE_LABELS, SPORT_ROW_ORDER } from '@/lib/constants'
 import { getWorkoutEditorSportTheme } from '@/lib/workout-editor/sport-theme'
 import { getSportEditorConfig, type DurationUnit, type SharedWorkoutEditorProps, type WorkoutPrimaryMetric, type WorkoutPrimaryMetricState } from '@/lib/workout-editor/types'
@@ -154,6 +157,17 @@ function workoutShouldOpenDetails(workout: PlanWorkoutDetail | null | undefined)
   return false
 }
 
+function autoBikeTitleFromPrefs(
+  environment: BikeEnvironment,
+  kind: BikeWorkoutKind,
+  prefs?: WorkoutTypePrefs | null,
+  optionId?: string | null,
+): string {
+  const label = customBikeKindLabel(kind, prefs, optionId)
+  if (environment === 'indoor') return `Indoor ${label}`
+  return label
+}
+
 function autoSubtitle(
   sportType: WorkoutType,
   sessionType: SessionType | null,
@@ -161,13 +175,15 @@ function autoSubtitle(
   durationMin: number,
   distanceKm: number,
   includeItems: WorkoutIncludeItem[] = [],
+  typePrefs?: WorkoutTypePrefs | null,
+  optionId?: string | null,
 ): string {
   const includeSuffix = formatIncludeItemsForSubtitle(includeItems)
   let base = ''
   if (sportType === WorkoutType.BIKE && bikeKind) {
     base = autoBikeSubtitle(bikeKind, durationMin, distanceKm)
   } else if (sessionType) {
-    const label = getSessionTypeLabel(sessionType, sportType)
+    const label = customSessionTypeLabel(sessionType, sportType, typePrefs, optionId)
     const parts: string[] = []
     if (durationMin > 0) parts.push(`${durationMin} min`)
     if (distanceKm > 0) {
@@ -239,6 +255,9 @@ export function SharedWorkoutEditor({
   const [templates, setTemplates] = useState<WorkoutTemplatePickerItem[]>([])
   const [preferences, setPreferences] = useState<AthletePreferences | null>(null)
   const [builderPrefs, setBuilderPrefs] = useState<WorkoutBuilderPrefs | null>(null)
+  const [typePrefs, setTypePrefs] = useState<WorkoutTypePrefs | null>(null)
+  const [selectedSessionOptionId, setSelectedSessionOptionId] = useState<string | null>(null)
+  const [selectedBikeOptionId, setSelectedBikeOptionId] = useState<string | null>(null)
 
   const [sessionType, setSessionType] = useState<SessionType | null>(
     workout?.sessionType ?? null,
@@ -282,7 +301,10 @@ export function SharedWorkoutEditor({
   useEffect(() => {
     void getAthletePreferencesForWorkoutModal().then(setPreferences)
     if (!athleteMode) {
-      void getWorkoutBuilderPrefsForModal().then(setBuilderPrefs)
+      void getCoachEditorPrefsForModal().then((prefs) => {
+        setBuilderPrefs(prefs.builder)
+        setTypePrefs(prefs.sessionOptions)
+      })
     }
     if (athleteMode) return
     if (sportType === WorkoutType.SWIM) {
@@ -452,16 +474,53 @@ export function SharedWorkoutEditor({
   useEffect(() => {
     if (!titleAuto || !typeSelected) return
     if (sportType === WorkoutType.BIKE && bikeKind) {
-      setTitle(autoBikeTitle(environment, bikeKind))
+      setTitle(autoBikeTitleFromPrefs(environment, bikeKind, typePrefs, selectedBikeOptionId))
       return
     }
-    if (sessionType) setTitle(defaultWorkoutTitle(sessionType, sportType))
-  }, [sessionType, bikeKind, environment, sportType, titleAuto, typeSelected])
+    if (sessionType) {
+      setTitle(
+        customSessionTypeLabel(sessionType, sportType, typePrefs, selectedSessionOptionId),
+      )
+    }
+  }, [
+    sessionType,
+    bikeKind,
+    environment,
+    sportType,
+    titleAuto,
+    typeSelected,
+    typePrefs,
+    selectedSessionOptionId,
+    selectedBikeOptionId,
+  ])
 
   useEffect(() => {
     if (!subtitleAuto || !typeSelected) return
-    setSubtitle(autoSubtitle(sportType, sessionType, bikeKind, durationMin, distanceKm, includeItems))
-  }, [sessionType, bikeKind, sportType, durationMin, distanceKm, subtitleAuto, typeSelected, includeItems])
+    setSubtitle(
+      autoSubtitle(
+        sportType,
+        sessionType,
+        bikeKind,
+        durationMin,
+        distanceKm,
+        includeItems,
+        typePrefs,
+        sportType === WorkoutType.BIKE ? selectedBikeOptionId : selectedSessionOptionId,
+      ),
+    )
+  }, [
+    sessionType,
+    bikeKind,
+    sportType,
+    durationMin,
+    distanceKm,
+    subtitleAuto,
+    typeSelected,
+    includeItems,
+    typePrefs,
+    selectedSessionOptionId,
+    selectedBikeOptionId,
+  ])
 
   useEffect(() => {
     if (!metricsFromDetails) return
@@ -926,15 +985,24 @@ export function SharedWorkoutEditor({
       title.trim() ||
       (titleAuto && typeSelected
         ? sportType === WorkoutType.BIKE && bikeKind
-          ? autoBikeTitle(environment, bikeKind)
+          ? autoBikeTitleFromPrefs(environment, bikeKind, typePrefs, selectedBikeOptionId)
           : sessionType
-            ? defaultWorkoutTitle(sessionType, sportType)
+            ? customSessionTypeLabel(sessionType, sportType, typePrefs, selectedSessionOptionId)
             : ''
         : '') ||
       WORKOUT_TYPE_LABELS[sportType]
     const resolvedDescription =
       subtitleAuto && typeSelected
-        ? autoSubtitle(sportType, sessionType, bikeKind, durationMin, distanceKm, includeItems)
+        ? autoSubtitle(
+            sportType,
+            sessionType,
+            bikeKind,
+            durationMin,
+            distanceKm,
+            includeItems,
+            typePrefs,
+            sportType === WorkoutType.BIKE ? selectedBikeOptionId : selectedSessionOptionId,
+          )
         : subtitle.trim()
 
     return {
@@ -1029,15 +1097,24 @@ export function SharedWorkoutEditor({
         title.trim() ||
         (titleAuto && typeSelected
           ? sportType === WorkoutType.BIKE && bikeKind
-            ? autoBikeTitle(environment, bikeKind)
+            ? autoBikeTitleFromPrefs(environment, bikeKind, typePrefs, selectedBikeOptionId)
             : sessionType
-              ? defaultWorkoutTitle(sessionType, sportType)
+              ? customSessionTypeLabel(sessionType, sportType, typePrefs, selectedSessionOptionId)
               : ''
           : '') ||
         WORKOUT_TYPE_LABELS[sportType]
       const resolvedDescription =
         subtitleAuto && typeSelected
-          ? autoSubtitle(sportType, sessionType, bikeKind, durationMin, distanceKm, includeItems)
+          ? autoSubtitle(
+            sportType,
+            sessionType,
+            bikeKind,
+            durationMin,
+            distanceKm,
+            includeItems,
+            typePrefs,
+            sportType === WorkoutType.BIKE ? selectedBikeOptionId : selectedSessionOptionId,
+          )
           : subtitle.trim()
 
       if (isTemplate) {
@@ -1088,10 +1165,48 @@ export function SharedWorkoutEditor({
     })
   }
 
-  const sessionOptions = sessionTypesForSport(sportType).map((s) => ({
-    value: s,
-    label: getSessionTypeLabel(s, sportType),
-  }))
+  const sessionPrefRows = enabledSessionOptionRows(sportType, typePrefs)
+  const bikePrefRows = enabledBikeOptionRows(typePrefs)
+  const sessionSelectValue =
+    selectedSessionOptionId && sessionPrefRows.some((row) => row.id === selectedSessionOptionId)
+      ? selectedSessionOptionId
+      : sessionPrefRows.find((row) => row.sessionType === sessionType && row.name === title)?.id ??
+        sessionPrefRows.find((row) => row.sessionType === sessionType)?.id ??
+        sessionType ??
+        undefined
+  const bikeSelectValue =
+    selectedBikeOptionId && bikePrefRows.some((row) => row.id === selectedBikeOptionId)
+      ? selectedBikeOptionId
+      : bikePrefRows.find((row) => row.kind === bikeKind && row.name === title)?.id ??
+        bikePrefRows.find((row) => row.kind === bikeKind)?.id ??
+        bikeKind ??
+        undefined
+  const sessionOptions = (() => {
+    const options = sessionPrefRows.map((row) => ({
+      value: row.id,
+      label: row.name,
+    }))
+    if (sessionType && !sessionPrefRows.some((row) => row.sessionType === sessionType)) {
+      options.unshift({
+        value: sessionType,
+        label: customSessionTypeLabel(sessionType, sportType, typePrefs),
+      })
+    }
+    return options
+  })()
+  const bikeKindOptions = (() => {
+    const options = bikePrefRows.map((row) => ({
+      value: row.id,
+      label: row.name,
+    }))
+    if (bikeKind && !bikePrefRows.some((row) => row.kind === bikeKind)) {
+      options.unshift({
+        value: bikeKind,
+        label: customBikeKindLabel(bikeKind, typePrefs),
+      })
+    }
+    return options
+  })()
 
   const missingPrefs =
     preferences && typeSelected
@@ -1180,54 +1295,78 @@ export function SharedWorkoutEditor({
       })()
     : null
 
-  const intensityControl =
+  const workoutTypeControl =
     !athleteMode && sportType !== WorkoutType.SWIM ? (
       config.useBikeKinds ? (
         <SelectPrimitive.Root
-          value={bikeKind ?? undefined}
+          value={bikeSelectValue}
           onValueChange={(value) => {
+            const row = bikePrefRows.find((item) => item.id === value)
+            if (row) {
+              setSelectedBikeOptionId(row.id)
+              setBikeKind(row.kind)
+              if (titleAuto || !title.trim()) {
+                setTitleAuto(true)
+                setTitle(autoBikeTitleFromPrefs(environment, row.kind, typePrefs, row.id))
+              }
+              return
+            }
+            setSelectedBikeOptionId(null)
             setBikeKind(value as BikeWorkoutKind)
             if (titleAuto || !title.trim()) {
               setTitleAuto(true)
-              setTitle(autoBikeTitle(environment, value as BikeWorkoutKind))
+              setTitle(autoBikeTitleFromPrefs(environment, value as BikeWorkoutKind, typePrefs))
             }
           }}
         >
           <SelectPrimitive.Trigger
-            aria-label="Workout intensity"
+            aria-label="Workout type"
             className={cn(
               'group inline-flex max-w-full items-center justify-center gap-1 bg-transparent text-center text-[20px] font-bold leading-tight outline-none',
               bikeKind ? 'text-[#111827]' : 'text-muted-foreground/45',
             )}
           >
             <span className="truncate">
-              {bikeKind ? bikeKindLabel(bikeKind) : 'Select'}
+              {bikeKind
+                ? customBikeKindLabel(bikeKind, typePrefs, selectedBikeOptionId)
+                : 'Select'}
             </span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition group-data-[state=open]:rotate-180" />
           </SelectPrimitive.Trigger>
           <SelectDropdownContent align="center" className="z-[210]">
-            {BIKE_WORKOUT_KINDS.map((option) => (
+            {bikeKindOptions.map((option) => (
               <SelectDropdownItem
-                key={option.id}
-                option={{ value: option.id, label: option.label }}
+                key={option.value}
+                option={option}
               />
             ))}
           </SelectDropdownContent>
         </SelectPrimitive.Root>
       ) : (
         <SelectPrimitive.Root
-          value={sessionType ?? undefined}
+          value={sessionSelectValue}
           onValueChange={(value) => {
+            const row = sessionPrefRows.find((item) => item.id === value)
+            if (row) {
+              setSelectedSessionOptionId(row.id)
+              setSessionType(row.sessionType)
+              if (titleAuto || !title.trim()) {
+                setTitleAuto(true)
+                setTitle(row.name)
+              }
+              return
+            }
             const next = value as SessionType
+            setSelectedSessionOptionId(null)
             setSessionType(next)
             if (titleAuto || !title.trim()) {
               setTitleAuto(true)
-              setTitle(defaultWorkoutTitle(next, sportType))
+              setTitle(customSessionTypeLabel(next, sportType, typePrefs))
             }
           }}
         >
           <SelectPrimitive.Trigger
-            aria-label="Workout intensity"
+            aria-label="Workout type"
             className={cn(
               'group inline-flex max-w-full items-center justify-center gap-1 bg-transparent text-center text-[20px] font-bold leading-tight outline-none',
               sessionType ? 'text-[#111827]' : 'text-muted-foreground/45',
@@ -1235,7 +1374,12 @@ export function SharedWorkoutEditor({
           >
             <span className="truncate">
               {sessionType
-                ? getSessionTypeLabel(sessionType, sportType)
+                ? customSessionTypeLabel(
+                    sessionType,
+                    sportType,
+                    typePrefs,
+                    selectedSessionOptionId,
+                  )
                 : 'Select'}
             </span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition group-data-[state=open]:rotate-180" />
@@ -1305,7 +1449,7 @@ export function SharedWorkoutEditor({
           titleAuto={titleAuto}
           subtitleAuto={subtitleAuto}
           dateLabel={!isTemplate ? dateLabel : null}
-          intensityControl={intensityControl}
+          workoutTypeControl={workoutTypeControl}
           sportOptions={!athleteMode ? sportOptions : undefined}
           onSportChange={!athleteMode ? handleSportChange : undefined}
           primaryMetric={primaryMetric}
@@ -1335,15 +1479,35 @@ export function SharedWorkoutEditor({
             if (!typeSelected) return
             setTitleAuto(true)
             if (sportType === WorkoutType.BIKE && bikeKind) {
-              setTitle(autoBikeTitle(environment, bikeKind))
+              setTitle(
+                autoBikeTitleFromPrefs(environment, bikeKind, typePrefs, selectedBikeOptionId),
+              )
             } else if (sessionType) {
-              setTitle(defaultWorkoutTitle(sessionType, sportType))
+              setTitle(
+                customSessionTypeLabel(
+                  sessionType,
+                  sportType,
+                  typePrefs,
+                  selectedSessionOptionId,
+                ),
+              )
             }
           }}
           onSubtitleAutoEnable={() => {
             if (!typeSelected) return
             setSubtitleAuto(true)
-            setSubtitle(autoSubtitle(sportType, sessionType, bikeKind, durationMin, distanceKm, includeItems))
+            setSubtitle(
+              autoSubtitle(
+                sportType,
+                sessionType,
+                bikeKind,
+                durationMin,
+                distanceKm,
+                includeItems,
+                typePrefs,
+                sportType === WorkoutType.BIKE ? selectedBikeOptionId : selectedSessionOptionId,
+              ),
+            )
           }}
           onDurationChange={handleDurationChange}
           onDistanceChange={handleDistanceChange}

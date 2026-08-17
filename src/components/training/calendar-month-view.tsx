@@ -328,7 +328,7 @@ export function CalendarMonthView({
               onClick={toggleShowNotes}
               title={showNotes ? "Hide day notes" : "Show day notes"}
             >
-              <StickyNote className="h-3 w-3 opacity-60" aria-hidden />
+              <StickyNote className="h-3 w-3" aria-hidden />
               Notes
             </ToolbarTextToggle>
             <ToolbarTextToggle
@@ -336,7 +336,7 @@ export function CalendarMonthView({
               onClick={toggleShowEvents}
               title={showEvents ? "Hide season events" : "Show season events"}
             >
-              <CalendarDays className="h-3 w-3 opacity-60" aria-hidden />
+              <CalendarDays className="h-3 w-3" aria-hidden />
               Events
             </ToolbarTextToggle>
             <ToolbarTextToggle
@@ -348,7 +348,7 @@ export function CalendarMonthView({
                   : "Show weekly sport stats"
               }
             >
-              <ChartColumn className="h-3 w-3 opacity-60" aria-hidden />
+              <ChartColumn className="h-3 w-3" aria-hidden />
               Stats
             </ToolbarTextToggle>
           </div>

@@ -5,6 +5,7 @@ import { Caption, SectionTitle } from '@/components/ui/typography'
 import { Button } from '@/components/ui/button'
 import { AccountProfileSection } from '@/components/settings/account-profile-section'
 import { TrainingZonesTabs } from '@/components/settings/training-zones-tabs'
+import { WeatherLocationForm } from '@/components/settings/weather-location-form'
 import { getAthletePreferences } from '@/app/actions/preferences'
 import { getSession, isCoach } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
@@ -68,6 +69,16 @@ export default async function ProfileSettingsPage() {
   const ownAthleteId = user.athleteProfile?.id ?? null
   const preferences =
     ownAthleteId != null ? ((await getAthletePreferences(ownAthleteId)) ?? {}) : null
+  const weatherLocation = ownAthleteId
+    ? await prisma.athlete.findUnique({
+        where: { id: ownAthleteId },
+        select: {
+          weatherLocationName: true,
+          weatherLat: true,
+          weatherLon: true,
+        },
+      })
+    : null
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -89,6 +100,16 @@ export default async function ProfileSettingsPage() {
       />
 
       {preferences ? <TrainingZonesTabs preferences={preferences} /> : null}
+
+      {ownAthleteId ? (
+        <WeatherLocationForm
+          initial={{
+            name: weatherLocation?.weatherLocationName ?? null,
+            lat: weatherLocation?.weatherLat ?? null,
+            lon: weatherLocation?.weatherLon ?? null,
+          }}
+        />
+      ) : null}
 
       {(session.hasCoach || isCoach(session)) && user.coachProfile ? (
         <section id="pending-requests" className="card-elevated scroll-mt-24 space-y-4 p-5">

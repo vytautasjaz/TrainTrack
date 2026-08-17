@@ -1,23 +1,15 @@
 import { redirect } from 'next/navigation'
-import { Flag, Users } from 'lucide-react'
+import Link from 'next/link'
+import { Flag, MessageSquare, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { getSession, resolveAthleteId, isCoachView} from '@/lib/session'
 import { getAthleteDashboard, getCoachDashboard, countsTowardCompliance, getPendingCoachRequests } from '@/lib/queries'
-import { toDateKey } from '@/lib/dates'
+import { getAthleteInboxUnreadCount, getCoachInboxUnreadCount } from '@/lib/coaching-inbox'
 import { daysUntil, formatDistance, percent } from '@/lib/utils'
 import { createAthlete } from '@/app/actions/workouts'
 import { CoachAthleteCard } from '@/components/coach/coach-athlete-card'
 import { CoachPendingRequests } from '@/components/coach/coach-pending-requests'
-import { CoachFeedbackList, type CoachFeedbackItem } from '@/components/coach/coach-feedback-list'
-import {
-  CoachRaceReportsList,
-  type CoachRaceReportItem,
-} from '@/components/coach/coach-race-reports-list'
 import { CoachPlanningWarnings } from '@/components/coach/coach-planning-warnings'
-import {
-  AthleteCoachReplyList,
-  type AthleteCoachReplyItem,
-} from '@/components/athlete/athlete-coach-reply-list'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { PageHeader } from '@/components/ui/page-header'
@@ -27,6 +19,10 @@ import { AthleteRaceFollowUp } from '@/components/dashboard/athlete-race-follow-
 import { AthleteWeekStatsCard } from '@/components/dashboard/athlete-week-stats-card'
 import { AthleteRecentActivity } from '@/components/dashboard/athlete-recent-activity'
 import { toPlanWorkoutDetail, redactPlanWorkoutNotesForViewer } from '@/lib/plan-workout'
+import { prisma } from '@/lib/prisma'
+import { addDateOnlyDays, todayDateKey, todayDateOnly, toDateKey } from '@/lib/dates'
+import { getYrWeatherSummaries } from '@/lib/weather/yr'
+import type { WeatherDaySummary } from '@/lib/weather/places'
 
 function formatGreetingName(name: string) {
   const first = name.trim().split(/\s+/)[0] ?? name
@@ -54,46 +50,21 @@ export default async function DashboardPage() {
 
   if (isCoachView(session)) {
     const [
-      { athletes, recentFeedback, recentRaceReports, planningLeadDays, planningWarnings },
+      { athletes, planningLeadDays, planningWarnings },
       pendingCoach,
+      inboxUnread,
     ] = await Promise.all([
       getCoachDashboard(session.userId),
       getPendingCoachRequests(session.userId),
+      getCoachInboxUnreadCount(session.userId),
     ])
-    const feedbackItems: CoachFeedbackItem[] = recentFeedback.map((r) => ({
-      id: r.id,
-      athleteNotes: r.athleteNotes!.trim(),
-      completedAt: r.completedAt.toISOString(),
-      workout: {
-        id: r.workout.id,
-        title: r.workout.title,
-        date: toDateKey(r.workout.date),
-        type: r.workout.type,
-        plannedDistance: r.workout.plannedDistance,
-        plannedDuration: r.workout.plannedDuration,
-        athlete: { name: r.workout.athlete.name },
-      },
-    }))
-    const raceReportItems: CoachRaceReportItem[] = recentRaceReports.map((r) => ({
-      id: r.id,
-      name: r.name,
-      date: r.date.toISOString(),
-      type: r.type,
-      outcome: r.outcome!,
-      resultTime: r.resultTime,
-      resultNotes: r.resultNotes,
-      resultLoggedAt: r.resultLoggedAt?.toISOString() ?? null,
-      stravaActivityUrl: r.stravaActivityUrl,
-      stravaActivityName: r.stravaActivityName,
-      legs: r.legs,
-      athlete: { id: r.athlete.id, name: r.athlete.name },
-    }))
+    const inboxTotal = inboxUnread + pendingCoach.requests.length
 
     return (
       <div className="space-y-6">
         <PageHeader
           title="Athletes"
-          description="Roster and feedback"
+          description="Roster and planning"
         />
 
         {pendingCoach.coachingCode ? (
@@ -105,6 +76,28 @@ export default async function DashboardPage() {
             }))}
           />
         ) : null}
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-4 w-4" />
+              Inbox
+            </CardTitle>
+            {inboxTotal > 0 ? (
+              <span className="rounded-full bg-foreground px-2 py-0.5 text-xs font-semibold text-background">
+                {inboxTotal > 9 ? '9+' : inboxTotal}
+              </span>
+            ) : null}
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Asks, athlete notes, and race conversations live in Inbox.
+            </p>
+            <Button asChild variant="secondary" size="sm">
+              <Link href="/inbox">Open Inbox</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         <CoachPlanningWarnings
           warnings={planningWarnings}
@@ -147,24 +140,6 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Race reports</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CoachRaceReportsList reports={raceReportItems} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Athlete feedback</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CoachFeedbackList feedback={feedbackItems} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle>Add athlete</CardTitle>
           </CardHeader>
           <CardContent>
@@ -189,23 +164,43 @@ export default async function DashboardPage() {
   if (!athleteId) redirect('/')
 
   const data = await getAthleteDashboard(athleteId)
-  const coachReplyItems: AthleteCoachReplyItem[] = data.unreadCoachReplies.map((r) => ({
-    id: r.id,
-    coachReply: r.coachReply!.trim(),
-    coachRepliedAt: (r.coachRepliedAt ?? r.updatedAt).toISOString(),
-    athleteNotes: r.athleteNotes?.trim() ?? null,
-    workout: {
-      id: r.workout.id,
-      title: r.workout.title,
-      date: toDateKey(r.workout.date),
-      type: r.workout.type,
-      plannedDistance: r.workout.plannedDistance,
-      plannedDuration: r.workout.plannedDuration,
-    },
-  }))
+  const inboxUnread = await getAthleteInboxUnreadCount(athleteId)
   const weekStatsWorkouts = data.weekStatsWindowWorkouts.map((w) =>
     redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
   )
+  const athleteWeather = await prisma.athlete.findUnique({
+    where: { id: athleteId },
+    select: { weatherLat: true, weatherLon: true },
+  })
+  const todayWorkouts = data.todayWorkouts.map((w) =>
+    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+  )
+  const upcomingWorkouts = data.upcomingWorkouts.map((w) =>
+    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+  )
+  let weatherByDate: Record<string, WeatherDaySummary> = {}
+  if (athleteWeather?.weatherLat != null && athleteWeather.weatherLon != null) {
+    const rollingKeys = Array.from({ length: 8 }, (_, i) =>
+      toDateKey(addDateOnlyDays(todayDateOnly(), i)),
+    )
+    const dateKeys = [
+      todayDateKey(),
+      ...rollingKeys,
+      ...todayWorkouts.map((w) => w.dateKey),
+      ...upcomingWorkouts.map((w) => w.dateKey),
+    ]
+    try {
+      const weatherMap = await getYrWeatherSummaries({
+        lat: athleteWeather.weatherLat,
+        lon: athleteWeather.weatherLon,
+        dateKeys: [...new Set(dateKeys.filter(Boolean))],
+      })
+      weatherByDate = Object.fromEntries(weatherMap.entries())
+    } catch (error) {
+      console.error('Dashboard weather fetch failed', error)
+      weatherByDate = {}
+    }
+  }
 
   return (
     <div className="tt-dashboard-page -mx-4 px-4 pb-8 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
@@ -216,12 +211,21 @@ export default async function DashboardPage() {
           dateLabel={formatTodayLabel()}
         />
 
-        {coachReplyItems.length > 0 && (
+        {inboxUnread > 0 ? (
           <section className="tt-dashboard-card mb-6 sm:mb-8">
-            <h2 className="title-section mb-4">Coach replies</h2>
-            <AthleteCoachReplyList replies={coachReplyItems} />
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="title-section">Inbox</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  You have {inboxUnread} unread coach {inboxUnread === 1 ? 'reply' : 'replies'}.
+                </p>
+              </div>
+              <Button asChild variant="secondary" size="sm">
+                <Link href="/inbox">Open Inbox</Link>
+              </Button>
+            </div>
           </section>
-        )}
+        ) : null}
 
         {data.pendingRaceFollowUps.length > 0 && (
           <div className="mb-6 sm:mb-8">
@@ -244,12 +248,12 @@ export default async function DashboardPage() {
         <div className="tt-dashboard-grid">
           <div className="min-w-0">
             <AthleteDashboardWorkouts
-              todayWorkouts={data.todayWorkouts.map((w) =>
-                redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
-              )}
-              upcomingWorkouts={data.upcomingWorkouts.map((w) =>
-                redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
-              )}
+              todayWorkouts={todayWorkouts}
+              upcomingWorkouts={upcomingWorkouts}
+              weatherByDate={weatherByDate}
+              hasWeatherLocation={
+                athleteWeather?.weatherLat != null && athleteWeather.weatherLon != null
+              }
             />
           </div>
 

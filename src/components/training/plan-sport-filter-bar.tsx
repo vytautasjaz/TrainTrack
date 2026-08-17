@@ -218,7 +218,7 @@ export function PlanStatusMenu({ className }: { className?: string }) {
   )
 }
 
-/** Quiet text toggle for Notes / Events / Stats. */
+/** Quiet text toggle for Notes / Events / Weather / Stats. */
 export function ToolbarTextToggle({
   pressed,
   onClick,
@@ -238,7 +238,13 @@ export function ToolbarTextToggle({
       onClick={onClick}
       aria-pressed={pressed}
       title={title}
-      className={cn(QUIET_BTN, pressed ? QUIET_ON : QUIET_IDLE, className)}
+      className={cn(
+        QUIET_BTN,
+        pressed
+          ? 'font-semibold text-foreground [&_svg]:opacity-100'
+          : 'font-medium text-muted-foreground/40 hover:text-muted-foreground/70 [&_svg]:opacity-35',
+        className,
+      )}
     >
       {children}
     </button>

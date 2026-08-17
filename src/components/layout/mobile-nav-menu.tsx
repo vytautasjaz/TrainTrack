@@ -79,7 +79,7 @@ export function MobileNavMenu({
           <nav className="flex flex-col gap-0.5">
             {mainItems.map(({ href, label, icon: Icon }) => {
               const active = pathname.startsWith(href)
-              const showBadge = href === '/dashboard' && dashboardNotificationCount > 0
+              const showBadge = href === '/inbox' && dashboardNotificationCount > 0
               const isTools = href === '/tools'
               return (
                 <div key={href}>

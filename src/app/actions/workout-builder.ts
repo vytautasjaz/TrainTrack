@@ -22,6 +22,11 @@ import {
   parseWorkoutBuilderPrefs,
   type WorkoutBuilderPrefs,
 } from '@/lib/workout-builder/workout-builder-prefs'
+import {
+  defaultWorkoutTypePrefs,
+  parseWorkoutTypePrefs,
+  type WorkoutTypePrefs,
+} from '@/lib/workout-builder/workout-type-prefs'
 import { onTrainingCalendarDataChanged } from '@/lib/calendar-invalidation'
 
 function requireCoach() {
@@ -93,13 +98,26 @@ export async function getAthletePreferencesForWorkoutModal() {
 }
 
 export async function getWorkoutBuilderPrefsForModal(): Promise<WorkoutBuilderPrefs> {
+  const prefs = await getCoachEditorPrefsForModal()
+  return prefs.builder
+}
+
+export async function getCoachEditorPrefsForModal(): Promise<{
+  builder: WorkoutBuilderPrefs
+  sessionOptions: WorkoutTypePrefs
+}> {
   const session = await requireSession()
-  if (!isCoach(session)) return {}
+  if (!isCoach(session)) {
+    return { builder: {}, sessionOptions: defaultWorkoutTypePrefs() }
+  }
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
     select: { workoutBuilderPrefs: true },
   })
-  return parseWorkoutBuilderPrefs(user?.workoutBuilderPrefs)
+  return {
+    builder: parseWorkoutBuilderPrefs(user?.workoutBuilderPrefs),
+    sessionOptions: parseWorkoutTypePrefs(user?.workoutBuilderPrefs),
+  }
 }
 
 export type SaveRecoveryDayPayload = {

@@ -10,7 +10,7 @@ import {
   type SwimEnvironment,
 } from '@prisma/client'
 import type { RaceDistancesBySport } from '@/lib/race-distance-stats'
-import { toDateKey } from '@/lib/dates'
+import { toDateKey, todayDateKey } from '@/lib/dates'
 import type { WorkoutStructure } from '@/lib/workout-builder/types'
 import { formatPlanBlockSummary } from '@/lib/workout-builder/segment-estimation'
 import { parseStructure } from '@/lib/workout-builder/utils'
@@ -318,6 +318,27 @@ export function athleteHasQuickLogActions(
   if (workout.isRescheduleGhost) return false
   if (workout.type === WorkoutType.RECOVERY || workout.type === WorkoutType.REST) return false
   if (isStravaSynced(workout)) return false
+  // Done / Skip only for today or past — not future planned sessions.
+  if (workout.dateKey > todayDateKey()) return false
+  return true
+}
+
+/** Athlete can leave a coach comment after logging done/skipped (or Strava sync). */
+export function athleteCanLeaveWorkoutComment(
+  workout: PlanWorkoutDetail,
+  isCoach: boolean,
+): boolean {
+  if (isCoach) return false
+  if (workout.isRescheduleGhost) return false
+  if (workout.type === WorkoutType.RECOVERY || workout.type === WorkoutType.REST) return false
+  if (workout.dateKey > todayDateKey()) return false
+  if (
+    workout.status !== WorkoutStatus.COMPLETED &&
+    workout.status !== WorkoutStatus.SKIPPED &&
+    !isStravaSynced(workout)
+  ) {
+    return false
+  }
   return true
 }
 

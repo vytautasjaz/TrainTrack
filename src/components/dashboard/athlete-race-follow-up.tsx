@@ -15,6 +15,7 @@ import { RACE_TYPE_LABELS } from '@/lib/constants'
 import { raceUsesLegs, type RaceLegView } from '@/lib/race-legs'
 import type { PersonalBestSuggestion } from '@/lib/personal-bests'
 import { cn } from '@/lib/utils'
+import { RaceAskCoachSection } from '@/components/races/race-ask-coach-section'
 
 export type PendingRaceFollowUp = {
   id: string
@@ -209,6 +210,10 @@ function RaceFollowUpCard({
           </Button>
         </div>
       </form>
+
+      <div className="mt-4 border-t border-border/50 pt-3">
+        <RaceAskCoachSection raceId={race.id} />
+      </div>
     </div>
   )
 }

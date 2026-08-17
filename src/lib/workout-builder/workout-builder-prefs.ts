@@ -120,6 +120,20 @@ function cleanOverride(raw: unknown): PresetSeedOverride | undefined {
   return Object.keys(next).length > 0 ? next : undefined
 }
 
+export function sessionOptionsJsonFromRaw(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object') return undefined
+  return (raw as Record<string, unknown>).sessionOptions
+}
+
+export function mergeWorkoutBuilderPrefsJson(
+  builder: WorkoutBuilderPrefs,
+  sessionOptions: unknown,
+): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...builder }
+  if (sessionOptions != null) next.sessionOptions = sessionOptions
+  return next
+}
+
 export function parseWorkoutBuilderPrefs(raw: unknown): WorkoutBuilderPrefs {
   if (!raw || typeof raw !== 'object') return {}
   const root = raw as Record<string, unknown>

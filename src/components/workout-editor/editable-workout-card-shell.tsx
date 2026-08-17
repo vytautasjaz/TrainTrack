@@ -163,8 +163,8 @@ export type EditableWorkoutCardShellProps = {
   cornerSlot?: ReactNode
   /** Full date line above icon + title, e.g. "Friday, Jul 31 2026". */
   dateLabel?: string | null
-  /** Intensity / workout-type control for the first metrics column. */
-  intensityControl?: ReactNode
+  /** Workout-type control for the first metrics column. */
+  workoutTypeControl?: ReactNode
   sportOptions?: WorkoutType[]
   onSportChange?: (sport: WorkoutType) => void
   className?: string
@@ -205,7 +205,7 @@ export function EditableWorkoutCardShell({
   durationLocked,
   cornerSlot,
   dateLabel,
-  intensityControl,
+  workoutTypeControl,
   sportOptions,
   onSportChange,
   className,
@@ -343,7 +343,7 @@ export function EditableWorkoutCardShell({
     )
 
   const sportIcon = canChangeSport ? (
-    <DropdownMenu.Root>
+    <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
@@ -359,6 +359,7 @@ export function EditableWorkoutCardShell({
           align="start"
           sideOffset={6}
           className="z-[220] min-w-[10.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
+          onCloseAutoFocus={(e) => e.preventDefault()}
         >
           {sportOptions!.map((sport) => {
             const selected = sport === sportType
@@ -434,14 +435,14 @@ export function EditableWorkoutCardShell({
       </div>
 
       <div className="mt-[18px] flex min-w-0 items-stretch overflow-hidden">
-        {intensityControl ? (
+        {workoutTypeControl ? (
           <>
             <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-2 text-center">
               <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Intensity
+                Workout type
               </span>
               <div className="mt-1.5 flex h-8 w-full shrink-0 items-center justify-center overflow-hidden">
-                {intensityControl}
+                {workoutTypeControl}
               </div>
             </div>
             <div className="w-px shrink-0 self-stretch bg-foreground/20" />

@@ -139,6 +139,22 @@ enum DayNoteStatus {
   BUSY
 }
 
+enum CoachingThreadKind {
+  ASK
+  FEEDBACK
+  RACE_REPORT
+}
+
+enum CoachingThreadStatus {
+  OPEN
+  RESOLVED
+}
+
+enum CoachingAuthorRole {
+  ATHLETE
+  COACH
+}
+
 enum AthleteStatus {
   ACTIVE
   INACTIVE
@@ -334,6 +350,11 @@ model Athlete {
   hrZone3Max  Int?
   hrZone4Max  Int?
 
+  // Weather defaults used across week planning + dashboard
+  weatherLocationName String?
+  weatherLat          Float?
+  weatherLon          Float?
+
   // Coach training planner: default sport rows always shown
   planSportRows WorkoutType[] @default([RUN, BIKE, SWIM])
 
@@ -347,6 +368,7 @@ model Athlete {
   calendarEventMaps CalendarEventMap[]
   workouts         Workout[]
   dayNotes         DayNote[]
+  coachingThreads  CoachingThread[]
   weekPlanSportRows        AthleteWeekPlanSportRow[]
   weekHiddenPlanSportRows AthleteWeekHiddenPlanSportRow[]
 
@@ -421,6 +443,7 @@ model Race {
   athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   legs    RaceLeg[]
   personalBest PersonalBest?
+  coachingThread CoachingThread?
 
   @@index([athleteId, date])
   @@index([athleteId, intent, date])
@@ -621,6 +644,7 @@ model Workout {
   athlete         Athlete          @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   template        WorkoutTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   result          WorkoutResult?
+  coachingThread  CoachingThread?
   rescheduledFrom Workout?         @relation("WorkoutReschedule", fields: [rescheduledFromId], references: [id], onDelete: SetNull)
   rescheduledCopy Workout?         @relation("WorkoutReschedule")
 
@@ -653,6 +677,42 @@ model WorkoutResult {
   updatedAt        DateTime @updatedAt
 
   workout Workout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+}
+
+/** Short Q&A thread between athlete and coach about a workout or race. */
+model CoachingThread {
+  id               String                @id @default(cuid())
+  athleteId        String
+  kind             CoachingThreadKind
+  status           CoachingThreadStatus  @default(OPEN)
+  workoutId        String?               @unique
+  raceId           String?               @unique
+  coachLastReadAt  DateTime?
+  athleteLastReadAt DateTime?
+  lastMessageAt    DateTime              @default(now())
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  athlete  Athlete            @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+  workout  Workout?           @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  race     Race?              @relation(fields: [raceId], references: [id], onDelete: Cascade)
+  messages CoachingMessage[]
+
+  @@index([athleteId, lastMessageAt])
+  @@index([athleteId, status, lastMessageAt])
+  @@index([kind, lastMessageAt])
+}
+
+model CoachingMessage {
+  id         String             @id @default(cuid())
+  threadId   String
+  authorRole CoachingAuthorRole
+  body       String
+  createdAt  DateTime           @default(now())
+
+  thread CoachingThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
 }
 
 model DayNote {

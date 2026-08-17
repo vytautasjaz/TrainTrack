@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import { cn } from '@/lib/utils'
 
 type RescheduleWorkoutModalProps = {
   workout: PlanWorkoutDetail
@@ -65,9 +66,9 @@ export function RescheduleWorkoutModal({
     >
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Move to another day</DialogTitle>
+          <DialogTitle>Reschedule</DialogTitle>
           <DialogDescription>
-            Leaves a ghost on the original plan day and places this workout on the new date.
+            Leaves a placeholder on the original day and moves this workout to the new date.
           </DialogDescription>
         </DialogHeader>
 
@@ -93,7 +94,7 @@ export function RescheduleWorkoutModal({
               Cancel
             </Button>
             <Button type="submit" variant="secondary" size="sm" disabled={pending}>
-              {pending ? 'Moving…' : 'Move workout'}
+              {pending ? 'Saving…' : 'Reschedule'}
             </Button>
           </div>
         </form>
@@ -106,12 +107,15 @@ type RescheduleWorkoutButtonProps = {
   workout: PlanWorkoutDetail
   className?: string
   onDone?: () => void
+  /** Icon-only control for quiet toolbars (e.g. workout detail modal). */
+  iconOnly?: boolean
 }
 
 export function RescheduleWorkoutButton({
   workout,
   className,
   onDone,
+  iconOnly = false,
 }: RescheduleWorkoutButtonProps) {
   const [open, setOpen] = useState(false)
 
@@ -123,12 +127,19 @@ export function RescheduleWorkoutButton({
       <Button
         type="button"
         variant="ghost"
-        size="sm"
-        className={className}
+        size={iconOnly ? 'icon' : 'sm'}
+        className={cn(
+          iconOnly
+            ? 'h-8 w-8 text-[#9aa0a8] hover:bg-black/[0.04] hover:text-[#737986]'
+            : 'text-muted-foreground',
+          className,
+        )}
+        aria-label="Reschedule"
+        title="Reschedule"
         onClick={() => setOpen(true)}
       >
-        <CalendarClock className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-        Move to another day
+        <CalendarClock className={cn(iconOnly ? 'h-4 w-4' : 'mr-1.5 h-3.5 w-3.5')} aria-hidden />
+        {iconOnly ? null : 'Reschedule'}
       </Button>
       <RescheduleWorkoutModal
         workout={workout}

@@ -20,6 +20,11 @@ import { dayHasRace, getDayRacePriority, raceDaySectionClass } from "@/lib/race-
 import { PlanDayAddMenu } from "@/components/plan/plan-day-add-menu";
 import { DayDropSection } from "@/components/plan/day-drop-section";
 import { cn } from "@/lib/utils";
+import { formatWeatherPrecip, type WeatherPlace } from "@/lib/weather/places";
+import {
+  WeekWeatherLocationControl,
+  type WeekWeatherLocation,
+} from "@/components/weather/week-weather-location-control";
 import {
   WORKOUT_DAY_CARD_CLASS,
 } from "@/lib/workout-display";
@@ -49,6 +54,10 @@ export type PlanMobileDayStackProps = {
   trainingMode?: boolean;
   showNotes?: boolean;
   showEvents?: boolean;
+  showWeather?: boolean;
+  weatherLocation?: WeekWeatherLocation | null;
+  onWeatherLocationSelect?: (place: WeatherPlace) => void;
+  onWeatherLocationReset?: () => void;
 };
 
 function daySectionClass(
@@ -100,6 +109,10 @@ export function PlanMobileDayStack({
   trainingMode = false,
   showNotes = true,
   showEvents = true,
+  showWeather = true,
+  weatherLocation = null,
+  onWeatherLocationSelect,
+  onWeatherLocationReset,
 }: PlanMobileDayStackProps) {
   const days = useFilteredPlanDays(daysProp);
   const sportFilter = useOptionalPlanSportFilter();
@@ -127,11 +140,16 @@ export function PlanMobileDayStack({
   const showNoteRow = showNotes && hasAnyDayNotes;
   const showEventsRow =
     showEvents && days.some((d) => (d.seasonEvents?.length ?? 0) > 0);
+  const showWeatherRow =
+    showWeather &&
+    (days.some((d) => d.weather != null) ||
+      Boolean(onWeatherLocationSelect) ||
+      Boolean(weatherLocation));
   const showRecoveryRow = days.some((d) => dayHasRecovery(d.workouts));
 
   return (
     <div className={cn("space-y-4", trainingMode && "space-y-3", className)}>
-      {days.map((day) => {
+      {days.map((day, dayIndex) => {
         const trainingWorkouts = day.workouts.filter(
           (w) =>
             w.type !== WorkoutType.REST &&
@@ -262,6 +280,47 @@ export function PlanMobileDayStack({
                 />
               )}
             </div>
+            {showWeatherRow && (
+              <div className="border-b border-border/60 px-3 py-2">
+                {dayIndex === 0 ? (
+                  <div className="mb-1.5 flex min-w-0 flex-col gap-0.5">
+                    <p className="text-[10px] font-medium text-muted-foreground">Weather</p>
+                    {onWeatherLocationSelect ? (
+                      <WeekWeatherLocationControl
+                        location={weatherLocation}
+                        onSelect={onWeatherLocationSelect}
+                        onReset={onWeatherLocationReset}
+                        className="text-[11px]"
+                      />
+                    ) : weatherLocation?.name ? (
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {weatherLocation.name.split(",")[0]?.trim() || weatherLocation.name}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {!day.weather ? (
+                  <p className="text-[11px] text-muted-foreground/70">—</p>
+                ) : (
+                <div className="space-y-1">
+                  {day.weather.slots.map((slot) => (
+                    <div
+                      key={`${day.dateKey}-${slot.label}`}
+                      className="flex items-center justify-between gap-2 text-[11px]"
+                    >
+                      <span className="text-muted-foreground">
+                        {slot.emoji} {slot.label}
+                      </span>
+                      <span className="tabular-nums text-foreground/80">
+                        {slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}
+                        {formatWeatherPrecip(slot) ? ` · ${formatWeatherPrecip(slot)}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                )}
+              </div>
+            )}
             {showEventsRow && (day.seasonEvents?.length ?? 0) > 0 && (
               <div className="border-b border-border/60 px-3 py-2.5">
                 <SeasonEventChips

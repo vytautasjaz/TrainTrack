@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { WorkoutType } from '@prisma/client'
 import {
   CalendarDays,
+  CloudSun,
   Columns2,
   Minus,
   Plus,
@@ -26,10 +28,12 @@ import { availableExtraPlanSports } from '@/lib/plan-sports'
 import {
   SHOW_EVENTS_STORAGE_KEY,
   SHOW_NOTES_STORAGE_KEY,
+  SHOW_WEATHER_STORAGE_KEY,
   readStoredFlag,
   writeStoredFlag,
 } from '@/lib/plan-calendar-layers'
 import type { PlanDay } from '@/lib/plan-week'
+import type { WeatherPlace } from '@/lib/weather/places'
 import { cn } from '@/lib/utils'
 import { TABLE_FRAME } from '@/lib/table-styles'
 
@@ -41,6 +45,13 @@ export type PlanMultiWeekBlock = {
   planDays: PlanDay[]
   weekExtraPlanSportRows: WorkoutType[]
   weekHiddenPlanSportRows: WorkoutType[]
+}
+
+export type WeatherLocation = {
+  name: string
+  lat: number
+  lon: number
+  isOverride: boolean
 }
 
 type PlanMultiWeekTablesProps = {
@@ -56,7 +67,10 @@ type PlanMultiWeekTablesProps = {
   removeWeekHref?: string | null
   header?: ReactNode
   swimCssSecPer100m?: number | null
+  weatherLocation?: WeatherLocation | null
 }
+
+const WEATHER_OVERRIDE_STORAGE_KEY = 'tt-weather-location-override'
 
 function CombinedWeeksTable({
   weeks,
@@ -67,6 +81,10 @@ function CombinedWeeksTable({
   swimCssSecPer100m,
   showNotes,
   showEvents,
+  showWeather,
+  weatherLocation,
+  onWeatherLocationSelect,
+  onWeatherLocationReset,
 }: {
   weeks: PlanMultiWeekBlock[]
   isCoach: boolean
@@ -76,6 +94,10 @@ function CombinedWeeksTable({
   swimCssSecPer100m?: number | null
   showNotes: boolean
   showEvents: boolean
+  showWeather: boolean
+  weatherLocation?: WeatherLocation | null
+  onWeatherLocationSelect?: (place: WeatherPlace) => void
+  onWeatherLocationReset?: () => void
 }) {
   const table = (
     <div className="hidden w-full landscape:max-lg:block lg:block">
@@ -104,6 +126,10 @@ function CombinedWeeksTable({
               swimCssSecPer100m={swimCssSecPer100m}
               showNotes={showNotes}
               showEvents={showEvents}
+              showWeather={showWeather}
+              weatherLocation={weatherLocation}
+              onWeatherLocationSelect={onWeatherLocationSelect}
+              onWeatherLocationReset={onWeatherLocationReset}
               hideFooterRows
               tableFragment={index === 0 ? 'thead' : 'tbody-row'}
               skipDndProvider
@@ -130,6 +156,10 @@ function CombinedWeeksTable({
           swimCssSecPer100m={swimCssSecPer100m}
           showNotes={showNotes}
           showEvents={showEvents}
+          showWeather={showWeather}
+          weatherLocation={weatherLocation}
+          onWeatherLocationSelect={onWeatherLocationSelect}
+          onWeatherLocationReset={onWeatherLocationReset}
           hideFooterRows
           skipDndProvider
         />
@@ -158,6 +188,7 @@ export function PlanMultiWeekTables({
   removeWeekHref,
   header,
   swimCssSecPer100m = null,
+  weatherLocation = null,
 }: PlanMultiWeekTablesProps) {
   const canCombine = weeks.length > 1
   const [combined, setCombined] = useState(true)
@@ -167,6 +198,12 @@ export function PlanMultiWeekTables({
   const [showEvents, setShowEvents] = useState(() =>
     readStoredFlag(SHOW_EVENTS_STORAGE_KEY, true),
   )
+  const [showWeather, setShowWeather] = useState(() =>
+    readStoredFlag(SHOW_WEATHER_STORAGE_KEY, true),
+  )
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const router = useRouter()
 
   useEffect(() => {
     try {
@@ -177,6 +214,24 @@ export function PlanMultiWeekTables({
       setCombined(true)
     }
   }, [])
+
+  useEffect(() => {
+    const hasQueryOverride = searchParams.has('wlat') && searchParams.has('wlon')
+    if (hasQueryOverride) return
+    try {
+      const raw = localStorage.getItem(WEATHER_OVERRIDE_STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as { lat?: string; lon?: string; name?: string }
+      if (!parsed.lat || !parsed.lon) return
+      const next = new URLSearchParams(searchParams.toString())
+      next.set('wlat', parsed.lat)
+      next.set('wlon', parsed.lon)
+      if (parsed.name) next.set('wname', parsed.name)
+      router.replace(`${pathname}?${next.toString()}`)
+    } catch {
+      /* ignore */
+    }
+  }, [pathname, router, searchParams])
 
   function setCombineWeeks(next: boolean) {
     setCombined(next)
@@ -201,6 +256,47 @@ export function PlanMultiWeekTables({
       writeStoredFlag(SHOW_EVENTS_STORAGE_KEY, next)
       return next
     })
+  }
+
+  function toggleShowWeather() {
+    setShowWeather((prev) => {
+      const next = !prev
+      writeStoredFlag(SHOW_WEATHER_STORAGE_KEY, next)
+      return next
+    })
+  }
+
+  function applyWeatherOverride(place: WeatherPlace) {
+    const lat = place.lat
+    const lon = place.lon
+    const nameRaw = place.label
+    const next = new URLSearchParams(searchParams.toString())
+    next.set('wlat', String(Math.round(lat * 10000) / 10000))
+    next.set('wlon', String(Math.round(lon * 10000) / 10000))
+    if (nameRaw) next.set('wname', nameRaw)
+    else next.delete('wname')
+    try {
+      localStorage.setItem(
+        WEATHER_OVERRIDE_STORAGE_KEY,
+        JSON.stringify({ lat: next.get('wlat'), lon: next.get('wlon'), name: next.get('wname') ?? '' }),
+      )
+    } catch {
+      /* ignore */
+    }
+    router.push(`${pathname}?${next.toString()}`)
+  }
+
+  function resetWeatherOverride() {
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete('wlat')
+    next.delete('wlon')
+    next.delete('wname')
+    try {
+      localStorage.removeItem(WEATHER_OVERRIDE_STORAGE_KEY)
+    } catch {
+      /* ignore */
+    }
+    router.push(`${pathname}?${next.toString()}`)
   }
 
   const showCombined = canCombine && combined
@@ -254,7 +350,7 @@ export function PlanMultiWeekTables({
             onClick={toggleShowNotes}
             title={showNotes ? 'Hide day notes' : 'Show day notes'}
           >
-            <StickyNote className="h-3 w-3 opacity-60" aria-hidden />
+            <StickyNote className="h-3 w-3" aria-hidden />
             Notes
           </ToolbarTextToggle>
           <ToolbarTextToggle
@@ -262,8 +358,16 @@ export function PlanMultiWeekTables({
             onClick={toggleShowEvents}
             title={showEvents ? 'Hide season events' : 'Show season events'}
           >
-            <CalendarDays className="h-3 w-3 opacity-60" aria-hidden />
+            <CalendarDays className="h-3 w-3" aria-hidden />
             Events
+          </ToolbarTextToggle>
+          <ToolbarTextToggle
+            pressed={showWeather}
+            onClick={toggleShowWeather}
+            title={showWeather ? 'Hide weather' : 'Show weather'}
+          >
+            <CloudSun className="h-3 w-3" aria-hidden />
+            Weather
           </ToolbarTextToggle>
         </div>
 
@@ -353,6 +457,10 @@ export function PlanMultiWeekTables({
       swimCssSecPer100m={swimCssSecPer100m}
       showNotes={showNotes}
       showEvents={showEvents}
+      showWeather={showWeather}
+      weatherLocation={weatherLocation}
+      onWeatherLocationSelect={applyWeatherOverride}
+      onWeatherLocationReset={resetWeatherOverride}
     />
   )
 
@@ -380,6 +488,10 @@ export function PlanMultiWeekTables({
               swimCssSecPer100m={swimCssSecPer100m}
               showNotes={showNotes}
               showEvents={showEvents}
+              showWeather={showWeather}
+              weatherLocation={weatherLocation}
+              onWeatherLocationSelect={applyWeatherOverride}
+              onWeatherLocationReset={resetWeatherOverride}
             />
           ))}
         </div>

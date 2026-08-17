@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { WorkoutType } from '@prisma/client'
-import { ImageIcon } from 'lucide-react'
+import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import { Badge } from '@/components/ui/badge'
 import { CoachReplyBlock } from '@/components/plan/coach-reply-block'
 import { MarkCoachReplyReadOnView } from '@/components/athlete/mark-coach-reply-read-on-view'
@@ -19,22 +18,29 @@ import { Textarea } from '@/components/ui/textarea'
 import { PrivateNoteToggle } from '@/components/ui/private-note-toggle'
 import { AthleteWorkoutDetailCard } from '@/components/plan/athlete-workout-detail-card'
 import { CoachRescheduleReviewActions } from '@/components/plan/coach-reschedule-review-actions'
-import { RescheduleWorkoutButton } from '@/components/plan/reschedule-workout-modal'
 import { WorkoutEditorDialog } from '@/components/workout-editor/workout-editor-dialog'
 import { ExportWorkoutCardDialog } from '@/components/workout-block/export-workout-card-dialog'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import {
-  athleteAddedFieldClass,
-  isAthleteAddedWorkout,
-} from '@/components/plan/plan-workout-item-shell'
-import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import { isAthleteAddedWorkout } from '@/components/plan/plan-workout-item-shell'
 import { cn } from '@/lib/utils'
 import { formatRecoveryDayNote } from '@/lib/recovery-day'
 import { saveRecoveryDay } from '@/app/actions/workout-builder'
 import { deleteWorkout } from '@/app/actions/workouts'
-import { HomeWorkoutCompleteSection } from '@/components/plan/home-workout-complete-section'
+import { AskCoachSection } from '@/components/plan/ask-coach-section'
+import { athleteCanLeaveWorkoutComment, type PlanWorkoutDetail } from '@/lib/plan-workout'
 import { parseDateOnly } from '@/lib/dates'
 import { useCurrentPath } from '@/hooks/use-current-path'
+
+const SPORT_RAIL: Record<WorkoutType, string> = {
+  RUN: 'var(--color-sport-run)',
+  BIKE: 'var(--color-sport-bike)',
+  SWIM: 'var(--color-sport-swim)',
+  STRENGTH: 'var(--color-sport-strength)',
+  HYROX: 'var(--color-sport-hyrox)',
+  TRIATHLON: 'var(--color-sport-tri)',
+  RECOVERY: 'var(--color-sport-recovery)',
+  REST: 'var(--color-sport-rest)',
+}
 
 type WorkoutDetailModalProps = {
   workout: PlanWorkoutDetail
@@ -75,6 +81,12 @@ export function WorkoutDetailModal({
   }
 
   const showAthleteAdded = isAthleteAddedWorkout(workout)
+  const railColor =
+    workout.status === WorkoutStatus.COMPLETED
+      ? '#86d39a'
+      : workout.status === WorkoutStatus.SKIPPED
+        ? '#f5a3a3'
+        : SPORT_RAIL[workout.type]
 
   if (workout.type === WorkoutType.RECOVERY) {
     return (
@@ -162,100 +174,87 @@ export function WorkoutDetailModal({
         <DialogContent
           hideCloseButton
           className={cn(
-            'flex max-h-[90vh] max-w-lg flex-col gap-0 overflow-hidden p-0',
-            athleteAddedFieldClass(showAthleteAdded),
+            'flex max-h-[90vh] max-w-lg flex-col gap-0 overflow-hidden border-0 p-0 shadow-[0_16px_48px_rgba(17,17,17,0.14)]',
+            showAthleteAdded && 'bg-[color-mix(in_srgb,var(--color-sport-run)_4%,white)]',
+            workout.status === WorkoutStatus.COMPLETED && 'bg-[#f0faf4]',
+            workout.status === WorkoutStatus.SKIPPED && 'bg-[#fdf2f2]',
           )}
         >
+          <div
+            className="pointer-events-none absolute inset-y-0 left-0 z-20 w-[4px]"
+            style={{ background: railColor }}
+            aria-hidden
+          />
+
           <DialogTitle className="sr-only">{workout.title}</DialogTitle>
           <DialogDescription className="sr-only">
             {formatWorkoutDate(workout.dateKey)}
           </DialogDescription>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-3">
-            <div className="space-y-4">
-              {workout.isRescheduleGhost ? (
-                <div className="rounded-[8px] border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-900 dark:text-amber-200">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">Moved off this day</p>
-                      <p className="mt-0.5 text-xs opacity-90">
-                        This is the original plan placeholder.
-                        {workout.rescheduledToDateKey
-                          ? ` The workout is on ${workout.rescheduledToDateKey}.`
-                          : ''}
-                      </p>
-                    </div>
-                    <CoachRescheduleReviewActions
-                      workout={workout}
-                      isCoach={isCoach}
-                      placement="inline"
-                      className="shrink-0"
-                    />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {workout.isRescheduleGhost ? (
+              <div className="mx-5 mt-4 rounded-[8px] border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-900 dark:text-amber-200">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-medium">Moved off this day</p>
+                    <p className="mt-0.5 text-xs opacity-90">
+                      This is the original plan placeholder.
+                      {workout.rescheduledToDateKey
+                        ? ` The workout is on ${workout.rescheduledToDateKey}.`
+                        : ''}
+                    </p>
                   </div>
-                </div>
-              ) : null}
-              <AthleteWorkoutDetailCard
-                workout={workout}
-                showStravaActions={!isCoach && !workout.isRescheduleGhost}
-                onStravaChange={() => onOpenChange(false)}
-              />
-              {isCoach && !workout.isRescheduleGhost ? (
-                <div className="flex justify-end">
                   <CoachRescheduleReviewActions
                     workout={workout}
                     isCoach={isCoach}
                     placement="inline"
+                    className="shrink-0"
                   />
                 </div>
-              ) : null}
-              {result?.athleteNotes?.trim() ? (
-                <section className="border-t border-border/50 pt-4 text-sm">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    {isCoach ? 'Athlete comment' : 'Your comment'}
-                    {!isCoach && result.athleteNotesPrivate ? (
-                      <span className="ml-1.5 font-medium normal-case tracking-normal">
-                        · private
-                      </span>
-                    ) : null}
-                  </p>
-                  <p className="mt-1.5 leading-relaxed whitespace-pre-wrap text-muted-foreground">
-                    &ldquo;{result.athleteNotes.trim()}&rdquo;
-                  </p>
-                </section>
-              ) : null}
-              {result?.coachReply ? (
-                <section className="border-t border-border/50 pt-4 text-sm">
-                  <CoachReplyBlock reply={result.coachReply} />
-                </section>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
+            <AthleteWorkoutDetailCard
+              workout={workout}
+              isCoach={isCoach}
+              showStravaActions={!isCoach && !workout.isRescheduleGhost}
+              onStravaChange={() => onOpenChange(false)}
+              showUtilityActions={!isCoach}
+              onShare={() => setExportOpen(true)}
+              onRescheduleDone={() => onOpenChange(false)}
+            />
+            {isCoach && !workout.isRescheduleGhost ? (
+              <div className="flex justify-end px-5 pb-3">
+                <CoachRescheduleReviewActions
+                  workout={workout}
+                  isCoach={isCoach}
+                  placement="inline"
+                />
+              </div>
+            ) : null}
+            {result?.athleteNotes?.trim() &&
+            (isCoach || !athleteCanLeaveWorkoutComment(workout, false)) ? (
+              <section className="px-5 pb-4 pt-1 text-sm">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {isCoach ? 'Athlete comment' : 'Your comment'}
+                  {!isCoach && result.athleteNotesPrivate ? (
+                    <span className="ml-1.5 font-medium normal-case tracking-normal">
+                      · private
+                    </span>
+                  ) : null}
+                </p>
+                <p className="mt-1.5 leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                  &ldquo;{result.athleteNotes.trim()}&rdquo;
+                </p>
+              </section>
+            ) : null}
+            {result?.coachReply ? (
+              <section className="px-5 pb-4 pt-1 text-sm">
+                <CoachReplyBlock reply={result.coachReply} />
+              </section>
+            ) : null}
           </div>
 
-          {!isCoach && (
-            <div className="shrink-0 space-y-2 px-5 pb-4">
-              {!workout.isRescheduleGhost ? (
-                <RescheduleWorkoutButton
-                  workout={workout}
-                  className="w-full justify-center text-muted-foreground"
-                  onDone={() => onOpenChange(false)}
-                />
-              ) : null}
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="w-full gap-1.5"
-                onClick={() => setExportOpen(true)}
-              >
-                <ImageIcon className="h-3.5 w-3.5" aria-hidden />
-                Export card as PNG
-              </Button>
-              <HomeWorkoutCompleteSection
-                workout={workout}
-                onClose={() => onOpenChange(false)}
-              />
-            </div>
-          )}
+          {!isCoach ? <AskCoachSection workout={workout} onClose={() => onOpenChange(false)} /> : null}
         </DialogContent>
       </Dialog>
 

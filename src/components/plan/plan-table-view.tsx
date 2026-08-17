@@ -32,6 +32,11 @@ import {
 import { getDayRacePriority, raceDayCellClass } from "@/lib/race-day";
 import { CalendarPeriodNav } from "@/components/plan/calendar-period-nav";
 import { cn, formatDuration } from "@/lib/utils";
+import { formatWeatherPrecip, type WeatherPlace } from "@/lib/weather/places";
+import {
+  WeekWeatherLocationControl,
+  type WeekWeatherLocation,
+} from "@/components/weather/week-weather-location-control";
 import {
   TABLE_FRAME,
   TABLE_HEADER,
@@ -77,6 +82,11 @@ type PlanTableViewProps = {
   showNotes?: boolean;
   /** Show Events row / day events (toolbar layer). Default true. */
   showEvents?: boolean;
+  /** Show Weather row / day weather (toolbar layer). Default true. */
+  showWeather?: boolean;
+  weatherLocation?: WeekWeatherLocation | null;
+  onWeatherLocationSelect?: (place: WeatherPlace) => void;
+  onWeatherLocationReset?: () => void;
   /**
    * Render only table section contents for embedding in a shared multi-week table.
    * `thead` = first week day header; `tbody-row` = day header as first body row.
@@ -260,6 +270,79 @@ function NoteTableRow({
             showFullText
             hideEmptyAdd
           />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+function WeatherTableRow({
+  days,
+  weatherLocation,
+  onWeatherLocationSelect,
+  onWeatherLocationReset,
+}: {
+  days: PlanDay[];
+  weatherLocation?: WeekWeatherLocation | null;
+  onWeatherLocationSelect?: (place: WeatherPlace) => void;
+  onWeatherLocationReset?: () => void;
+}) {
+  return (
+    <tr className={cn("border-b bg-muted/10", PLAN_TABLE_LINE)}>
+      <th
+        className={cn(
+          "bg-muted/20 px-1 py-1 text-left align-top text-[8px] font-medium text-muted-foreground landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-[10px]",
+          PLAN_TABLE_VLINE,
+        )}
+      >
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span>Weather</span>
+          {onWeatherLocationSelect ? (
+            <WeekWeatherLocationControl
+              location={weatherLocation}
+              onSelect={onWeatherLocationSelect}
+              onReset={onWeatherLocationReset}
+              className="text-[8px] lg:text-[10px]"
+            />
+          ) : weatherLocation?.name ? (
+            <span
+              className="truncate font-normal leading-tight text-muted-foreground/80"
+              title={weatherLocation.name}
+            >
+              {weatherLocation.name.split(",")[0]?.trim() || weatherLocation.name}
+            </span>
+          ) : null}
+        </div>
+      </th>
+      {days.map((day) => (
+        <td
+          key={day.dateKey}
+          className={cn(
+            "p-1 align-top landscape:max-lg:px-px lg:p-1.5",
+            dayColVline(days, day.dateKey),
+            dayColumnClass(day),
+          )}
+        >
+          {!day.weather ? (
+            <p className="text-[10px] text-muted-foreground/70">—</p>
+          ) : (
+            <div className="space-y-0.5">
+              {day.weather.slots.map((slot) => (
+                <div
+                  key={`${day.dateKey}-${slot.label}`}
+                  className="flex items-center justify-between gap-2 text-[10px]"
+                >
+                  <span className="text-muted-foreground">
+                    {slot.emoji} {slot.label}
+                  </span>
+                  <span className="tabular-nums text-foreground/80">
+                    {slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}
+                    {formatWeatherPrecip(slot) ? ` · ${formatWeatherPrecip(slot)}` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </td>
       ))}
     </tr>
@@ -510,6 +593,10 @@ function PlanTableViewInner({
   hideFooterRows = false,
   showNotes = true,
   showEvents = true,
+  showWeather = true,
+  weatherLocation = null,
+  onWeatherLocationSelect,
+  onWeatherLocationReset,
   tableFragment = false,
 }: PlanTableViewProps) {
   const days = useFilteredPlanDays(daysProp);
@@ -547,6 +634,7 @@ function PlanTableViewInner({
   const showNoteRow = showNotes && hasAnyDayNotes;
   const showEventsRow =
     showEvents && days.some((d) => (d.seasonEvents?.length ?? 0) > 0);
+  const showWeatherRow = showWeather;
   const showRecoveryRow = days.some((d) => dayHasRecovery(d.workouts));
   const showEmptyWorkoutsRow =
     !isCoach && sportRows.length === 0 && !showRecoveryRow;
@@ -629,6 +717,14 @@ function PlanTableViewInner({
     <>
       {tableFragment === "tbody-row" && (
         <DayHeaderRow days={days} as="th" emphasizeTop embedded />
+      )}
+      {showWeatherRow && (
+        <WeatherTableRow
+          days={days}
+          weatherLocation={weatherLocation}
+          onWeatherLocationSelect={onWeatherLocationSelect}
+          onWeatherLocationReset={onWeatherLocationReset}
+        />
       )}
       {showEventsRow && <EventsTableRow days={days} />}
       <SportTableRows
@@ -746,6 +842,10 @@ function PlanTableViewInner({
           daySectionScrollMarginClass="scroll-mt-[7.5rem]"
           showNotes={showNotes}
           showEvents={showEvents}
+          showWeather={showWeather}
+          weatherLocation={weatherLocation}
+          onWeatherLocationSelect={onWeatherLocationSelect}
+          onWeatherLocationReset={onWeatherLocationReset}
         />
       </div>
 

@@ -11,12 +11,56 @@ import { TrainingWorkoutCard } from '@/components/training/training-workout-card
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { getWorkoutCompletionPercent } from '@/lib/workout-card'
 import { buildPlanTableDays } from '@/lib/plan-week'
-import { parseDateOnly } from '@/lib/dates'
+import { parseDateOnly, todayDateKey } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import {
+  formatWeatherSlotLine,
+  type WeatherDaySummary,
+} from '@/lib/weather/places'
 
 type AthleteDashboardWorkoutsProps = {
   todayWorkouts: PlanWorkoutDetail[]
   upcomingWorkouts: PlanWorkoutDetail[]
+  weatherByDate?: Record<string, WeatherDaySummary>
+  hasWeatherLocation?: boolean
+}
+
+function visibleWeatherParts(weather?: WeatherDaySummary | null): string[] {
+  if (!weather?.slots.length) return []
+  return weather.slots
+    .map(formatWeatherSlotLine)
+    .filter((part): part is string => Boolean(part))
+}
+
+function DashboardWeatherLine({
+  weather,
+  className,
+}: {
+  weather?: WeatherDaySummary | null
+  className?: string
+}) {
+  const parts = visibleWeatherParts(weather)
+  if (parts.length === 0) return null
+  return (
+    <p
+      className={cn(
+        'text-[11px] font-medium tracking-normal text-[#737986]',
+        className,
+      )}
+      title={parts.join('  ·  ')}
+    >
+      {parts.map((text, index) => (
+        <span key={`${text}-${index}`}>
+          {index > 0 ? (
+            <span className="mx-1.5 text-[#c8c9c6]" aria-hidden>
+              ·
+            </span>
+          ) : null}
+          <span>{text}</span>
+        </span>
+      ))}
+    </p>
+  )
 }
 
 function SectionHeader({
@@ -57,14 +101,32 @@ function workoutsToPlanDays(workouts: PlanWorkoutDetail[]) {
 export function AthleteDashboardWorkouts({
   todayWorkouts,
   upcomingWorkouts,
+  weatherByDate = {},
+  hasWeatherLocation = false,
 }: AthleteDashboardWorkoutsProps) {
   const upcomingDays = workoutsToPlanDays(upcomingWorkouts)
   const [selected, setSelected] = useState<PlanWorkoutDetail | null>(null)
+  const todayWeather =
+    weatherByDate[todayWorkouts[0]?.dateKey ?? ''] ?? weatherByDate[todayDateKey()]
+  const todayWeatherVisible = visibleWeatherParts(todayWeather).length > 0
 
   return (
     <div className="tt-dashboard-main-col">
       <section>
         <SectionHeader title="Today's workout" />
+        {todayWeatherVisible ? (
+          <DashboardWeatherLine weather={todayWeather} className="mb-2.5" />
+        ) : hasWeatherLocation ? (
+          <p className="mb-2.5 text-[11px] text-[#737986]">Forecast unavailable right now.</p>
+        ) : (
+          <p className="mb-2.5 text-[11px] text-[#737986]">
+            Set a weather location in{' '}
+            <Link href="/settings/account" className="underline underline-offset-2">
+              Profile
+            </Link>{' '}
+            to see conditions with your workouts.
+          </p>
+        )}
         {todayWorkouts.length === 0 ? (
           <div className="tt-dashboard-card px-4 py-10 text-center">
             <p className="text-sm text-[#737986]">Rest day — nothing scheduled.</p>
@@ -114,14 +176,20 @@ export function AthleteDashboardWorkouts({
           <div>
             {upcomingDays.map((day) => (
               <div key={day.dateKey} className="tt-dashboard-upcoming-day">
-                <p
-                  className={cn(
-                    'title-day',
-                    day.isToday && 'text-[#111111]',
-                  )}
-                >
-                  {format(day.date, 'EEEE d MMM').toUpperCase()}
-                </p>
+                <div className="mb-2.5">
+                  <p
+                    className={cn(
+                      'title-day',
+                      day.isToday && 'text-[#111111]',
+                    )}
+                  >
+                    {format(day.date, 'EEEE d MMM').toUpperCase()}
+                  </p>
+                  <DashboardWeatherLine
+                    weather={weatherByDate[day.dateKey]}
+                    className="mt-1"
+                  />
+                </div>
                 <div className="tt-dashboard-upcoming-stack">
                   {day.workouts.map((workout) => (
                     <TrainingListWorkoutRow

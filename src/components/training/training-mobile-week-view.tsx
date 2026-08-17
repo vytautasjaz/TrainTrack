@@ -5,6 +5,7 @@ import { Smartphone } from "lucide-react";
 import {
   PlanMultiWeekTables,
   type PlanMultiWeekBlock,
+  type WeatherLocation,
 } from "@/components/plan/plan-multi-week-tables";
 import type { PlanDay } from "@/lib/plan-week";
 import type { TrainingDay } from "@/lib/training-timeline";
@@ -27,6 +28,7 @@ type TrainingMobileWeekViewProps = {
   addWeekHref?: string | null;
   removeWeekHref?: string | null;
   swimCssSecPer100m?: number | null;
+  weatherLocation?: WeatherLocation | null;
 };
 
 /**
@@ -176,6 +178,7 @@ export function TrainingMobileWeekView({
   addWeekHref,
   removeWeekHref,
   swimCssSecPer100m = null,
+  weatherLocation = null,
 }: TrainingMobileWeekViewProps) {
   const blocks: PlanMultiWeekBlock[] =
     weekBlocks && weekBlocks.length > 0
@@ -203,6 +206,7 @@ export function TrainingMobileWeekView({
       addWeekHref={addWeekHref}
       removeWeekHref={removeWeekHref}
       swimCssSecPer100m={swimCssSecPer100m}
+      weatherLocation={weatherLocation}
     />
   );
 

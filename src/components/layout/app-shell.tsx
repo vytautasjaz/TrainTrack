@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { AppNav } from '@/components/layout/app-nav'
 import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
 import { RoleSwitcher } from '@/components/layout/role-switcher'
@@ -15,10 +16,12 @@ import {
 } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import {
-  getUnreadCoachFeedbackCount,
-  getUnreadCoachReplyCount,
   getPendingCoachRequestCount,
 } from '@/lib/queries'
+import {
+  getAthleteInboxUnreadCount,
+  getCoachInboxUnreadCount,
+} from '@/lib/coaching-inbox'
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -27,7 +30,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const canSwitchView = session ? canSwitchViewMode(session) : false
   const viewMode = session?.viewMode ?? 'athlete'
 
-  let dashboardNotificationCount = 0
+  let inboxNotificationCount = 0
   let coachAthletes: Awaited<ReturnType<typeof getCoachAthletes>> = []
   let selectedAthleteId: string | null = null
   let athleteProfile: { name: string; avatarUrl: string | null } | null = null
@@ -44,11 +47,11 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (session && coach) {
-    const [feedbackCount, pendingCount] = await Promise.all([
-      getUnreadCoachFeedbackCount(session.userId),
+    const [inboxCount, pendingCount] = await Promise.all([
+      getCoachInboxUnreadCount(session.userId),
       getPendingCoachRequestCount(session.userId),
     ])
-    dashboardNotificationCount = feedbackCount + pendingCount
+    inboxNotificationCount = inboxCount + pendingCount
     coachAthletes = await getCoachAthletes(session.userId)
     selectedAthleteId = await resolveAthleteId(session)
     if (session.name) {
@@ -57,7 +60,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   } else if (session?.hasAthlete) {
     const athleteId = await resolveAthleteId(session)
     if (athleteId) {
-      dashboardNotificationCount = await getUnreadCoachReplyCount(athleteId)
+      inboxNotificationCount = await getAthleteInboxUnreadCount(athleteId)
       const athlete = await prisma.athlete.findUnique({
         where: { id: athleteId },
         select: { name: true, avatarUrl: true },
@@ -104,7 +107,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           isCoach={coach}
           canSwitchView={canSwitchView}
           viewMode={viewMode}
-          dashboardNotificationCount={dashboardNotificationCount}
+          dashboardNotificationCount={inboxNotificationCount}
           sidebarFooter={roleSwitcher}
           athleteProfile={athleteProfile}
         />
@@ -119,15 +122,19 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
                 isCoach={coach}
                 canSwitchView={canSwitchView}
                 viewMode={viewMode}
-                dashboardNotificationCount={dashboardNotificationCount}
+                dashboardNotificationCount={inboxNotificationCount}
                 menuFooter={roleSwitcher}
                 athleteProfile={athleteProfile}
               />
             </Suspense>
-            <p className="flex min-w-0 items-center gap-2 portrait:max-lg:inline landscape:max-lg:hidden">
+            <Link
+              href="/dashboard"
+              className="flex min-w-0 items-center gap-2 outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand/40 portrait:max-lg:inline landscape:max-lg:hidden"
+              aria-label="TrainTrack home"
+            >
               <TrainTrackMark className="h-7 w-7 shrink-0" />
               <span className="traintrack-wordmark truncate text-[15px]">TRAINTRACK</span>
-            </p>
+            </Link>
           </header>
           {athleteBar ? (
             <div data-coach-athlete-bar>{athleteBar}</div>

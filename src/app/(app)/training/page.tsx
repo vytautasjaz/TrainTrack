@@ -42,6 +42,8 @@ import { resolveLibraryTemplateMetricsForAthlete } from "@/lib/workout-library/t
 import { loadAthletePreferencesForBuilder } from "@/lib/workout-builder/load-athlete-preferences";
 import { TrainingPlanShell } from "@/components/training/training-plan-shell";
 import { TrainingDefaultViewRedirect } from "@/components/training/training-default-view-redirect";
+import { getYrWeatherSummaries } from "@/lib/weather/yr";
+import type { WeatherDaySummary } from "@/lib/weather/places";
 
 type TrainingView = "week" | "list" | "calendar";
 
@@ -54,6 +56,9 @@ type TrainingPageProps = {
     view?: string;
     months?: string;
     weeks?: string;
+    wlat?: string;
+    wlon?: string;
+    wname?: string;
   }>;
 };
 
@@ -74,6 +79,13 @@ function parseWeekSpan(raw: string | undefined): number {
   const n = parseInt(raw ?? "1", 10);
   if (!Number.isFinite(n) || n < 1) return 1;
   return Math.min(MAX_WEEK_SPAN, Math.floor(n));
+}
+
+function parseWeatherCoord(raw: string | undefined): number | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n * 10000) / 10000;
 }
 
 export default async function TrainingPage({
@@ -189,8 +201,45 @@ export default async function TrainingPage({
   const selectedAthlete = coachAthletes.find((a) => a.id === athleteId);
   const athletePlanConfig = await prisma.athlete.findUnique({
     where: { id: athleteId },
-    select: { planSportRows: true },
+    select: {
+      planSportRows: true,
+      weatherLocationName: true,
+      weatherLat: true,
+      weatherLon: true,
+    },
   });
+
+  const overrideLat = parseWeatherCoord(params.wlat);
+  const overrideLon = parseWeatherCoord(params.wlon);
+  const activeWeatherLocation =
+    overrideLat != null && overrideLon != null
+      ? {
+          name: params.wname?.trim() || "Custom location",
+          lat: overrideLat,
+          lon: overrideLon,
+          isOverride: true,
+        }
+      : athletePlanConfig?.weatherLat != null && athletePlanConfig.weatherLon != null
+        ? {
+            name: athletePlanConfig.weatherLocationName?.trim() || "Default location",
+            lat: athletePlanConfig.weatherLat,
+            lon: athletePlanConfig.weatherLon,
+            isOverride: false,
+          }
+        : null;
+
+  let weatherByDate = new Map<string, WeatherDaySummary>();
+  if (activeWeatherLocation) {
+    try {
+      weatherByDate = await getYrWeatherSummaries({
+        lat: activeWeatherLocation.lat,
+        lon: activeWeatherLocation.lon,
+        dateKeys: eachDateOnlyDay(rangeStart, rangeEnd).map((d) => toDateKey(d)),
+      });
+    } catch {
+      weatherByDate = new Map();
+    }
+  }
 
   const weekBlocks = Array.from({ length: weekSpan }, (_, i) => {
     const weekAnchor = addDateOnlyDays(anchor, i * 7);
@@ -203,7 +252,7 @@ export default async function TrainingPage({
       weekStartKey: toDateKey(start),
       weekLabel: `${formatDateOnly(start, "d MMM")} – ${formatDateOnly(end, "d MMM yyyy")}`,
       trainingDays: buildTrainingDays(days),
-      tableDays: buildPlanTableDays(days, byDate, notesByDate, eventsByDate),
+      tableDays: buildPlanTableDays(days, byDate, notesByDate, eventsByDate, weatherByDate),
     };
   });
 
@@ -378,6 +427,8 @@ export default async function TrainingPage({
             eachDateOnlyDay(listRangeStart, listRangeEnd),
             byDate,
             notesByDate,
+            undefined,
+            weatherByDate,
           ).map((day) => ({
             dateKey: day.dateKey,
             dayLabel: day.dayLabel,
@@ -404,6 +455,7 @@ export default async function TrainingPage({
               addWeekHref={addWeekHref}
               removeWeekHref={removeWeekHref}
               swimCssSecPer100m={swimCssSecPer100m}
+              weatherLocation={activeWeatherLocation}
             />
           </div>
 
@@ -426,6 +478,7 @@ export default async function TrainingPage({
               addWeekHref={addWeekHref}
               removeWeekHref={removeWeekHref}
               swimCssSecPer100m={swimCssSecPer100m}
+              weatherLocation={activeWeatherLocation}
             />
           </div>
         </>

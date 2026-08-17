@@ -2,10 +2,10 @@ import {
   CalendarRange,
   CircleUser,
   Flag,
-  Home,
   Library,
   LineChart,
   Medal,
+  MessageSquare,
   Settings,
   Users,
   Wrench,
@@ -18,9 +18,10 @@ export type NavItem = {
   icon: LucideIcon
 }
 
+/** Home is via the app logo → /dashboard; not listed in nav. */
 export const MAIN_NAV: NavItem[] = [
-  { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/training', label: 'Training', icon: CalendarRange },
+  { href: '/inbox', label: 'Inbox', icon: MessageSquare },
   { href: '/workouts', label: 'Library', icon: Library },
   { href: '/season', label: 'Season plan', icon: Flag },
   { href: '/results', label: 'Results', icon: Medal },
@@ -45,8 +46,8 @@ export const CALCULATOR_NAV_TABS: CalculatorNavTab[] = [
 export function getMainNav(isCoach: boolean): NavItem[] {
   if (isCoach) {
     return [
-      { href: '/dashboard', label: 'Athletes', icon: Users },
       { href: '/training', label: 'Training', icon: CalendarRange },
+      { href: '/inbox', label: 'Inbox', icon: MessageSquare },
       { href: '/season', label: 'Season plan', icon: Flag },
       { href: '/results', label: 'Results', icon: Medal },
       { href: '/workouts', label: 'Library', icon: Library },

@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, coachCanAccessAthlete } from '@/lib/session'
-import { parseDateOnly, toDateKey } from '@/lib/dates'
+import { parseDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
 import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, CoachAthleteLinkStatus, PlannedMetricSource } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
 import { defaultSportForRaceType } from '@/lib/races'
@@ -215,38 +215,13 @@ function assertNotStravaSynced(workout: { result: { stravaActivityUrl: string | 
 }
 
 /**
- * Athletes can add/edit a coach-facing comment on Strava-synced workouts
- * without changing imported stats. Empty clears the comment (no coach notification).
+ * Athletes can add/edit a coach-facing comment after marking done/skipped
+ * (or on Strava-synced workouts). Empty clears the comment.
+ * Syncs into a FEEDBACK coaching thread when shared with the coach.
  */
-export async function updateStravaWorkoutComment(formData: FormData) {
-  const workoutId = formData.get('workoutId') as string
-  if (!workoutId) throw new Error('Workout required')
-
-  const workout = await requireAthleteOwnedWorkout(workoutId)
-  if (!workout.result?.stravaActivityUrl) {
-    throw new Error('This workout is not synced from Strava')
-  }
-
-  const athleteNotesRaw = (formData.get('athleteNotes') as string)?.trim()
-  const athleteNotes = athleteNotesRaw || null
-  const athleteNotesPrivate = athleteNotes
-    ? parseCheckboxFlag(formData, 'athleteNotesPrivate')
-    : false
-
-  await prisma.workoutResult.update({
-    where: { workoutId },
-    data: {
-      athleteNotes,
-      athleteNotesPrivate,
-      // Re-surface on coach dashboard when athlete shares/updates a public comment
-      feedbackDismissedAt:
-        athleteNotes && !athleteNotesPrivate
-          ? null
-          : workout.result.feedbackDismissedAt,
-    },
-  })
-
-  revalidateWorkoutPaths(workoutId)
+export async function updateAthleteWorkoutComment(formData: FormData) {
+  const { postWorkoutFeedbackMessage } = await import('@/app/actions/coaching-inbox')
+  await postWorkoutFeedbackMessage(formData)
 }
 
 export async function completeWorkout(formData: FormData) {
@@ -579,6 +554,9 @@ export async function markWorkoutDone(formData: FormData) {
   })
   if (!workout) throw new Error('Workout not found')
   assertNotStravaSynced(workout)
+  if (toDateKey(workout.date) > todayDateKey()) {
+    throw new Error('Can only log today or past workouts')
+  }
 
   await prisma.workout.update({
     where: { id: workoutId },
@@ -615,6 +593,9 @@ export async function markWorkoutSkipped(formData: FormData) {
   })
   if (!workout) throw new Error('Workout not found')
   assertNotStravaSynced(workout)
+  if (toDateKey(workout.date) > todayDateKey()) {
+    throw new Error('Can only log today or past workouts')
+  }
 
   await prisma.workout.update({
     where: { id: workoutId },
@@ -1511,8 +1492,26 @@ export async function logRaceOutcome(formData: FormData) {
     await saveRaceLegResultFields(existing.id, formData)
   }
 
+  if (
+    resultNotes &&
+    isLoggedResult &&
+    session.hasAthlete &&
+    !isCoach(session)
+  ) {
+    const { askOrCommentOnRace } = await import('@/app/actions/coaching-inbox')
+    const noteForm = new FormData()
+    noteForm.set('raceId', raceId)
+    noteForm.set('body', resultNotes)
+    try {
+      await askOrCommentOnRace(noteForm)
+    } catch {
+      // No connected coach or other soft failure — race result still saved
+    }
+  }
+
   revalidatePath('/dashboard')
   revalidatePath('/season')
+  revalidatePath('/inbox')
   revalidatePath(`/athletes/${existing.athleteId}`)
   await onRacesCalendarDataChanged(existing.athleteId)
 

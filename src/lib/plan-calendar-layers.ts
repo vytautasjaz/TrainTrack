@@ -2,6 +2,7 @@
 
 export const SHOW_NOTES_STORAGE_KEY = 'tt-calendar-show-notes'
 export const SHOW_EVENTS_STORAGE_KEY = 'tt-calendar-show-events'
+export const SHOW_WEATHER_STORAGE_KEY = 'tt-calendar-show-weather'
 export const SHOW_STATS_STORAGE_KEY = 'tt-calendar-show-stats'
 
 export function readStoredFlag(key: string, fallback: boolean): boolean {
