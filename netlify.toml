@@ -1,0 +1,7 @@
+# Next.js runtime is auto-installed by Netlify — do not pin @netlify/plugin-nextjs.
+[build]
+  command = "npx prisma migrate deploy && npm run build"
+
+[build.environment]
+  NODE_VERSION = "22"
+  AUTH_TRUST_HOST = "true"

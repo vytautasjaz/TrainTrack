@@ -16,6 +16,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+env/neon.env
+env/netlify.env
 
 # Editor directories and files
 .vscode/*
@@ -29,3 +31,6 @@ dist-ssr
 public/uploads/avatars/*
 !public/uploads/avatars/.gitkeep
 
+
+# Local Netlify folder
+.netlify

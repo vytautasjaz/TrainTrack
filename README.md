@@ -57,13 +57,25 @@ After first sign-in, users pick **Start Training**, **Become a Coach**, or skip.
 | Command                  | What it does                                         |
 | ------------------------ | ---------------------------------------------------- |
 | `npm run env:local`      | Use local Docker Postgres (`env/local.env` → `.env`) |
+| `npm run env:neon`       | Use the gitignored Neon branch file (`env/neon.env` → `.env`) |
 | `npm run env:supabase`   | Use Supabase (`/.env.supabase` → `.env`)             |
 | `npm run db:up`          | Start Docker Postgres                                |
 | `npm run db:setup-local` | Full local setup (Docker + schema + seed)            |
 
 Your Supabase settings are kept in **`.env.supabase`** (gitignored). Template: `env/supabase.env.example`.
 
-**Production (Vercel)** still uses Supabase via dashboard env vars — not affected by local switching.
+### Production (Netlify + Neon)
+
+Netlify does **not** read local `.env`. Set env vars in the Netlify UI (or import them):
+
+```bash
+npm run env:netlify-sync -- --site-url https://YOUR-SITE.netlify.app
+npx netlify login
+npx netlify init    # link this repo, Next.js defaults
+npx netlify env:import env/netlify.env
+```
+
+Required vars: `DATABASE_URL` (pooled Neon **production** branch), `DATABASE_URL_UNPOOLED`, `AUTH_SECRET`, `AUTH_URL` / `NEXT_PUBLIC_APP_URL`, plus Google/Strava keys. `netlify.toml` runs `prisma migrate deploy` on each production build.
 
 ### Manual setup
 
