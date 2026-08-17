@@ -19,6 +19,7 @@ export default async function ProfileSettingsPage() {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: session.userId },
     select: {
+      id: true,
       email: true,
       name: true,
       roles: true,
