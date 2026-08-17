@@ -28,6 +28,7 @@ import {
 } from '@/components/plan/strava-activity-picker'
 import { AthleteWorkoutQuickActions } from '@/components/plan/athlete-workout-quick-actions'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
+import { StatusPill } from '@/components/ui/status-pill'
 import { WorkoutStructureChart } from '@/components/workout-builder/workout-structure-chart'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import {
@@ -58,6 +59,7 @@ import { getSportEditorConfig } from '@/lib/workout-editor/types'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { parseDateOnly } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import type { PlanColorMode } from '@/lib/plan-sport-filter'
 
 const SPORT_ACCENT: Record<WorkoutType, string> = {
   RUN: 'var(--color-sport-run)',
@@ -203,6 +205,10 @@ type AthleteWorkoutDetailCardProps = {
   onStravaChange?: () => void
   /** Reschedule + Share live under the hero ⋮ menu (athlete modal). */
   showUtilityActions?: boolean
+  /** Completed / Skipped chip next to Strava or Done/Skip (athlete modal only). */
+  showStatusBadge?: boolean
+  /** Matches training Color / Plain / Completion chrome. */
+  colorMode?: PlanColorMode
   onShare?: () => void
   onRescheduleDone?: () => void
 }
@@ -214,6 +220,8 @@ export function AthleteWorkoutDetailCard({
   showStravaActions = false,
   onStravaChange,
   showUtilityActions = false,
+  showStatusBadge = false,
+  colorMode = 'sport',
   onShare,
   onRescheduleDone,
 }: AthleteWorkoutDetailCardProps) {
@@ -249,8 +257,11 @@ export function AthleteWorkoutDetailCard({
   const sportLabel = WORKOUT_TYPE_LABELS[workout.type]
   const completed = workout.status === WorkoutStatus.COMPLETED
   const skipped = workout.status === WorkoutStatus.SKIPPED
-  const accentColor = completed ? '#1b7a3d' : skipped ? '#b91c1c' : sportColor
-  const accentSoft = completed ? '#86d39a' : skipped ? '#f5a3a3' : sportColor
+  const statusChrome = colorMode === 'completion'
+  const accentColor =
+    statusChrome && completed ? '#1b7a3d' : statusChrome && skipped ? '#b91c1c' : sportColor
+  const accentSoft =
+    statusChrome && completed ? '#86d39a' : statusChrome && skipped ? '#f5a3a3' : sportColor
 
   const canReschedule =
     showUtilityActions &&
@@ -340,6 +351,13 @@ export function AthleteWorkoutDetailCard({
   const showMetricsRow =
     Boolean(intensityLabel) || distanceOnCard || durationOnCard
 
+  const statusBadge =
+    showStatusBadge && completed ? (
+      <StatusPill tone="completed">Completed</StatusPill>
+    ) : showStatusBadge && skipped ? (
+      <StatusPill tone="skipped">Skipped</StatusPill>
+    ) : null
+
   const dateLabel = formatWorkoutDate(workout.dateKey)
   const coachNotes = workout.coachNotes?.trim() || null
 
@@ -349,7 +367,13 @@ export function AthleteWorkoutDetailCard({
         <div
           className={cn(
             'relative flex items-start gap-3',
-            showQuickLog || stravaSynced ? 'pr-[7.5rem]' : 'pr-16',
+            statusBadge && (showQuickLog || stravaSynced)
+              ? 'pr-[13rem]'
+              : showQuickLog || stravaSynced
+                ? 'pr-[7.5rem]'
+                : statusBadge
+                  ? 'pr-[9rem]'
+                  : 'pr-16',
           )}
         >
           <div
@@ -391,7 +415,8 @@ export function AthleteWorkoutDetailCard({
             </p>
           </div>
 
-          <div className="absolute right-0 top-0 z-10 flex items-center gap-0.5">
+          <div className="absolute right-0 top-0 z-10 flex items-center gap-1.5">
+            {statusBadge}
             {stravaSynced ? (
               <StravaSyncedIndicator workout={workout} variant="wordmark" size="xs" />
             ) : showQuickLog ? (
@@ -417,6 +442,7 @@ export function AthleteWorkoutDetailCard({
                   <DropdownMenu.Content
                     align="end"
                     sideOffset={6}
+                    avoidCollisions={false}
                     className="z-[220] min-w-[12.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
                     onCloseAutoFocus={(e) => e.preventDefault()}
                   >
@@ -573,7 +599,13 @@ export function AthleteWorkoutDetailCard({
               structure={workout.structure}
               size="md"
               showCaption
-              tone={completed ? 'completed' : 'default'}
+              tone={
+                statusChrome && completed
+                  ? 'completed'
+                  : statusChrome && skipped
+                    ? 'skipped'
+                    : 'default'
+              }
             />
           </div>
         ) : null}

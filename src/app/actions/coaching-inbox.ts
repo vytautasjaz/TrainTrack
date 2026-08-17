@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import {
   CoachingAuthorRole,
+  CoachingMessageKind,
   CoachingThreadKind,
   CoachingThreadStatus,
   WorkoutStatus,
@@ -20,6 +21,7 @@ import {
 import { toDateKey, todayDateKey } from '@/lib/dates'
 import {
   athleteCanAskCoachAboutWorkout,
+  athleteCanFollowUpWithCoachAboutWorkout,
   COACHING_THREAD_MESSAGE_CAP,
   getCoachingThreadById,
   mirrorWorkoutResultFromThread,
@@ -28,6 +30,7 @@ import {
   getWorkoutCoachingThread,
   getRaceCoachingThread,
 } from '@/lib/coaching-inbox'
+import { parseWorkoutFeeling } from '@/lib/workout-feeling'
 
 function revalidateInboxPaths(opts?: { workoutId?: string; raceId?: string; athleteId?: string }) {
   revalidatePath('/inbox')
@@ -81,6 +84,7 @@ async function appendMessage(opts: {
   threadId: string
   authorRole: CoachingAuthorRole
   body: string
+  kind?: CoachingMessageKind
   workoutId?: string | null
   raceId?: string | null
   athleteId: string
@@ -91,13 +95,16 @@ async function appendMessage(opts: {
   }
 
   const body = trimCoachingMessageBody(opts.body)
-  if (!body) throw new Error('Message is required')
+  if (!body && opts.kind !== CoachingMessageKind.FEEDBACK) {
+    throw new Error('Message is required')
+  }
 
   const now = new Date()
   await prisma.coachingMessage.create({
     data: {
       threadId: opts.threadId,
       authorRole: opts.authorRole,
+      kind: opts.kind ?? CoachingMessageKind.CHAT,
       body,
     },
   })
@@ -135,16 +142,18 @@ export async function askCoachAboutWorkout(formData: FormData) {
   }
 
   const dateKey = toDateKey(workout.date)
-  if (
-    !athleteCanAskCoachAboutWorkout({
-      dateKey,
-      status: workout.status,
-      isRace: false,
-      isRescheduleGhost: workout.isRescheduleGhost,
-      type: workout.type,
-    })
-  ) {
-    throw new Error('You can only ask about upcoming planned workouts')
+  const workoutShape = {
+    dateKey,
+    status: workout.status,
+    isRace: false,
+    isRescheduleGhost: workout.isRescheduleGhost,
+    type: workout.type,
+    result: workout.result,
+  }
+  const canAsk = athleteCanAskCoachAboutWorkout(workoutShape)
+  const canFollowUp = athleteCanFollowUpWithCoachAboutWorkout(workoutShape)
+  if (!canAsk && !canFollowUp) {
+    throw new Error('You cannot message your coach about this workout')
   }
 
   let threadId = workout.coachingThread?.id
@@ -175,7 +184,6 @@ export async function askCoachAboutWorkout(formData: FormData) {
 export async function postWorkoutFeedbackMessage(formData: FormData) {
   const workoutId = formData.get('workoutId') as string
   const raw = (formData.get('athleteNotes') as string) ?? (formData.get('body') as string) ?? ''
-  const notesPrivate = formData.get('athleteNotesPrivate') === 'true'
   if (!workoutId) throw new Error('Workout required')
 
   const { athleteId, workout } = await requireAthleteOwnedWorkout(workoutId)
@@ -193,13 +201,14 @@ export async function postWorkoutFeedbackMessage(formData: FormData) {
   }
 
   const body = trimCoachingMessageBody(raw)
+  const feeling = parseWorkoutFeeling(formData.get('feeling'))
+  const hasFeedback = Boolean(body || feeling)
 
-  // Always keep WorkoutResult notes (including private).
   const noteData = {
     athleteNotes: body || null,
-    athleteNotesPrivate: body ? notesPrivate : false,
-    feedbackDismissedAt:
-      body && !notesPrivate ? null : (workout.result?.feedbackDismissedAt ?? null),
+    athleteNotesPrivate: false,
+    feeling,
+    feedbackDismissedAt: hasFeedback ? null : (workout.result?.feedbackDismissedAt ?? null),
   }
 
   await prisma.workoutResult.upsert({
@@ -208,10 +217,9 @@ export async function postWorkoutFeedbackMessage(formData: FormData) {
     update: noteData,
   })
 
-  // Public notes (or clearing) sync into FEEDBACK thread when athlete has a coach.
-  if (!notesPrivate && (await athleteHasConnectedCoach(athleteId))) {
+  if (await athleteHasConnectedCoach(athleteId)) {
     let thread = await prisma.coachingThread.findUnique({ where: { workoutId } })
-    if (!thread && body) {
+    if (!thread && hasFeedback) {
       thread = await prisma.coachingThread.create({
         data: {
           athleteId,
@@ -223,7 +231,7 @@ export async function postWorkoutFeedbackMessage(formData: FormData) {
       })
     }
 
-    if (thread && body) {
+    if (thread && hasFeedback) {
       const messages = await prisma.coachingMessage.findMany({
         where: { threadId: thread.id },
         orderBy: { createdAt: 'asc' },
@@ -232,7 +240,7 @@ export async function postWorkoutFeedbackMessage(formData: FormData) {
       if (firstAthlete && messages.length === 1) {
         await prisma.coachingMessage.update({
           where: { id: firstAthlete.id },
-          data: { body },
+          data: { body, kind: CoachingMessageKind.FEEDBACK },
         })
         await prisma.coachingThread.update({
           where: { id: thread.id },
@@ -242,16 +250,18 @@ export async function postWorkoutFeedbackMessage(formData: FormData) {
         await appendMessage({
           threadId: thread.id,
           authorRole: CoachingAuthorRole.ATHLETE,
+          kind: CoachingMessageKind.FEEDBACK,
           body,
           workoutId,
           athleteId,
         })
         return
-      } else {
-        // Follow-up public note as a new message when thread already has replies
+      } else if (body) {
+        // Follow-up note as a new message when thread already has replies
         await appendMessage({
           threadId: thread.id,
           authorRole: CoachingAuthorRole.ATHLETE,
+          kind: CoachingMessageKind.FEEDBACK,
           body,
           workoutId,
           athleteId,

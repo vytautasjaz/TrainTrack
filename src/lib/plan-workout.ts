@@ -59,6 +59,7 @@ export type PlanWorkoutDetail = {
     actualDistance: number | null
     actualDuration: number | null
     rpe: number | null
+    feeling?: number | null
     athleteNotes: string | null
     athleteNotesPrivate?: boolean
     coachReply: string | null
@@ -98,6 +99,7 @@ export function toPlanWorkoutDetail(w: {
     actualDistance: number | null
     actualDuration: number | null
     rpe: number | null
+    feeling?: number | null
     athleteNotes: string | null
     athleteNotesPrivate?: boolean
     coachReply: string | null
@@ -142,6 +144,7 @@ export function toPlanWorkoutDetail(w: {
           actualDistance: w.result.actualDistance,
           actualDuration: w.result.actualDuration,
           rpe: w.result.rpe,
+          feeling: w.result.feeling ?? null,
           athleteNotes: w.result.athleteNotes,
           athleteNotesPrivate: w.result.athleteNotesPrivate ?? false,
           coachReply: w.result.coachReply ?? null,
@@ -155,13 +158,12 @@ export function toPlanWorkoutDetail(w: {
   }
 }
 
-/** Strip private notes so the other party never receives them in client props. */
+/** Strip private coach notes so the athlete never receives them in client props. */
 export function redactPlanWorkoutNotesForViewer(
   workout: PlanWorkoutDetail,
   viewer: 'coach' | 'athlete',
 ): PlanWorkoutDetail {
-  if (viewer === 'athlete') {
-    if (!workout.coachNotesPrivate) return workout
+  if (viewer === 'athlete' && workout.coachNotesPrivate) {
     return {
       ...workout,
       coachNotes: null,
@@ -169,15 +171,7 @@ export function redactPlanWorkoutNotesForViewer(
     }
   }
 
-  if (!workout.result?.athleteNotesPrivate) return workout
-  return {
-    ...workout,
-    result: {
-      ...workout.result,
-      athleteNotes: null,
-      athleteNotesPrivate: false,
-    },
-  }
+  return workout
 }
 
 /** One-line summaries for each block in a structured workout (plan + athlete views). */

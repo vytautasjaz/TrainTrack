@@ -3,7 +3,6 @@ import {
   WorkoutStatus,
   WorkoutType,
 } from '@prisma/client'
-import { todayDateKey } from '@/lib/dates'
 
 export const COACHING_MESSAGE_MAX_LEN = 2000
 export const COACHING_THREAD_MESSAGE_CAP = 20
@@ -31,8 +30,24 @@ export function athleteCanAskCoachAboutWorkout(workout: {
   if (workout.isRace) return false
   if (workout.type === WorkoutType.RECOVERY || workout.type === WorkoutType.REST) return false
   if (workout.status !== WorkoutStatus.PLANNED) return false
-  if (workout.dateKey < todayDateKey()) return false
   return true
+}
+
+/** Follow-up chat on a completed/skipped (or Strava-synced) workout. */
+export function athleteCanFollowUpWithCoachAboutWorkout(workout: {
+  status: WorkoutStatus
+  isRace?: boolean
+  isRescheduleGhost?: boolean
+  type: WorkoutType
+  result?: { stravaActivityUrl?: string | null } | null
+}): boolean {
+  if (workout.isRescheduleGhost) return false
+  if (workout.isRace) return false
+  if (workout.type === WorkoutType.RECOVERY || workout.type === WorkoutType.REST) return false
+  if (workout.status === WorkoutStatus.COMPLETED || workout.status === WorkoutStatus.SKIPPED) {
+    return true
+  }
+  return Boolean(workout.result?.stravaActivityUrl)
 }
 
 export function isThreadUnreadForRole(

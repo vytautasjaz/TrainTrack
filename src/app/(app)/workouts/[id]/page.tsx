@@ -50,8 +50,7 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
   const coachView = isCoachView(session)
   const visibleCoachNotes =
     coachView || !workout.coachNotesPrivate ? workout.coachNotes : null
-  const visibleAthleteNotes =
-    !coachView || !result?.athleteNotesPrivate ? result?.athleteNotes : null
+  const visibleAthleteNotes = result?.athleteNotes
   const dateValue = workout.date.toISOString().slice(0, 10)
   const structure = parseStructure(workout.structure)
 
@@ -226,11 +225,6 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
             {visibleAthleteNotes && (
               <p className="italic">
                 &ldquo;{visibleAthleteNotes}&rdquo;
-                {!coachView && result?.athleteNotesPrivate ? (
-                  <span className="ml-2 not-italic text-xs text-muted-foreground">
-                    (private)
-                  </span>
-                ) : null}
               </p>
             )}
             {result.coachReply && <CoachReplyBlock reply={result.coachReply} />}
@@ -309,12 +303,6 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
                   defaultValue={result?.athleteNotes ?? ''}
                   rows={3}
                   placeholder="How did it feel?"
-                />
-                <PrivateNoteToggle
-                  hideFrom="coach"
-                  name="athleteNotesPrivate"
-                  defaultChecked={Boolean(result?.athleteNotesPrivate)}
-                  className="mt-2"
                 />
               </FormField>
               <Button type="submit" variant="secondary" size="sm">

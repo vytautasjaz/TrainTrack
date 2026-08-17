@@ -573,6 +573,7 @@ export function InboxClient({ role, threads, pendingRequestsSlot }: InboxClientP
             {
               id: `optimistic-${now}`,
               authorRole,
+              kind: 'CHAT' as const,
               body,
               createdAt: now,
             },

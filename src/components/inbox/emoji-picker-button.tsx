@@ -127,6 +127,7 @@ export function EmojiPickerButton({ onSelect, disabled, className }: EmojiPicker
           side="top"
           sideOffset={6}
           collisionPadding={8}
+          avoidCollisions={false}
           className="z-[220] w-[19.5rem] overflow-hidden rounded-[12px] border border-border bg-card shadow-lg"
           onCloseAutoFocus={(e) => e.preventDefault()}
         >

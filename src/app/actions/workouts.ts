@@ -217,7 +217,7 @@ function assertNotStravaSynced(workout: { result: { stravaActivityUrl: string | 
 /**
  * Athletes can add/edit a coach-facing comment after marking done/skipped
  * (or on Strava-synced workouts). Empty clears the comment.
- * Syncs into a FEEDBACK coaching thread when shared with the coach.
+ * Syncs into a FEEDBACK coaching thread when the athlete has a coach.
  */
 export async function updateAthleteWorkoutComment(formData: FormData) {
   const { postWorkoutFeedbackMessage } = await import('@/app/actions/coaching-inbox')
@@ -239,9 +239,6 @@ export async function completeWorkout(formData: FormData) {
   const rpe = formData.get('rpe') ? parseInt(formData.get('rpe') as string, 10) : undefined
   const athleteNotesRaw = (formData.get('athleteNotes') as string)?.trim()
   const athleteNotes = athleteNotesRaw || undefined
-  const athleteNotesPrivate = athleteNotes
-    ? parseCheckboxFlag(formData, 'athleteNotesPrivate')
-    : false
   const logType = parseAthleteLogType(formData.get('logType'))
   const status = isAthleteLogSkipped(logType) ? WorkoutStatus.SKIPPED : WorkoutStatus.COMPLETED
   const resultData = buildWorkoutResultData({
@@ -249,7 +246,7 @@ export async function completeWorkout(formData: FormData) {
     actualDuration,
     rpe,
     athleteNotes,
-    athleteNotesPrivate,
+    athleteNotesPrivate: false,
     logType,
   })
 
@@ -1535,9 +1532,6 @@ export async function logManualWorkout(formData: FormData) {
   const actualDuration = parseOptionalInt(formData.get('actualDuration'))
   const rpe = parseOptionalInt(formData.get('rpe'))
   const athleteNotes = parseOptionalString(formData.get('athleteNotes'))
-  const athleteNotesPrivate = athleteNotes
-    ? parseCheckboxFlag(formData, 'athleteNotesPrivate')
-    : false
   const completedAt = parseDateOnly(date)
   const sortOrder = await getNextWorkoutSortOrder(session.athleteId, completedAt)
 
@@ -1557,7 +1551,7 @@ export async function logManualWorkout(formData: FormData) {
           actualDuration,
           rpe,
           athleteNotes,
-          athleteNotesPrivate,
+          athleteNotesPrivate: false,
           completedAt,
         },
       },

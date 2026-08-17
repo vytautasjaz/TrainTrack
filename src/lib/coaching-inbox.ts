@@ -1,5 +1,6 @@
 import {
   CoachingAuthorRole,
+  CoachingMessageKind,
   CoachingThreadKind,
   CoachingThreadStatus,
   type CoachingMessage,
@@ -14,6 +15,7 @@ import {
   toPlanWorkoutDetail,
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
+import { parseWorkoutFeeling } from '@/lib/workout-feeling'
 import {
   COACHING_MESSAGE_MAX_LEN,
   INBOX_LIST_MAX,
@@ -28,6 +30,7 @@ export {
   COACHING_THREAD_MESSAGE_CAP,
   INBOX_LIST_MAX,
   athleteCanAskCoachAboutWorkout,
+  athleteCanFollowUpWithCoachAboutWorkout,
   isThreadUnreadForRole,
   threadNeedsReplyFrom,
   trimCoachingMessageBody,
@@ -64,6 +67,7 @@ const workoutDetailSelect = {
       actualDistance: true,
       actualDuration: true,
       rpe: true,
+      feeling: true,
       athleteNotes: true,
       athleteNotesPrivate: true,
       coachReply: true,
@@ -224,7 +228,6 @@ export async function ensureLegacyWorkoutFeedbackMigrated(athleteId: string) {
     const notes = result.athleteNotes?.trim()
     const reply = result.coachReply?.trim()
     if (!notes && !reply) continue
-    if (result.athleteNotesPrivate && !reply) continue
 
     const existing = await prisma.coachingThread.findUnique({
       where: { workoutId: result.workoutId },
@@ -233,7 +236,7 @@ export async function ensureLegacyWorkoutFeedbackMigrated(athleteId: string) {
     if (existing) continue
 
     const messages: { authorRole: CoachingAuthorRole; body: string; createdAt: Date }[] = []
-    if (notes && !result.athleteNotesPrivate) {
+    if (notes) {
       messages.push({
         authorRole: CoachingAuthorRole.ATHLETE,
         body: notes.slice(0, COACHING_MESSAGE_MAX_LEN),
@@ -262,6 +265,10 @@ export async function ensureLegacyWorkoutFeedbackMigrated(athleteId: string) {
         messages: {
           create: messages.map((m) => ({
             authorRole: m.authorRole,
+            kind:
+              m.authorRole === CoachingAuthorRole.ATHLETE
+                ? CoachingMessageKind.FEEDBACK
+                : CoachingMessageKind.CHAT,
             body: m.body,
             createdAt: m.createdAt,
           })),
@@ -302,8 +309,8 @@ export async function mirrorWorkoutResultFromThread(workoutId: string) {
   await prisma.workoutResult.update({
     where: { workoutId },
     data: {
-      ...(firstAthlete && !existing.athleteNotesPrivate
-        ? { athleteNotes: firstAthlete.body }
+      ...(firstAthlete?.body?.trim()
+        ? { athleteNotes: firstAthlete.body, athleteNotesPrivate: false }
         : {}),
       ...(lastCoach
         ? {
@@ -370,18 +377,40 @@ export function serializeInboxThread(
   }
 }
 
-export function toCoachingThreadView(
-  thread: NonNullable<Awaited<ReturnType<typeof getWorkoutCoachingThread>>>,
-) {
+export function toCoachingThreadView(thread: {
+  id: string
+  status: string
+  kind: CoachingThreadKind
+  messages: Array<{
+    id: string
+    authorRole: CoachingAuthorRole
+    kind: CoachingMessageKind
+    body: string
+    createdAt: Date
+  }>
+  workout?: { result?: { feeling?: number | null } | null } | null
+}) {
+  const feeling = parseWorkoutFeeling(thread.workout?.result?.feeling)
+  const firstAthleteId = thread.messages.find(
+    (m) => m.authorRole === CoachingAuthorRole.ATHLETE,
+  )?.id
   return {
     id: thread.id,
     status: thread.status,
     kind: thread.kind,
-    messages: thread.messages.map((m) => ({
-      id: m.id,
-      authorRole: m.authorRole,
-      body: m.body,
-      createdAt: m.createdAt.toISOString(),
-    })),
+    messages: thread.messages.map((m) => {
+      const isAthleteFeedback =
+        m.authorRole === CoachingAuthorRole.ATHLETE &&
+        (m.kind === CoachingMessageKind.FEEDBACK ||
+          (thread.kind === CoachingThreadKind.FEEDBACK && m.id === firstAthleteId))
+      return {
+        id: m.id,
+        authorRole: m.authorRole,
+        kind: isAthleteFeedback ? CoachingMessageKind.FEEDBACK : m.kind,
+        body: m.body,
+        feeling: isAthleteFeedback ? feeling : null,
+        createdAt: m.createdAt.toISOString(),
+      }
+    }),
   }
 }

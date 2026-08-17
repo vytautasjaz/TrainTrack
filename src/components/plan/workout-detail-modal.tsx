@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import { Badge } from '@/components/ui/badge'
 import { CoachReplyBlock } from '@/components/plan/coach-reply-block'
@@ -21,15 +21,17 @@ import { CoachRescheduleReviewActions } from '@/components/plan/coach-reschedule
 import { WorkoutEditorDialog } from '@/components/workout-editor/workout-editor-dialog'
 import { ExportWorkoutCardDialog } from '@/components/workout-block/export-workout-card-dialog'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import { isAthleteAddedWorkout } from '@/components/plan/plan-workout-item-shell'
 import { cn } from '@/lib/utils'
 import { formatRecoveryDayNote } from '@/lib/recovery-day'
 import { saveRecoveryDay } from '@/app/actions/workout-builder'
 import { deleteWorkout } from '@/app/actions/workouts'
 import { AskCoachSection } from '@/components/plan/ask-coach-section'
+import { UnsavedChangesDialog } from '@/components/ui/unsaved-changes-dialog'
 import { athleteCanLeaveWorkoutComment, type PlanWorkoutDetail } from '@/lib/plan-workout'
 import { parseDateOnly } from '@/lib/dates'
 import { useCurrentPath } from '@/hooks/use-current-path'
+import { useResolvedPlanColorMode } from '@/components/training/plan-sport-filter-context'
+import { WORKOUT_TYPE_CELL_TINT } from '@/lib/workout-display'
 
 const SPORT_RAIL: Record<WorkoutType, string> = {
   RUN: 'var(--color-sport-run)',
@@ -64,8 +66,52 @@ export function WorkoutDetailModal({
   onOpenChange,
 }: WorkoutDetailModalProps) {
   const currentPath = useCurrentPath()
+  const colorMode = useResolvedPlanColorMode()
   const result = workout.result
   const [exportOpen, setExportOpen] = useState(false)
+  const [leaveOpen, setLeaveOpen] = useState(false)
+  const [leavingPending, setLeavingPending] = useState(false)
+  const feedbackDirtyRef = useRef(false)
+  const saveFeedbackRef = useRef<(() => Promise<void>) | null>(null)
+
+  const handleFeedbackDirtyChange = useCallback((dirty: boolean) => {
+    feedbackDirtyRef.current = dirty
+  }, [])
+
+  function closeModal() {
+    setLeaveOpen(false)
+    feedbackDirtyRef.current = false
+    onOpenChange(false)
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (next) {
+      onOpenChange(true)
+      return
+    }
+    if (feedbackDirtyRef.current) {
+      setLeaveOpen(true)
+      return
+    }
+    closeModal()
+  }
+
+  async function saveFeedbackAndClose() {
+    const save = saveFeedbackRef.current
+    if (!save) {
+      closeModal()
+      return
+    }
+    setLeavingPending(true)
+    try {
+      await save()
+      closeModal()
+    } catch {
+      setLeaveOpen(false)
+    } finally {
+      setLeavingPending(false)
+    }
+  }
 
   // Coaches jump straight into the editor (skip read-only preview).
   if (isCoach && workout.type !== WorkoutType.RECOVERY) {
@@ -80,13 +126,16 @@ export function WorkoutDetailModal({
     )
   }
 
-  const showAthleteAdded = isAthleteAddedWorkout(workout)
-  const railColor =
-    workout.status === WorkoutStatus.COMPLETED
+  const completed = workout.status === WorkoutStatus.COMPLETED
+  const skipped = workout.status === WorkoutStatus.SKIPPED
+  const completionChrome = colorMode === 'completion'
+  const railColor = completionChrome
+    ? completed
       ? '#86d39a'
-      : workout.status === WorkoutStatus.SKIPPED
+      : skipped
         ? '#f5a3a3'
         : SPORT_RAIL[workout.type]
+    : SPORT_RAIL[workout.type]
 
   if (workout.type === WorkoutType.RECOVERY) {
     return (
@@ -170,14 +219,33 @@ export function WorkoutDetailModal({
           open && !isCoach && Boolean(result?.coachReply && !result?.coachReplyReadAt)
         }
       />
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent
           hideCloseButton
+          onPointerDownOutside={(e) => {
+            if (leaveOpen) e.preventDefault()
+          }}
+          onFocusOutside={(e) => {
+            if (leaveOpen) e.preventDefault()
+          }}
+          onInteractOutside={(e) => {
+            if (leaveOpen) e.preventDefault()
+          }}
+          onEscapeKeyDown={(e) => {
+            if (feedbackDirtyRef.current) {
+              e.preventDefault()
+              setLeaveOpen(true)
+            }
+          }}
           className={cn(
             'flex max-h-[90vh] max-w-lg flex-col gap-0 overflow-hidden border-0 p-0 shadow-[0_16px_48px_rgba(17,17,17,0.14)]',
-            showAthleteAdded && 'bg-[color-mix(in_srgb,var(--color-sport-run)_4%,white)]',
-            workout.status === WorkoutStatus.COMPLETED && 'bg-[#f0faf4]',
-            workout.status === WorkoutStatus.SKIPPED && 'bg-[#fdf2f2]',
+            colorMode === 'sport'
+              ? WORKOUT_TYPE_CELL_TINT[workout.type]
+              : completionChrome && completed
+                ? 'bg-[var(--color-tt-completed-bg)]'
+                : completionChrome && skipped
+                  ? 'bg-[var(--color-tt-skipped-bg)]'
+                  : 'bg-card',
           )}
         >
           <div
@@ -217,10 +285,12 @@ export function WorkoutDetailModal({
               workout={workout}
               isCoach={isCoach}
               showStravaActions={!isCoach && !workout.isRescheduleGhost}
-              onStravaChange={() => onOpenChange(false)}
+              onStravaChange={() => handleOpenChange(false)}
               showUtilityActions={!isCoach}
+              showStatusBadge={completionChrome}
+              colorMode={colorMode}
               onShare={() => setExportOpen(true)}
-              onRescheduleDone={() => onOpenChange(false)}
+              onRescheduleDone={() => handleOpenChange(false)}
             />
             {isCoach && !workout.isRescheduleGhost ? (
               <div className="flex justify-end px-5 pb-3">
@@ -236,11 +306,6 @@ export function WorkoutDetailModal({
               <section className="px-5 pb-4 pt-1 text-sm">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   {isCoach ? 'Athlete comment' : 'Your comment'}
-                  {!isCoach && result.athleteNotesPrivate ? (
-                    <span className="ml-1.5 font-medium normal-case tracking-normal">
-                      · private
-                    </span>
-                  ) : null}
                 </p>
                 <p className="mt-1.5 leading-relaxed whitespace-pre-wrap text-muted-foreground">
                   &ldquo;{result.athleteNotes.trim()}&rdquo;
@@ -254,9 +319,30 @@ export function WorkoutDetailModal({
             ) : null}
           </div>
 
-          {!isCoach ? <AskCoachSection workout={workout} onClose={() => onOpenChange(false)} /> : null}
+          {!isCoach ? (
+            <AskCoachSection
+              workout={workout}
+              onClose={closeModal}
+              onDirtyChange={handleFeedbackDirtyChange}
+              saveRef={saveFeedbackRef}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
+
+      {!isCoach ? (
+        <UnsavedChangesDialog
+          open={leaveOpen}
+          onOpenChange={setLeaveOpen}
+          pending={leavingPending}
+          title="Save feedback?"
+          description="You have unsaved feedback. Save it before leaving?"
+          onSave={() => {
+            void saveFeedbackAndClose()
+          }}
+          onDiscard={closeModal}
+        />
+      ) : null}
 
       {!isCoach ? (
         <ExportWorkoutCardDialog

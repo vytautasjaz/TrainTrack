@@ -327,7 +327,6 @@ export async function getUnreadCoachFeedbackCount(coachId: string) {
       where: {
         workout: { athlete: athleteWhere },
         athleteNotes: { not: null },
-        athleteNotesPrivate: false,
         feedbackDismissedAt: null,
       },
     }),
@@ -410,7 +409,6 @@ export async function getCoachDashboard(coachId: string) {
       where: {
         workout: { athlete: athleteWhere },
         athleteNotes: { not: null },
-        athleteNotesPrivate: false,
         feedbackDismissedAt: null,
       },
       include: {

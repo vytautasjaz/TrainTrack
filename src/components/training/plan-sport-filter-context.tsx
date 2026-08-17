@@ -64,6 +64,23 @@ export function useOptionalPlanSportFilter() {
   return useContext(PlanSportFilterContext)
 }
 
+/** View mode for workout chrome. Uses the training toggle when present, else the saved preference. */
+export function useResolvedPlanColorMode(): PlanColorMode {
+  const ctx = useOptionalPlanSportFilter()
+  const [stored, setStored] = useState<PlanColorMode>(defaultPlanColorMode)
+
+  useEffect(() => {
+    if (ctx) return
+    try {
+      setStored(parsePlanColorMode(localStorage.getItem(PLAN_COLOR_MODE_STORAGE_KEY)))
+    } catch {
+      /* ignore */
+    }
+  }, [ctx])
+
+  return ctx?.colorMode ?? stored
+}
+
 type PlanSportFilterProviderProps = {
   children: ReactNode
 }

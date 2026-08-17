@@ -33,8 +33,22 @@ const FLOATING_UI_SELECTOR = [
   "[data-radix-popper-content-wrapper]",
 ].join(",");
 
-function preventDismissWhileFloatingUiOpen(event: { preventDefault: () => void }) {
+function originalEventTarget(event: { detail?: { originalEvent?: Event } }): EventTarget | null {
+  return event.detail?.originalEvent?.target ?? null;
+}
+
+function preventDismissWhileFloatingUiOpen(event: {
+  preventDefault: () => void;
+  detail?: { originalEvent?: Event };
+}) {
   if (document.querySelector(FLOATING_UI_SELECTOR)) {
+    event.preventDefault();
+    return;
+  }
+  // Nested dialogs: a click inside another [role=dialog] is "outside" this one.
+  // Radix would otherwise dismiss and swallow the click (Save on a confirm prompt).
+  const clicked = originalEventTarget(event);
+  if (clicked instanceof Element && clicked.closest('[role="dialog"]')) {
     event.preventDefault();
   }
 }

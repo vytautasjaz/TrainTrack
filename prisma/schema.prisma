@@ -155,6 +155,11 @@ enum CoachingAuthorRole {
   COACH
 }
 
+enum CoachingMessageKind {
+  CHAT
+  FEEDBACK
+}
+
 enum AthleteStatus {
   ACTIVE
   INACTIVE
@@ -658,6 +663,8 @@ model WorkoutResult {
   actualDistance   Float?
   actualDuration   Int?
   rpe              Int?
+  /** Athlete 1–10 how the session felt (1 rough, 10 great). */
+  feeling          Int?
   athleteNotes     String?
   /** When true, athleteNotes are hidden from the coach. */
   athleteNotesPrivate Boolean @default(false)
@@ -704,11 +711,12 @@ model CoachingThread {
 }
 
 model CoachingMessage {
-  id         String             @id @default(cuid())
+  id         String              @id @default(cuid())
   threadId   String
   authorRole CoachingAuthorRole
+  kind       CoachingMessageKind @default(CHAT)
   body       String
-  createdAt  DateTime           @default(now())
+  createdAt  DateTime            @default(now())
 
   thread CoachingThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 

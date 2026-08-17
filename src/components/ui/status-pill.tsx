@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
-export type StatusPillTone = 'planned' | 'watching' | 'completed' | 'neutral'
+export type StatusPillTone = 'planned' | 'watching' | 'completed' | 'skipped' | 'neutral'
 
 const TONE_CLASS: Record<StatusPillTone, string> = {
   planned: 'tt-status-planned',
   watching: 'tt-status-watching',
   completed: 'tt-status-completed',
+  skipped: 'tt-status-skipped',
   neutral: 'tt-status-neutral',
 }
 

@@ -2,18 +2,28 @@
 
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { Frown, Meh, Smile } from 'lucide-react'
 import { CoachingAuthorRole } from '@prisma/client'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { markCoachingThreadRead, replyToCoachingThread } from '@/app/actions/coaching-inbox'
 import { COACHING_THREAD_MESSAGE_CAP } from '@/lib/coaching-inbox-shared'
+import {
+  parseWorkoutFeeling,
+  WORKOUT_FEELING_BUBBLE_CLASS,
+  WORKOUT_FEELING_META_CLASS,
+  workoutFeelingLabel,
+  workoutFeelingTone,
+} from '@/lib/workout-feeling'
 import { EmojiPickerButton, insertEmojiAtCursor } from '@/components/inbox/emoji-picker-button'
 
 export type CoachingThreadMessageView = {
   id: string
   authorRole: CoachingAuthorRole
+  kind?: 'CHAT' | 'FEEDBACK'
   body: string
+  feeling?: number | null
   createdAt: string
 }
 
@@ -72,16 +82,15 @@ export function CoachingThreadPanel({
     thread.messages.length,
     thread.messages[thread.messages.length - 1]?.id,
     thread.messages[thread.messages.length - 1]?.body,
+    thread.messages[thread.messages.length - 1]?.feeling,
   ])
 
   useEffect(() => {
     if (isOptimistic || skipAutoRead) return
     const formData = new FormData()
     formData.set('threadId', thread.id)
-    void markCoachingThreadRead(formData).then(() => {
-      router.refresh()
-    })
-  }, [thread.id, router, isOptimistic, skipAutoRead])
+    void markCoachingThreadRead(formData)
+  }, [thread.id, isOptimistic, skipAutoRead])
 
   function refresh() {
     router.refresh()
@@ -101,6 +110,7 @@ export function CoachingThreadPanel({
     const optimistic = {
       id: `optimistic-${Date.now()}`,
       authorRole,
+      kind: 'CHAT' as const,
       body: trimmed,
       createdAt: new Date().toISOString(),
     }
@@ -124,6 +134,11 @@ export function CoachingThreadPanel({
           const mine =
             (role === 'athlete' && m.authorRole === CoachingAuthorRole.ATHLETE) ||
             (role === 'coach' && m.authorRole === CoachingAuthorRole.COACH)
+          const feeling = parseWorkoutFeeling(m.feeling)
+          const isFeedback = m.kind === 'FEEDBACK' || feeling != null
+          const feelingTone = feeling ? workoutFeelingTone(feeling) : null
+          const FeelingIcon =
+            feelingTone === 'bad' ? Frown : feelingTone === 'ok' ? Meh : Smile
           return (
             <div
               key={m.id}
@@ -132,16 +147,48 @@ export function CoachingThreadPanel({
               <div
                 className={cn(
                   'max-w-[85%] rounded-[10px] px-3 py-2 text-sm',
-                  mine
-                    ? 'bg-foreground text-background'
-                    : 'bg-muted text-foreground',
+                  isFeedback && feelingTone
+                    ? WORKOUT_FEELING_BUBBLE_CLASS[feelingTone]
+                    : isFeedback
+                      ? mine
+                        ? 'border border-sky-200 bg-sky-50 text-sky-950'
+                        : 'border border-sky-200/80 bg-sky-50/80 text-foreground'
+                      : mine
+                        ? 'bg-foreground text-background'
+                        : 'bg-muted text-foreground',
                 )}
               >
-                <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
+                {isFeedback ? (
+                  <p
+                    className={cn(
+                      'mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] font-semibold uppercase tracking-[0.12em]',
+                      feelingTone
+                        ? WORKOUT_FEELING_META_CLASS[feelingTone]
+                        : 'text-sky-800/70',
+                    )}
+                  >
+                    <span>Feedback</span>
+                    {feeling ? (
+                      <span className="inline-flex items-center gap-0.5 font-semibold normal-case tracking-normal">
+                        <FeelingIcon className="h-3 w-3" strokeWidth={2.25} />
+                        {feeling}/10 · {workoutFeelingLabel(feeling)}
+                      </span>
+                    ) : null}
+                  </p>
+                ) : null}
+                {m.body.trim() ? (
+                  <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
+                ) : null}
                 <p
                   className={cn(
                     'mt-1 text-[10px]',
-                    mine ? 'text-background/70' : 'text-muted-foreground',
+                    feelingTone
+                      ? WORKOUT_FEELING_META_CLASS[feelingTone]
+                      : isFeedback
+                        ? 'text-sky-800/70'
+                        : mine
+                          ? 'text-background/70'
+                          : 'text-muted-foreground',
                   )}
                 >
                   {m.authorRole === CoachingAuthorRole.COACH ? 'Coach' : 'Athlete'}

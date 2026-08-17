@@ -4,6 +4,7 @@ import {
   listAthleteInboxThreads,
   listCoachInboxThreads,
   serializeInboxThread,
+  toCoachingThreadView,
   INBOX_LIST_MAX,
 } from '@/lib/coaching-inbox'
 import { InboxClient } from '@/components/inbox/inbox-client'
@@ -19,12 +20,7 @@ function mapThreads(
     return {
       ...base,
       workoutDetail: base.workoutDetail,
-      messages: t.messages.map((m) => ({
-        id: m.id,
-        authorRole: m.authorRole,
-        body: m.body,
-        createdAt: m.createdAt.toISOString(),
-      })),
+      messages: toCoachingThreadView(t).messages,
     }
   })
 }
