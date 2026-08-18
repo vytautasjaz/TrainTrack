@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, useTransition } from 'react'
 import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import { Badge } from '@/components/ui/badge'
 import { CoachReplyBlock } from '@/components/plan/coach-reply-block'
@@ -71,6 +71,7 @@ export function WorkoutDetailModal({
   const [exportOpen, setExportOpen] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [leavingPending, setLeavingPending] = useState(false)
+  const [recoverySaving, startRecoveryTransition] = useTransition()
   const feedbackDirtyRef = useRef(false)
   const saveFeedbackRef = useRef<(() => Promise<void>) | null>(null)
 
@@ -177,14 +178,16 @@ export function WorkoutDetailModal({
               <section className="space-y-3 rounded-xl border border-border/60 p-3">
                 <p className="text-sm font-semibold">Edit comment</p>
                 <form
-                  action={async (formData) => {
-                    await saveRecoveryDay({
-                      date: workout.dateKey,
-                      coachNotes: String(formData.get('coachNotes') ?? '').trim() || undefined,
-                      coachNotesPrivate: formData.get('coachNotesPrivate') === 'true',
-                      workoutId: workout.id,
+                  action={(formData) => {
+                    startRecoveryTransition(async () => {
+                      await saveRecoveryDay({
+                        date: workout.dateKey,
+                        coachNotes: String(formData.get('coachNotes') ?? '').trim() || undefined,
+                        coachNotesPrivate: formData.get('coachNotesPrivate') === 'true',
+                        workoutId: workout.id,
+                      })
+                      onOpenChange(false)
                     })
-                    onOpenChange(false)
                   }}
                   className="space-y-3"
                 >
@@ -199,8 +202,8 @@ export function WorkoutDetailModal({
                     name="coachNotesPrivate"
                     defaultChecked={Boolean(workout.coachNotesPrivate)}
                   />
-                  <Button type="submit" variant="secondary" size="sm">
-                    Save
+                  <Button type="submit" variant="secondary" size="sm" disabled={recoverySaving}>
+                    {recoverySaving ? 'Saving…' : 'Save'}
                   </Button>
                 </form>
               </section>

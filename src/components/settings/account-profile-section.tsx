@@ -1,3 +1,6 @@
+'use client'
+
+import { useTransition } from 'react'
 import { Caption, SectionTitle } from '@/components/ui/typography'
 import { Button } from '@/components/ui/button'
 import { AthleteAvatarForm } from '@/components/settings/athlete-avatar-form'
@@ -47,6 +50,8 @@ export function AccountProfileSection({
   coachLinks = [],
   currentUserId,
 }: AccountProfileSectionProps) {
+  const [rolePending, startRoleTransition] = useTransition()
+
   return (
     <section id="profile" className="card-elevated scroll-mt-24 space-y-5 p-5">
       <div>
@@ -79,16 +84,16 @@ export function AccountProfileSection({
       {(!hasAthlete || !hasCoach) && (
         <div className="flex flex-wrap gap-2">
           {!hasAthlete ? (
-            <form action={startTraining}>
-              <Button type="submit" size="sm">
-                Start Training
+            <form action={() => { startRoleTransition(async () => { await startTraining() }) }}>
+              <Button type="submit" size="sm" disabled={rolePending}>
+                {rolePending ? 'Saving…' : 'Start Training'}
               </Button>
             </form>
           ) : null}
           {!hasCoach ? (
-            <form action={becomeCoach}>
-              <Button type="submit" variant="outline" size="sm">
-                Become a Coach
+            <form action={() => { startRoleTransition(async () => { await becomeCoach() }) }}>
+              <Button type="submit" variant="outline" size="sm" disabled={rolePending}>
+                {rolePending ? 'Saving…' : 'Become a Coach'}
               </Button>
             </form>
           ) : null}

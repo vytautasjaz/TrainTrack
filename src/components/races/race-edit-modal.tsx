@@ -1,5 +1,6 @@
 'use client'
 
+import { useTransition } from 'react'
 import { Save } from 'lucide-react'
 import { updateRace } from '@/app/actions/workouts'
 import { Button } from '@/components/ui/button'
@@ -50,6 +51,8 @@ export function RaceEditModal({
   onSaved,
   returnTo = '/season',
 }: RaceEditModalProps) {
+  const [isPending, startTransition] = useTransition()
+
   if (!race) return null
 
   return (
@@ -61,10 +64,12 @@ export function RaceEditModal({
         </DialogDescription>
 
         <form
-          action={async (formData) => {
-            await updateRace(formData)
-            onSaved?.()
-            onOpenChange(false)
+          action={(formData) => {
+            startTransition(async () => {
+              await updateRace(formData)
+              onSaved?.()
+              onOpenChange(false)
+            })
           }}
           className="flex min-h-0 flex-1 flex-col"
         >
@@ -89,13 +94,14 @@ export function RaceEditModal({
               type="button"
               variant="ghost"
               size="sm"
+              disabled={isPending}
               onClick={() => onOpenChange(false)}
             >
               {'< Back'}
             </Button>
-            <Button type="submit" variant="brand" size="sm">
+            <Button type="submit" variant="brand" size="sm" disabled={isPending}>
               <Save className="h-3.5 w-3.5" />
-              Save changes
+              {isPending ? 'Saving…' : 'Save changes'}
             </Button>
           </div>
         </form>

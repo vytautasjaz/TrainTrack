@@ -31,6 +31,7 @@ import {
   getRaceCoachingThread,
 } from '@/lib/coaching-inbox'
 import { parseWorkoutFeeling } from '@/lib/workout-feeling'
+import { sendInboxPushNotifications } from '@/lib/push-notifications'
 
 function revalidateInboxPaths(opts?: { workoutId?: string; raceId?: string; athleteId?: string }) {
   revalidatePath('/inbox')
@@ -123,6 +124,13 @@ async function appendMessage(opts: {
   if (opts.workoutId) {
     await mirrorWorkoutResultFromThread(opts.workoutId)
   }
+
+  await sendInboxPushNotifications({
+    threadId: opts.threadId,
+    athleteId: opts.athleteId,
+    authorRole: opts.authorRole,
+    body,
+  })
 
   revalidateInboxPaths({
     workoutId: opts.workoutId ?? undefined,

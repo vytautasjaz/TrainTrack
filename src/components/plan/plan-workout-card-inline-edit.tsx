@@ -85,6 +85,7 @@ type MetricInputProps = {
   onCommit: () => void
   className?: string
   minChars?: number
+  disabled?: boolean
 }
 
 function MetricInput({
@@ -95,6 +96,7 @@ function MetricInput({
   onCommit,
   className,
   minChars = 2,
+  disabled = false,
 }: MetricInputProps) {
   const display = value || '0'
   return (
@@ -105,6 +107,7 @@ function MetricInput({
       value={value}
       size={Math.max(display.length, minChars)}
       aria-label={ariaLabel}
+      disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onCommit}
       onMouseDown={stopEditEvent}
@@ -126,6 +129,7 @@ function MetricInput({
         'm-0 w-auto min-h-0 shrink-0 border-0 p-0 tabular-nums',
         '[field-sizing:content]',
         'ring-1 ring-inset ring-transparent hover:ring-[#D1D5DB]/90 focus:ring-[#9CA3AF]',
+        'disabled:cursor-wait',
         className,
       )}
     />
@@ -288,6 +292,7 @@ export function PlanWorkoutCardInlineEdit({
           draggable={false}
           value={title}
           aria-label="Workout title"
+          disabled={pending}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={commitTitle}
           onMouseDown={stopEditEvent}
@@ -304,7 +309,7 @@ export function PlanWorkoutCardInlineEdit({
           }}
           className={cn(
             fieldChrome,
-            'm-0 min-h-0 min-w-0 flex-1 truncate px-0.5 py-px',
+            'm-0 min-h-0 min-w-0 flex-1 truncate px-0.5 py-px disabled:cursor-wait',
             titleClassName,
           )}
         />
@@ -331,6 +336,7 @@ export function PlanWorkoutCardInlineEdit({
             onChange={setHeroValue}
             onCommit={commitHero}
             className={heroClassName}
+            disabled={pending}
           />
           {heroUnitLabel ? (
             <span className={cn('shrink-0', unitClassName)}>
@@ -359,6 +365,7 @@ export function PlanWorkoutCardInlineEdit({
                 onChange={setDuration}
                 onCommit={commitDuration}
                 className={cn('text-[#6B7280]', durationClassName)}
+                disabled={pending}
               />
               <span className="shrink-0">{durationUnit === 'hours' ? 'h' : 'min'}</span>
             </>
@@ -371,6 +378,7 @@ export function PlanWorkoutCardInlineEdit({
                 onChange={setDistance}
                 onCommit={commitDistance}
                 className={cn('text-[#6B7280]', durationClassName)}
+                disabled={pending}
               />
               <span className="shrink-0">{distanceUnit}</span>
             </>

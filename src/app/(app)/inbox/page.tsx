@@ -10,6 +10,7 @@ import {
 import { InboxClient } from '@/components/inbox/inbox-client'
 import { getPendingCoachRequests } from '@/lib/queries'
 import { CoachPendingRequests } from '@/components/coach/coach-pending-requests'
+import { isPushConfigured } from '@/lib/push-notifications'
 
 function mapThreads(
   threadsRaw: Awaited<ReturnType<typeof listCoachInboxThreads>>,
@@ -28,6 +29,7 @@ function mapThreads(
 export default async function InboxPage() {
   const session = await getSession()
   if (!session) redirect('/')
+  const pushConfigured = await isPushConfigured()
 
   const coach = isCoachView(session)
 
@@ -43,6 +45,7 @@ export default async function InboxPage() {
         <InboxClient
           role="coach"
           threads={mapThreads(threadsRaw, 'coach')}
+          pushConfigured={pushConfigured}
           pendingRequestsSlot={
             pendingCoach.coachingCode && pendingCoach.requests.length > 0 ? (
               <CoachPendingRequests
@@ -67,7 +70,11 @@ export default async function InboxPage() {
   return (
     <div className="space-y-3">
       <h1 className="text-lg font-semibold tracking-tight">Inbox</h1>
-      <InboxClient role="athlete" threads={mapThreads(threadsRaw, 'athlete')} />
+      <InboxClient
+        role="athlete"
+        threads={mapThreads(threadsRaw, 'athlete')}
+        pushConfigured={pushConfigured}
+      />
     </div>
   )
 }

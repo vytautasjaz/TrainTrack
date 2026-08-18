@@ -1,3 +1,6 @@
+'use client'
+
+import { useTransition } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, CalendarRange } from 'lucide-react'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
@@ -15,6 +18,45 @@ export type CoachPlanningWarning = {
 type CoachPlanningWarningsProps = {
   warnings: CoachPlanningWarning[]
   planningLeadDays: number
+}
+
+function WarningRow({ warning }: { warning: CoachPlanningWarning }) {
+  const [isPending, startTransition] = useTransition()
+
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-2 rounded-[6px] border border-amber-200/80 bg-card/80 px-3 py-2.5 dark:border-amber-500/20">
+      <div className="flex min-w-0 items-center gap-2.5">
+        <AthleteAvatar
+          name={warning.athleteName}
+          avatarUrl={warning.avatarUrl}
+          size="sm"
+        />
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-foreground">
+            {warning.athleteName}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {warning.lastPlannedKey
+              ? `Last planned: ${formatDateKey(warning.lastPlannedKey)}`
+              : 'No upcoming workouts planned'}
+          </p>
+        </div>
+      </div>
+      <form
+        action={(formData) => {
+          startTransition(async () => {
+            await selectAthleteForTraining(formData)
+          })
+        }}
+      >
+        <input type="hidden" name="athleteId" value={warning.athleteId} />
+        <Button type="submit" variant="secondary" size="sm" disabled={isPending}>
+          <CalendarRange className="h-3.5 w-3.5" />
+          {isPending ? 'Opening…' : 'Open plan'}
+        </Button>
+      </form>
+    </li>
+  )
 }
 
 export function CoachPlanningWarnings({
@@ -41,35 +83,7 @@ export function CoachPlanningWarnings({
 
       <ul className="space-y-2">
         {warnings.map((warning) => (
-          <li
-            key={warning.athleteId}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-[6px] border border-amber-200/80 bg-card/80 px-3 py-2.5 dark:border-amber-500/20"
-          >
-            <div className="flex min-w-0 items-center gap-2.5">
-              <AthleteAvatar
-                name={warning.athleteName}
-                avatarUrl={warning.avatarUrl}
-                size="sm"
-              />
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {warning.athleteName}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {warning.lastPlannedKey
-                    ? `Last planned: ${formatDateKey(warning.lastPlannedKey)}`
-                    : 'No upcoming workouts planned'}
-                </p>
-              </div>
-            </div>
-            <form action={selectAthleteForTraining}>
-              <input type="hidden" name="athleteId" value={warning.athleteId} />
-              <Button type="submit" variant="secondary" size="sm">
-                <CalendarRange className="h-3.5 w-3.5" />
-                Open plan
-              </Button>
-            </form>
-          </li>
+          <WarningRow key={warning.athleteId} warning={warning} />
         ))}
       </ul>
 

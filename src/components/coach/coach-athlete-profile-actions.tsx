@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { CalendarRange, Pencil } from 'lucide-react'
 import type { AthleteStatus, WorkoutType } from '@prisma/client'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ type CoachAthleteProfileActionsProps = {
 
 export function CoachAthleteProfileActions({ athlete }: CoachAthleteProfileActionsProps) {
   const [editOpen, setEditOpen] = useState(false)
+  const [trainingPending, startTrainingTransition] = useTransition()
 
   return (
     <>
@@ -28,11 +29,17 @@ export function CoachAthleteProfileActions({ athlete }: CoachAthleteProfileActio
           <Pencil className="h-3.5 w-3.5" />
           Edit
         </Button>
-        <form action={selectAthleteForTraining}>
+        <form
+          action={(formData) => {
+            startTrainingTransition(async () => {
+              await selectAthleteForTraining(formData)
+            })
+          }}
+        >
           <input type="hidden" name="athleteId" value={athlete.id} />
-          <Button type="submit" variant="secondary" size="sm">
+          <Button type="submit" variant="secondary" size="sm" disabled={trainingPending}>
             <CalendarRange className="h-3.5 w-3.5" />
-            Training
+            {trainingPending ? 'Opening…' : 'Training'}
           </Button>
         </form>
       </div>

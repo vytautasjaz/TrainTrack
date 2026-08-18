@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { Caption, SectionTitle } from '@/components/ui/typography'
 import { WeatherLocationSearch } from '@/components/weather/weather-location-search'
 import { updateAthleteWeatherLocation } from '@/app/actions/preferences'
@@ -18,6 +18,7 @@ export function WeatherLocationForm({ initial }: WeatherLocationFormProps) {
   const [name, setName] = useState(initial.name ?? '')
   const [lat, setLat] = useState(initial.lat != null ? String(initial.lat) : '')
   const [lon, setLon] = useState(initial.lon != null ? String(initial.lon) : '')
+  const [isPending, startTransition] = useTransition()
   const selected = name && lat && lon ? name : null
 
   function applyPlace(place: WeatherPlace) {
@@ -35,7 +36,14 @@ export function WeatherLocationForm({ initial }: WeatherLocationFormProps) {
           still override location in week view.
         </Caption>
       </div>
-      <form action={updateAthleteWeatherLocation} className="space-y-3">
+      <form
+        action={(formData) => {
+          startTransition(async () => {
+            await updateAthleteWeatherLocation(formData)
+          })
+        }}
+        className="space-y-3"
+      >
         <input type="hidden" name="weatherLocationName" value={name} />
         <input type="hidden" name="weatherLat" value={lat} />
         <input type="hidden" name="weatherLon" value={lon} />
@@ -55,17 +63,18 @@ export function WeatherLocationForm({ initial }: WeatherLocationFormProps) {
             type="submit"
             name="intent"
             value="save"
-            disabled={!lat || !lon}
+            disabled={!lat || !lon || isPending}
             className="h-9 rounded-md bg-foreground px-3 text-sm font-medium text-background transition hover:opacity-95 disabled:opacity-40"
           >
-            Save location
+            {isPending ? 'Saving…' : 'Save location'}
           </button>
           {selected ? (
             <button
               type="submit"
               name="intent"
               value="clear"
-              className="h-9 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground transition hover:text-foreground"
+              disabled={isPending}
+              className="h-9 rounded-md border border-border px-3 text-sm font-medium text-muted-foreground transition hover:text-foreground disabled:opacity-40"
             >
               Clear
             </button>

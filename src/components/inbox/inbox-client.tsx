@@ -27,6 +27,7 @@ import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { parseDateOnly } from '@/lib/dates'
 import { getWorkoutCardHero, getWorkoutCardSubtitle } from '@/lib/workout-card'
 import { markCoachingThreadUnread } from '@/app/actions/coaching-inbox'
+import { InboxNotificationsToggle } from '@/components/inbox/inbox-notifications-toggle'
 import {
   INBOX_DEFAULT_PAGE_SIZE,
   INBOX_PAGE_SIZES,
@@ -372,9 +373,38 @@ type InboxClientProps = {
   role: 'athlete' | 'coach'
   threads: InboxThreadListItem[]
   pendingRequestsSlot?: React.ReactNode
+  pushConfigured?: boolean
 }
 
-export function InboxClient({ role, threads, pendingRequestsSlot }: InboxClientProps) {
+export function InboxClient({
+  role,
+  threads,
+  pendingRequestsSlot,
+  pushConfigured = false,
+}: InboxClientProps) {
+  async function applyAppBadge(count: number) {
+    const nav = navigator as Navigator & {
+      setAppBadge?: (count?: number) => Promise<void>
+      clearAppBadge?: () => Promise<void>
+    }
+    if (count > 0) {
+      if (typeof nav.setAppBadge === 'function') await nav.setAppBadge(count)
+      return
+    }
+    if (typeof nav.clearAppBadge === 'function') await nav.clearAppBadge()
+  }
+
+  async function syncUnreadBadgeFromServer() {
+    try {
+      const res = await fetch('/api/inbox/unread-count', { cache: 'no-store' })
+      if (!res.ok) return
+      const data = (await res.json()) as { count?: number }
+      if (typeof data.count === 'number') await applyAppBadge(data.count)
+    } catch {
+      // ignore badge sync failures
+    }
+  }
+
   const [filter, setFilter] = useState<InboxFilter>(INITIAL_FILTER)
   const [kind, setKind] = useState<InboxKindFilter>(INITIAL_KIND)
   const [athleteFilter, setAthleteFilter] = useState<string>('all')
@@ -519,6 +549,22 @@ export function InboxClient({ role, threads, pendingRequestsSlot }: InboxClientP
 
   const unreadCount = useMemo(() => items.filter((t) => t.unread).length, [items])
 
+  useEffect(() => {
+    void applyAppBadge(unreadCount)
+  }, [unreadCount])
+
+  useEffect(() => {
+    void syncUnreadBadgeFromServer()
+  }, [])
+
+  useEffect(() => {
+    if (!selectedId) return
+    const id = setTimeout(() => {
+      void syncUnreadBadgeFromServer()
+    }, 800)
+    return () => clearTimeout(id)
+  }, [selectedId])
+
   function selectThread(threadId: string) {
     if (!isLg && selectedId === threadId) {
       setSelectedId(null)
@@ -599,6 +645,7 @@ export function InboxClient({ role, threads, pendingRequestsSlot }: InboxClientP
     startReadTransition(async () => {
       try {
         await markCoachingThreadUnread(formData)
+        await syncUnreadBadgeFromServer()
       } catch {
         openedReadIds.current.add(threadId)
         if (threadId === selectedId) setHoldUnreadId(null)
@@ -615,6 +662,7 @@ export function InboxClient({ role, threads, pendingRequestsSlot }: InboxClientP
         ref={filtersRef}
         className="flex flex-wrap items-center gap-x-3 gap-y-1.5"
       >
+        <InboxNotificationsToggle pushConfigured={pushConfigured} />
         <div className="flex flex-wrap gap-1">
           {FILTERS.map((f) => (
             <button
@@ -889,7 +937,10 @@ export function InboxClient({ role, threads, pendingRequestsSlot }: InboxClientP
               isPendingRead={isPendingRead}
               onMarkUnread={markUnread}
               onOpenWorkout={() => setWorkoutModalOpen(true)}
-              onMessageSent={(body) => applyOptimisticSend(selected.id, body)}
+              onMessageSent={(body) => {
+                applyOptimisticSend(selected.id, body)
+                void syncUnreadBadgeFromServer()
+              }}
             />
           )}
         </div>

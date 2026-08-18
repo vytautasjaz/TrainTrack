@@ -1,3 +1,6 @@
+'use client'
+
+import { useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Caption, SectionTitle } from '@/components/ui/typography'
 import { respondCoachRequest } from '@/app/actions/auth'
@@ -10,6 +13,44 @@ export type PendingCoachRequest = {
 type CoachPendingRequestsProps = {
   coachingCode: string
   requests: PendingCoachRequest[]
+}
+
+function CoachRequestRow({ link }: { link: PendingCoachRequest }) {
+  const [isPending, startTransition] = useTransition()
+
+  function respond(decision: 'accept' | 'reject') {
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.set('linkId', link.id)
+      formData.set('decision', decision)
+      await respondCoachRequest(formData)
+    })
+  }
+
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-2 rounded-[6px] border border-border/60 bg-card px-3 py-2.5">
+      <span className="text-sm font-medium">{link.athlete.name}</span>
+      <div className="flex gap-2">
+        <Button
+          type="button"
+          size="sm"
+          disabled={isPending}
+          onClick={() => respond('accept')}
+        >
+          {isPending ? 'Saving…' : 'Accept'}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={isPending}
+          onClick={() => respond('reject')}
+        >
+          Reject
+        </Button>
+      </div>
+    </li>
+  )
 }
 
 export function CoachPendingRequests({ coachingCode, requests }: CoachPendingRequestsProps) {
@@ -30,28 +71,7 @@ export function CoachPendingRequests({ coachingCode, requests }: CoachPendingReq
       </div>
       <ul className="space-y-2">
         {requests.map((link) => (
-          <li
-            key={link.id}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-[6px] border border-border/60 bg-card px-3 py-2.5"
-          >
-            <span className="text-sm font-medium">{link.athlete.name}</span>
-            <div className="flex gap-2">
-              <form action={respondCoachRequest}>
-                <input type="hidden" name="linkId" value={link.id} />
-                <input type="hidden" name="decision" value="accept" />
-                <Button type="submit" size="sm">
-                  Accept
-                </Button>
-              </form>
-              <form action={respondCoachRequest}>
-                <input type="hidden" name="linkId" value={link.id} />
-                <input type="hidden" name="decision" value="reject" />
-                <Button type="submit" size="sm" variant="outline">
-                  Reject
-                </Button>
-              </form>
-            </div>
-          </li>
+          <CoachRequestRow key={link.id} link={link} />
         ))}
       </ul>
     </section>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import { BookmarkPlus, Plus, Save } from 'lucide-react'
 import { RaceIntent } from '@prisma/client'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,7 @@ export function AddRaceModal({
   defaultDate,
 }: AddRaceModalProps) {
   const isWatching = defaultIntent === RaceIntent.WATCHING
+  const [isPending, startTransition] = useTransition()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -39,14 +40,16 @@ export function AddRaceModal({
         </DialogTitle>
         <DialogDescription className="sr-only">
           {isWatching
-            ? 'Track a race you might join last-minute — it won’t appear on your training plan.'
+            ? "Track a race you might join last-minute — it won't appear on your training plan."
             : 'Pick a sport, distance, and date for your target event.'}
         </DialogDescription>
 
         <form
-          action={async (formData) => {
-            await createRace(formData)
-            onOpenChange(false)
+          action={(formData) => {
+            startTransition(async () => {
+              await createRace(formData)
+              onOpenChange(false)
+            })
           }}
           className="flex min-h-0 flex-1 flex-col"
         >
@@ -70,13 +73,14 @@ export function AddRaceModal({
               type="button"
               variant="ghost"
               size="sm"
+              disabled={isPending}
               onClick={() => onOpenChange(false)}
             >
               Cancel
             </Button>
-            <Button type="submit" variant="brand" size="sm">
+            <Button type="submit" variant="brand" size="sm" disabled={isPending}>
               <Save className="h-3.5 w-3.5" />
-              {isWatching ? 'Save to watchlist' : 'Save race'}
+              {isPending ? 'Saving…' : isWatching ? 'Save to watchlist' : 'Save race'}
             </Button>
           </div>
         </form>

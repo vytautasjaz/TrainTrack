@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: '/favicon.svg',
-    apple: '/icons/icon-192.svg',
+    apple: [{ url: '/icons/apple-touch-icon.png', sizes: '180x180' }],
   },
   formatDetection: {
     telephone: false,
@@ -44,7 +44,10 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: 'cover',
-  themeColor: '#FFFFFF',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0f0f0f' },
+  ],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

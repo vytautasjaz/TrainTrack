@@ -19,6 +19,7 @@ import {
   defaultBikeKindOptions,
   defaultRunSessionOptions,
   defaultSwimSessionOptions,
+  defaultSessionOptionsForSport,
   createBlankBikeOption,
   createBlankSessionOption,
   type BikeKindOptionPref,
@@ -32,10 +33,15 @@ type CoachWorkoutTypePrefsFormProps = {
   initialPrefs: WorkoutTypePrefs
 }
 
-const SPORTS: { value: WorkoutTypePrefSport; label: string; sport: WorkoutType }[] = [
-  { value: 'RUN', label: 'Run', sport: WorkoutType.RUN },
-  { value: 'BIKE', label: 'Bike', sport: WorkoutType.BIKE },
-  { value: 'SWIM', label: 'Swim', sport: WorkoutType.SWIM },
+const SPORTS: { value: WorkoutTypePrefSport; label: string; sport: WorkoutType; hasPaceTargets: boolean }[] = [
+  { value: 'RUN', label: 'Run', sport: WorkoutType.RUN, hasPaceTargets: true },
+  { value: 'BIKE', label: 'Bike', sport: WorkoutType.BIKE, hasPaceTargets: false },
+  { value: 'SWIM', label: 'Swim', sport: WorkoutType.SWIM, hasPaceTargets: true },
+  { value: 'STRENGTH', label: 'Strength', sport: WorkoutType.STRENGTH, hasPaceTargets: false },
+  { value: 'HYROX', label: 'HYROX', sport: WorkoutType.HYROX, hasPaceTargets: false },
+  { value: 'TRIATHLON', label: 'Triathlon', sport: WorkoutType.TRIATHLON, hasPaceTargets: false },
+  { value: 'RECOVERY', label: 'Recovery', sport: WorkoutType.RECOVERY, hasPaceTargets: false },
+  { value: 'REST', label: 'Rest', sport: WorkoutType.REST, hasPaceTargets: false },
 ]
 
 const SELECT_CLASS =
@@ -122,6 +128,21 @@ export function CoachWorkoutTypePrefsForm({ initialPrefs }: CoachWorkoutTypePref
   const [swimRows, setSwimRows] = useState(
     () => initialPrefs.SWIM ?? defaultSwimSessionOptions(),
   )
+  const [strengthRows, setStrengthRows] = useState(
+    () => initialPrefs.STRENGTH ?? defaultSessionOptionsForSport(WorkoutType.STRENGTH),
+  )
+  const [hyroxRows, setHyroxRows] = useState(
+    () => initialPrefs.HYROX ?? defaultSessionOptionsForSport(WorkoutType.HYROX),
+  )
+  const [triathlonRows, setTriathlonRows] = useState(
+    () => initialPrefs.TRIATHLON ?? defaultSessionOptionsForSport(WorkoutType.TRIATHLON),
+  )
+  const [recoveryRows, setRecoveryRows] = useState(
+    () => initialPrefs.RECOVERY ?? defaultSessionOptionsForSport(WorkoutType.RECOVERY),
+  )
+  const [restRows, setRestRows] = useState(
+    () => initialPrefs.REST ?? defaultSessionOptionsForSport(WorkoutType.REST),
+  )
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -143,6 +164,11 @@ export function CoachWorkoutTypePrefsForm({ initialPrefs }: CoachWorkoutTypePref
       RUN: runRows,
       BIKE: bikeRows,
       SWIM: swimRows,
+      STRENGTH: strengthRows,
+      HYROX: hyroxRows,
+      TRIATHLON: triathlonRows,
+      RECOVERY: recoveryRows,
+      REST: restRows,
     }
     try {
       await updateCoachWorkoutTypePrefs(prefs)
@@ -164,9 +190,16 @@ export function CoachWorkoutTypePrefsForm({ initialPrefs }: CoachWorkoutTypePref
 
   function handleResetSport() {
     markDirty()
-    if (sport === 'RUN') setRunRows(defaultRunSessionOptions())
-    else if (sport === 'BIKE') setBikeRows(defaultBikeKindOptions())
-    else setSwimRows(defaultSwimSessionOptions())
+    switch (sport) {
+      case 'RUN': setRunRows(defaultRunSessionOptions()); break
+      case 'BIKE': setBikeRows(defaultBikeKindOptions()); break
+      case 'SWIM': setSwimRows(defaultSwimSessionOptions()); break
+      case 'STRENGTH': setStrengthRows(defaultSessionOptionsForSport(WorkoutType.STRENGTH)); break
+      case 'HYROX': setHyroxRows(defaultSessionOptionsForSport(WorkoutType.HYROX)); break
+      case 'TRIATHLON': setTriathlonRows(defaultSessionOptionsForSport(WorkoutType.TRIATHLON)); break
+      case 'RECOVERY': setRecoveryRows(defaultSessionOptionsForSport(WorkoutType.RECOVERY)); break
+      case 'REST': setRestRows(defaultSessionOptionsForSport(WorkoutType.REST)); break
+    }
   }
 
   function navigateTo(href: string) {
@@ -230,22 +263,51 @@ export function CoachWorkoutTypePrefsForm({ initialPrefs }: CoachWorkoutTypePref
     return () => document.removeEventListener('click', onClick, true)
   }, [])
 
+  const currentSportConfig = SPORTS.find((s) => s.value === sport)!
+
+  const currentSessionRows = (() => {
+    switch (sport) {
+      case 'RUN': return runRows
+      case 'SWIM': return swimRows
+      case 'STRENGTH': return strengthRows
+      case 'HYROX': return hyroxRows
+      case 'TRIATHLON': return triathlonRows
+      case 'RECOVERY': return recoveryRows
+      case 'REST': return restRows
+      default: return []
+    }
+  })()
+
+  function setCurrentSessionRows(nextOrUpdater: WorkoutSessionOptionPref[] | ((prev: WorkoutSessionOptionPref[]) => WorkoutSessionOptionPref[])) {
+    switch (sport) {
+      case 'RUN': setRunRows(nextOrUpdater); break
+      case 'SWIM': setSwimRows(nextOrUpdater); break
+      case 'STRENGTH': setStrengthRows(nextOrUpdater); break
+      case 'HYROX': setHyroxRows(nextOrUpdater); break
+      case 'TRIATHLON': setTriathlonRows(nextOrUpdater); break
+      case 'RECOVERY': setRecoveryRows(nextOrUpdater); break
+      case 'REST': setRestRows(nextOrUpdater); break
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <SegmentedControl aria-label="Sport for workout preferences">
-        {SPORTS.map((s) => (
-          <SegmentedControlItem
-            key={s.value}
-            active={sport === s.value}
-            onClick={() => setSport(s.value)}
-          >
-            <span className="inline-flex items-center gap-1.5">
-              <WorkoutSportIcon type={s.sport} size="xs" />
-              {s.label}
-            </span>
-          </SegmentedControlItem>
-        ))}
-      </SegmentedControl>
+      <div className="overflow-x-auto pb-1">
+        <SegmentedControl aria-label="Sport for workout preferences" className="min-w-max">
+          {SPORTS.map((s) => (
+            <SegmentedControlItem
+              key={s.value}
+              active={sport === s.value}
+              onClick={() => setSport(s.value)}
+            >
+              <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                <WorkoutSportIcon type={s.sport} size="xs" />
+                {s.label}
+              </span>
+            </SegmentedControlItem>
+          ))}
+        </SegmentedControl>
+      </div>
 
       <p className="text-xs text-muted-foreground">
         Names appear in the workout-type dropdown. Drag the grip to change order. Pace and HR are
@@ -266,17 +328,15 @@ export function CoachWorkoutTypePrefsForm({ initialPrefs }: CoachWorkoutTypePref
         />
       ) : (
         <SessionOptionsTable
-          rows={sport === 'RUN' ? runRows : swimRows}
+          rows={currentSessionRows}
           intensityLabel="Pace target"
+          showPaceColumn={currentSportConfig.hasPaceTargets}
           onChange={(next) => {
-            if (sport === 'RUN') setRunRows(next)
-            else setSwimRows(next)
+            setCurrentSessionRows(next)
             markDirty()
           }}
           onAdd={() => {
-            const next = createBlankSessionOption()
-            if (sport === 'RUN') setRunRows((prev) => [...prev, next])
-            else setSwimRows((prev) => [...prev, next])
+            setCurrentSessionRows((prev) => [...prev, createBlankSessionOption()])
             markDirty()
           }}
         />
@@ -298,7 +358,7 @@ export function CoachWorkoutTypePrefsForm({ initialPrefs }: CoachWorkoutTypePref
           {isPending ? 'Saving…' : 'Save workout preferences'}
         </Button>
         <Button type="button" variant="ghost" size="sm" disabled={isPending} onClick={handleResetSport}>
-          Reset {sport === 'RUN' ? 'run' : sport === 'BIKE' ? 'bike' : 'swim'} defaults
+          Reset {currentSportConfig.label.toLowerCase()} defaults
         </Button>
         {saved ? <FormMessage variant="success">Saved</FormMessage> : null}
         {error ? <FormMessage variant="error">{error}</FormMessage> : null}
@@ -322,11 +382,13 @@ export function CoachWorkoutTypePrefsForm({ initialPrefs }: CoachWorkoutTypePref
 function SessionOptionsTable({
   rows,
   intensityLabel,
+  showPaceColumn = true,
   onChange,
   onAdd,
 }: {
   rows: WorkoutSessionOptionPref[]
   intensityLabel: string
+  showPaceColumn?: boolean
   onChange: (rows: WorkoutSessionOptionPref[]) => void
   onAdd: () => void
 }) {
@@ -349,8 +411,8 @@ function SessionOptionsTable({
             <th className="w-8" aria-label="Reorder" />
             <th className="w-8" aria-label="Show in dropdown" />
             <th>Name</th>
-            <th>{intensityLabel}</th>
-            <th>HR target</th>
+            {showPaceColumn && <th>{intensityLabel}</th>}
+            {showPaceColumn && <th>HR target</th>}
             <th className="w-8" aria-label="Remove" />
           </tr>
         </thead>
@@ -388,31 +450,35 @@ function SessionOptionsTable({
                   aria-label="Dropdown name"
                 />
               </td>
-              <td>
-                <select
-                  value={row.paceTarget ?? NONE}
-                  onChange={(e) =>
-                    update(index, {
-                      paceTarget: (e.target.value || null) as WorkoutSessionOptionPref['paceTarget'],
-                    })
-                  }
-                  className={SELECT_CLASS}
-                  aria-label={intensityLabel}
-                >
-                  <option value={NONE}>—</option>
-                  {PACE_TARGET_OPTIONS.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <HrSelect
-                  value={row.hrTarget}
-                  onChange={(hrTarget) => update(index, { hrTarget })}
-                />
-              </td>
+              {showPaceColumn && (
+                <td>
+                  <select
+                    value={row.paceTarget ?? NONE}
+                    onChange={(e) =>
+                      update(index, {
+                        paceTarget: (e.target.value || null) as WorkoutSessionOptionPref['paceTarget'],
+                      })
+                    }
+                    className={SELECT_CLASS}
+                    aria-label={intensityLabel}
+                  >
+                    <option value={NONE}>—</option>
+                    {PACE_TARGET_OPTIONS.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+              )}
+              {showPaceColumn && (
+                <td>
+                  <HrSelect
+                    value={row.hrTarget}
+                    onChange={(hrTarget) => update(index, { hrTarget })}
+                  />
+                </td>
+              )}
               <td>
                 <RemoveRowButton label={`Remove ${row.name}`} onClick={() => remove(index)} />
               </td>

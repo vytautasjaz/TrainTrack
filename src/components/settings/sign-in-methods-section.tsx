@@ -1,3 +1,6 @@
+'use client'
+
+import { useTransition } from 'react'
 import Link from 'next/link'
 import { Caption, SectionTitle } from '@/components/ui/typography'
 import { Button } from '@/components/ui/button'
@@ -25,6 +28,8 @@ export function SignInMethodsSection({
   hasPassword,
   showActivitySyncLink = false,
 }: SignInMethodsSectionProps) {
+  const [passwordPending, startPasswordTransition] = useTransition()
+
   return (
     <section id="sign-in" className="card-elevated scroll-mt-24 space-y-4 p-5">
       <div>
@@ -101,7 +106,14 @@ export function SignInMethodsSection({
           <Caption className="mb-2">
             {hasPassword ? 'Change your password' : 'Add a password for email sign-in'}
           </Caption>
-          <form action={setPassword} className="flex flex-col gap-2 sm:flex-row">
+          <form
+            action={(formData) => {
+              startPasswordTransition(async () => {
+                await setPassword(formData)
+              })
+            }}
+            className="flex flex-col gap-2 sm:flex-row"
+          >
             <Input
               type="password"
               name="password"
@@ -110,8 +122,8 @@ export function SignInMethodsSection({
               required
               className="sm:flex-1"
             />
-            <Button type="submit" variant="secondary" size="sm">
-              {hasPassword ? 'Update password' : 'Set password'}
+            <Button type="submit" variant="secondary" size="sm" disabled={passwordPending}>
+              {passwordPending ? 'Saving…' : hasPassword ? 'Update password' : 'Set password'}
             </Button>
           </form>
         </div>

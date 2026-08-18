@@ -37,33 +37,31 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/')
 
-  const coach = isCoach(session)
   const isAthlete = session.hasAthlete && Boolean(session.athleteId)
   const athleteId = await resolveAthleteId(session)
+
+  const authUser = await prisma.user.findUniqueOrThrow({
+    where: { id: session.userId },
+    select: {
+      passwordHash: true,
+      accounts: { select: { provider: true } },
+      planningLeadDays: true,
+      workoutBuilderPrefs: true,
+      coachProfile: { select: { id: true } },
+    },
+  })
+
+  // Source of truth: if a coach profile exists in DB, show coach settings.
+  const coach =
+    Boolean(authUser.coachProfile?.id) || session.hasCoach || isCoach(session)
   const editingSelectedAthlete =
     coach && Boolean(athleteId) && athleteId !== session.athleteId
 
-  const [coachUser, authUser] = await Promise.all([
-    coach
-      ? prisma.user.findUnique({
-          where: { id: session.userId },
-          select: { planningLeadDays: true, workoutBuilderPrefs: true },
-        })
-      : Promise.resolve(null),
-    prisma.user.findUniqueOrThrow({
-      where: { id: session.userId },
-      select: {
-        passwordHash: true,
-        accounts: { select: { provider: true } },
-      },
-    }),
-  ])
-
   const planningLeadDays = clampPlanningLeadDays(
-    coachUser?.planningLeadDays ?? DEFAULT_PLANNING_LEAD_DAYS,
+    authUser.planningLeadDays ?? DEFAULT_PLANNING_LEAD_DAYS,
   )
-  const workoutBuilderPrefs = parseWorkoutBuilderPrefs(coachUser?.workoutBuilderPrefs)
-  const workoutTypePrefs = parseWorkoutTypePrefs(coachUser?.workoutBuilderPrefs)
+  const workoutBuilderPrefs = parseWorkoutBuilderPrefs(authUser.workoutBuilderPrefs)
+  const workoutTypePrefs = parseWorkoutTypePrefs(authUser.workoutBuilderPrefs)
 
   const providers = new Set(authUser.accounts.map((a) => a.provider))
   const hasGoogle = providers.has('google')
@@ -104,97 +102,115 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
     <div className="mx-auto max-w-2xl space-y-6">
       <PageHeader
         title="Preferences"
-        description="Sign-in methods, integrations, and calendar sync."
+        description="Application, workout, athlete, and connection settings."
       />
 
-      <SignInMethodsSection
-        hasGoogle={hasGoogle}
-        hasStrava={hasStrava}
-        hasPassword={hasPassword}
-        showActivitySyncLink={isAthlete}
-      />
-
-      {isAthlete ? (
-        <section id="integrations" className="card-elevated scroll-mt-24 space-y-4 p-5">
-          <div>
-            <SectionTitle variant="ui">Integrations</SectionTitle>
-            <Caption>Connect external services to sync training data.</Caption>
-          </div>
-          <StravaConnectCard
-            connected={connected}
-            configured={isStravaConfigured()}
-            summary={stravaSummary}
-            errorMessage={errorMessage}
-            successMessage={successMessage}
-          />
-        </section>
-      ) : null}
-
-      {isAthlete ? (
-        <section id="calendar-sync" className="scroll-mt-24">
-          <div className="card-elevated p-5">
-            <CalendarSyncCard
-              feeds={calendarFeeds}
-              hasGoogleLinked={Boolean(googleAccount)}
-            />
-          </div>
-        </section>
-      ) : null}
+      <section className="card-elevated space-y-4 p-5">
+        <div>
+          <SectionTitle variant="ui">Application preferences</SectionTitle>
+          <Caption>Global behavior and reminder settings for your account.</Caption>
+        </div>
+        {coach ? <CoachPlanningLeadForm planningLeadDays={planningLeadDays} /> : <Caption>Additional application preferences will appear here as they are added.</Caption>}
+      </section>
 
       {coach ? (
         <>
           <section className="card-elevated space-y-4 p-5">
             <div>
-              <SectionTitle variant="ui">Plan-ahead reminders</SectionTitle>
+              <SectionTitle variant="ui">Workout preferences</SectionTitle>
               <Caption>
-                Warn on the dashboard when an active athlete has no workouts planned this many days
-                ahead. Mark athletes Active / Inactive when editing their profile.
+                Customize workout types and builder defaults used when creating training sessions.
               </Caption>
             </div>
-            <CoachPlanningLeadForm planningLeadDays={planningLeadDays} />
-          </section>
-          <section className="card-elevated space-y-4 p-5">
-            <div>
-              <SectionTitle variant="ui">Workout types</SectionTitle>
-              <Caption>
-                Customize the workout-type dropdown per sport. Name is what you see when creating a
-                workout; pace and HR are zone targets, not the athlete’s numbers.
-              </Caption>
+            <div className="space-y-4">
+              <section className="space-y-3 rounded-[8px] border border-border/60 p-4">
+                <SectionTitle variant="ui">Workout types</SectionTitle>
+                <Caption>
+                  Control sport-specific workout type names and ordering shown in editors.
+                </Caption>
+                <CoachWorkoutTypePrefsForm initialPrefs={workoutTypePrefs} />
+              </section>
+              <section className="space-y-3 rounded-[8px] border border-border/60 p-4">
+                <SectionTitle variant="ui">Workout builder</SectionTitle>
+                <Caption>
+                  Configure Add Block presets per sport (order, labels, and defaults).
+                </Caption>
+                <CoachWorkoutBuilderPrefsForm initialPrefs={workoutBuilderPrefs} />
+              </section>
             </div>
-            <CoachWorkoutTypePrefsForm initialPrefs={workoutTypePrefs} />
-          </section>
-          <section className="card-elevated space-y-4 p-5">
-            <div>
-              <SectionTitle variant="ui">Workout builder preferences</SectionTitle>
-              <Caption>
-                Customize Add Block presets per sport — order, labels, and default duration /
-                intensity when you insert a block.
-              </Caption>
-            </div>
-            <CoachWorkoutBuilderPrefsForm initialPrefs={workoutBuilderPrefs} />
           </section>
         </>
       ) : null}
 
-      {selectedPreferences ? (
-        <section className="space-y-3">
-          <Caption>
-            Editing training zones for the selected athlete. Athletes manage their own zones on
-            Profile.
-          </Caption>
-          <TrainingZonesTabs preferences={selectedPreferences} />
+      {(isAthlete || selectedPreferences || athleteId) ? (
+        <section className="space-y-4">
+          <div>
+            <SectionTitle variant="ui">Athlete settings</SectionTitle>
+            <Caption>Training zones and default weather location used in planning.</Caption>
+          </div>
+          {selectedPreferences ? (
+            <section className="space-y-3">
+              {editingSelectedAthlete ? (
+                <Caption>
+                  Editing training zones for the selected athlete. Athletes manage their own zones on
+                  this page.
+                </Caption>
+              ) : null}
+              <TrainingZonesTabs preferences={selectedPreferences} />
+            </section>
+          ) : null}
+          {athleteId ? (
+            <WeatherLocationForm
+              initial={{
+                name: weatherLocation?.weatherLocationName ?? null,
+                lat: weatherLocation?.weatherLat ?? null,
+                lon: weatherLocation?.weatherLon ?? null,
+              }}
+            />
+          ) : null}
         </section>
       ) : null}
 
-      {athleteId ? (
-        <WeatherLocationForm
-          initial={{
-            name: weatherLocation?.weatherLocationName ?? null,
-            lat: weatherLocation?.weatherLat ?? null,
-            lon: weatherLocation?.weatherLon ?? null,
-          }}
+      <section className="space-y-4">
+        <div>
+          <SectionTitle variant="ui">Connections & sign-in</SectionTitle>
+          <Caption>Authentication methods and external service integrations.</Caption>
+        </div>
+
+        <SignInMethodsSection
+          hasGoogle={hasGoogle}
+          hasStrava={hasStrava}
+          hasPassword={hasPassword}
+          showActivitySyncLink={isAthlete}
         />
-      ) : null}
+
+        {isAthlete ? (
+          <section id="integrations" className="card-elevated scroll-mt-24 space-y-4 p-5">
+            <div>
+              <SectionTitle variant="ui">Integrations</SectionTitle>
+              <Caption>Connect external services to sync training data.</Caption>
+            </div>
+            <StravaConnectCard
+              connected={connected}
+              configured={isStravaConfigured()}
+              summary={stravaSummary}
+              errorMessage={errorMessage}
+              successMessage={successMessage}
+            />
+          </section>
+        ) : null}
+
+        {isAthlete ? (
+          <section id="calendar-sync" className="scroll-mt-24">
+            <div className="card-elevated p-5">
+              <CalendarSyncCard
+                feeds={calendarFeeds}
+                hasGoogleLinked={Boolean(googleAccount)}
+              />
+            </div>
+          </section>
+        ) : null}
+      </section>
     </div>
   )
 }

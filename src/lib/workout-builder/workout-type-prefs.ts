@@ -28,7 +28,7 @@ export type PaceTargetId = (typeof PACE_ZONE_FIELDS)[number]['name']
 export type HrTargetId = (typeof HR_TARGET_OPTIONS)[number]['id']
 export type BikeIntensityTargetId = (typeof BIKE_INTENSITY_TARGET_OPTIONS)[number]['id']
 
-export type WorkoutTypePrefSport = 'RUN' | 'BIKE' | 'SWIM'
+export type WorkoutTypePrefSport = 'RUN' | 'BIKE' | 'SWIM' | 'STRENGTH' | 'HYROX' | 'TRIATHLON' | 'RECOVERY' | 'REST'
 
 export type WorkoutSessionOptionPref = {
   id: string
@@ -52,6 +52,11 @@ export type WorkoutTypePrefs = {
   RUN?: WorkoutSessionOptionPref[]
   BIKE?: BikeKindOptionPref[]
   SWIM?: WorkoutSessionOptionPref[]
+  STRENGTH?: WorkoutSessionOptionPref[]
+  HYROX?: WorkoutSessionOptionPref[]
+  TRIATHLON?: WorkoutSessionOptionPref[]
+  RECOVERY?: WorkoutSessionOptionPref[]
+  REST?: WorkoutSessionOptionPref[]
 }
 
 const PACE_TARGET_IDS = new Set(PACE_TARGET_OPTIONS.map((o) => o.id))
@@ -197,6 +202,11 @@ export function defaultWorkoutTypePrefs(): WorkoutTypePrefs {
     RUN: defaultRunSessionOptions(),
     BIKE: defaultBikeKindOptions(),
     SWIM: defaultSwimSessionOptions(),
+    STRENGTH: defaultSessionOptionsForSport(WorkoutType.STRENGTH),
+    HYROX: defaultSessionOptionsForSport(WorkoutType.HYROX),
+    TRIATHLON: defaultSessionOptionsForSport(WorkoutType.TRIATHLON),
+    RECOVERY: defaultSessionOptionsForSport(WorkoutType.RECOVERY),
+    REST: defaultSessionOptionsForSport(WorkoutType.REST),
   }
 }
 
@@ -228,7 +238,7 @@ function parseBikeIntensity(value: unknown): BikeIntensityTargetId | null {
 function parseSessionRows(
   raw: unknown,
   defaults: WorkoutSessionOptionPref[],
-  sport: 'RUN' | 'SWIM',
+  sport: string,
 ): WorkoutSessionOptionPref[] {
   if (!Array.isArray(raw)) return defaults.map((row) => ({ ...row }))
   if (raw.length === 0) return []
@@ -309,6 +319,11 @@ export function parseWorkoutTypePrefs(raw: unknown): WorkoutTypePrefs {
     RUN: parseSessionRows(source.RUN, defaultRunSessionOptions(), 'RUN'),
     BIKE: parseBikeRows(source.BIKE),
     SWIM: parseSessionRows(source.SWIM, defaultSwimSessionOptions(), 'SWIM'),
+    STRENGTH: parseSessionRows(source.STRENGTH, defaultSessionOptionsForSport(WorkoutType.STRENGTH), 'STRENGTH'),
+    HYROX: parseSessionRows(source.HYROX, defaultSessionOptionsForSport(WorkoutType.HYROX), 'HYROX'),
+    TRIATHLON: parseSessionRows(source.TRIATHLON, defaultSessionOptionsForSport(WorkoutType.TRIATHLON), 'TRIATHLON'),
+    RECOVERY: parseSessionRows(source.RECOVERY, defaultSessionOptionsForSport(WorkoutType.RECOVERY), 'RECOVERY'),
+    REST: parseSessionRows(source.REST, defaultSessionOptionsForSport(WorkoutType.REST), 'REST'),
   }
 }
 
@@ -317,6 +332,11 @@ export function workoutTypePrefsToJson(prefs: WorkoutTypePrefs): Record<string, 
     RUN: prefs.RUN ?? defaultRunSessionOptions(),
     BIKE: prefs.BIKE ?? defaultBikeKindOptions(),
     SWIM: prefs.SWIM ?? defaultSwimSessionOptions(),
+    STRENGTH: prefs.STRENGTH ?? defaultSessionOptionsForSport(WorkoutType.STRENGTH),
+    HYROX: prefs.HYROX ?? defaultSessionOptionsForSport(WorkoutType.HYROX),
+    TRIATHLON: prefs.TRIATHLON ?? defaultSessionOptionsForSport(WorkoutType.TRIATHLON),
+    RECOVERY: prefs.RECOVERY ?? defaultSessionOptionsForSport(WorkoutType.RECOVERY),
+    REST: prefs.REST ?? defaultSessionOptionsForSport(WorkoutType.REST),
   }
 }
 
@@ -325,7 +345,7 @@ export function sessionOptionById(
   sportType: WorkoutType,
   id: string,
 ): WorkoutSessionOptionPref | undefined {
-  const rows = sportType === WorkoutType.SWIM ? prefs?.SWIM : prefs?.RUN
+  const rows = getPrefsRowsForSport(sportType, prefs)
   return rows?.find((row) => row.id === id)
 }
 
@@ -341,7 +361,7 @@ export function sessionOptionForType(
   sportType: WorkoutType,
   sessionType: SessionType,
 ): WorkoutSessionOptionPref | undefined {
-  const rows = sportType === WorkoutType.SWIM ? prefs?.SWIM : prefs?.RUN
+  const rows = getPrefsRowsForSport(sportType, prefs)
   return rows?.find((row) => row.sessionType === sessionType)
 }
 
@@ -377,13 +397,42 @@ export function customBikeKindLabel(
   return BIKE_WORKOUT_KINDS.find((k) => k.id === kind)?.label ?? kind
 }
 
+export function defaultSessionOptionsForSport(sport: WorkoutType): WorkoutSessionOptionPref[] {
+  if (sport === WorkoutType.RUN) return defaultRunSessionOptions()
+  if (sport === WorkoutType.SWIM) return defaultSwimSessionOptions()
+  return sessionTypesForSport(sport).map((sessionType) => ({
+    id: `${sport}:${sessionType}`,
+    sessionType,
+    name: getSessionTypeLabel(sessionType, sport),
+    paceTarget: null,
+    hrTarget: null,
+    enabled: true,
+  }))
+}
+
+function getPrefsRowsForSport(
+  sportType: WorkoutType,
+  prefs?: WorkoutTypePrefs | null,
+): WorkoutSessionOptionPref[] | undefined {
+  switch (sportType) {
+    case WorkoutType.RUN: return prefs?.RUN
+    case WorkoutType.SWIM: return prefs?.SWIM
+    case WorkoutType.STRENGTH: return prefs?.STRENGTH
+    case WorkoutType.HYROX: return prefs?.HYROX
+    case WorkoutType.TRIATHLON: return prefs?.TRIATHLON
+    case WorkoutType.RECOVERY: return prefs?.RECOVERY
+    case WorkoutType.REST: return prefs?.REST
+    default: return undefined
+  }
+}
+
 export function enabledSessionOptionRows(
   sportType: WorkoutType,
   prefs?: WorkoutTypePrefs | null,
 ): WorkoutSessionOptionPref[] {
-  const defaults =
-    sportType === WorkoutType.SWIM ? defaultSwimSessionOptions() : defaultRunSessionOptions()
-  const rows = sportType === WorkoutType.SWIM ? prefs?.SWIM : prefs?.RUN
+  if (sportType === WorkoutType.BIKE) return []
+  const rows = getPrefsRowsForSport(sportType, prefs)
+  const defaults = defaultSessionOptionsForSport(sportType)
   const source = rows?.length ? rows : defaults
   return source.filter((row) => row.enabled)
 }

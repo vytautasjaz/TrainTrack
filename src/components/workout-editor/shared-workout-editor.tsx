@@ -1252,7 +1252,7 @@ export function SharedWorkoutEditor({
         ) : null}
         <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={save}>
           <Save className="h-3.5 w-3.5" />
-          Save
+          {pending ? 'Saving…' : 'Save'}
         </Button>
       </div>
     </div>

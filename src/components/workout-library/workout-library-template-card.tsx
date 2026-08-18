@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useTransition } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -73,6 +73,8 @@ export function WorkoutLibraryTemplateCard({
   const scheduleAction = isSwim ? scheduleSwimFromTemplate : createWorkoutFromTemplate
   const duplicateAction = isSwim ? duplicateSwimTemplate : duplicateTemplate
   const deleteAction = isSwim ? deleteSwimTemplate : deleteTemplate
+  const [schedulePending, startScheduleTransition] = useTransition()
+  const [duplicatePending, startDuplicateTransition] = useTransition()
 
   return (
     <Card className="flex h-full flex-col">
@@ -114,7 +116,14 @@ export function WorkoutLibraryTemplateCard({
         )}
 
         <div className="mt-auto space-y-3 border-t border-border/60 pt-3">
-          <form action={scheduleAction} className="flex flex-wrap gap-2">
+          <form
+            action={(formData) => {
+              startScheduleTransition(async () => {
+                await scheduleAction(formData)
+              })
+            }}
+            className="flex flex-wrap gap-2"
+          >
             <input type="hidden" name="templateId" value={template.id} />
             <Input
               type="date"
@@ -122,19 +131,26 @@ export function WorkoutLibraryTemplateCard({
               defaultValue={today}
               variant="table"
               className="max-w-[160px]"
+              disabled={schedulePending}
             />
-            <Button type="submit" variant="ghost" size="xs">
-              Schedule
+            <Button type="submit" variant="ghost" size="xs" disabled={schedulePending}>
+              {schedulePending ? 'Scheduling…' : 'Schedule'}
             </Button>
           </form>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="ghost" size="xs" asChild>
               <Link href={editTemplateHref(template)}>Edit</Link>
             </Button>
-            <form action={duplicateAction}>
+            <form
+              action={(formData) => {
+                startDuplicateTransition(async () => {
+                  await duplicateAction(formData)
+                })
+              }}
+            >
               <input type="hidden" name="templateId" value={template.id} />
-              <Button type="submit" variant="ghost" size="xs">
-                Duplicate
+              <Button type="submit" variant="ghost" size="xs" disabled={duplicatePending}>
+                {duplicatePending ? 'Duplicating…' : 'Duplicate'}
               </Button>
             </form>
             <ItemActions
@@ -142,7 +158,7 @@ export function WorkoutLibraryTemplateCard({
               deleteId={template.id}
               deleteIdField="templateId"
               deleteConfirmTitle="Delete template?"
-              deleteConfirmMessage={`“${template.title}” will be removed from your library.`}
+              deleteConfirmMessage={`"${template.title}" will be removed from your library.`}
             />
           </div>
         </div>

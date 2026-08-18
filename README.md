@@ -50,6 +50,17 @@ TrainTrack uses **Auth.js (NextAuth v5)**. Set these in `.env` / Netlify:
 - Strava (Auth.js login): `{AUTH_URL}/api/auth/callback/strava`
 - Strava (activity link from Preferences): `{NEXT_PUBLIC_APP_URL}/api/strava/callback` — set Strava “Authorization Callback Domain” to your host (e.g. `localhost` or your Netlify domain)
 
+**OAuth setup notes (important)**
+
+- Google OAuth supports multiple redirect URIs in one app. Add both local and production:
+  - `http://localhost:3000/api/auth/callback/google`
+  - `https://traintrack3000.netlify.app/api/auth/callback/google`
+- Strava OAuth is stricter. The app sends `redirect_uri={NEXT_PUBLIC_APP_URL}/api/strava/callback`, and Strava validates the **Authorization Callback Domain**.
+- Strava allows one callback domain per app in practice, so the safest setup is:
+  - one Strava app for local (`localhost`)
+  - one Strava app for production (`traintrack3000.netlify.app`)
+- If Strava shows `Bad Request` with `field: redirect_uri` / `code: invalid`, your callback domain in Strava settings does not match `NEXT_PUBLIC_APP_URL`.
+
 After first sign-in, users pick **Start Training**, **Become a Coach**, or skip. Coaches get an invite code (`TT-…`); athletes connect under **Settings → Account**.
 
 ### Switch database
