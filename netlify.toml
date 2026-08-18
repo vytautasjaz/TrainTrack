@@ -3,6 +3,7 @@
 # that way on build; do not run `migrate deploy` until migrations are baselined.
 [build]
   command = "npx prisma db push && npm run build"
+  publish = ".next"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
