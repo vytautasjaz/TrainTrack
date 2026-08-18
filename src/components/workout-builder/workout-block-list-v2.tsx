@@ -54,6 +54,10 @@ export function WorkoutBlockListV2({
   builderPrefs,
   compact = false,
 }: WorkoutBlockListV2Props) {
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
+  const items = useMemo(() => flattenStructure(structure), [structure])
+
   if (compact) {
     return (
       <WorkoutDetailsBlockList
@@ -65,11 +69,6 @@ export function WorkoutBlockListV2({
       />
     )
   }
-
-  const [dragIndex, setDragIndex] = useState<number | null>(null)
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
-
-  const items = useMemo(() => flattenStructure(structure), [structure])
 
   function commit(nextItems: typeof items) {
     onChange(unflattenBlocks(nextItems))

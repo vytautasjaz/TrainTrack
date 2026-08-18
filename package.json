@@ -7,6 +7,9 @@
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck",
+    "prepare": "husky",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "env:local": "node scripts/use-env.mjs local",
@@ -58,9 +61,14 @@
     "eslint": "^9.27.0",
     "eslint-config-next": "^15.3.3",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.3.0",
     "prisma": "^6.9.0",
     "tailwindcss": "^4.1.8",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
+  },
+  "lint-staged": {
+    "*.{js,jsx,mjs,ts,tsx}": "eslint --quiet"
   }
 }

@@ -325,7 +325,7 @@ export default function StyleGuidePage() {
                   note="Manrope · 16px · not italic · uppercase"
                 >
                   <h2 className="title-section">Upcoming</h2>
-                  <h2 className="title-section mt-3">Today's workout</h2>
+                  <h2 className="title-section mt-3">Today&apos;s workout</h2>
                   <h2 className="title-section mt-3">This week</h2>
                 </SpecCard>
 

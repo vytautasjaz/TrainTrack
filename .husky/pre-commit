@@ -1,0 +1,5 @@
+# Match Netlify `next build` gates without compiling the app:
+# 1. ESLint errors on staged files (warnings do not fail Netlify)
+# 2. Project-wide TypeScript check
+npx lint-staged
+npm run typecheck
