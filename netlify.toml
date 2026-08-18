@@ -1,8 +1,11 @@
-# Next.js runtime is auto-installed by Netlify — do not pin @netlify/plugin-nextjs.
+# Explicitly enable Netlify's Next.js runtime during deploy packaging.
 # Production Neon was created with `db push` (no migration history). Sync schema
 # that way on build; do not run `migrate deploy` until migrations are baselined.
 [build]
   command = "npx prisma db push && npm run build"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 [build.environment]
   NODE_VERSION = "22"
