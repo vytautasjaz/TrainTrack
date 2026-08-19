@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { Prisma, PlannedMetricSource, SessionType, WorkoutType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
-import { requireAthleteSession, requireSession, resolveAthleteId, isCoach} from '@/lib/session'
+import { requireAthleteSession, requireSession, resolveAthleteId, isCoach } from '@/lib/session'
 import { builderPayloadSchema } from '@/lib/workout-builder/schema'
 import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-athlete-preferences'
 import {

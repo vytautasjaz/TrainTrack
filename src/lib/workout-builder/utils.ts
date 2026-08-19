@@ -10,6 +10,7 @@ import type {
   WorkoutStructure,
 } from './types'
 import { defaultIntensityTargetType, isBikeSport } from './target-helpers'
+import { normalizeIncludePlacement } from './include-placement'
 
 export function newBlockId() {
   return crypto.randomUUID()
@@ -119,6 +120,10 @@ export function hasStructureContent(structure: WorkoutStructure): boolean {
     structure.mainSet.length > 0 ||
     structure.cooldown.length > 0
   )
+}
+
+export function hasIncludeItems(structure?: WorkoutStructure | null): boolean {
+  return (structure?.includeItems?.length ?? 0) > 0
 }
 
 export function normalizeOrders(blocks: WorkoutBlock[]): WorkoutBlock[] {
@@ -252,21 +257,22 @@ export function parseStructure(raw: unknown): WorkoutStructure {
   const s = raw as WorkoutStructure & { includeItems?: unknown }
   const includeItems: WorkoutIncludeItem[] = Array.isArray(s.includeItems)
     ? s.includeItems
-        .filter((item): item is WorkoutIncludeItem => {
-          if (!item || typeof item !== 'object') return false
-          const candidate = item as Partial<WorkoutIncludeItem>
-          return (
-            typeof candidate.id === 'string' &&
-            typeof candidate.title === 'string' &&
-            typeof candidate.kind === 'string' &&
-            typeof candidate.repetitions === 'number' &&
-            candidate.work != null
-          )
-        })
-        .map((item) => ({
-          ...item,
-          repetitions: Math.max(1, Math.round(item.repetitions)),
-        }))
+      .filter((item): item is WorkoutIncludeItem => {
+        if (!item || typeof item !== 'object') return false
+        const candidate = item as Partial<WorkoutIncludeItem>
+        return (
+          typeof candidate.id === 'string' &&
+          typeof candidate.title === 'string' &&
+          typeof candidate.kind === 'string' &&
+          typeof candidate.repetitions === 'number' &&
+          candidate.work != null
+        )
+      })
+      .map((item) => ({
+        ...item,
+        repetitions: Math.max(1, Math.round(item.repetitions)),
+        placementHint: normalizeIncludePlacement(item.placementHint),
+      }))
     : []
   return {
     warmup: Array.isArray(s.warmup) ? s.warmup : [],

@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { Menu } from 'lucide-react'
+import { ChevronDown, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ThemeToggleButton } from '@/components/theme-toggle-button'
 import { SignOutButton } from '@/components/layout/sign-out-button'
@@ -14,7 +14,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
-  CALCULATOR_NAV_TABS,
   CONNECT_COACH_NAV,
   getMainNav,
   SETTINGS_ENTRY_HREF,
@@ -23,6 +22,7 @@ import {
 import { cn } from '@/lib/utils'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { ViewModeSwitcher } from '@/components/layout/view-mode-switcher'
+import { useInboxNavBadge } from '@/components/layout/inbox-nav-badge'
 import type { AppViewMode } from '@/lib/session'
 
 type MobileNavMenuProps = {
@@ -47,13 +47,14 @@ export function MobileNavMenu({
   athleteProfile = null,
 }: MobileNavMenuProps) {
   const [open, setOpen] = useState(false)
+  const [expandedHref, setExpandedHref] = useState<string | null>(null)
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
   const mainItems = getMainNav(isCoach)
-  const toolsOpen = pathname === '/tools' || pathname.startsWith('/tools/')
   const settingsOpen = pathname.startsWith('/settings')
   const activeCalculatorTab = searchParams.get('tab') ?? 'running'
+  const inboxBadge = useInboxNavBadge(dashboardNotificationCount)
 
   return (
     <>
@@ -62,7 +63,13 @@ export function MobileNavMenu({
         variant="ghost"
         size="sm"
         className="h-9 w-9 shrink-0 rounded-[6px] p-0 landscape:max-lg:inline-flex lg:hidden"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setOpen(true)
+          const current = mainItems.find(
+            (item) => item.children?.length && pathname.startsWith(item.href),
+          )
+          setExpandedHref(current?.href ?? null)
+        }}
         aria-label="Open menu"
       >
         <Menu className="h-5 w-5" />
@@ -77,40 +84,73 @@ export function MobileNavMenu({
             <ViewModeSwitcher viewMode={viewMode} tone="light" className="mb-2" />
           ) : null}
           <nav className="flex flex-col gap-0.5">
-            {mainItems.map(({ href, label, icon: Icon }) => {
+            {mainItems.map(({ href, label, icon: Icon, children }) => {
               const active = pathname.startsWith(href)
-              const showBadge = href === '/inbox' && dashboardNotificationCount > 0
-              const isTools = href === '/tools'
+              const showBadge = href === '/inbox' && inboxBadge > 0
+              const hasSubmenu = Boolean(children?.length)
+              const expanded = hasSubmenu && expandedHref === href
               return (
                 <div key={href}>
-                  <Link
-                    href={href}
-                    onClick={() => setOpen(false)}
-                    className={cn(
-                      'flex items-center gap-3 rounded-[6px] px-3 py-2.5 text-sm font-medium transition-colors',
-                      active
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                    )}
-                  >
-                    <span className="relative">
-                      <Icon className="h-4 w-4" />
-                      {showBadge && (
-                        <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-bold text-background">
-                          {dashboardNotificationCount > 9 ? '9+' : dashboardNotificationCount}
-                        </span>
+                  {hasSubmenu ? (
+                    <button
+                      type="button"
+                      aria-expanded={expanded}
+                      onClick={() => setExpandedHref(expanded ? null : href)}
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-[6px] px-3 py-2.5 text-sm font-medium transition-colors',
+                        active
+                          ? 'bg-muted text-foreground'
+                          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
                       )}
-                    </span>
-                    {label}
-                  </Link>
-                  {isTools && toolsOpen ? (
+                    >
+                      <span className="relative">
+                        <Icon className="h-4 w-4" />
+                        {showBadge && (
+                          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-bold text-background">
+                            {inboxBadge > 9 ? '9+' : inboxBadge}
+                          </span>
+                        )}
+                      </span>
+                      {label}
+                      <ChevronDown
+                        className={cn(
+                          'ml-auto h-4 w-4 shrink-0 transition-transform',
+                          expanded && 'rotate-180',
+                        )}
+                      />
+                    </button>
+                  ) : (
+                    <Link
+                      href={href}
+                      onClick={() => setOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 rounded-[6px] px-3 py-2.5 text-sm font-medium transition-colors',
+                        active
+                          ? 'bg-muted text-foreground'
+                          : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                      )}
+                    >
+                      <span className="relative">
+                        <Icon className="h-4 w-4" />
+                        {showBadge && (
+                          <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-bold text-background">
+                            {inboxBadge > 9 ? '9+' : inboxBadge}
+                          </span>
+                        )}
+                      </span>
+                      {label}
+                    </Link>
+                  )}
+                  {expanded && children ? (
                     <div className="mt-1 ml-4 space-y-0.5 border-l border-border pl-3">
-                      {CALCULATOR_NAV_TABS.map((tab) => {
-                        const tabActive = activeCalculatorTab === tab.id
+                      {children.map((child) => {
+                        const tabActive =
+                          pathname.startsWith(href) &&
+                          child.href.includes(`tab=${activeCalculatorTab}`)
                         return (
                           <Link
-                            key={tab.id}
-                            href={tab.href}
+                            key={child.href}
+                            href={child.href}
                             onClick={() => setOpen(false)}
                             className={cn(
                               'block rounded-[6px] px-2.5 py-1.5 text-sm font-medium transition-colors',
@@ -119,7 +159,7 @@ export function MobileNavMenu({
                                 : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
                             )}
                           >
-                            {tab.label}
+                            {child.label}
                           </Link>
                         )
                       })}

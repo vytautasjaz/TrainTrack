@@ -361,6 +361,8 @@ model Athlete {
   weatherLocationName String?
   weatherLat          Float?
   weatherLon          Float?
+  /** When true, forecast is shown above workouts by default. Week view can still toggle for the session. */
+  showWeather         Boolean @default(true)
 
   // Coach training planner: default sport rows always shown
   planSportRows WorkoutType[] @default([RUN, BIKE, SWIM])

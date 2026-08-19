@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
@@ -50,6 +51,9 @@ export function InboxNotificationsToggle({ pushConfigured }: InboxNotificationsT
     const requested = await Notification.requestPermission()
     setPermission(requested)
     if (requested !== 'granted') return
+
+    const host = window.location.hostname
+    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return
 
     const reg = await navigator.serviceWorker.register('/sw.js')
     const existing = await reg.pushManager.getSubscription()

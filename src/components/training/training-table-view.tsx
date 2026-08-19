@@ -13,8 +13,7 @@ import {
   fetchTrainingTableDays,
   type TrainingTableDayDto,
 } from '@/app/actions/training-table'
-import { WorkoutDetailModal } from '@/components/plan/workout-detail-modal'
-import { RaceDetailModal } from '@/components/plan/race-detail-modal'
+import { PlanWorkoutModal } from '@/components/plan/plan-workout-modal'
 import { DayDropSection } from '@/components/plan/day-drop-section'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import { TrainingListWorkoutRow } from '@/components/training/training-list-workout-row'
@@ -96,14 +95,17 @@ export function TrainingTableView({
 
   // Reset when athlete/server initial window changes
   useEffect(() => {
-    setDays(initialDays)
-    setFromKey(initialFromKey)
-    setToKey(initialToKey)
+    const timeoutId = window.setTimeout(() => {
+      setDays(initialDays)
+      setFromKey(initialFromKey)
+      setToKey(initialToKey)
+    }, 0)
     userScrolledRef.current = false
     wantsPastRef.current = false
     emptyPastStreakRef.current = 0
     emptyFutureStreakRef.current = 0
     hasScrolledToInitial.current = false
+    return () => window.clearTimeout(timeoutId)
   }, [initialDays, initialFromKey, initialToKey])
 
   useLayoutEffect(() => {
@@ -393,16 +395,8 @@ export function TrainingTableView({
         </div>
       </div>
 
-      {selected?.isRace ? (
-        <RaceDetailModal
-          workout={selected}
-          open
-          onOpenChange={(open) => {
-            if (!open) setSelected(null)
-          }}
-        />
-      ) : selected ? (
-        <WorkoutDetailModal
+      {selected ? (
+        <PlanWorkoutModal
           workout={selected}
           isCoach={isCoach}
           open

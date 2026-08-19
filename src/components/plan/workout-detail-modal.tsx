@@ -21,17 +21,16 @@ import { CoachRescheduleReviewActions } from '@/components/plan/coach-reschedule
 import { WorkoutEditorDialog } from '@/components/workout-editor/workout-editor-dialog'
 import { ExportWorkoutCardDialog } from '@/components/workout-block/export-workout-card-dialog'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import { cn } from '@/lib/utils'
 import { formatRecoveryDayNote } from '@/lib/recovery-day'
 import { saveRecoveryDay } from '@/app/actions/workout-builder'
 import { deleteWorkout } from '@/app/actions/workouts'
 import { AskCoachSection } from '@/components/plan/ask-coach-section'
 import { UnsavedChangesDialog } from '@/components/ui/unsaved-changes-dialog'
 import { athleteCanLeaveWorkoutComment, type PlanWorkoutDetail } from '@/lib/plan-workout'
+import { coachOpensPlanWorkoutEditor } from '@/lib/plan-workout-modal'
 import { parseDateOnly } from '@/lib/dates'
 import { useCurrentPath } from '@/hooks/use-current-path'
 import { useResolvedPlanColorMode } from '@/components/training/plan-sport-filter-context'
-import { WORKOUT_TYPE_CELL_TINT } from '@/lib/workout-display'
 
 const SPORT_RAIL: Record<WorkoutType, string> = {
   RUN: 'var(--color-sport-run)',
@@ -115,7 +114,7 @@ export function WorkoutDetailModal({
   }
 
   // Coaches jump straight into the editor (skip read-only preview).
-  if (isCoach && workout.type !== WorkoutType.RECOVERY) {
+  if (coachOpensPlanWorkoutEditor(isCoach, workout)) {
     return (
       <WorkoutEditorDialog
         open={open}
@@ -141,7 +140,7 @@ export function WorkoutDetailModal({
   if (workout.type === WorkoutType.RECOVERY) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-white">
           <DialogHeader>
             <div className="flex items-start justify-between gap-3 pr-6">
               <div className="min-w-0">
@@ -240,16 +239,7 @@ export function WorkoutDetailModal({
               setLeaveOpen(true)
             }
           }}
-          className={cn(
-            'flex max-h-[90vh] max-w-lg flex-col gap-0 overflow-hidden border-0 p-0 shadow-[0_16px_48px_rgba(17,17,17,0.14)]',
-            colorMode === 'sport'
-              ? WORKOUT_TYPE_CELL_TINT[workout.type]
-              : completionChrome && completed
-                ? 'bg-[var(--color-tt-completed-bg)]'
-                : completionChrome && skipped
-                  ? 'bg-[var(--color-tt-skipped-bg)]'
-                  : 'bg-card',
-          )}
+          className="flex max-h-[90vh] max-w-lg flex-col gap-0 overflow-hidden border-0 bg-white p-0 shadow-[0_16px_48px_rgba(17,17,17,0.14)]"
         >
           <div
             className="pointer-events-none absolute inset-y-0 left-0 z-20 w-[4px]"

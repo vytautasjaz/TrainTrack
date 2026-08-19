@@ -2,12 +2,11 @@
 
 import { useState, useTransition } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Copy, MoreVertical, Pencil, Trash2 } from 'lucide-react'
+import { Copy, MoreVertical, Trash2 } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
 import { deleteWorkout } from '@/app/actions/workouts'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CopyPlanWorkoutModal } from '@/components/plan/copy-plan-workout-modal'
-import { WorkoutEditorDialog } from '@/components/workout-editor/workout-editor-dialog'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { cn } from '@/lib/utils'
 
@@ -28,7 +27,6 @@ export function PlanWorkoutActionsMenu({
   compact = false,
 }: PlanWorkoutActionsMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
   const [copyOpen, setCopyOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [pending, startTransition] = useTransition()
@@ -84,16 +82,6 @@ export function PlanWorkoutActionsMenu({
                 'flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none',
                 'text-foreground data-[highlighted]:bg-foreground/[0.04]',
               )}
-              onSelect={() => openAfterMenuClose(() => setEditOpen(true))}
-            >
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
-              Edit
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className={cn(
-                'flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none',
-                'text-foreground data-[highlighted]:bg-foreground/[0.04]',
-              )}
               onSelect={() => openAfterMenuClose(() => setCopyOpen(true))}
             >
               <Copy className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
@@ -112,14 +100,6 @@ export function PlanWorkoutActionsMenu({
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
-
-      <WorkoutEditorDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        date={workout.dateKey}
-        sport={workout.type}
-        workout={workout}
-      />
 
       <CopyPlanWorkoutModal
         open={copyOpen}

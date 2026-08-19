@@ -29,6 +29,7 @@ type TrainingMobileWeekViewProps = {
   removeWeekHref?: string | null;
   swimCssSecPer100m?: number | null;
   weatherLocation?: WeatherLocation | null;
+  weatherVisibleByDefault?: boolean;
 };
 
 /**
@@ -179,6 +180,7 @@ export function TrainingMobileWeekView({
   removeWeekHref,
   swimCssSecPer100m = null,
   weatherLocation = null,
+  weatherVisibleByDefault = true,
 }: TrainingMobileWeekViewProps) {
   const blocks: PlanMultiWeekBlock[] =
     weekBlocks && weekBlocks.length > 0
@@ -207,6 +209,7 @@ export function TrainingMobileWeekView({
       removeWeekHref={removeWeekHref}
       swimCssSecPer100m={swimCssSecPer100m}
       weatherLocation={weatherLocation}
+      weatherVisibleByDefault={weatherVisibleByDefault}
     />
   );
 

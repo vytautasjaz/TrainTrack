@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import type { ReactNode } from 'react'
-import { useEffect, useState } from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   CalendarClock,
   Clock,
@@ -14,98 +14,103 @@ import {
   Share2,
   Unlink,
   X,
-} from 'lucide-react'
-import { WorkoutStatus, WorkoutType } from '@prisma/client'
-import { DialogClose } from '@/components/ui/dialog'
-import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
-import { SelfAddedBadge } from '@/components/plan/self-added-badge'
-import { RescheduleBadge } from '@/components/plan/reschedule-badge'
-import { RescheduleWorkoutModal } from '@/components/plan/reschedule-workout-modal'
-import { SwimWorkoutBuilder } from '@/components/swim-workout/swim-workout-builder'
+} from "lucide-react";
+import { WorkoutStatus, WorkoutType } from "@prisma/client";
+import { DialogClose } from "@/components/ui/dialog";
+import { WorkoutSportIcon } from "@/components/plan/workout-sport-icon";
+import { SelfAddedBadge } from "@/components/plan/self-added-badge";
+import { RescheduleBadge } from "@/components/plan/reschedule-badge";
+import { RescheduleWorkoutModal } from "@/components/plan/reschedule-workout-modal";
+import { SwimWorkoutBuilder } from "@/components/swim-workout/swim-workout-builder";
 import {
   StravaDetachButton,
   StravaLinkPicker,
-} from '@/components/plan/strava-activity-picker'
-import { AthleteWorkoutQuickActions } from '@/components/plan/athlete-workout-quick-actions'
-import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
-import { StatusPill } from '@/components/ui/status-pill'
-import { WorkoutStructureChart } from '@/components/workout-builder/workout-structure-chart'
-import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import {
-  athleteHasQuickLogActions,
-  isStravaSynced,
-} from '@/lib/plan-workout'
-import { isStravaConnected } from '@/app/actions/strava'
+} from "@/components/plan/strava-activity-picker";
+import { AthleteWorkoutQuickActions } from "@/components/plan/athlete-workout-quick-actions";
+import { StravaSyncedIndicator } from "@/components/plan/strava-synced-indicator";
+import { StatusPill } from "@/components/ui/status-pill";
+import { WorkoutStructureChart } from "@/components/workout-builder/workout-structure-chart";
+import { IncludeItemsSummary } from "@/components/workout-editor/include-items-summary";
+import type { PlanWorkoutDetail } from "@/lib/plan-workout";
+import { athleteHasQuickLogActions, isStravaSynced } from "@/lib/plan-workout";
+import { isStravaConnected } from "@/app/actions/strava";
 import {
   approxMetricsFromTags,
   durationUnitFromTags,
   primaryMetricFromTags,
   secondaryMetricVisibleFromTags,
-} from '@/lib/workout-approx-tags'
+} from "@/lib/workout-approx-tags";
 import {
   formatWorkoutCardDurationParts,
   getWorkoutCardSubtitle,
-} from '@/lib/workout-card'
-import { getWorkoutPlanMetrics } from '@/lib/workout-plan-metrics'
-import { bikeKindFromTags, bikeKindLabel, bikePrimaryMetricFromTags } from '@/lib/bike-workout/defaults'
-import { getSessionTypeLabel } from '@/lib/workout-builder/session-modes'
+} from "@/lib/workout-card";
+import { getWorkoutPlanMetrics } from "@/lib/workout-plan-metrics";
+import {
+  bikeKindFromTags,
+  bikeKindLabel,
+  bikePrimaryMetricFromTags,
+} from "@/lib/bike-workout/defaults";
+import { getSessionTypeLabel } from "@/lib/workout-builder/session-modes";
 import {
   buildAthleteStructureDisplay,
   type PhaseBlockDisplay,
-} from '@/lib/workout-builder/athlete-structure-display'
-import { hasStructureContent } from '@/lib/workout-builder/utils'
-import { hasSwimStructureContent } from '@/lib/swim-workout/calculations'
-import { getSportEditorConfig } from '@/lib/workout-editor/types'
-import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import { parseDateOnly } from '@/lib/dates'
-import { cn } from '@/lib/utils'
-import type { PlanColorMode } from '@/lib/plan-sport-filter'
+} from "@/lib/workout-builder/athlete-structure-display";
+import { hasIncludeItems, hasStructureContent } from "@/lib/workout-builder/utils";
+import { hasSwimStructureContent } from "@/lib/swim-workout/calculations";
+import { getSportEditorConfig } from "@/lib/workout-editor/types";
+import { WORKOUT_TYPE_LABELS } from "@/lib/constants";
+import { parseDateOnly } from "@/lib/dates";
+import { cn } from "@/lib/utils";
+import type { PlanColorMode } from "@/lib/plan-sport-filter";
 
 const SPORT_ACCENT: Record<WorkoutType, string> = {
-  RUN: 'var(--color-sport-run)',
-  BIKE: 'var(--color-sport-bike)',
-  SWIM: 'var(--color-sport-swim)',
-  STRENGTH: 'var(--color-sport-strength)',
-  HYROX: 'var(--color-sport-hyrox)',
-  TRIATHLON: 'var(--color-sport-tri)',
-  RECOVERY: 'var(--color-sport-recovery)',
-  REST: 'var(--color-sport-rest)',
-}
+  RUN: "var(--color-sport-run)",
+  BIKE: "var(--color-sport-bike)",
+  SWIM: "var(--color-sport-swim)",
+  STRENGTH: "var(--color-sport-strength)",
+  HYROX: "var(--color-sport-hyrox)",
+  TRIATHLON: "var(--color-sport-tri)",
+  RECOVERY: "var(--color-sport-recovery)",
+  REST: "var(--color-sport-rest)",
+};
 
 function formatWorkoutDate(dateKey: string) {
-  return parseDateOnly(dateKey).toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
+  return parseDateOnly(dateKey).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 }
 
-function splitDistanceDisplay(distance: string): { value: string; unit: string } {
-  const trimmed = distance.trim()
-  const match = trimmed.match(/^(.+?)\s+(km|m)$/i)
+function splitDistanceDisplay(distance: string): {
+  value: string;
+  unit: string;
+} {
+  const trimmed = distance.trim();
+  const match = trimmed.match(/^(.+?)\s+(km|m)$/i);
   if (match) {
-    return { value: match[1]!, unit: match[2]!.toLowerCase() }
+    return { value: match[1]!, unit: match[2]!.toLowerCase() };
   }
-  return { value: trimmed, unit: '' }
+  return { value: trimmed, unit: "" };
 }
 
 function blockSubtitle(block: PhaseBlockDisplay) {
   if (block.intervalPreview) {
-    const target = block.paceLabel ?? block.zoneLabel
+    const target = block.paceLabel ?? block.zoneLabel;
     return `${block.intervalPreview.reps} × ${block.intervalPreview.work}${
-      target ? ` @ ${target}` : ''
-    }`
+      target ? ` @ ${target}` : ""
+    }`;
   }
 
-  const target = block.paceLabel ?? block.zoneLabel
-  return target ? `${block.primary} @ ${target}` : block.primary
+  const target = block.paceLabel ?? block.zoneLabel;
+  return target ? `${block.primary} @ ${target}` : block.primary;
 }
 
 function isHardIntensity(label: string | null): boolean {
-  if (!label) return false
-  return /hard|vo2|threshold|race|interval/i.test(label)
+  if (!label) return false;
+  return /hard|vo2|threshold|race|interval/i.test(label);
 }
 
 function HeroMetricColumn({
@@ -116,30 +121,34 @@ function HeroMetricColumn({
   planned,
   icon,
 }: {
-  label: string
-  value: string | null
-  unit?: string | null
-  approximate?: boolean
-  planned?: string | null
-  icon?: ReactNode
+  label: string;
+  value: string | null;
+  unit?: string | null;
+  approximate?: boolean;
+  planned?: string | null;
+  icon?: ReactNode;
 }) {
   return (
     <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center">
       <div className="inline-flex h-4 shrink-0 items-center justify-center gap-1 text-[#737986]">
         {icon}
-        <span className="text-[10px] font-bold uppercase tracking-wide">{label}</span>
+        <span className="text-[10px] font-bold uppercase tracking-wide">
+          {label}
+        </span>
       </div>
       <div className="mt-1.5 flex h-9 w-full shrink-0 items-center justify-center gap-0.5">
         {approximate && value ? (
-          <span className="text-sm font-semibold leading-none text-[#9aa0a8]">~</span>
+          <span className="text-sm font-semibold leading-none text-[#9aa0a8]">
+            ~
+          </span>
         ) : null}
         <span
           className={cn(
-            'max-w-full truncate text-[22px] font-bold leading-none tracking-tight tabular-nums text-[#111111]',
-            !value && 'text-[#c9cbc7]',
+            "max-w-full truncate text-[22px] font-bold leading-none tracking-tight tabular-nums text-[#111111]",
+            !value && "text-[#c9cbc7]",
           )}
         >
-          {value || '—'}
+          {value || "—"}
         </span>
         {unit ? (
           <span className="text-[12px] font-semibold leading-none tracking-tight text-[#111111]">
@@ -148,27 +157,29 @@ function HeroMetricColumn({
         ) : null}
       </div>
       {planned ? (
-        <p className="mt-1 text-[11px] font-medium tabular-nums text-[#9aa0a8]">/ {planned}</p>
+        <p className="mt-1 text-[11px] font-medium tabular-nums text-[#9aa0a8]">
+          / {planned}
+        </p>
       ) : (
         <div className="mt-1 h-4 shrink-0" aria-hidden />
       )}
     </div>
-  )
+  );
 }
 
 function StructureRow({
   block,
   sportColor,
 }: {
-  block: PhaseBlockDisplay
-  sportColor: string
+  block: PhaseBlockDisplay;
+  sportColor: string;
 }) {
-  const subtitle = blockSubtitle(block)
+  const subtitle = blockSubtitle(block);
   const durationLabel = block.durationLabel
     ? block.durationApproximate
       ? block.durationLabel
-      : block.durationLabel.replace(/^~/, '')
-    : null
+      : block.durationLabel.replace(/^~/, "")
+    : null;
 
   return (
     <div className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-[#f4f4f3]/80">
@@ -178,12 +189,18 @@ function StructureRow({
         aria-hidden
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[14px] font-semibold text-[#111111]">{block.title}</p>
+        <p className="truncate text-[14px] font-semibold text-[#111111]">
+          {block.title}
+        </p>
         {subtitle ? (
-          <p className="mt-0.5 truncate text-[12px] text-[#737986]">{subtitle}</p>
+          <p className="mt-0.5 truncate text-[12px] text-[#737986]">
+            {subtitle}
+          </p>
         ) : null}
         {block.recoveryNote ? (
-          <p className="mt-0.5 truncate text-[12px] text-[#9aa0a8]">{block.recoveryNote}</p>
+          <p className="mt-0.5 truncate text-[12px] text-[#9aa0a8]">
+            {block.recoveryNote}
+          </p>
         ) : null}
       </div>
       {durationLabel ? (
@@ -192,26 +209,26 @@ function StructureRow({
         </span>
       ) : null}
     </div>
-  )
+  );
 }
 
 type AthleteWorkoutDetailCardProps = {
-  workout: PlanWorkoutDetail
-  className?: string
+  workout: PlanWorkoutDetail;
+  className?: string;
   /** When false (athlete modal), today/past workouts show Done/Skip in the hero. */
-  isCoach?: boolean
+  isCoach?: boolean;
   /** Athlete can link / detach Strava from the hero ⋮ menu. */
-  showStravaActions?: boolean
-  onStravaChange?: () => void
+  showStravaActions?: boolean;
+  onStravaChange?: () => void;
   /** Reschedule + Share live under the hero ⋮ menu (athlete modal). */
-  showUtilityActions?: boolean
+  showUtilityActions?: boolean;
   /** Completed / Skipped chip next to Strava or Done/Skip (athlete modal only). */
-  showStatusBadge?: boolean
+  showStatusBadge?: boolean;
   /** Matches training Color / Plain / Completion chrome. */
-  colorMode?: PlanColorMode
-  onShare?: () => void
-  onRescheduleDone?: () => void
-}
+  colorMode?: PlanColorMode;
+  onShare?: () => void;
+  onRescheduleDone?: () => void;
+};
 
 export function AthleteWorkoutDetailCard({
   workout,
@@ -221,80 +238,91 @@ export function AthleteWorkoutDetailCard({
   onStravaChange,
   showUtilityActions = false,
   showStatusBadge = false,
-  colorMode = 'sport',
+  colorMode = "completion",
   onShare,
   onRescheduleDone,
 }: AthleteWorkoutDetailCardProps) {
-  const [stravaConnected, setStravaConnected] = useState(false)
-  const [linkOpen, setLinkOpen] = useState(false)
-  const [detachOpen, setDetachOpen] = useState(false)
-  const [rescheduleOpen, setRescheduleOpen] = useState(false)
+  const [stravaConnected, setStravaConnected] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [detachOpen, setDetachOpen] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
 
   useEffect(() => {
-    if (!showStravaActions) return
-    let cancelled = false
+    if (!showStravaActions) return;
+    let cancelled = false;
     void isStravaConnected()
       .then((value) => {
-        if (!cancelled) setStravaConnected(value)
+        if (!cancelled) setStravaConnected(value);
       })
       .catch(() => {
-        if (!cancelled) setStravaConnected(false)
-      })
+        if (!cancelled) setStravaConnected(false);
+      });
     return () => {
-      cancelled = true
-    }
-  }, [showStravaActions])
+      cancelled = true;
+    };
+  }, [showStravaActions]);
 
-  const config = getSportEditorConfig(workout.type)
-  const metrics = getWorkoutPlanMetrics(workout, workout.status)
-  const subtitle = getWorkoutCardSubtitle(workout)
-  const hasSwimStructure = hasSwimStructureContent(workout.swimStructure)
-  const approx = approxMetricsFromTags(workout.tags)
-  const stravaSynced = isStravaSynced(workout)
-  const stravaUrl = workout.result?.stravaActivityUrl ?? null
-  const showQuickLog = athleteHasQuickLogActions(workout, isCoach)
-  const sportColor = SPORT_ACCENT[workout.type]
-  const sportLabel = WORKOUT_TYPE_LABELS[workout.type]
-  const completed = workout.status === WorkoutStatus.COMPLETED
-  const skipped = workout.status === WorkoutStatus.SKIPPED
-  const statusChrome = colorMode === 'completion'
+  const config = getSportEditorConfig(workout.type);
+  const metrics = getWorkoutPlanMetrics(workout, workout.status);
+  const subtitle = getWorkoutCardSubtitle(workout);
+  const hasSwimStructure = hasSwimStructureContent(workout.swimStructure);
+  const approx = approxMetricsFromTags(workout.tags);
+  const stravaSynced = isStravaSynced(workout);
+  const stravaUrl = workout.result?.stravaActivityUrl ?? null;
+  const showQuickLog = athleteHasQuickLogActions(workout, isCoach);
+  const sportColor = SPORT_ACCENT[workout.type];
+  const sportLabel = WORKOUT_TYPE_LABELS[workout.type];
+  const completed = workout.status === WorkoutStatus.COMPLETED;
+  const skipped = workout.status === WorkoutStatus.SKIPPED;
+  const statusChrome = colorMode === "completion";
   const accentColor =
-    statusChrome && completed ? '#1b7a3d' : statusChrome && skipped ? '#b91c1c' : sportColor
+    statusChrome && completed
+      ? "#1b7a3d"
+      : statusChrome && skipped
+        ? "#b91c1c"
+        : sportColor;
   const accentSoft =
-    statusChrome && completed ? '#86d39a' : statusChrome && skipped ? '#f5a3a3' : sportColor
+    statusChrome && completed
+      ? "#86d39a"
+      : statusChrome && skipped
+        ? "#f5a3a3"
+        : sportColor;
 
   const canReschedule =
     showUtilityActions &&
     !workout.isRace &&
     !workout.isRescheduleGhost &&
     workout.type !== WorkoutType.REST &&
-    workout.type !== WorkoutType.RECOVERY
+    workout.type !== WorkoutType.RECOVERY;
 
   const showMenu =
     Boolean(stravaUrl) ||
     (showStravaActions && (stravaConnected || stravaSynced)) ||
     canReschedule ||
-    Boolean(showUtilityActions && onShare)
+    Boolean(showUtilityActions && onShare);
 
   const primary =
     primaryMetricFromTags(workout.tags) ??
     (workout.type === WorkoutType.BIKE
       ? bikePrimaryMetricFromTags(workout.tags)
       : null) ??
-    (config.showDistance ? 'distance' : 'duration')
-  const secondaryVisible = secondaryMetricVisibleFromTags(workout.tags)
+    (config.showDistance ? "distance" : "duration");
+  const secondaryVisible = secondaryMetricVisibleFromTags(workout.tags);
 
   const distanceOnCard =
-    config.showDistance && (primary === 'distance' || secondaryVisible)
-  const durationOnCard = primary === 'duration' || !config.showDistance || secondaryVisible
+    config.showDistance && (primary === "distance" || secondaryVisible);
+  const durationOnCard =
+    primary === "duration" || !config.showDistance || secondaryVisible;
 
   const durationUnit =
-    durationUnitFromTags(workout.tags) ?? config.durationUnitDefault
+    durationUnitFromTags(workout.tags) ?? config.durationUnitDefault;
 
-  const distanceParts = metrics.distance ? splitDistanceDisplay(metrics.distance) : null
+  const distanceParts = metrics.distance
+    ? splitDistanceDisplay(metrics.distance)
+    : null;
   const plannedDistanceParts = metrics.plannedDistance
     ? splitDistanceDisplay(metrics.plannedDistance)
-    : null
+    : null;
 
   const durationMinutes =
     workout.status === WorkoutStatus.COMPLETED &&
@@ -303,20 +331,25 @@ export function AthleteWorkoutDetailCard({
       ? Math.round(workout.result.actualDuration)
       : workout.plannedDuration != null && workout.plannedDuration > 0
         ? Math.round(workout.plannedDuration)
-        : null
+        : null;
   const durationParts =
     durationMinutes != null
       ? formatWorkoutCardDurationParts(durationMinutes, durationUnit)
-      : null
+      : null;
   const plannedDurationParts =
     metrics.showPlannedComparison &&
     workout.plannedDuration != null &&
     workout.plannedDuration > 0
-      ? formatWorkoutCardDurationParts(Math.round(workout.plannedDuration), durationUnit)
-      : null
+      ? formatWorkoutCardDurationParts(
+          Math.round(workout.plannedDuration),
+          durationUnit,
+        )
+      : null;
 
   const bikeKind =
-    workout.type === WorkoutType.BIKE ? bikeKindFromTags(workout.tags ?? []) : null
+    workout.type === WorkoutType.BIKE
+      ? bikeKindFromTags(workout.tags ?? [])
+      : null;
   const intensityLabel =
     workout.type === WorkoutType.SWIM
       ? null
@@ -324,7 +357,7 @@ export function AthleteWorkoutDetailCard({
         ? bikeKindLabel(bikeKind)
         : workout.sessionType
           ? getSessionTypeLabel(workout.sessionType, workout.type)
-          : null
+          : null;
 
   const structureDisplay =
     !hasSwimStructure &&
@@ -336,44 +369,43 @@ export function AthleteWorkoutDetailCard({
           plannedDuration: workout.plannedDuration,
           sportType: workout.type,
         })
-      : null
+      : null;
 
   const hasBuilderStructure = Boolean(
     structureDisplay && structureDisplay.blocks.length > 0,
-  )
+  );
+  const hasIncludes = hasIncludeItems(workout.structure);
 
-  const fullDescription = workout.description?.trim() || null
+  const fullDescription = workout.description?.trim() || null;
   const showDescriptionDetails =
-    Boolean(fullDescription) &&
-    !hasSwimStructure &&
-    !hasBuilderStructure
+    Boolean(fullDescription) && !hasSwimStructure && !hasBuilderStructure;
 
   const showMetricsRow =
-    Boolean(intensityLabel) || distanceOnCard || durationOnCard
+    Boolean(intensityLabel) || distanceOnCard || durationOnCard;
 
   const statusBadge =
     showStatusBadge && completed ? (
       <StatusPill tone="completed">Completed</StatusPill>
     ) : showStatusBadge && skipped ? (
       <StatusPill tone="skipped">Skipped</StatusPill>
-    ) : null
+    ) : null;
 
-  const dateLabel = formatWorkoutDate(workout.dateKey)
-  const coachNotes = workout.coachNotes?.trim() || null
+  const dateLabel = formatWorkoutDate(workout.dateKey);
+  const coachNotes = workout.coachNotes?.trim() || null;
 
   return (
     <div className={cn(className)}>
       <div className="px-5 pb-4 pt-5">
         <div
           className={cn(
-            'relative flex items-start gap-3',
+            "relative flex items-start gap-3",
             statusBadge && (showQuickLog || stravaSynced)
-              ? 'pr-[13rem]'
+              ? "pr-[13rem]"
               : showQuickLog || stravaSynced
-                ? 'pr-[7.5rem]'
+                ? "pr-[7.5rem]"
                 : statusBadge
-                  ? 'pr-[9rem]'
-                  : 'pr-16',
+                  ? "pr-[9rem]"
+                  : "pr-16",
           )}
         >
           <div
@@ -404,11 +436,11 @@ export function AthleteWorkoutDetailCard({
               <span className="font-semibold" style={{ color: accentColor }}>
                 {sportLabel}
               </span>
-              {' · '}
+              {" · "}
               {dateLabel}
               {subtitle && !showDescriptionDetails && !hasBuilderStructure ? (
                 <>
-                  {' · '}
+                  {" · "}
                   {subtitle}
                 </>
               ) : null}
@@ -418,7 +450,11 @@ export function AthleteWorkoutDetailCard({
           <div className="absolute right-0 top-0 z-10 flex items-center gap-1.5">
             {statusBadge}
             {stravaSynced ? (
-              <StravaSyncedIndicator workout={workout} variant="wordmark" size="xs" />
+              <StravaSyncedIndicator
+                workout={workout}
+                variant="wordmark"
+                size="xs"
+              />
             ) : showQuickLog ? (
               <AthleteWorkoutQuickActions
                 workout={workout}
@@ -467,7 +503,11 @@ export function AthleteWorkoutDetailCard({
                     {stravaUrl ? (
                       <DropdownMenu.Item
                         onSelect={() => {
-                          window.open(stravaUrl, '_blank', 'noopener,noreferrer')
+                          window.open(
+                            stravaUrl,
+                            "_blank",
+                            "noopener,noreferrer",
+                          );
                         }}
                         className="flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-foreground/[0.04]"
                       >
@@ -542,7 +582,10 @@ export function AthleteWorkoutDetailCard({
                   value={intensityLabel}
                   icon={
                     isHardIntensity(intensityLabel) ? (
-                      <Flame className="h-3 w-3 text-[#B91C1C]" strokeWidth={2.25} />
+                      <Flame
+                        className="h-3 w-3 text-[#B91C1C]"
+                        strokeWidth={2.25}
+                      />
                     ) : undefined
                   }
                 />
@@ -564,7 +607,7 @@ export function AthleteWorkoutDetailCard({
                       ? `${plannedDistanceParts.value}${
                           plannedDistanceParts.unit
                             ? ` ${plannedDistanceParts.unit}`
-                            : ''
+                            : ""
                         }`
                       : null
                   }
@@ -593,18 +636,19 @@ export function AthleteWorkoutDetailCard({
           </div>
         ) : null}
 
-        {hasBuilderStructure && workout.structure ? (
+        {(hasBuilderStructure || hasIncludes) && workout.structure ? (
           <div className="mt-4">
             <WorkoutStructureChart
               structure={workout.structure}
+              durationMinutes={workout.plannedDuration ?? undefined}
               size="md"
               showCaption
               tone={
                 statusChrome && completed
-                  ? 'completed'
+                  ? "completed"
                   : statusChrome && skipped
-                    ? 'skipped'
-                    : 'default'
+                    ? "skipped"
+                    : "default"
               }
             />
           </div>
@@ -625,9 +669,25 @@ export function AthleteWorkoutDetailCard({
       ) : hasBuilderStructure && structureDisplay ? (
         <div className="divide-y divide-[#e2e3e1]/80">
           {structureDisplay.blocks.map((block) => (
-            <StructureRow key={block.id} block={block} sportColor={sportColor} />
+            <StructureRow
+              key={block.id}
+              block={block}
+              sportColor={sportColor}
+            />
           ))}
         </div>
+      ) : hasIncludes && workout.structure?.includeItems ? (
+        <section className="space-y-2 px-5 pb-4">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9aa0a8]">
+            Include
+          </p>
+          <IncludeItemsSummary items={workout.structure.includeItems} />
+          {showDescriptionDetails && fullDescription ? (
+            <p className="whitespace-pre-wrap pt-1 text-[14px] leading-relaxed text-[#111111]">
+              {fullDescription}
+            </p>
+          ) : null}
+        </section>
       ) : showDescriptionDetails && fullDescription ? (
         <section className="space-y-1.5 px-5 pb-4">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9aa0a8]">
@@ -656,5 +716,5 @@ export function AthleteWorkoutDetailCard({
         </section>
       ) : null}
     </div>
-  )
+  );
 }

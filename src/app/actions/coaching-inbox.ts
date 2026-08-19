@@ -34,6 +34,8 @@ import { parseWorkoutFeeling } from '@/lib/workout-feeling'
 import { sendInboxPushNotifications } from '@/lib/push-notifications'
 
 function revalidateInboxPaths(opts?: { workoutId?: string; raceId?: string; athleteId?: string }) {
+  revalidatePath('/inbox', 'layout')
+  revalidatePath('/', 'layout')
   revalidatePath('/inbox')
   revalidatePath('/dashboard')
   revalidatePath('/training')
@@ -100,8 +102,7 @@ async function appendMessage(opts: {
     throw new Error('Message is required')
   }
 
-  const now = new Date()
-  await prisma.coachingMessage.create({
+  const message = await prisma.coachingMessage.create({
     data: {
       threadId: opts.threadId,
       authorRole: opts.authorRole,
@@ -109,15 +110,16 @@ async function appendMessage(opts: {
       body,
     },
   })
+  const at = message.createdAt
 
   await prisma.coachingThread.update({
     where: { id: opts.threadId },
     data: {
-      lastMessageAt: now,
+      lastMessageAt: at,
       status: CoachingThreadStatus.OPEN,
       ...(opts.authorRole === CoachingAuthorRole.ATHLETE
-        ? { athleteLastReadAt: now }
-        : { coachLastReadAt: now }),
+        ? { athleteLastReadAt: at }
+        : { coachLastReadAt: at }),
     },
   })
 
@@ -368,19 +370,26 @@ export async function markCoachingThreadRead(formData: FormData) {
   if (!threadId) throw new Error('Thread required')
 
   const { thread, role } = await requireThreadAccess(threadId)
-  const now = new Date()
+  const lastMessage = thread.messages[thread.messages.length - 1]
+  const readAt = new Date(
+    Math.max(
+      Date.now(),
+      thread.lastMessageAt.getTime(),
+      lastMessage?.createdAt.getTime() ?? 0,
+    ),
+  )
   await prisma.coachingThread.update({
     where: { id: thread.id },
     data:
       role === 'coach'
-        ? { coachLastReadAt: now }
-        : { athleteLastReadAt: now },
+        ? { coachLastReadAt: readAt }
+        : { athleteLastReadAt: readAt },
   })
 
   if (role === 'athlete' && thread.workoutId) {
     await prisma.workoutResult.updateMany({
       where: { workoutId: thread.workoutId, coachReply: { not: null }, coachReplyReadAt: null },
-      data: { coachReplyReadAt: now },
+      data: { coachReplyReadAt: readAt },
     })
   }
 

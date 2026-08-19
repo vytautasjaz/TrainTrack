@@ -7,8 +7,9 @@ import { CoachingAuthorRole } from '@prisma/client'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { markCoachingThreadRead, replyToCoachingThread } from '@/app/actions/coaching-inbox'
+import { replyToCoachingThread } from '@/app/actions/coaching-inbox'
 import { COACHING_THREAD_MESSAGE_CAP } from '@/lib/coaching-inbox-shared'
+import { refreshInboxUnreadBadge } from '@/components/layout/inbox-nav-badge'
 import {
   parseWorkoutFeeling,
   WORKOUT_FEELING_BUBBLE_CLASS,
@@ -76,7 +77,10 @@ export function CoachingThreadPanel({
   const atCap = localMessages.length >= COACHING_THREAD_MESSAGE_CAP
 
   useEffect(() => {
-    setLocalMessages(thread.messages)
+    const timeoutId = window.setTimeout(() => {
+      setLocalMessages(thread.messages)
+    }, 0)
+    return () => window.clearTimeout(timeoutId)
   }, [
     thread.id,
     thread.messages.length,
@@ -87,10 +91,24 @@ export function CoachingThreadPanel({
 
   useEffect(() => {
     if (isOptimistic || skipAutoRead) return
-    const formData = new FormData()
-    formData.set('threadId', thread.id)
-    void markCoachingThreadRead(formData)
-  }, [thread.id, isOptimistic, skipAutoRead])
+    let cancelled = false
+    void fetch('/api/inbox/mark-read', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ threadId: thread.id }),
+    })
+      .then((res) => {
+        if (cancelled || !res.ok) return
+        void refreshInboxUnreadBadge()
+        router.refresh()
+      })
+      .catch(() => {
+        // Ignore network / stale-tab failures; unread can be marked on next open.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [thread.id, isOptimistic, skipAutoRead, router])
 
   function refresh() {
     router.refresh()
@@ -121,6 +139,7 @@ export function CoachingThreadPanel({
       try {
         await replyToCoachingThread(formData)
         refresh()
+        void refreshInboxUnreadBadge()
       } catch {
         setLocalMessages((prev) => prev.filter((m) => m.id !== optimistic.id))
       }
@@ -128,8 +147,8 @@ export function CoachingThreadPanel({
   }
 
   return (
-    <div className={cn('space-y-3', className)}>
-      <div className={cn('space-y-2', compact ? 'max-h-40 overflow-y-auto' : 'max-h-72 overflow-y-auto')}>
+    <div className={cn('min-w-0 max-w-full space-y-3', className)}>
+      <div className={cn('min-w-0 space-y-2', compact ? 'max-h-40 overflow-y-auto' : 'max-h-72 overflow-y-auto')}>
         {localMessages.map((m) => {
           const mine =
             (role === 'athlete' && m.authorRole === CoachingAuthorRole.ATHLETE) ||
@@ -142,11 +161,11 @@ export function CoachingThreadPanel({
           return (
             <div
               key={m.id}
-              className={cn('flex', mine ? 'justify-end' : 'justify-start')}
+              className={cn('flex min-w-0', mine ? 'justify-end' : 'justify-start')}
             >
               <div
                 className={cn(
-                  'max-w-[85%] rounded-[10px] px-3 py-2 text-sm',
+                  'min-w-0 max-w-[min(85%,100%)] rounded-[10px] px-3 py-2 text-sm [overflow-wrap:anywhere]',
                   isFeedback && feelingTone
                     ? WORKOUT_FEELING_BUBBLE_CLASS[feelingTone]
                     : isFeedback
@@ -177,11 +196,13 @@ export function CoachingThreadPanel({
                   </p>
                 ) : null}
                 {m.body.trim() ? (
-                  <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
+                  <p className="whitespace-pre-wrap break-words leading-relaxed [overflow-wrap:anywhere]">
+                    {m.body}
+                  </p>
                 ) : null}
                 <p
                   className={cn(
-                    'mt-1 text-[10px]',
+                    'mt-1 text-[10px] [overflow-wrap:anywhere]',
                     feelingTone
                       ? WORKOUT_FEELING_META_CLASS[feelingTone]
                       : isFeedback
@@ -208,7 +229,7 @@ export function CoachingThreadPanel({
           Message limit reached ({COACHING_THREAD_MESSAGE_CAP}).
         </p>
       ) : (
-        <form onSubmit={send} className="space-y-2">
+        <form onSubmit={send} className="min-w-0 space-y-2">
           <Textarea
             ref={textareaRef}
             value={body}

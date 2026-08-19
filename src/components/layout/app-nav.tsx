@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
@@ -15,6 +16,7 @@ import { ThemeToggleButton } from '@/components/theme-toggle-button'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { SignOutButton } from '@/components/layout/sign-out-button'
 import { ViewModeSwitcher } from '@/components/layout/view-mode-switcher'
+import { useInboxNavBadge } from '@/components/layout/inbox-nav-badge'
 import type { AppViewMode } from '@/lib/session'
 import {
   CALCULATOR_NAV_TABS,
@@ -22,6 +24,7 @@ import {
   getMainNav,
   SETTINGS_ENTRY_HREF,
   SETTINGS_SUBNAV,
+  type NavItem,
 } from '@/lib/nav-items'
 
 export type SidebarAthleteProfile = {
@@ -87,6 +90,7 @@ export function AppNav({
   /** Month calendar expand forces icon-only sidebar without changing stored preference. */
   const [expandLocked, setExpandLocked] = useState(false)
   const effectiveCollapsed = expandLocked || collapsed
+  const inboxBadge = useInboxNavBadge(dashboardNotificationCount)
 
   useEffect(() => {
     const mq = window.matchMedia(SIDEBAR_AUTO_COLLAPSE_MQ)
@@ -175,7 +179,7 @@ export function AppNav({
           <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain">
             {mainNav.map(({ href, label, icon: Icon }) => {
               const active = isNavActive(pathname, href)
-              const showBadge = href === '/inbox' && dashboardNotificationCount > 0
+              const showBadge = href === '/inbox' && inboxBadge > 0
               const isTools = href === '/tools'
               return (
                 <div key={href}>
@@ -203,9 +207,9 @@ export function AppNav({
                           )}
                         >
                           {!effectiveCollapsed &&
-                            (dashboardNotificationCount > 9
+                            (inboxBadge > 9
                               ? '9+'
-                              : dashboardNotificationCount)}
+                              : inboxBadge)}
                         </span>
                       )}
                     </span>
@@ -360,41 +364,156 @@ export function AppNav({
         </div>
       </aside>
 
-      {/* Bottom nav — portrait phones */}
-      <nav
-        data-mobile-bottom-nav
-        className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card shadow-[var(--shadow-nav)] portrait:max-lg:block landscape:max-lg:hidden lg:hidden"
-      >
-        <div className="flex items-stretch justify-around px-1 pb-[env(safe-area-inset-bottom)] pt-1">
-          {mainNav.map(({ href, label, icon: Icon }) => {
-            const active = isNavActive(pathname, href)
-            const showBadge = href === '/inbox' && dashboardNotificationCount > 0
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={cn(
-                  'flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
-                  active ? 'text-foreground' : 'text-muted-foreground',
-                )}
-              >
-                <span
-                  className={cn(
-                    'relative flex h-8 w-8 items-center justify-center rounded-[6px] transition-colors',
-                    active && 'bg-muted',
-                  )}
-                >
-                  <Icon className="h-5 w-5" strokeWidth={active ? 2.25 : 2} />
-                  {showBadge && (
-                    <span className="absolute right-0 top-0 h-2 w-2 rounded-full bg-foreground ring-2 ring-card" />
-                  )}
-                </span>
-                <span className="truncate">{label}</span>
-              </Link>
-            )
-          })}
-        </div>
-      </nav>
+      <MobileBottomNav
+        items={mainNav}
+        pathname={pathname}
+        query={searchParams.toString()}
+        dashboardNotificationCount={inboxBadge}
+      />
     </>
+  )
+}
+
+function isSubItemActive(href: string, pathname: string, query: string) {
+  const qIndex = href.indexOf('?')
+  const path = qIndex === -1 ? href : href.slice(0, qIndex)
+  if (pathname !== path && !pathname.startsWith(`${path}/`)) return false
+  if (qIndex === -1) return true
+  const params = new URLSearchParams(href.slice(qIndex + 1))
+  const current = new URLSearchParams(query)
+  for (const [key, value] of params) {
+    const currentValue = current.get(key)
+    if (key === 'tab' && path === '/tools') {
+      if ((currentValue ?? 'running') !== value) return false
+      continue
+    }
+    if (currentValue !== value) return false
+  }
+  return true
+}
+
+function MobileBottomNav({
+  items,
+  pathname,
+  query,
+  dashboardNotificationCount,
+}: {
+  items: NavItem[]
+  pathname: string
+  query: string
+  dashboardNotificationCount: number
+}) {
+  const [openHref, setOpenHref] = useState<string | null>(null)
+  const openItem = items.find((item) => item.href === openHref && item.children?.length)
+
+  useEffect(() => {
+    setOpenHref(null)
+  }, [pathname, query])
+
+  useEffect(() => {
+    if (!openHref) return
+    function onKey(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpenHref(null)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [openHref])
+
+  return (
+    <nav
+      data-mobile-bottom-nav
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card shadow-[var(--shadow-nav)] portrait:max-lg:block landscape:max-lg:hidden lg:hidden"
+    >
+      {openItem?.children ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-0 bg-black/30"
+            aria-label="Close menu"
+            onClick={() => setOpenHref(null)}
+          />
+          <div
+            role="menu"
+            aria-label={openItem.label}
+            className="absolute inset-x-0 bottom-full z-10 overflow-hidden rounded-t-2xl border-x border-t border-border bg-card shadow-[0_-8px_24px_rgb(0_0_0/0.12)]"
+          >
+            <p className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+              {openItem.label}
+            </p>
+            <ul className="px-2 pb-2">
+              {openItem.children.map((child) => {
+                const active = isSubItemActive(child.href, pathname, query)
+                return (
+                  <li key={child.href}>
+                    <Link
+                      href={child.href}
+                      role="menuitem"
+                      onClick={() => setOpenHref(null)}
+                      className={cn(
+                        'block rounded-[8px] px-3 py-2.5 text-sm font-medium transition-colors',
+                        active
+                          ? 'bg-muted text-foreground'
+                          : 'text-foreground hover:bg-muted/70',
+                      )}
+                    >
+                      {child.label}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </>
+      ) : null}
+
+      <div className="relative z-10 flex items-stretch justify-around bg-card px-1 pb-[env(safe-area-inset-bottom)] pt-1">
+        {items.map(({ href, label, icon: Icon, children }) => {
+          const active = isNavActive(pathname, href)
+          const showBadge = href === '/inbox' && dashboardNotificationCount > 0
+          const hasSubmenu = Boolean(children?.length)
+          const expanded = openHref === href
+          const itemClass = cn(
+            'flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+            active || expanded ? 'text-foreground' : 'text-muted-foreground',
+          )
+          const iconWrapClass = cn(
+            'relative flex h-8 w-8 items-center justify-center rounded-[6px] transition-colors',
+            (active || expanded) && 'bg-muted',
+          )
+          const icon = (
+            <>
+              <span className={iconWrapClass}>
+                <Icon className="h-5 w-5" strokeWidth={active || expanded ? 2.25 : 2} />
+                {showBadge && (
+                  <span className="absolute right-0 top-0 h-2 w-2 rounded-full bg-foreground ring-2 ring-card" />
+                )}
+              </span>
+              <span className="truncate">{label}</span>
+            </>
+          )
+
+          if (hasSubmenu) {
+            return (
+              <button
+                key={href}
+                type="button"
+                className={itemClass}
+                aria-haspopup="menu"
+                aria-expanded={expanded}
+                onClick={() => setOpenHref(expanded ? null : href)}
+              >
+                {icon}
+              </button>
+            )
+          }
+
+          return (
+            <Link key={href} href={href} className={itemClass}>
+              {icon}
+            </Link>
+          )
+        })}
+      </div>
+    </nav>
   )
 }

@@ -22,6 +22,7 @@ import {
 } from '@/lib/workout-builder/target-helpers'
 import { SuggestableInput } from '@/components/swim-workout/suggestable-input'
 import type { IntensityOption } from '@/components/workout-builder/builder-segment-editor'
+import { NumberInput } from '@/components/ui/number-input'
 import { cn } from '@/lib/utils'
 
 const GHOST_INPUT =
@@ -284,11 +285,12 @@ export function WorkoutDetailsInlineFields({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-baseline gap-0.5 tabular-nums">
-          <input
-            type="number"
-            min={1}
+          <NumberInput
             value={block.repetitions ?? 1}
-            onChange={(e) => update({ repetitions: parseInt(e.target.value, 10) || 1 })}
+            onChange={(repetitions) => update({ repetitions })}
+            min={1}
+            integer
+            inputMode="numeric"
             aria-label="Repeats"
             className={cn(GHOST_INPUT, 'w-6 text-center')}
           />
@@ -380,11 +382,12 @@ export function WorkoutDetailsInlineFields({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-baseline gap-0.5 tabular-nums">
-          <input
-            type="number"
-            min={1}
+          <NumberInput
             value={block.repetitions ?? 1}
-            onChange={(e) => update({ repetitions: parseInt(e.target.value, 10) || 1 })}
+            onChange={(repetitions) => update({ repetitions })}
+            min={1}
+            integer
+            inputMode="numeric"
             aria-label="Repeats"
             className={cn(GHOST_INPUT, 'w-8 text-center')}
           />

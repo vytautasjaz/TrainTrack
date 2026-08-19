@@ -1,5 +1,6 @@
 import { SessionType, WorkoutType } from '@prisma/client'
 import { z } from 'zod'
+import { INCLUDE_PLACEMENTS, normalizeIncludePlacement } from '@/lib/workout-builder/include-placement'
 
 const segmentSchema = z.object({
   mode: z.enum(['time', 'distance']),
@@ -38,7 +39,10 @@ const includeItemSchema = z.object({
   work: segmentSchema,
   recovery: segmentSchema.optional(),
   notes: z.string().optional(),
-  placementHint: z.enum(['anywhere', 'before_main', 'inside_main', 'after_main']).optional(),
+  placementHint: z.preprocess(
+    (value) => (value == null || value === '' ? undefined : normalizeIncludePlacement(value)),
+    z.enum(INCLUDE_PLACEMENTS).optional(),
+  ),
 })
 
 const blockSchema = z.object({

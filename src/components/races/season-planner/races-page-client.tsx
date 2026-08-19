@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useState, useTransition, type MouseEvent, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { MoreVertical, Pencil, Trash2, Search, X, ChevronDown, Check, Plus } from 'lucide-react'
@@ -56,7 +56,9 @@ import {
   buildPlannerScrollRange,
   buildPlannerWeekColumns,
   groupPlannerMonths,
-  plannerViewportMonths,
+  plannerLabelWidth,
+  plannerScrollLeftForWeek,
+  plannerVisibleWeekCount,
   plannerWeekColumnWidth,
   prepWindowForRace,
   resolvePreparationWeeks,
@@ -172,14 +174,14 @@ function SeasonPlannerView({
     return buildPlannerWeekColumns(start, end)
   }, [today])
   const months = useMemo(() => groupPlannerMonths(weeks), [weeks])
-  const colW = plannerWeekColumnWidth(zoom)
+  const { labelW, colW } = usePlannerLayout(zoom)
   const todayIdx = todayWeekIndex(weeks, today)
-  const viewportWeeks = Math.round(plannerViewportMonths(zoom) * 4.35)
+  const viewportWeeks = plannerVisibleWeekCount(zoom)
 
   useEffect(() => {
-    const t = window.setTimeout(() => scrollPlannerToWeek(todayIdx, colW), 50)
+    const t = window.setTimeout(() => scrollPlannerToWeek(todayIdx, colW, labelW), 50)
     return () => window.clearTimeout(t)
-  }, [todayIdx, colW])
+  }, [todayIdx, colW, labelW])
 
   const showPriority = laneMode === 'priority'
   const showSport = laneMode === 'sport'
@@ -241,7 +243,7 @@ function SeasonPlannerView({
         <PlannerToolbar
           zoom={zoom}
           onZoomChange={setZoom}
-          onToday={() => scrollPlannerToWeek(todayIdx, colW)}
+          onToday={() => scrollPlannerToWeek(todayIdx, colW, labelW)}
           onPrev={() => nudgePlannerScroll(-viewportWeeks * colW)}
           onNext={() => nudgePlannerScroll(viewportWeeks * colW)}
         />
@@ -250,6 +252,7 @@ function SeasonPlannerView({
       <SeasonPlannerBoard
         weeks={weeks}
         months={months}
+        labelW={labelW}
         colW={colW}
         todayIdx={todayIdx}
         races={visibleRaces}
@@ -406,12 +409,42 @@ function nudgePlannerScroll(delta: number) {
   if (el) el.scrollBy({ left: delta, behavior: 'smooth' })
 }
 
-function scrollPlannerToWeek(weekIndex: number, colW: number) {
+function scrollPlannerToWeek(weekIndex: number, colW: number, labelW: number) {
   const el = document.getElementById('season-planner-scroller')
   if (!el) return
-  const labelW = 112
-  const target = Math.max(0, labelW + weekIndex * colW - el.clientWidth * 0.2)
+  const target = plannerScrollLeftForWeek(weekIndex, colW, el.clientWidth, labelW)
   el.scrollTo({ left: target, behavior: 'smooth' })
+}
+
+function usePlannerLayout(zoom: number) {
+  const [layout, setLayout] = useState(() => ({
+    labelW: plannerLabelWidth(1024),
+    colW: plannerWeekColumnWidth(zoom),
+  }))
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = document.getElementById('season-planner-scroller')
+      const labelW = plannerLabelWidth(window.innerWidth)
+      const scrollerW = el?.clientWidth ?? Math.max(0, window.innerWidth - 32)
+      const visibleGrid = Math.max(160, scrollerW - labelW)
+      setLayout({
+        labelW,
+        colW: plannerWeekColumnWidth(zoom, visibleGrid),
+      })
+    }
+    measure()
+    const el = document.getElementById('season-planner-scroller')
+    const ro = new ResizeObserver(measure)
+    if (el) ro.observe(el)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [zoom])
+
+  return layout
 }
 
 function PlannerToolbar({
@@ -540,6 +573,7 @@ function FilterChip({
 function SeasonPlannerBoard({
   weeks,
   months,
+  labelW,
   colW,
   todayIdx,
   races,
@@ -559,6 +593,7 @@ function SeasonPlannerBoard({
 }: {
   weeks: ReturnType<typeof buildPlannerWeekColumns>
   months: ReturnType<typeof groupPlannerMonths>
+  labelW: number
   colW: number
   todayIdx: number
   races: SeasonRace[]
@@ -576,7 +611,6 @@ function SeasonPlannerBoard({
   onEditPhase: (block: SeasonPhaseBlockData) => void
   onEditEvent: (event: SeasonEventData) => void
 }) {
-  const labelW = 112
   const gridW = weeks.length * colW
 
   const visiblePriorityLanes = showPriorityLanes
@@ -600,7 +634,7 @@ function SeasonPlannerBoard({
         <div className={cn('sticky top-0 z-20 flex', TABLE_HEADER)}>
           <div
             className={cn(
-              'sticky left-0 z-30 shrink-0 bg-[#3a3f48] px-2 py-1.5 text-[10px] font-semibold',
+              'sticky left-0 z-30 shrink-0 bg-[#3a3f48] px-1.5 py-1.5 text-[10px] font-semibold sm:px-2',
               TABLE_HEADER_VLINE,
               TABLE_HEADER_CELL_MUTED,
             )}
@@ -852,7 +886,7 @@ function PlannerLane({
       style={{ minHeight: minH }}
     >
       <div
-        className="tt-season-lane-label sticky left-0 z-10 flex shrink-0 items-center gap-1 border-r bg-white px-2"
+        className="tt-season-lane-label sticky left-0 z-10 flex shrink-0 items-center gap-1 border-r bg-white px-1.5 sm:px-2"
         style={{ width: labelW }}
       >
         <span className="truncate text-[11px] font-semibold text-foreground">{label}</span>

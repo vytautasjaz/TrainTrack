@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
 import {
@@ -18,15 +19,15 @@ import {
   isPlanSportVisible,
   normalizePlanStatusFilters,
   normalizeVisiblePlanSports,
-  parsePlanColorMode,
   parsePlanStatusFilters,
   parseVisiblePlanSports,
-  PLAN_COLOR_MODE_STORAGE_KEY,
   PLAN_SPORT_FILTER_STORAGE_KEY,
   PLAN_STATUS_FILTER_STORAGE_KEY,
   PLAN_STATUS_FILTERS,
+  readStoredPlanColorMode,
   serializePlanStatusFilters,
   serializeVisiblePlanSports,
+  writeStoredPlanColorMode,
   type PlanColorMode,
   type PlanStatusFilter,
 } from '@/lib/plan-sport-filter'
@@ -71,11 +72,7 @@ export function useResolvedPlanColorMode(): PlanColorMode {
 
   useEffect(() => {
     if (ctx) return
-    try {
-      setStored(parsePlanColorMode(localStorage.getItem(PLAN_COLOR_MODE_STORAGE_KEY)))
-    } catch {
-      /* ignore */
-    }
+    setStored(readStoredPlanColorMode())
   }, [ctx])
 
   return ctx?.colorMode ?? stored
@@ -96,9 +93,7 @@ export function PlanSportFilterProvider({ children }: PlanSportFilterProviderPro
       setVisibleSports(
         parseVisiblePlanSports(localStorage.getItem(PLAN_SPORT_FILTER_STORAGE_KEY)),
       )
-      setColorModeState(
-        parsePlanColorMode(localStorage.getItem(PLAN_COLOR_MODE_STORAGE_KEY)),
-      )
+      setColorModeState(readStoredPlanColorMode())
       setVisibleStatuses(
         parsePlanStatusFilters(localStorage.getItem(PLAN_STATUS_FILTER_STORAGE_KEY)),
       )
@@ -123,11 +118,7 @@ export function PlanSportFilterProvider({ children }: PlanSportFilterProviderPro
 
   const persistColorMode = useCallback((next: PlanColorMode) => {
     setColorModeState(next)
-    try {
-      localStorage.setItem(PLAN_COLOR_MODE_STORAGE_KEY, next)
-    } catch {
-      /* ignore */
-    }
+    writeStoredPlanColorMode(next)
   }, [])
 
   const persistStatuses = useCallback((next: PlanStatusFilter[]) => {

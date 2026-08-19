@@ -25,7 +25,12 @@ export type TargetType =
 
 export type WorkoutSection = 'warmup' | 'mainSet' | 'cooldown'
 
-export type IncludePlacementHint = 'anywhere' | 'before_main' | 'inside_main' | 'after_main'
+export type IncludePlacementHint =
+  | 'beginning'
+  | 'after_warmup'
+  | 'anywhere'
+  | 'before_cooldown'
+  | 'end'
 
 export type WorkoutIncludeKind = 'strides' | 'drill' | 'hill_sprint' | 'pickup' | 'custom'
 

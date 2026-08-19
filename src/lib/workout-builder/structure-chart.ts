@@ -1,13 +1,20 @@
-import type { Target, WorkoutBlock, WorkoutStructure } from './types'
+import type { Target, WorkoutBlock, WorkoutIncludeItem, WorkoutIncludeKind, WorkoutStructure } from './types'
 import {
   estimateBlockDurationMinutes,
   formatPlanBlockSummary,
   intervalRepMinutes,
   resolvePaceMinPerKm,
   segmentDurationMinutes,
+  FALLBACK_PACES,
 } from './segment-estimation'
 import { progressiveMidpointTarget } from './progressive'
-import { segmentDistanceKm } from './utils'
+import { hasStructureContent, segmentDistanceKm } from './utils'
+import {
+  INCLUDE_PLACEMENT_LABELS,
+  INCLUDE_PLACEMENT_SPLIT,
+  INCLUDE_PLACEMENTS,
+  normalizeIncludePlacement,
+} from './include-placement'
 
 export type StructureChartSegmentKind =
   | 'warmup'
@@ -297,26 +304,140 @@ function buildCaption(structure: WorkoutStructure): string {
   return parts.slice(0, 2).join(' · ')
 }
 
-export function buildStructureChart(structure: WorkoutStructure | null | undefined): StructureChartModel | null {
-  if (!structure) return null
+const BASE_INTENSITY = KIND_INTENSITY.warmup
+
+function includeItemMinutes(item: WorkoutIncludeItem): { work: number; recovery: number } {
+  const work = segmentDurationMinutes(item.work, FALLBACK_PACES.interval) || 0.4
+  const recovery = item.recovery
+    ? segmentDurationMinutes(item.recovery, FALLBACK_PACES.recovery)
+    : 0
+  return { work, recovery }
+}
+
+function includeIntensity(kind: WorkoutIncludeKind): number {
+  switch (kind) {
+    case 'hill_sprint':
+      return 0.96
+    case 'strides':
+    case 'pickup':
+      return 0.9
+    case 'drill':
+      return 0.62
+    default:
+      return 0.86
+  }
+}
+
+/** One contiguous include cluster (all reps together). */
+function expandIncludeItem(item: WorkoutIncludeItem): StructureChartSegment[] {
+  const reps = Math.min(Math.max(1, item.repetitions), MAX_INTERVAL_STRIPES)
+  const { work, recovery } = includeItemMinutes(item)
+  const intensity = includeIntensity(item.kind)
+  const segments: StructureChartSegment[] = []
+  for (let i = 0; i < reps; i++) {
+    segments.push({ kind: 'work', weight: work, intensity })
+    if (recovery > 0) {
+      segments.push({
+        kind: 'recovery',
+        weight: recovery,
+        intensity: KIND_INTENSITY.recovery,
+      })
+    }
+  }
+  return segments
+}
+
+function includeCaption(items: WorkoutIncludeItem[]): string {
+  return items
+    .map((item) => {
+      const title = item.title.trim() || 'include'
+      const where = INCLUDE_PLACEMENT_LABELS[normalizeIncludePlacement(item.placementHint)]
+      return `${item.repetitions} x ${title.toLowerCase()} · ${where}`
+    })
+    .join(' · ')
+}
+
+function buildIncludeChart(
+  items: WorkoutIncludeItem[],
+  durationMinutes?: number,
+): StructureChartModel | null {
+  if (items.length === 0) return null
+
+  const grouped = Object.fromEntries(
+    INCLUDE_PLACEMENTS.map((placement) => [placement, [] as WorkoutIncludeItem[]]),
+  ) as Record<(typeof INCLUDE_PLACEMENTS)[number], WorkoutIncludeItem[]>
+
+  for (const item of items) {
+    grouped[normalizeIncludePlacement(item.placementHint)].push(item)
+  }
+
+  const includeWeight = items.reduce((sum, item) => {
+    const { work, recovery } = includeItemMinutes(item)
+    return sum + Math.max(1, item.repetitions) * (work + recovery)
+  }, 0)
+
+  const planned = durationMinutes && durationMinutes > 0 ? durationMinutes : 0
+  const easyTotal = Math.max(planned - includeWeight, includeWeight * 2.2, 24)
 
   const segments: StructureChartSegment[] = []
+  let cursor = 0
 
-  for (const block of structure.warmup) {
-    segments.push(...expandBlock(block, 'warmup'))
-  }
-  for (const block of structure.mainSet) {
-    segments.push(...expandBlock(block, 'mainSet'))
-  }
-  for (const block of structure.cooldown) {
-    segments.push(...expandBlock(block, 'cooldown'))
+  for (const placement of INCLUDE_PLACEMENTS) {
+    const slotItems = grouped[placement]
+    const at = INCLUDE_PLACEMENT_SPLIT[placement]
+    if (slotItems.length === 0) continue
+
+    if (at > cursor) {
+      segments.push({
+        kind: 'warmup',
+        weight: (at - cursor) * easyTotal,
+        intensity: BASE_INTENSITY,
+      })
+      cursor = at
+    }
+    for (const item of slotItems) {
+      segments.push(...expandIncludeItem(item))
+    }
   }
 
-  const totalWeight = segments.reduce((sum, segment) => sum + segment.weight, 0)
-  if (totalWeight <= 0) return null
-
-  return {
-    segments,
-    caption: buildCaption(structure),
+  if (cursor < 1) {
+    segments.push({
+      kind: 'warmup',
+      weight: (1 - cursor) * easyTotal,
+      intensity: BASE_INTENSITY,
+    })
   }
+
+  return { segments, caption: includeCaption(items) }
+}
+
+export function buildStructureChart(
+  structure: WorkoutStructure | null | undefined,
+  options?: { durationMinutes?: number },
+): StructureChartModel | null {
+  if (!structure) return null
+
+  if (hasStructureContent(structure)) {
+    const segments: StructureChartSegment[] = []
+
+    for (const block of structure.warmup) {
+      segments.push(...expandBlock(block, 'warmup'))
+    }
+    for (const block of structure.mainSet) {
+      segments.push(...expandBlock(block, 'mainSet'))
+    }
+    for (const block of structure.cooldown) {
+      segments.push(...expandBlock(block, 'cooldown'))
+    }
+
+    const totalWeight = segments.reduce((sum, segment) => sum + segment.weight, 0)
+    if (totalWeight <= 0) return null
+
+    return {
+      segments,
+      caption: buildCaption(structure),
+    }
+  }
+
+  return buildIncludeChart(structure.includeItems ?? [], options?.durationMinutes)
 }

@@ -9,16 +9,6 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 })
 
-const eslintConfig = [
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
-  {
-    rules: {
-      // React 19 compiler plugin treats these as errors; they are widespread
-      // and would fail Netlify `next build`. Keep them visible as warnings.
-      'react-hooks/set-state-in-effect': 'warn',
-      'react-hooks/refs': 'warn',
-    },
-  },
-]
+const eslintConfig = [...compat.extends('next/core-web-vitals', 'next/typescript')]
 
 export default eslintConfig

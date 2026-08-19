@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1'
+const CACHE_VERSION = 'v2'
 const STATIC_CACHE = `traintrack-static-${CACHE_VERSION}`
 const DYNAMIC_CACHE = `traintrack-dynamic-${CACHE_VERSION}`
 
@@ -44,6 +44,15 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event
   if (request.method !== 'GET') return
+
+  // Never intercept localhost — cache-first JS would hide Next.js HMR updates.
+  if (
+    self.location.hostname === 'localhost' ||
+    self.location.hostname === '127.0.0.1' ||
+    self.location.hostname === '[::1]'
+  ) {
+    return
+  }
 
   const url = new URL(request.url)
 

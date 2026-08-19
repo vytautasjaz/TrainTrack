@@ -1,58 +1,64 @@
-import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
-import { prisma } from '@/lib/prisma'
-import { getSession, isCoachView} from '@/lib/session'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { BackButton } from '@/components/ui/back-button'
-import { ItemActions } from '@/components/ui/item-actions'
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import { getSession, isCoachView } from "@/lib/session";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/ui/back-button";
+import { ItemActions } from "@/components/ui/item-actions";
 import {
   WORKOUT_STATUS_LABELS,
   WORKOUT_TYPE_COLORS,
   WORKOUT_TYPE_LABELS,
   WorkoutType,
-} from '@/lib/constants'
-import { formatDistance, formatDuration } from '@/lib/utils'
-import { StructuredWorkoutView } from '@/components/workout-builder/structured-workout-view'
-import { IncludeItemsSummary } from '@/components/workout-editor/include-items-summary'
-import { CoachReplyBlock } from '@/components/plan/coach-reply-block'
-import { MarkCoachReplyReadOnView } from '@/components/athlete/mark-coach-reply-read-on-view'
-import { parseStructure } from '@/lib/workout-builder/utils'
-import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
-import { FormField } from '@/components/ui/form-field'
-import { PrivateNoteToggle } from '@/components/ui/private-note-toggle'
-import { completeWorkout, deleteWorkout, updateWorkout } from '@/app/actions/workouts'
-import { WORKOUT_PLAN_INCLUDE } from '@/lib/queries'
-import { WorkoutStatus } from '@prisma/client'
+} from "@/lib/constants";
+import { formatDistance, formatDuration } from "@/lib/utils";
+import { StructuredWorkoutView } from "@/components/workout-builder/structured-workout-view";
+import { IncludeItemsSummary } from "@/components/workout-editor/include-items-summary";
+import { CoachReplyBlock } from "@/components/plan/coach-reply-block";
+import { MarkCoachReplyReadOnView } from "@/components/athlete/mark-coach-reply-read-on-view";
+import { parseStructure } from "@/lib/workout-builder/utils";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { FormField } from "@/components/ui/form-field";
+import { PrivateNoteToggle } from "@/components/ui/private-note-toggle";
+import {
+  completeWorkout,
+  deleteWorkout,
+  updateWorkout,
+} from "@/app/actions/workouts";
+import { WORKOUT_PLAN_INCLUDE } from "@/lib/queries";
+import { WorkoutStatus } from "@prisma/client";
 
-const WORKOUT_TYPES = Object.keys(WORKOUT_TYPE_LABELS) as WorkoutType[]
+const WORKOUT_TYPES = Object.keys(WORKOUT_TYPE_LABELS) as WorkoutType[];
 
 type WorkoutDetailPageProps = {
-  params: Promise<{ id: string }>
-}
+  params: Promise<{ id: string }>;
+};
 
-export default async function WorkoutDetailPage({ params }: WorkoutDetailPageProps) {
-  const session = await getSession()
-  if (!session) redirect('/')
+export default async function WorkoutDetailPage({
+  params,
+}: WorkoutDetailPageProps) {
+  const session = await getSession();
+  if (!session) redirect("/");
 
-  const { id } = await params
+  const { id } = await params;
   const workout = await prisma.workout.findUnique({
     where: { id },
     include: { ...WORKOUT_PLAN_INCLUDE, athlete: true, template: true },
-  })
+  });
 
-  if (!workout) notFound()
+  if (!workout) notFound();
 
-  const result = workout.result
-  const coachView = isCoachView(session)
+  const result = workout.result;
+  const coachView = isCoachView(session);
   const visibleCoachNotes =
-    coachView || !workout.coachNotesPrivate ? workout.coachNotes : null
-  const visibleAthleteNotes = result?.athleteNotes
-  const dateValue = workout.date.toISOString().slice(0, 10)
-  const structure = parseStructure(workout.structure)
+    coachView || !workout.coachNotesPrivate ? workout.coachNotes : null;
+  const visibleAthleteNotes = result?.athleteNotes;
+  const dateValue = workout.date.toISOString().slice(0, 10);
+  const structure = parseStructure(workout.structure);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -62,12 +68,14 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <BackButton variant="link" fallbackHref="/training" />
-          <h1 className="mt-2 text-2xl font-bold tracking-tight">{workout.title}</h1>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight">
+            {workout.title}
+          </h1>
           <p className="text-sm text-muted-foreground">
             {workout.date.toLocaleDateString(undefined, {
-              weekday: 'long',
-              month: 'long',
-              day: 'numeric',
+              weekday: "long",
+              month: "long",
+              day: "numeric",
             })}
           </p>
           <div className="mt-2 flex gap-2">
@@ -82,7 +90,9 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
         {coachView && (
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" asChild>
-              <Link href={`/workouts/builder/${workout.id}`}>Open in builder</Link>
+              <Link href={`/workouts/builder/${workout.id}`}>
+                Open in builder
+              </Link>
             </Button>
             <ItemActions
               deleteAction={deleteWorkout}
@@ -96,16 +106,19 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
         )}
       </div>
 
-      {structure && (structure.warmup.length > 0 || structure.mainSet.length > 0 || structure.cooldown.length > 0) && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Workout structure</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <StructuredWorkoutView structure={structure} />
-          </CardContent>
-        </Card>
-      )}
+      {structure &&
+        (structure.warmup.length > 0 ||
+          structure.mainSet.length > 0 ||
+          structure.cooldown.length > 0) && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Workout structure</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StructuredWorkoutView structure={structure} />
+            </CardContent>
+          </Card>
+        )}
 
       {structure.includeItems && structure.includeItems.length > 0 ? (
         <Card>
@@ -126,8 +139,18 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
           <CardContent>
             <form action={updateWorkout} className="grid gap-3 sm:grid-cols-2">
               <input type="hidden" name="workoutId" value={workout.id} />
-              <Input name="title" defaultValue={workout.title} required className="sm:col-span-2" />
-              <Input name="date" type="date" defaultValue={dateValue} required />
+              <Input
+                name="title"
+                defaultValue={workout.title}
+                required
+                className="sm:col-span-2"
+              />
+              <Input
+                name="date"
+                type="date"
+                defaultValue={dateValue}
+                required
+              />
               <Select name="type" defaultValue={workout.type} required>
                 {WORKOUT_TYPES.map((t) => (
                   <option key={t} value={t}>
@@ -150,14 +173,14 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
               />
               <Textarea
                 name="description"
-                defaultValue={workout.description ?? ''}
+                defaultValue={workout.description ?? ""}
                 placeholder="Description"
                 className="sm:col-span-2"
                 rows={2}
               />
               <Textarea
                 name="coachNotes"
-                defaultValue={workout.coachNotes ?? ''}
+                defaultValue={workout.coachNotes ?? ""}
                 placeholder="Coach notes"
                 className="sm:col-span-2"
                 rows={2}
@@ -168,7 +191,12 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
                 defaultChecked={workout.coachNotesPrivate}
                 className="sm:col-span-2"
               />
-              <Button type="submit" variant="secondary" size="sm" className="sm:col-span-2 w-fit">
+              <Button
+                type="submit"
+                variant="secondary"
+                size="sm"
+                className="sm:col-span-2 w-fit"
+              >
                 Save changes
               </Button>
             </form>
@@ -183,14 +211,16 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
         <CardContent className="space-y-2 text-sm">
           {workout.description && <p>{workout.description}</p>}
           <p>
-            Target: {formatDistance(workout.plannedDistance)} ·{' '}
+            Target: {formatDistance(workout.plannedDistance)} ·{" "}
             {formatDuration(workout.plannedDuration)}
           </p>
           {visibleCoachNotes && (
             <p className="rounded-2xl bg-muted/60 p-3 text-sm">
               Coach: {visibleCoachNotes}
               {coachView && workout.coachNotesPrivate ? (
-                <span className="ml-2 text-xs text-muted-foreground">(private)</span>
+                <span className="ml-2 text-xs text-muted-foreground">
+                  (private)
+                </span>
               ) : null}
             </p>
           )}
@@ -205,27 +235,37 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
           <CardContent className="space-y-3 text-sm">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground">Planned distance</p>
-                <p className="font-medium">{formatDistance(workout.plannedDistance)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Planned distance
+                </p>
+                <p className="font-medium">
+                  {formatDistance(workout.plannedDistance)}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Actual distance</p>
-                <p className="font-medium">{formatDistance(result.actualDistance)}</p>
+                <p className="font-medium">
+                  {formatDistance(result.actualDistance)}
+                </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Planned duration</p>
-                <p className="font-medium">{formatDuration(workout.plannedDuration)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Planned duration
+                </p>
+                <p className="font-medium">
+                  {formatDuration(workout.plannedDuration)}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Actual duration</p>
-                <p className="font-medium">{formatDuration(result.actualDuration)}</p>
+                <p className="font-medium">
+                  {formatDuration(result.actualDuration)}
+                </p>
               </div>
             </div>
             {result.rpe != null && <p>RPE: {result.rpe}/10</p>}
             {visibleAthleteNotes && (
-              <p className="italic">
-                &ldquo;{visibleAthleteNotes}&rdquo;
-              </p>
+              <p className="italic">&ldquo;{visibleAthleteNotes}&rdquo;</p>
             )}
             {result.coachReply && <CoachReplyBlock reply={result.coachReply} />}
           </CardContent>
@@ -240,11 +280,15 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
           <CardContent className="space-y-2 text-sm text-muted-foreground">
             <p>
               {session.hasAthlete
-                ? 'Stats were imported from Strava and can\'t be edited here.'
-                : 'This workout was completed via Strava.'}
+                ? "Stats were imported from Strava and can't be edited here."
+                : "This workout was completed via Strava."}
             </p>
             <Button variant="secondary" size="sm" asChild>
-              <a href={result.stravaActivityUrl} target="_blank" rel="noreferrer">
+              <a
+                href={result.stravaActivityUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
                 View on Strava
               </a>
             </Button>
@@ -266,14 +310,22 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
                     name="actualDistance"
                     type="number"
                     step="0.1"
-                    defaultValue={result?.actualDistance ?? workout.plannedDistance ?? undefined}
+                    defaultValue={
+                      result?.actualDistance ??
+                      workout.plannedDistance ??
+                      undefined
+                    }
                   />
                 </FormField>
                 <FormField label="Actual duration (min)">
                   <Input
                     name="actualDuration"
                     type="number"
-                    defaultValue={result?.actualDuration ?? workout.plannedDuration ?? undefined}
+                    defaultValue={
+                      result?.actualDuration ??
+                      workout.plannedDuration ??
+                      undefined
+                    }
                   />
                 </FormField>
                 <FormField label="RPE (1–10)">
@@ -289,7 +341,9 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
                   <Select
                     name="logType"
                     defaultValue={
-                      workout.status === WorkoutStatus.SKIPPED ? 'SKIPPED' : 'COMPLETED'
+                      workout.status === WorkoutStatus.SKIPPED
+                        ? "SKIPPED"
+                        : "COMPLETED"
                     }
                   >
                     <option value="COMPLETED">Completed</option>
@@ -300,7 +354,7 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
               <FormField label="Notes">
                 <Textarea
                   name="athleteNotes"
-                  defaultValue={result?.athleteNotes ?? ''}
+                  defaultValue={result?.athleteNotes ?? ""}
                   rows={3}
                   placeholder="How did it feel?"
                 />
@@ -313,5 +367,5 @@ export default async function WorkoutDetailPage({ params }: WorkoutDetailPagePro
         </Card>
       )}
     </div>
-  )
+  );
 }

@@ -5,7 +5,7 @@ import {
 } from '@/lib/plan-sports'
 
 export const PLAN_SPORT_FILTER_STORAGE_KEY = 'tt-plan-visible-sports'
-export const PLAN_COLOR_MODE_STORAGE_KEY = 'tt-plan-color-mode'
+export const PLAN_COLOR_MODE_STORAGE_KEY = 'tt-plan-color-mode-v2'
 export const PLAN_STATUS_FILTER_STORAGE_KEY = 'tt-plan-status-filter'
 
 export const FILTERABLE_PLAN_SPORTS = CONFIGURABLE_PLAN_SPORTS
@@ -40,7 +40,24 @@ export function defaultVisiblePlanSports(): WorkoutType[] {
 }
 
 export function defaultPlanColorMode(): PlanColorMode {
-  return 'sport'
+  return 'completion'
+}
+
+export function readStoredPlanColorMode(): PlanColorMode {
+  if (typeof window === 'undefined') return defaultPlanColorMode()
+  try {
+    return parsePlanColorMode(localStorage.getItem(PLAN_COLOR_MODE_STORAGE_KEY))
+  } catch {
+    return defaultPlanColorMode()
+  }
+}
+
+export function writeStoredPlanColorMode(mode: PlanColorMode) {
+  try {
+    localStorage.setItem(PLAN_COLOR_MODE_STORAGE_KEY, mode)
+  } catch {
+    /* ignore */
+  }
 }
 
 export function defaultPlanStatusFilters(): PlanStatusFilter[] {

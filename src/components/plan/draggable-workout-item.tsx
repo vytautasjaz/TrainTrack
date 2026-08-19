@@ -97,7 +97,6 @@ export function DraggableWorkoutItem({
           density="md"
           status={status}
           hideCompletedBadge={showQuickActions}
-          editable={isCoach && !workout.isRescheduleGhost}
           actions={
             showQuickActions || isCoach ? (
               <span className="inline-block w-6" aria-hidden />

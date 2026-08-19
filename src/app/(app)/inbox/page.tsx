@@ -40,7 +40,7 @@ export default async function InboxPage() {
     ])
 
     return (
-      <div className="space-y-3">
+      <div className="min-w-0 max-w-full space-y-3">
         <h1 className="text-lg font-semibold tracking-tight">Inbox</h1>
         <InboxClient
           role="coach"
@@ -68,7 +68,7 @@ export default async function InboxPage() {
   const threadsRaw = await listAthleteInboxThreads(athleteId, { filter: 'all', take: INBOX_LIST_MAX })
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 max-w-full space-y-3">
       <h1 className="text-lg font-semibold tracking-tight">Inbox</h1>
       <InboxClient
         role="athlete"

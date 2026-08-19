@@ -106,12 +106,53 @@ export function plannerViewportMonths(zoom: number): number {
   return PLANNER_ZOOM_VIEWPORTS[index]
 }
 
-/** Column width (px) scales so viewport ≈ that many months of weeks. */
-export function plannerWeekColumnWidth(zoom: number): number {
+export const PLANNER_LABEL_WIDTH_DESKTOP = 112
+export const PLANNER_LABEL_WIDTH_NARROW = 72
+/** Matches Tailwind `sm`. */
+export const PLANNER_NARROW_MAX_PX = 639
+export const PLANNER_MIN_WEEK_COL = 24
+export const PLANNER_FALLBACK_GRID_PX = 900
+
+export function plannerLabelWidth(viewportWidth: number): number {
+  return viewportWidth <= PLANNER_NARROW_MAX_PX
+    ? PLANNER_LABEL_WIDTH_NARROW
+    : PLANNER_LABEL_WIDTH_DESKTOP
+}
+
+export function plannerVisibleWeekCount(zoom: number): number {
   const months = plannerViewportMonths(zoom)
-  // ~4.35 weeks/month; target ~900px content for viewport
-  const weeksVisible = Math.max(8, Math.round(months * 4.35))
-  return Math.max(28, Math.round(900 / weeksVisible))
+  return Math.max(8, Math.round(months * 4.35))
+}
+
+/** Column width (px) scales so the visible grid ≈ that many months of weeks. */
+export function plannerWeekColumnWidth(
+  zoom: number,
+  visibleGridPx = PLANNER_FALLBACK_GRID_PX,
+): number {
+  const weeksVisible = plannerVisibleWeekCount(zoom)
+  const target = Math.max(160, visibleGridPx)
+  return Math.max(PLANNER_MIN_WEEK_COL, Math.round(target / weeksVisible))
+}
+
+/**
+ * Horizontal scroll so `weekIndex` sits in the grid *after* the sticky label
+ * column — never under it. `insetRatio` is how far into the remaining grid
+ * the week’s left edge should land.
+ */
+export function plannerScrollLeftForWeek(
+  weekIndex: number,
+  colW: number,
+  scrollerWidth: number,
+  labelW: number,
+  insetRatio = 0.22,
+): number {
+  if (weekIndex < 0 || colW <= 0) return 0
+  const visibleGrid = Math.max(0, scrollerWidth - labelW)
+  const inset = Math.min(
+    Math.max(visibleGrid * insetRatio, 8),
+    Math.max(visibleGrid - colW, 0),
+  )
+  return Math.max(0, weekIndex * colW - inset)
 }
 
 export const PLANNER_LOOKBACK_WEEKS = 8

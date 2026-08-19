@@ -3,6 +3,7 @@
 export const SHOW_NOTES_STORAGE_KEY = 'tt-calendar-show-notes'
 export const SHOW_EVENTS_STORAGE_KEY = 'tt-calendar-show-events'
 export const SHOW_WEATHER_STORAGE_KEY = 'tt-calendar-show-weather'
+export const SHOW_WEATHER_SESSION_KEY = 'tt-calendar-show-weather-session'
 export const SHOW_STATS_STORAGE_KEY = 'tt-calendar-show-stats'
 
 export function readStoredFlag(key: string, fallback: boolean): boolean {
@@ -20,6 +21,27 @@ export function readStoredFlag(key: string, fallback: boolean): boolean {
 export function writeStoredFlag(key: string, value: boolean) {
   try {
     localStorage.setItem(key, value ? '1' : '0')
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Session-only override (week toolbar). `null` means use the athlete preference. */
+export function readSessionFlag(key: string): boolean | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(key)
+    if (raw === '0' || raw === 'false') return false
+    if (raw === '1' || raw === 'true') return true
+  } catch {
+    /* keep default */
+  }
+  return null
+}
+
+export function writeSessionFlag(key: string, value: boolean) {
+  try {
+    sessionStorage.setItem(key, value ? '1' : '0')
   } catch {
     /* ignore */
   }

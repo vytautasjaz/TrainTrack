@@ -2,8 +2,7 @@
 
 import { useRef, useState, type ReactNode } from 'react'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import { WorkoutDetailModal } from '@/components/plan/workout-detail-modal'
-import { RaceDetailModal } from '@/components/plan/race-detail-modal'
+import { PlanWorkoutModal } from '@/components/plan/plan-workout-modal'
 import { cn } from '@/lib/utils'
 
 type WorkoutModalTriggerProps = {
@@ -17,11 +16,12 @@ type WorkoutModalTriggerProps = {
   onDragStart?: (e: React.DragEvent) => void
   onDragEnd?: (e: React.DragEvent) => void
   /**
-   * @deprecated Always treated as true — card hosts use a div so nested
-   * inputs/buttons (inline edit, review actions) work with mouse selection.
+   * @deprecated Card hosts use a div so nested buttons (review actions, menus) work.
    */
   nestedInteractive?: boolean
 }
+
+const DRAG_CLICK_THRESHOLD_PX = 6
 
 function isNestedControlTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false
@@ -29,12 +29,6 @@ function isNestedControlTarget(target: EventTarget | null): boolean {
     target.closest(
       'input, textarea, select, button, a, [data-inline-edit], [role="textbox"]',
     ),
-  )
-}
-
-function isTextField(target: EventTarget | null): boolean {
-  return (
-    target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement
   )
 }
 
@@ -49,21 +43,19 @@ export function WorkoutModalTrigger({
   onDragEnd,
 }: WorkoutModalTriggerProps) {
   const [open, setOpen] = useState(false)
-  /** While typing/selecting in an inline field, HTML5 drag must be off. */
-  const [textFieldActive, setTextFieldActive] = useState(false)
   const suppressClick = useRef(false)
-  const hostRef = useRef<HTMLDivElement>(null)
-
-  const dragEnabled = draggable && !textFieldActive
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null)
+  const pointerMovedRef = useRef(false)
+  const openedThisGestureRef = useRef(false)
 
   const sharedClassName = cn(
     'text-left',
-    dragEnabled && 'cursor-grab active:cursor-grabbing',
+    draggable && 'cursor-grab active:cursor-grabbing',
     className,
   )
 
   function handleDragStart(e: React.DragEvent) {
-    if (!dragEnabled) {
+    if (!draggable) {
       e.preventDefault()
       return
     }
@@ -72,6 +64,7 @@ export function WorkoutModalTrigger({
       return
     }
     suppressClick.current = true
+    pointerMovedRef.current = true
     onDragStart?.(e)
   }
 
@@ -79,48 +72,55 @@ export function WorkoutModalTrigger({
     onDragEnd?.(e)
     window.setTimeout(() => {
       suppressClick.current = false
+      pointerMovedRef.current = false
     }, 0)
   }
 
-  function handleActivate(e: React.SyntheticEvent) {
+  function tryOpenModal(e: React.SyntheticEvent) {
     e.stopPropagation()
-    if (suppressClick.current) return
+    if (openedThisGestureRef.current) return
+    if (suppressClick.current || pointerMovedRef.current) return
     if (isNestedControlTarget(e.target)) return
+    openedThisGestureRef.current = true
     setOpen(true)
+  }
+
+  function handlePointerDown(e: React.PointerEvent) {
+    openedThisGestureRef.current = false
+    if (isNestedControlTarget(e.target)) {
+      pointerDownRef.current = null
+      return
+    }
+    pointerDownRef.current = { x: e.clientX, y: e.clientY }
+    pointerMovedRef.current = false
+  }
+
+  function handlePointerMove(e: React.PointerEvent) {
+    const start = pointerDownRef.current
+    if (!start || pointerMovedRef.current) return
+    const dx = Math.abs(e.clientX - start.x)
+    const dy = Math.abs(e.clientY - start.y)
+    if (dx > DRAG_CLICK_THRESHOLD_PX || dy > DRAG_CLICK_THRESHOLD_PX) {
+      pointerMovedRef.current = true
+    }
+  }
+
+  function handlePointerUp(e: React.PointerEvent) {
+    pointerDownRef.current = null
+    if (e.button !== 0) return
+    // Draggable cards often skip the click event; treat a stationary pointer-up as a tap.
+    if (draggable) tryOpenModal(e)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key !== 'Enter' && e.key !== ' ') return
     if (isNestedControlTarget(e.target)) return
     e.preventDefault()
-    handleActivate(e)
+    tryOpenModal(e)
   }
 
-  function handleFocusIn(e: React.FocusEvent) {
-    if (isTextField(e.target)) setTextFieldActive(true)
-  }
-
-  function handleFocusOut(e: React.FocusEvent) {
-    if (!isTextField(e.target)) return
-    const next = e.relatedTarget
-    if (next instanceof Node && hostRef.current?.contains(next) && isTextField(next)) {
-      return
-    }
-    setTextFieldActive(false)
-  }
-
-  function handleMouseDownCapture(e: React.MouseEvent) {
-    // Must clear `draggable` synchronously — waiting for React state is too late
-    // and the browser will start a drag instead of placing the caret.
-    if (!isTextField(e.target)) return
-    setTextFieldActive(true)
-    if (hostRef.current) hostRef.current.draggable = false
-  }
-
-  const modal = workout.isRace ? (
-    <RaceDetailModal workout={workout} open={open} onOpenChange={setOpen} />
-  ) : (
-    <WorkoutDetailModal
+  const modal = (
+    <PlanWorkoutModal
       workout={workout}
       isCoach={isCoach}
       open={open}
@@ -131,18 +131,17 @@ export function WorkoutModalTrigger({
   return (
     <>
       <div
-        ref={hostRef}
         role="button"
         tabIndex={0}
-        title={textFieldActive ? undefined : title}
-        draggable={dragEnabled}
+        title={title}
+        draggable={draggable}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
-        onClick={handleActivate}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onClick={tryOpenModal}
         onKeyDown={handleKeyDown}
-        onFocusCapture={handleFocusIn}
-        onBlurCapture={handleFocusOut}
-        onMouseDownCapture={handleMouseDownCapture}
         className={sharedClassName}
       >
         {children}

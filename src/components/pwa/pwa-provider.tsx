@@ -35,6 +35,21 @@ function isIos() {
   return /iphone|ipad|ipod/i.test(navigator.userAgent)
 }
 
+function isLocalDevHost() {
+  const host = window.location.hostname
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]'
+}
+
+async function unregisterLocalServiceWorkers() {
+  if (!('serviceWorker' in navigator)) return
+  const registrations = await navigator.serviceWorker.getRegistrations()
+  await Promise.all(registrations.map((registration) => registration.unregister()))
+  if ('caches' in window) {
+    const keys = await caches.keys()
+    await Promise.all(keys.map((key) => caches.delete(key)))
+  }
+}
+
 let cachedSnapshot = serverPwaState
 
 function readPwaState(): PwaClientState {
@@ -70,7 +85,11 @@ export function PwaProvider() {
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {})
+      if (process.env.NODE_ENV === 'development' || isLocalDevHost()) {
+        void unregisterLocalServiceWorkers()
+      } else {
+        navigator.serviceWorker.register('/sw.js').catch(() => {})
+      }
     }
 
     function onBeforeInstall(event: Event) {

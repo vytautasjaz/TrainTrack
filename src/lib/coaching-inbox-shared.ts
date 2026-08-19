@@ -55,14 +55,20 @@ export function isThreadUnreadForRole(
     lastMessageAt: Date
     coachLastReadAt: Date | null
     athleteLastReadAt: Date | null
-    messages: { length: number }
+    messages: Array<{ authorRole?: CoachingAuthorRole; createdAt?: Date }>
   },
   role: 'athlete' | 'coach',
 ): boolean {
-  if (thread.messages.length === 0) return false
+  const last = thread.messages.at(-1)
+  if (!last) return false
+  const mine = role === 'coach' ? CoachingAuthorRole.COACH : CoachingAuthorRole.ATHLETE
+  if (last.authorRole === mine) return false
   const lastRead = role === 'coach' ? thread.coachLastReadAt : thread.athleteLastReadAt
   if (!lastRead) return true
-  return thread.lastMessageAt.getTime() > lastRead.getTime()
+  const lastAt = last.createdAt
+    ? Math.max(thread.lastMessageAt.getTime(), last.createdAt.getTime())
+    : thread.lastMessageAt.getTime()
+  return lastAt > lastRead.getTime()
 }
 
 export function threadNeedsReplyFrom(

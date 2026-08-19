@@ -1,6 +1,6 @@
 import { SessionType, WorkoutStatus } from '@prisma/client'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import { hasStructureContent } from '@/lib/workout-builder/utils'
+import { hasIncludeItems, hasStructureContent } from '@/lib/workout-builder/utils'
 
 /** Density scale from Workout Block Specification v5/v7. */
 export type WorkoutBlockDensity = 'xs' | 'sm' | 'md' | 'lg'
@@ -31,6 +31,7 @@ const FINGERPRINT_SESSIONS = new Set<SessionType>([
 ])
 
 export function shouldShowFingerprint(workout: PlanWorkoutDetail): boolean {
+  if (hasIncludeItems(workout.structure)) return true
   if (workout.structure && hasStructureContent(workout.structure)) {
     if (workout.sessionType && FINGERPRINT_SESSIONS.has(workout.sessionType)) {
       return true

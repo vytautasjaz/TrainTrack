@@ -11,6 +11,7 @@ import { TrainingZonesTabs } from '@/components/settings/training-zones-tabs'
 import { getAthletePreferences } from '@/app/actions/preferences'
 import { getCalendarFeedSummaries } from '@/app/actions/preferences'
 import { WeatherLocationForm } from '@/components/settings/weather-location-form'
+import { PlanViewModePreferenceForm } from '@/components/settings/plan-view-mode-preference-form'
 import { getSession, resolveAthleteId, isCoach } from '@/lib/session'
 import { isStravaConfigured } from '@/lib/strava/config'
 import { getStravaConnectionSummary } from '@/lib/strava/sync'
@@ -94,6 +95,7 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
           weatherLocationName: true,
           weatherLat: true,
           weatherLon: true,
+          showWeather: true,
         },
       })
     : null
@@ -110,7 +112,13 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
           <SectionTitle variant="ui">Application preferences</SectionTitle>
           <Caption>Global behavior and reminder settings for your account.</Caption>
         </div>
-        {coach ? <CoachPlanningLeadForm planningLeadDays={planningLeadDays} /> : <Caption>Additional application preferences will appear here as they are added.</Caption>}
+        {coach ? (
+          <CoachPlanningLeadForm planningLeadDays={planningLeadDays} />
+        ) : (
+          <Caption>
+            Additional application preferences will appear here as they are added.
+          </Caption>
+        )}
       </section>
 
       {coach ? (
@@ -146,8 +154,11 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
         <section className="space-y-4">
           <div>
             <SectionTitle variant="ui">Athlete settings</SectionTitle>
-            <Caption>Training zones and default weather location used in planning.</Caption>
+            <Caption>
+              Training calendar look, zones, weather visibility, and default forecast location.
+            </Caption>
           </div>
+          <PlanViewModePreferenceForm />
           {selectedPreferences ? (
             <section className="space-y-3">
               {editingSelectedAthlete ? (
@@ -166,6 +177,7 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
                 lat: weatherLocation?.weatherLat ?? null,
                 lon: weatherLocation?.weatherLon ?? null,
               }}
+              showWeather={weatherLocation?.showWeather ?? true}
             />
           ) : null}
         </section>

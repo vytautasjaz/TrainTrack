@@ -216,6 +216,21 @@ export async function updateAthleteWeatherLocation(formData: FormData) {
   revalidatePath('/dashboard')
 }
 
+export async function updateAthleteShowWeather(formData: FormData) {
+  const { athleteId } = await requireAthleteForPreferences()
+  const raw = String(formData.get('showWeather') ?? '').trim()
+  const showWeather = raw === '1' || raw === 'true'
+
+  await prisma.athlete.update({
+    where: { id: athleteId },
+    data: { showWeather },
+  })
+
+  revalidatePath('/settings/preferences')
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
+}
+
 export async function updateAthleteName(formData: FormData) {
   const session = await requireSession()
   const name = ((formData.get('name') as string) ?? '').trim()

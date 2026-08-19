@@ -206,6 +206,7 @@ export default async function TrainingPage({
       weatherLocationName: true,
       weatherLat: true,
       weatherLon: true,
+      showWeather: true,
     },
   });
 
@@ -456,6 +457,7 @@ export default async function TrainingPage({
               removeWeekHref={removeWeekHref}
               swimCssSecPer100m={swimCssSecPer100m}
               weatherLocation={activeWeatherLocation}
+              weatherVisibleByDefault={athletePlanConfig?.showWeather ?? true}
             />
           </div>
 
@@ -479,6 +481,7 @@ export default async function TrainingPage({
               removeWeekHref={removeWeekHref}
               swimCssSecPer100m={swimCssSecPer100m}
               weatherLocation={activeWeatherLocation}
+              weatherVisibleByDefault={athletePlanConfig?.showWeather ?? true}
             />
           </div>
         </>

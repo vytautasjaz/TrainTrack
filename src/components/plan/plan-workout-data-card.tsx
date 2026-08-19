@@ -3,11 +3,10 @@
 import type { ReactNode } from 'react'
 import { WorkoutStatus } from '@prisma/client'
 import { Clock, Flag } from 'lucide-react'
-import { WorkoutCardDiagram } from '@/components/plan/workout-card-diagram'
+import { WorkoutCardDiagram, workoutHasCardDiagram } from '@/components/plan/workout-card-diagram'
 import { PlanWorkoutCardInlineEdit } from '@/components/plan/plan-workout-card-inline-edit'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import { WorkoutStatusIcon } from '@/components/ui/workout-status-icon'
-import { hasStructureContent } from '@/lib/workout-builder/utils'
 import { isStravaSynced, type PlanWorkoutDetail } from '@/lib/plan-workout'
 import {
   getWorkoutCardDuration,
@@ -159,8 +158,7 @@ export function PlanWorkoutDataCard({
   ) : null
 
   const showStructureDiagram =
-    styles.showDiagram &&
-    Boolean(workout.structure && hasStructureContent(workout.structure))
+    styles.showDiagram && workoutHasCardDiagram(workout)
 
   const textBlock = canInlineEdit ? (
     <div className="flex min-w-0 flex-1 flex-col">

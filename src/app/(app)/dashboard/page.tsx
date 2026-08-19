@@ -170,7 +170,7 @@ export default async function DashboardPage() {
   )
   const athleteWeather = await prisma.athlete.findUnique({
     where: { id: athleteId },
-    select: { weatherLat: true, weatherLon: true },
+    select: { weatherLat: true, weatherLon: true, showWeather: true },
   })
   const todayWorkouts = data.todayWorkouts.map((w) =>
     redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
@@ -179,7 +179,12 @@ export default async function DashboardPage() {
     redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
   )
   let weatherByDate: Record<string, WeatherDaySummary> = {}
-  if (athleteWeather?.weatherLat != null && athleteWeather.weatherLon != null) {
+  const showWeather = athleteWeather?.showWeather ?? true
+  if (
+    showWeather &&
+    athleteWeather?.weatherLat != null &&
+    athleteWeather.weatherLon != null
+  ) {
     const rollingKeys = Array.from({ length: 8 }, (_, i) =>
       toDateKey(addDateOnlyDays(todayDateOnly(), i)),
     )
@@ -252,8 +257,11 @@ export default async function DashboardPage() {
               upcomingWorkouts={upcomingWorkouts}
               weatherByDate={weatherByDate}
               hasWeatherLocation={
-                athleteWeather?.weatherLat != null && athleteWeather.weatherLon != null
+                showWeather &&
+                athleteWeather?.weatherLat != null &&
+                athleteWeather.weatherLon != null
               }
+              showWeather={showWeather}
             />
           </div>
 

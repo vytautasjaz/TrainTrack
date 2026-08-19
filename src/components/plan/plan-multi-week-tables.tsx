@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -28,8 +29,10 @@ import { availableExtraPlanSports } from '@/lib/plan-sports'
 import {
   SHOW_EVENTS_STORAGE_KEY,
   SHOW_NOTES_STORAGE_KEY,
-  SHOW_WEATHER_STORAGE_KEY,
+  SHOW_WEATHER_SESSION_KEY,
+  readSessionFlag,
   readStoredFlag,
+  writeSessionFlag,
   writeStoredFlag,
 } from '@/lib/plan-calendar-layers'
 import type { PlanDay } from '@/lib/plan-week'
@@ -68,6 +71,8 @@ type PlanMultiWeekTablesProps = {
   header?: ReactNode
   swimCssSecPer100m?: number | null
   weatherLocation?: WeatherLocation | null
+  /** Athlete preference: show forecast above workouts by default. */
+  weatherVisibleByDefault?: boolean
 }
 
 const WEATHER_OVERRIDE_STORAGE_KEY = 'tt-weather-location-override'
@@ -189,6 +194,7 @@ export function PlanMultiWeekTables({
   header,
   swimCssSecPer100m = null,
   weatherLocation = null,
+  weatherVisibleByDefault = true,
 }: PlanMultiWeekTablesProps) {
   const canCombine = weeks.length > 1
   const [combined, setCombined] = useState(true)
@@ -198,9 +204,7 @@ export function PlanMultiWeekTables({
   const [showEvents, setShowEvents] = useState(() =>
     readStoredFlag(SHOW_EVENTS_STORAGE_KEY, true),
   )
-  const [showWeather, setShowWeather] = useState(() =>
-    readStoredFlag(SHOW_WEATHER_STORAGE_KEY, true),
-  )
+  const [showWeather, setShowWeather] = useState(weatherVisibleByDefault)
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -214,6 +218,11 @@ export function PlanMultiWeekTables({
       setCombined(true)
     }
   }, [])
+
+  useEffect(() => {
+    const sessionOverride = readSessionFlag(SHOW_WEATHER_SESSION_KEY)
+    setShowWeather(sessionOverride ?? weatherVisibleByDefault)
+  }, [weatherVisibleByDefault])
 
   useEffect(() => {
     const hasQueryOverride = searchParams.has('wlat') && searchParams.has('wlon')
@@ -261,7 +270,7 @@ export function PlanMultiWeekTables({
   function toggleShowWeather() {
     setShowWeather((prev) => {
       const next = !prev
-      writeStoredFlag(SHOW_WEATHER_STORAGE_KEY, next)
+      writeSessionFlag(SHOW_WEATHER_SESSION_KEY, next)
       return next
     })
   }

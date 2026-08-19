@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession, isCoachView, resolveAthleteId } from '@/lib/session'
 import { getAthleteInboxUnreadCount, getCoachInboxUnreadCount } from '@/lib/coaching-inbox'
+import { getPendingCoachRequestCount } from '@/lib/queries'
 
 export async function GET() {
   const session = await getSession()
@@ -9,8 +10,11 @@ export async function GET() {
   }
 
   if (isCoachView(session)) {
-    const count = await getCoachInboxUnreadCount(session.userId)
-    return NextResponse.json({ count })
+    const [inboxCount, pendingCount] = await Promise.all([
+      getCoachInboxUnreadCount(session.userId),
+      getPendingCoachRequestCount(session.userId),
+    ])
+    return NextResponse.json({ count: inboxCount + pendingCount })
   }
 
   const athleteId = await resolveAthleteId(session)

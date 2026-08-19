@@ -2217,6 +2217,20 @@ input[type='number'] {
   font-variant-numeric: tabular-nums;
 }
 
+@media (max-width: 639px) {
+  .tt-season-timeline .tt-season-today-badge {
+    min-width: 1rem;
+    height: 1rem;
+    padding: 0 0.15rem;
+    font-size: 8px;
+  }
+
+  .tt-season-timeline .tt-season-lane-label {
+    padding-left: 0.4rem;
+    padding-right: 0.4rem;
+  }
+}
+
 .tt-season-timeline .tt-season-lane {
   border-bottom-color: #ececea;
   background: transparent;

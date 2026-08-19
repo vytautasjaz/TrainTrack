@@ -12,22 +12,17 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+export type NavSubItem = {
+  href: string
+  label: string
+}
+
 export type NavItem = {
   href: string
   label: string
   icon: LucideIcon
+  children?: NavSubItem[]
 }
-
-/** Home is via the app logo → /dashboard; not listed in nav. */
-export const MAIN_NAV: NavItem[] = [
-  { href: '/training', label: 'Training', icon: CalendarRange },
-  { href: '/inbox', label: 'Inbox', icon: MessageSquare },
-  { href: '/workouts', label: 'Library', icon: Library },
-  { href: '/season', label: 'Season plan', icon: Flag },
-  { href: '/results', label: 'Results', icon: Medal },
-  { href: '/progress', label: 'Stats', icon: LineChart },
-  { href: '/tools', label: 'Tools', icon: Wrench },
-]
 
 export type CalculatorNavTab = {
   id: 'running' | 'interval' | 'triathlon' | 'hyrox' | 'splits'
@@ -43,6 +38,24 @@ export const CALCULATOR_NAV_TABS: CalculatorNavTab[] = [
   { id: 'splits', label: 'Splits Calculator', href: '/tools?tab=splits' },
 ]
 
+const TOOLS_NAV: NavItem = {
+  href: '/tools',
+  label: 'Tools',
+  icon: Wrench,
+  children: CALCULATOR_NAV_TABS.map(({ href, label }) => ({ href, label })),
+}
+
+/** Home is via the app logo → /dashboard; not listed in nav. */
+export const MAIN_NAV: NavItem[] = [
+  { href: '/training', label: 'Training', icon: CalendarRange },
+  { href: '/inbox', label: 'Inbox', icon: MessageSquare },
+  { href: '/workouts', label: 'Library', icon: Library },
+  { href: '/season', label: 'Season plan', icon: Flag },
+  { href: '/results', label: 'Results', icon: Medal },
+  { href: '/progress', label: 'Stats', icon: LineChart },
+  TOOLS_NAV,
+]
+
 export function getMainNav(isCoach: boolean): NavItem[] {
   if (isCoach) {
     return [
@@ -51,7 +64,7 @@ export function getMainNav(isCoach: boolean): NavItem[] {
       { href: '/season', label: 'Season plan', icon: Flag },
       { href: '/results', label: 'Results', icon: Medal },
       { href: '/workouts', label: 'Library', icon: Library },
-      { href: '/tools', label: 'Tools', icon: Wrench },
+      TOOLS_NAV,
     ]
   }
   return MAIN_NAV.filter((item) => item.href !== '/workouts')
