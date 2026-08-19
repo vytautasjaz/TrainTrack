@@ -32,11 +32,16 @@ import {
 import { getDayRacePriority, raceDayCellClass } from "@/lib/race-day";
 import { CalendarPeriodNav } from "@/components/plan/calendar-period-nav";
 import { cn, formatDuration } from "@/lib/utils";
-import { formatWeatherPrecip, type WeatherPlace } from "@/lib/weather/places";
+import {
+  formatWeatherPrecip,
+  type WeatherPlace,
+} from "@/lib/weather/places";
+import { todayDateKey } from "@/lib/dates";
 import {
   WeekWeatherLocationControl,
   type WeekWeatherLocation,
 } from "@/components/weather/week-weather-location-control";
+import { WeatherGlyph } from "@/components/weather/weather-glyph";
 import {
   TABLE_FRAME,
   TABLE_HEADER,
@@ -287,6 +292,7 @@ function WeatherTableRow({
   onWeatherLocationSelect?: (place: WeatherPlace) => void;
   onWeatherLocationReset?: () => void;
 }) {
+  const todayKey = todayDateKey();
   return (
     <tr className={cn("border-b bg-muted/10", PLAN_TABLE_LINE)}>
       <th
@@ -324,23 +330,34 @@ function WeatherTableRow({
           )}
         >
           {!day.weather ? (
-            <p className="text-[10px] text-muted-foreground/70">—</p>
+            day.dateKey < todayKey ? null : <p className="text-[10px] text-muted-foreground/45">—</p>
           ) : (
-            <div className="space-y-0.5">
-              {day.weather.slots.map((slot) => (
-                <div
-                  key={`${day.dateKey}-${slot.label}`}
-                  className="flex items-center justify-between gap-2 text-[10px]"
-                >
-                  <span className="text-muted-foreground">
-                    {slot.emoji} {slot.label}
-                  </span>
-                  <span className="tabular-nums text-foreground/80">
-                    {slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}
-                    {formatWeatherPrecip(slot) ? ` · ${formatWeatherPrecip(slot)}` : ''}
-                  </span>
-                </div>
-              ))}
+            <div className="grid grid-cols-3 items-stretch">
+              {day.weather.slots.map((slot) => {
+                const precip = formatWeatherPrecip(slot);
+                return (
+                  <div
+                    key={`${day.dateKey}-${slot.label}`}
+                    className="flex min-h-[4.7rem] flex-col items-center justify-between px-0.5 py-0.5 text-[10px]"
+                  >
+                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground/80">
+                      {slot.label}
+                    </span>
+                    <span className="flex items-center justify-center">
+                      <WeatherGlyph
+                        glyph={slot.emoji}
+                        detail={`${slot.label} ${slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}${precip ? ` ${precip}` : ''}`}
+                        className="h-9 w-9"
+                      />
+                    </span>
+                    <span className="text-center tabular-nums text-[10px] text-foreground/80 leading-none">
+                      {slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}
+                      <br />
+                      <span className="text-[9px] text-muted-foreground">{precip || '\u00A0'}</span>
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </td>
@@ -677,8 +694,11 @@ function PlanTableViewInner({
   );
 
   useEffect(() => {
-    setActiveDateKey(todayKey);
+    const timeoutId = window.setTimeout(() => {
+      setActiveDateKey(todayKey);
+    }, 0);
     didScrollToToday.current = false;
+    return () => window.clearTimeout(timeoutId);
   }, [todayKey, weekStartKey]);
 
   useEffect(() => {

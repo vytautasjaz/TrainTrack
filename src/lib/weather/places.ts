@@ -42,10 +42,14 @@ export function formatWeatherPrecip(slot: WeatherSlotSummary): string {
   return ''
 }
 
+import { weatherIconAccessibilityLabel } from '@/lib/weather/meteocons-glyphs'
+
 export function formatWeatherSlotLine(slot: WeatherSlotSummary): string | null {
   if (slot.temperatureC == null && !formatWeatherPrecip(slot)) {
     return null
   }
+  const glyphLabel = weatherIconAccessibilityLabel(slot.emoji)
   const temp = slot.temperatureC != null ? `${slot.temperatureC}°` : ''
-  return [slot.label, slot.emoji, temp, formatWeatherPrecip(slot)].filter(Boolean).join(' ')
+  return [slot.label, glyphLabel, temp, formatWeatherPrecip(slot)].filter(Boolean).join(' ')
 }
+

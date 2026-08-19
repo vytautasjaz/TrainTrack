@@ -8,6 +8,7 @@ import { SportDot } from '@/components/ui/sport-dot'
 import { TablePosterHeading } from '@/components/ui/table-poster-heading'
 import { WorkoutBlock } from '@/components/workout-block'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
+import { WeatherGlyph, WEATHER_GLYPH_TONES, type WeatherGlyphTone } from '@/components/weather/weather-glyph'
 import {
   DATA_CELL_PRIMARY,
   DATA_CELL_SECONDARY,
@@ -24,6 +25,7 @@ const TOC = [
   { id: 'principles', label: 'Principles' },
   { id: 'brand', label: 'Brand' },
   { id: 'color', label: 'Color' },
+  { id: 'weather', label: 'Weather icons' },
   { id: 'typography', label: 'Typography' },
   { id: 'surfaces', label: 'Surfaces' },
   { id: 'buttons', label: 'Buttons' },
@@ -169,6 +171,12 @@ const skippedSwim = sampleWorkout({
   plannedDuration: 45,
 })
 
+const WEATHER_PREVIEW = [
+  { label: 'Morning', glyph: 'clear-day', temp: '14°' },
+  { label: 'Day', glyph: 'partly-cloudy-day', temp: '19°', precip: '15%' },
+  { label: 'Evening', glyph: 'rain', temp: '16°', precip: '55%' },
+] as const
+
 export default function StyleGuidePage() {
   return (
     <div className="-mx-4 min-h-full bg-[#fafaf8] px-4 pb-16 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
@@ -296,6 +304,40 @@ export default function StyleGuidePage() {
                   value="#FDF2F2"
                   className="bg-[#fdf2f2] border-[#f5a3a3]"
                 />
+              </div>
+            </GuideSection>
+
+            <GuideSection
+              id="weather"
+              title="Weather icons"
+              description="Meteocons color variants. Primary controls line/rain, accent controls sun/lightning, secondary controls cloud fill."
+            >
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(WEATHER_GLYPH_TONES).map(([tone, palette]) => (
+                  <SpecCard
+                    key={tone}
+                    label={tone}
+                    note={`P ${palette.primary} · A ${palette.accent} · S ${palette.secondary}`}
+                  >
+                    <div className="space-y-1.5">
+                      {WEATHER_PREVIEW.map((slot) => (
+                        <div
+                          key={`${tone}-${slot.label}`}
+                          className="flex items-center justify-between gap-2 text-[12px]"
+                        >
+                          <span className="flex items-center gap-2 text-[#737986]">
+                            <WeatherGlyph glyph={slot.glyph} tone={tone as WeatherGlyphTone} className="h-6 w-6" />
+                            {slot.label}
+                          </span>
+                          <span className="tabular-nums text-[#111111]">
+                            {slot.temp}
+                            {'precip' in slot && slot.precip ? ` · ${slot.precip}` : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </SpecCard>
+                ))}
               </div>
             </GuideSection>
 

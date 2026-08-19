@@ -58,17 +58,7 @@ function buildUserAgent(): string {
   return 'TrainTrack/1.0 (https://traintrack.app; contact: support@traintrack.app)'
 }
 
-function symbolToEmoji(symbol: string | undefined): string {
-  if (!symbol) return '🌤️'
-  if (symbol.includes('thunder')) return '⛈️'
-  if (symbol.includes('snow')) return '❄️'
-  if (symbol.includes('sleet')) return '🌨️'
-  if (symbol.includes('rain')) return '🌧️'
-  if (symbol.includes('fog')) return '🌫️'
-  if (symbol.includes('cloud')) return '☁️'
-  if (symbol.includes('clear')) return '☀️'
-  return '🌤️'
-}
+import { yrSymbolToMeteoconIcon } from '@/lib/weather/meteocons-glyphs'
 
 function pickNearestEntry(
   entries: YrTimeseriesEntry[],
@@ -119,7 +109,7 @@ function summarizeEntry(
 
   return {
     label,
-    emoji: symbolToEmoji(symbol),
+    emoji: yrSymbolToMeteoconIcon(symbol),
     temperatureC:
       typeof temperatureRaw === 'number' && Number.isFinite(temperatureRaw)
         ? Math.round(temperatureRaw)

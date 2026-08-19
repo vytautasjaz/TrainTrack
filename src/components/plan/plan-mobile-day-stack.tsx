@@ -20,11 +20,15 @@ import { dayHasRace, getDayRacePriority, raceDaySectionClass } from "@/lib/race-
 import { PlanDayAddMenu } from "@/components/plan/plan-day-add-menu";
 import { DayDropSection } from "@/components/plan/day-drop-section";
 import { cn } from "@/lib/utils";
-import { formatWeatherPrecip, type WeatherPlace } from "@/lib/weather/places";
+import {
+  formatWeatherPrecip,
+  type WeatherPlace,
+} from "@/lib/weather/places";
 import {
   WeekWeatherLocationControl,
   type WeekWeatherLocation,
 } from "@/components/weather/week-weather-location-control";
+import { WeatherGlyph } from "@/components/weather/weather-glyph";
 import {
   WORKOUT_DAY_CARD_CLASS,
 } from "@/lib/workout-display";
@@ -32,6 +36,7 @@ import { filterPlanSportRows } from "@/lib/plan-sport-filter";
 import { useFilteredPlanDays } from "@/components/training/use-plan-sport-filter-data";
 import { useOptionalPlanSportFilter } from "@/components/training/plan-sport-filter-context";
 import { collapseTriathlonRaceWorkouts } from "@/lib/triathlon-race-summary";
+import { todayDateKey } from "@/lib/dates";
 
 const COACH_SPORT_ROWS_FALLBACK = SPORT_ROW_ORDER.filter(
   (t) => t !== WorkoutType.REST && t !== WorkoutType.RECOVERY,
@@ -114,6 +119,7 @@ export function PlanMobileDayStack({
   onWeatherLocationSelect,
   onWeatherLocationReset,
 }: PlanMobileDayStackProps) {
+  const todayKey = todayDateKey();
   const days = useFilteredPlanDays(daysProp);
   const sportFilter = useOptionalPlanSportFilter();
   const typesInDays = new Set(
@@ -300,23 +306,36 @@ export function PlanMobileDayStack({
                   </div>
                 ) : null}
                 {!day.weather ? (
-                  <p className="text-[11px] text-muted-foreground/70">—</p>
+                  day.dateKey < todayKey ? null : <p className="text-[11px] text-muted-foreground/45">—</p>
                 ) : (
-                <div className="space-y-1">
-                  {day.weather.slots.map((slot) => (
-                    <div
-                      key={`${day.dateKey}-${slot.label}`}
-                      className="flex items-center justify-between gap-2 text-[11px]"
-                    >
-                      <span className="text-muted-foreground">
-                        {slot.emoji} {slot.label}
-                      </span>
-                      <span className="tabular-nums text-foreground/80">
-                        {slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}
-                        {formatWeatherPrecip(slot) ? ` · ${formatWeatherPrecip(slot)}` : ''}
-                      </span>
-                    </div>
-                  ))}
+                <div
+                  className="grid grid-cols-3 items-stretch"
+                >
+                  {day.weather.slots.map((slot) => {
+                    const precip = formatWeatherPrecip(slot);
+                    return (
+                      <div
+                        key={`${day.dateKey}-${slot.label}`}
+                        className="flex min-h-[4.95rem] flex-col items-center justify-between px-1 py-0.5 text-[11px]"
+                      >
+                        <span className="text-[9px] uppercase tracking-wide text-muted-foreground/80">
+                          {slot.label}
+                        </span>
+                        <span className="flex items-center justify-center">
+                          <WeatherGlyph
+                            glyph={slot.emoji}
+                            detail={`${slot.label} ${slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}${precip ? ` ${precip}` : ''}`}
+                            className="h-9 w-9"
+                          />
+                        </span>
+                        <span className="text-center tabular-nums text-[10px] text-foreground/80 leading-none">
+                          {slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}
+                          <br />
+                          <span className="text-[9px] text-muted-foreground">{precip || '\u00A0'}</span>
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
                 )}
               </div>

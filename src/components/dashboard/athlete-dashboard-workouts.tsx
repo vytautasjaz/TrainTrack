@@ -4,8 +4,8 @@ import { useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { ArrowRight } from 'lucide-react'
-import { WorkoutDetailModal } from '@/components/plan/workout-detail-modal'
-import { RaceDetailModal } from '@/components/plan/race-detail-modal'
+import { PlanWorkoutModal } from '@/components/plan/plan-workout-modal'
+import { WeatherGlyph } from '@/components/weather/weather-glyph'
 import { TrainingListWorkoutRow } from '@/components/training/training-list-workout-row'
 import { TrainingWorkoutCard } from '@/components/training/training-workout-card'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
@@ -14,7 +14,7 @@ import { buildPlanTableDays } from '@/lib/plan-week'
 import { parseDateOnly, todayDateKey } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import {
-  formatWeatherSlotLine,
+  formatWeatherPrecip,
   type WeatherDaySummary,
 } from '@/lib/weather/places'
 
@@ -23,13 +23,19 @@ type AthleteDashboardWorkoutsProps = {
   upcomingWorkouts: PlanWorkoutDetail[]
   weatherByDate?: Record<string, WeatherDaySummary>
   hasWeatherLocation?: boolean
+  showWeather?: boolean
 }
 
-function visibleWeatherParts(weather?: WeatherDaySummary | null): string[] {
+function visibleWeatherParts(weather?: WeatherDaySummary | null): Array<{ text: string; glyph: string }> {
   if (!weather?.slots.length) return []
   return weather.slots
-    .map(formatWeatherSlotLine)
-    .filter((part): part is string => Boolean(part))
+    .map((slot) => {
+      const temp = slot.temperatureC != null ? `${slot.temperatureC}°` : ''
+      const precip = formatWeatherPrecip(slot)
+      const text = [slot.label, temp, precip].filter(Boolean).join(' ')
+      return text ? { text, glyph: slot.emoji } : null
+    })
+    .filter((part): part is { text: string; glyph: string } => Boolean(part))
 }
 
 function DashboardWeatherLine({
@@ -44,19 +50,20 @@ function DashboardWeatherLine({
   return (
     <p
       className={cn(
-        'text-[11px] font-medium tracking-normal text-[#737986]',
+        'flex flex-wrap items-center gap-y-0.5 text-[11px] font-medium leading-none tracking-normal text-[#737986]',
         className,
       )}
-      title={parts.join('  ·  ')}
+      title={parts.map((part) => part.text).join('  ·  ')}
     >
-      {parts.map((text, index) => (
-        <span key={`${text}-${index}`}>
+      {parts.map((part, index) => (
+        <span key={`${part.text}-${index}`} className="inline-flex items-center gap-1.5 whitespace-nowrap">
           {index > 0 ? (
-            <span className="mx-1.5 text-[#c8c9c6]" aria-hidden>
+            <span className="mx-0.5 self-center text-[#c8c9c6]" aria-hidden>
               ·
             </span>
           ) : null}
-          <span>{text}</span>
+          <WeatherGlyph glyph={part.glyph} detail={part.text} className="h-10 w-10 shrink-0" />
+          <span className="leading-none">{part.text}</span>
         </span>
       ))}
     </p>
@@ -103,6 +110,7 @@ export function AthleteDashboardWorkouts({
   upcomingWorkouts,
   weatherByDate = {},
   hasWeatherLocation = false,
+  showWeather = true,
 }: AthleteDashboardWorkoutsProps) {
   const upcomingDays = workoutsToPlanDays(upcomingWorkouts)
   const [selected, setSelected] = useState<PlanWorkoutDetail | null>(null)
@@ -114,19 +122,21 @@ export function AthleteDashboardWorkouts({
     <div className="tt-dashboard-main-col">
       <section>
         <SectionHeader title="Today's workout" />
-        {todayWeatherVisible ? (
-          <DashboardWeatherLine weather={todayWeather} className="mb-2.5" />
-        ) : hasWeatherLocation ? (
-          <p className="mb-2.5 text-[11px] text-[#737986]">Forecast unavailable right now.</p>
-        ) : (
-          <p className="mb-2.5 text-[11px] text-[#737986]">
-            Set a weather location in{' '}
-            <Link href="/settings/account" className="underline underline-offset-2">
-              Profile
-            </Link>{' '}
-            to see conditions with your workouts.
-          </p>
-        )}
+        {showWeather ? (
+          todayWeatherVisible ? (
+            <DashboardWeatherLine weather={todayWeather} className="mb-2.5" />
+          ) : hasWeatherLocation ? (
+            <p className="mb-2.5 text-[11px] text-[#737986]">Forecast unavailable right now.</p>
+          ) : (
+            <p className="mb-2.5 text-[11px] text-[#737986]">
+              Set a weather location in{' '}
+              <Link href="/settings/account" className="underline underline-offset-2">
+                Profile
+              </Link>{' '}
+              to see conditions with your workouts.
+            </p>
+          )
+        ) : null}
         {todayWorkouts.length === 0 ? (
           <div className="tt-dashboard-card px-4 py-10 text-center">
             <p className="text-sm text-[#737986]">Rest day — nothing scheduled.</p>
@@ -185,10 +195,12 @@ export function AthleteDashboardWorkouts({
                   >
                     {format(day.date, 'EEEE d MMM').toUpperCase()}
                   </p>
-                  <DashboardWeatherLine
-                    weather={weatherByDate[day.dateKey]}
-                    className="mt-1"
-                  />
+                  {showWeather ? (
+                    <DashboardWeatherLine
+                      weather={weatherByDate[day.dateKey]}
+                      className="mt-1"
+                    />
+                  ) : null}
                 </div>
                 <div className="tt-dashboard-upcoming-stack">
                   {day.workouts.map((workout) => (
@@ -215,16 +227,8 @@ export function AthleteDashboardWorkouts({
         </Link>
       </section>
 
-      {selected?.isRace ? (
-        <RaceDetailModal
-          workout={selected}
-          open
-          onOpenChange={(open) => {
-            if (!open) setSelected(null)
-          }}
-        />
-      ) : selected ? (
-        <WorkoutDetailModal
+      {selected ? (
+        <PlanWorkoutModal
           workout={selected}
           isCoach={false}
           open
