@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { WorkoutStatus } from '@prisma/client'
 import { markWorkoutDone, markWorkoutSkipped, unlogWorkout } from '@/app/actions/workouts'
 import { athleteHasQuickLogActions, type PlanWorkoutDetail } from '@/lib/plan-workout'
+import { toUserMessage } from '@/lib/action-error'
 import {
   WorkoutStatusIcon,
   workoutStatusIconClass,
@@ -62,6 +63,7 @@ export function AthleteWorkoutQuickActions({
 }: AthleteWorkoutQuickActionsProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
+  const [actionError, setActionError] = useState<string | null>(null)
   const internalOptimistic = useOptimisticWorkoutStatus(workout)
   const status = displayStatus ?? internalOptimistic.status
   const setOptimisticStatus = onDisplayStatusChange ?? internalOptimistic.setOptimisticStatus
@@ -83,13 +85,15 @@ export function AthleteWorkoutQuickActions({
     action: (formData: FormData) => Promise<void>,
     optimisticNext: WorkoutStatus,
   ) {
+    setActionError(null)
     setOptimisticStatus(optimisticNext)
     startTransition(async () => {
       try {
         await action(workoutFormData(workout.id))
         router.refresh()
-      } catch {
+      } catch (error) {
         clearOptimisticStatus()
+        setActionError(toUserMessage(error, 'Could not update workout'))
       }
     })
   }
@@ -117,13 +121,15 @@ export function AthleteWorkoutQuickActions({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center gap-0.5',
+        layout === 'below' ? 'flex flex-col items-start gap-0.5' : 'flex shrink-0 items-center gap-0.5',
         layout === 'below' && 'justify-start pt-0.5',
         isPending && 'opacity-60',
         className,
       )}
+      title={layout === 'inline' && actionError ? actionError : undefined}
       onClick={(e) => e.stopPropagation()}
     >
+      <div className="flex shrink-0 items-center gap-0.5">
       <button
         type="button"
         disabled={isPending}
@@ -160,6 +166,12 @@ export function AthleteWorkoutQuickActions({
           aria-hidden
         />
       </button>
+      </div>
+      {layout === 'below' && actionError ? (
+        <p role="alert" className="text-[10px] leading-tight text-destructive">
+          {actionError}
+        </p>
+      ) : null}
     </div>
   )
 }

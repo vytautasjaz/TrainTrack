@@ -4,10 +4,12 @@
 import { useEffect, useMemo, useState, useTransition } from 'react'
 import { Bell, BellOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FormError } from '@/components/ui/form-error'
 import {
   registerWebPushSubscription,
   unregisterWebPushSubscription,
 } from '@/app/actions/push-notifications'
+import { toUserMessage } from '@/lib/action-error'
 
 type InboxNotificationsToggleProps = {
   pushConfigured: boolean
@@ -24,6 +26,7 @@ function base64UrlToUint8Array(base64UrlString: string) {
 
 export function InboxNotificationsToggle({ pushConfigured }: InboxNotificationsToggleProps) {
   const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   const [permission, setPermission] = useState<NotificationPermission>('default')
   const [hasSubscription, setHasSubscription] = useState(false)
   const canUsePush = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window
@@ -90,19 +93,25 @@ export function InboxNotificationsToggle({ pushConfigured }: InboxNotificationsT
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
       <Button
         type="button"
         variant="outline"
         size="sm"
         disabled={Boolean(disabledReason) || isPending}
         title={disabledReason ?? undefined}
-        onClick={() =>
+        onClick={() => {
+          setError(null)
           startTransition(async () => {
-            if (hasSubscription) await disableNotifications()
-            else await enableNotifications()
+            try {
+              if (hasSubscription) await disableNotifications()
+              else await enableNotifications()
+            } catch (err) {
+              setError(toUserMessage(err, 'Could not update notifications'))
+            }
           })
-        }
+        }}
       >
         {hasSubscription ? <BellOff className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
         {isPending
@@ -118,6 +127,8 @@ export function InboxNotificationsToggle({ pushConfigured }: InboxNotificationsT
           Browser notifications blocked — enable in browser settings.
         </span>
       ) : null}
+      </div>
+      <FormError message={error} />
     </div>
   )
 }

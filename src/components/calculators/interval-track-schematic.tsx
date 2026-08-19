@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import {
-  formatRaceTime,
   formatRaceTimeTenths,
   intervalTimeMinutes,
 } from '@/lib/calculators/race-time'
@@ -27,8 +26,6 @@ const CY = 118
 const STRAIGHT_HALF = 92
 const RADIUS = 50
 const LANE_HALF = 11
-
-type Point = { x: number; y: number }
 
 /** Exact straight↔bend junctions on the running line. */
 const JUNCTIONS = {

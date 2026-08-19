@@ -1,10 +1,11 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { Caption, SectionTitle } from '@/components/ui/typography'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { FormError } from '@/components/ui/form-error'
 import {
   linkGoogleAccount,
   linkStravaAccount,
@@ -29,6 +30,7 @@ export function SignInMethodsSection({
   showActivitySyncLink = false,
 }: SignInMethodsSectionProps) {
   const [passwordPending, startPasswordTransition] = useTransition()
+  const [passwordError, setPasswordError] = useState<string | null>(null)
 
   return (
     <section id="sign-in" className="card-elevated scroll-mt-24 space-y-4 p-5">
@@ -108,12 +110,18 @@ export function SignInMethodsSection({
           </Caption>
           <form
             action={(formData) => {
+              setPasswordError(null)
               startPasswordTransition(async () => {
-                await setPassword(formData)
+                try {
+                  await setPassword(formData)
+                } catch (err) {
+                  setPasswordError(err instanceof Error ? err.message : 'Could not update password')
+                }
               })
             }}
             className="flex flex-col gap-2 sm:flex-row"
           >
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
             <Input
               type="password"
               name="password"
@@ -122,6 +130,8 @@ export function SignInMethodsSection({
               required
               className="sm:flex-1"
             />
+            <FormError message={passwordError} />
+            </div>
             <Button type="submit" variant="secondary" size="sm" disabled={passwordPending}>
               {passwordPending ? 'Saving…' : hasPassword ? 'Update password' : 'Set password'}
             </Button>

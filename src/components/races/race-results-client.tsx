@@ -48,7 +48,6 @@ import {
   DATA_NUM,
   DATA_TABLE,
   DATA_TABLE_SHELL,
-  DATA_TOOLBAR,
 } from '@/lib/table-styles'
 
 type RaceResultsClientProps = {

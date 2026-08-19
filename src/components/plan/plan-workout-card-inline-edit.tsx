@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 'use client'
 
 import type { ReactNode } from 'react'
@@ -7,6 +7,7 @@ import { WorkoutType } from '@prisma/client'
 import { Clock } from 'lucide-react'
 import { patchPlanWorkoutCard } from '@/app/actions/workouts'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import { toUserMessage } from '@/lib/action-error'
 import {
   durationUnitFromTags,
   type WorkoutDurationUnit,
@@ -184,6 +185,7 @@ export function PlanWorkoutCardInlineEdit({
   const [duration, setDuration] = useState(() =>
     formatDurationInput(workout.plannedDuration, durationUnit),
   )
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
@@ -201,8 +203,18 @@ export function PlanWorkoutCardInlineEdit({
   ])
 
   function save(patch: Parameters<typeof patchPlanWorkoutCard>[0]) {
+    setSaveError(null)
     startTransition(async () => {
-      await patchPlanWorkoutCard(patch)
+      try {
+        await patchPlanWorkoutCard(patch)
+      } catch (error) {
+        setTitle(workout.title)
+        setDistance(formatDistanceInput(workout))
+        setDuration(
+          formatDurationInput(workout.plannedDuration, resolveDurationUnit(workout)),
+        )
+        setSaveError(toUserMessage(error, 'Could not save changes'))
+      }
     })
   }
 
@@ -377,6 +389,12 @@ export function PlanWorkoutCardInlineEdit({
             </>
           )}
         </div>
+      ) : null}
+
+      {saveError ? (
+        <p role="alert" className="text-[10px] leading-tight text-destructive">
+          {saveError}
+        </p>
       ) : null}
     </div>
   )

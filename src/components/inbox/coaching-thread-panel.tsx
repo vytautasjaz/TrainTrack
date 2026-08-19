@@ -1,12 +1,16 @@
 'use client'
 
+/* eslint-disable react-hooks/exhaustive-deps */
+
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { Frown, Meh, Smile } from 'lucide-react'
 import { CoachingAuthorRole } from '@prisma/client'
 import { Button } from '@/components/ui/button'
+import { FormError } from '@/components/ui/form-error'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { toUserMessage } from '@/lib/action-error'
 import { replyToCoachingThread } from '@/app/actions/coaching-inbox'
 import { COACHING_THREAD_MESSAGE_CAP } from '@/lib/coaching-inbox-shared'
 import { refreshInboxUnreadBadge } from '@/components/layout/inbox-nav-badge'
@@ -71,6 +75,7 @@ export function CoachingThreadPanel({
   const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [body, setBody] = useState('')
+  const [sendError, setSendError] = useState<string | null>(null)
   const [localMessages, setLocalMessages] = useState(thread.messages)
   const [isPending, startTransition] = useTransition()
   const isOptimistic = thread.id.startsWith('optimistic-')
@@ -134,20 +139,24 @@ export function CoachingThreadPanel({
     }
     setLocalMessages((prev) => [...prev, optimistic])
     setBody('')
+    setSendError(null)
     onMessageSent?.(trimmed)
     startTransition(async () => {
       try {
         await replyToCoachingThread(formData)
         refresh()
         void refreshInboxUnreadBadge()
-      } catch {
+      } catch (error) {
         setLocalMessages((prev) => prev.filter((m) => m.id !== optimistic.id))
+        setBody(trimmed)
+        setSendError(toUserMessage(error, 'Could not send message'))
       }
     })
   }
 
   return (
     <div className={cn('min-w-0 max-w-full space-y-3', className)}>
+      <FormError message={sendError} />
       <div className={cn('min-w-0 space-y-2', compact ? 'max-h-40 overflow-y-auto' : 'max-h-72 overflow-y-auto')}>
         {localMessages.map((m) => {
           const mine =

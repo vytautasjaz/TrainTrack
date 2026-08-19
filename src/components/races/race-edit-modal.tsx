@@ -1,9 +1,10 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Save } from 'lucide-react'
 import { updateRace } from '@/app/actions/workouts'
 import { Button } from '@/components/ui/button'
+import { FormError } from '@/components/ui/form-error'
 import {
   Dialog,
   DialogContent,
@@ -52,11 +53,18 @@ export function RaceEditModal({
   returnTo = '/season',
 }: RaceEditModalProps) {
   const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   if (!race) return null
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setError(null)
+        onOpenChange(next)
+      }}
+    >
       <DialogContent className="flex max-h-[min(92vh,52rem)] w-[calc(100%-1.5rem)] max-w-[42rem] flex-col gap-0 overflow-hidden p-0">
         <DialogTitle className="sr-only">Edit race</DialogTitle>
         <DialogDescription className="sr-only">
@@ -65,14 +73,20 @@ export function RaceEditModal({
 
         <form
           action={(formData) => {
+            setError(null)
             startTransition(async () => {
-              await updateRace(formData)
-              onSaved?.()
-              onOpenChange(false)
+              try {
+                await updateRace(formData)
+                onSaved?.()
+                onOpenChange(false)
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Could not save race')
+              }
             })
           }}
           className="flex min-h-0 flex-1 flex-col"
         >
+          <FormError message={error} className="mx-5 mt-3 sm:mx-6" />
           <input type="hidden" name="raceId" value={race.id} />
           <input type="hidden" name="returnTo" value={returnTo} />
           <input type="hidden" name="skipRedirect" value="1" />

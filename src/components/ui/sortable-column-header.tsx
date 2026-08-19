@@ -39,7 +39,11 @@ export function SortableColumnHeader({
           : 'text-muted-foreground hover:text-foreground',
         className,
       )}
-      aria-sort={active ? (direction === 'asc' ? 'ascending' : 'descending') : 'none'}
+      aria-label={
+        active
+          ? `${label}, sorted ${direction === 'asc' ? 'ascending' : 'descending'}`
+          : `${label}, not sorted`
+      }
     >
       {label}
       <Chevron className="h-3 w-3 opacity-70" aria-hidden />

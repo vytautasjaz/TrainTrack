@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { CalendarClock } from 'lucide-react'
 import { rescheduleWorkout } from '@/app/actions/workouts'
 import { Button } from '@/components/ui/button'
+import { FormError } from '@/components/ui/form-error'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import {
@@ -88,7 +89,7 @@ export function RescheduleWorkoutModal({
               . Pick that date again to move it back.
             </p>
           ) : null}
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <FormError message={error} />
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
               Cancel

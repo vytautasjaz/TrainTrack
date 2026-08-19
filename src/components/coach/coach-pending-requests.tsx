@@ -1,8 +1,9 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Caption, SectionTitle } from '@/components/ui/typography'
+import { FormError } from '@/components/ui/form-error'
 import { respondCoachRequest } from '@/app/actions/auth'
 
 export type PendingCoachRequest = {
@@ -17,20 +18,27 @@ type CoachPendingRequestsProps = {
 
 function CoachRequestRow({ link }: { link: PendingCoachRequest }) {
   const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   function respond(decision: 'accept' | 'reject') {
+    setError(null)
     startTransition(async () => {
-      const formData = new FormData()
-      formData.set('linkId', link.id)
-      formData.set('decision', decision)
-      await respondCoachRequest(formData)
+      try {
+        const formData = new FormData()
+        formData.set('linkId', link.id)
+        formData.set('decision', decision)
+        await respondCoachRequest(formData)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not respond to request')
+      }
     })
   }
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-2 rounded-[6px] border border-border/60 bg-card px-3 py-2.5">
-      <span className="text-sm font-medium">{link.athlete.name}</span>
-      <div className="flex gap-2">
+    <li className="flex flex-col gap-2 rounded-[6px] border border-border/60 bg-card px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-medium">{link.athlete.name}</span>
+        <div className="flex gap-2">
         <Button
           type="button"
           size="sm"
@@ -49,6 +57,8 @@ function CoachRequestRow({ link }: { link: PendingCoachRequest }) {
           Reject
         </Button>
       </div>
+      </div>
+      <FormError message={error} />
     </li>
   )
 }

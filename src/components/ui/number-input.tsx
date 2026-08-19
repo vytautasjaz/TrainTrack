@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState, type InputHTMLAttributes } from 'react'
-import { cn } from '@/lib/utils'
 
 export const editableInputDragHandlers = {
   onMouseDown: (e: React.SyntheticEvent) => e.stopPropagation(),

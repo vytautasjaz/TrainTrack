@@ -15,7 +15,7 @@ import {
   StickyNote,
 } from 'lucide-react'
 import { PlanTableView } from '@/components/plan/plan-table-view'
-import { PlanWeekDndProvider } from '@/components/plan/plan-week-dnd'
+import { PlanWeekDndProvider, PlanWeekDndErrorBanner } from '@/components/plan/plan-week-dnd'
 import { CalendarPeriodNav } from '@/components/plan/calendar-period-nav'
 import { EditDefaultPlanSportsButton } from '@/components/coach/edit-default-plan-sports-button'
 import { AddPlanSportRowButton } from '@/components/coach/add-plan-sport-row-button'
@@ -479,6 +479,7 @@ export function PlanMultiWeekTables({
       {toolbar}
       {showCombined ? (
         <PlanWeekDndProvider mode={isCoach ? 'coach' : 'athlete'}>
+          <PlanWeekDndErrorBanner className="mb-4" />
           {combinedContent}
         </PlanWeekDndProvider>
       ) : (

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { BookmarkPlus, Plus, Save } from 'lucide-react'
 import { RaceIntent } from '@prisma/client'
 import { Button } from '@/components/ui/button'
+import { FormError } from '@/components/ui/form-error'
 import {
   Dialog,
   DialogContent,
@@ -31,9 +32,16 @@ export function AddRaceModal({
 }: AddRaceModalProps) {
   const isWatching = defaultIntent === RaceIntent.WATCHING
   const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setError(null)
+        onOpenChange(next)
+      }}
+    >
       <DialogContent className="flex max-h-[min(92vh,52rem)] w-[calc(100%-1.5rem)] max-w-[42rem] flex-col gap-0 overflow-hidden p-0">
         <DialogTitle className="sr-only">
           {isWatching ? 'Add to watchlist' : 'Add race'}
@@ -46,13 +54,19 @@ export function AddRaceModal({
 
         <form
           action={(formData) => {
+            setError(null)
             startTransition(async () => {
-              await createRace(formData)
-              onOpenChange(false)
+              try {
+                await createRace(formData)
+                onOpenChange(false)
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Could not add race')
+              }
             })
           }}
           className="flex min-h-0 flex-1 flex-col"
         >
+          <FormError message={error} className="mx-5 mt-3 sm:mx-6" />
           {athleteId ? <input type="hidden" name="athleteId" value={athleteId} /> : null}
 
           <div className="min-h-0 flex-1 overflow-y-auto">

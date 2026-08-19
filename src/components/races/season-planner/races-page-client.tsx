@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { FormError } from '@/components/ui/form-error'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -1949,6 +1950,7 @@ function SeasonRaceTable({
 
 function RaceRowMenu({ race }: { race: SeasonRace }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   return (
@@ -1989,20 +1991,30 @@ function RaceRowMenu({ race }: { race: SeasonRace }) {
       </DropdownMenu.Root>
       <ConfirmDialog
         open={deleteOpen}
-        onOpenChange={setDeleteOpen}
+        onOpenChange={(open) => {
+          if (!open) setDeleteError(null)
+          setDeleteOpen(open)
+        }}
         title="Delete this race?"
         description={`${race.name} will be removed from your season plan.`}
         confirmLabel="Delete"
         pending={pending}
         onConfirm={() => {
+          setDeleteError(null)
           startTransition(async () => {
-            const fd = new FormData()
-            fd.set('raceId', race.id)
-            await deleteRace(fd)
-            setDeleteOpen(false)
+            try {
+              const fd = new FormData()
+              fd.set('raceId', race.id)
+              await deleteRace(fd)
+              setDeleteOpen(false)
+            } catch (err) {
+              setDeleteError(err instanceof Error ? err.message : 'Could not delete race')
+            }
           })
         }}
-      />
+      >
+        {deleteError ? <FormError message={deleteError} className="mt-3" /> : null}
+      </ConfirmDialog>
     </>
   )
 }
@@ -2018,13 +2030,20 @@ function PhaseBlockModal({
   onOpenChange: (open: boolean) => void
 }) {
   const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   const open = Boolean(state)
   const editing = state?.mode === 'edit' ? state.block : null
   const defaultSport =
     state?.mode === 'create' ? state.sport : (editing?.sport as PlannerSport | undefined)
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setError(null)
+        onOpenChange(next)
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit phase' : 'Add phase'}</DialogTitle>
@@ -2036,18 +2055,24 @@ function PhaseBlockModal({
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault()
+            setError(null)
             const fd = new FormData(e.currentTarget)
             startTransition(async () => {
-              if (editing) {
-                fd.set('id', editing.id)
-                await updateSeasonPhaseBlock(fd)
-              } else {
-                await createSeasonPhaseBlock(fd)
+              try {
+                if (editing) {
+                  fd.set('id', editing.id)
+                  await updateSeasonPhaseBlock(fd)
+                } else {
+                  await createSeasonPhaseBlock(fd)
+                }
+                onOpenChange(false)
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Could not save phase')
               }
-              onOpenChange(false)
             })
           }}
         >
+          <FormError message={error} />
           <FormField label="Sport">
             <Select name="sport" required defaultValue={defaultSport ?? 'RUN'}>
               {PLANNER_SPORTS.map((s) => (
@@ -2107,11 +2132,16 @@ function PhaseBlockModal({
                 className="text-destructive"
                 disabled={pending}
                 onClick={() => {
+                  setError(null)
                   startTransition(async () => {
-                    const fd = new FormData()
-                    fd.set('id', editing.id)
-                    await deleteSeasonPhaseBlock(fd)
-                    onOpenChange(false)
+                    try {
+                      const fd = new FormData()
+                      fd.set('id', editing.id)
+                      await deleteSeasonPhaseBlock(fd)
+                      onOpenChange(false)
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Could not delete phase')
+                    }
                   })
                 }}
               >

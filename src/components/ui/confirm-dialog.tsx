@@ -21,6 +21,7 @@ type ConfirmDialogProps = {
   onConfirm: () => void
   /** Soften confirm (e.g. non-destructive dismiss). Default is remove/delete. */
   tone?: 'danger' | 'default'
+  children?: React.ReactNode
 }
 
 export function ConfirmDialog({
@@ -33,6 +34,7 @@ export function ConfirmDialog({
   pending = false,
   onConfirm,
   tone = 'danger',
+  children,
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -48,6 +50,8 @@ export function ConfirmDialog({
             </DialogDescription>
           ) : null}
         </DialogHeader>
+
+        {children}
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button

@@ -9,7 +9,6 @@ import {
   useState,
   useSyncExternalStore,
   useTransition,
-  type ReactNode,
 } from 'react'
 import { CoachingAuthorRole, CoachingThreadKind, CoachingThreadStatus } from '@prisma/client'
 import { Calendar, ChevronLeft, ChevronRight, Flag, MessageSquare } from 'lucide-react'

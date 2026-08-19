@@ -3,7 +3,6 @@
 import type { AthleteStatus } from '@prisma/client'
 import { switchAthlete } from '@/app/actions/session'
 import { Select } from '@/components/ui/select'
-import { Caption } from '@/components/ui/typography'
 import { athleteStatusLabel } from '@/lib/athlete-status'
 
 type CoachAthleteSelectProps = {

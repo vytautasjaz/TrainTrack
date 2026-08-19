@@ -431,7 +431,7 @@ export function WorkoutDetailsInlineFields({
 /** Expanded-only extras: recovery intensity, progressive step, optional notes. */
 export function WorkoutDetailsExpandedExtras({
   block,
-  sportType,
+  sportType: _sportType,
   onChange,
 }: {
   block: WorkoutBlock

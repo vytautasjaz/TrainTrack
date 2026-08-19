@@ -8,7 +8,7 @@ import {
   FALLBACK_PACES,
 } from './segment-estimation'
 import { progressiveMidpointTarget } from './progressive'
-import { hasStructureContent, segmentDistanceKm } from './utils'
+import { hasStructureContent } from './utils'
 import {
   INCLUDE_PLACEMENT_LABELS,
   INCLUDE_PLACEMENT_SPLIT,

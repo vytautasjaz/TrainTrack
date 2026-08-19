@@ -8,6 +8,8 @@ import { RacePlanItem } from '@/components/plan/race-plan-item'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import { TrainingWorkoutCard } from '@/components/training/training-workout-card'
 import { canDragPlanWorkout, type PlanWorkoutDetail } from '@/lib/plan-workout'
+import { toUserMessage } from '@/lib/action-error'
+import { FormError } from '@/components/ui/form-error'
 import { cn } from '@/lib/utils'
 
 type TrainingDayWorkoutListProps = {
@@ -29,6 +31,7 @@ export function TrainingDayWorkoutList({
   const [ordered, setOrdered] = useState(workouts)
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dropTargetId, setDropTargetId] = useState<string | null>(null)
+  const [reorderError, setReorderError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const workoutsSyncKey = workouts
@@ -49,14 +52,21 @@ export function TrainingDayWorkoutList({
     const [moved] = next.splice(from, 1)
     next.splice(to, 0, moved)
     setOrdered(next)
+    setReorderError(null)
 
     startTransition(async () => {
-      await reorderDayWorkouts(dateKey, next.map((w) => w.id))
+      try {
+        await reorderDayWorkouts(dateKey, next.map((w) => w.id))
+      } catch (error) {
+        setOrdered(workouts)
+        setReorderError(toUserMessage(error, 'Could not reorder workouts'))
+      }
     })
   }
 
   return (
     <div className={cn('space-y-4 px-3 pb-3 pt-1', isPending && 'opacity-80')}>
+      <FormError message={reorderError} />
       {raceWorkouts.map((w) => (
         <RacePlanItem key={w.id} workout={w} isCoach={isCoach} compact tableCell />
       ))}

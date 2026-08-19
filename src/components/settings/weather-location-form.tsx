@@ -13,6 +13,8 @@ import {
 } from '@/app/actions/preferences'
 import type { WeatherPlace } from '@/lib/weather/places'
 import { WeatherGlyph } from '@/components/weather/weather-glyph'
+import { FormError } from '@/components/ui/form-error'
+import { toUserMessage } from '@/lib/action-error'
 import { cn } from '@/lib/utils'
 
 type WeatherLocationFormProps = {
@@ -38,6 +40,7 @@ export function WeatherLocationForm({
   const [lat, setLat] = useState(initial.lat != null ? String(initial.lat) : '')
   const [lon, setLon] = useState(initial.lon != null ? String(initial.lon) : '')
   const [showWeather, setShowWeather] = useState(showWeatherInitial)
+  const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const selected = name && lat && lon ? name : null
 
@@ -50,15 +53,22 @@ export function WeatherLocationForm({
   function selectShowWeather(next: boolean) {
     if (next === showWeather) return
     setShowWeather(next)
+    setError(null)
     startTransition(async () => {
-      const formData = new FormData()
-      formData.set('showWeather', next ? '1' : '0')
-      await updateAthleteShowWeather(formData)
+      try {
+        const formData = new FormData()
+        formData.set('showWeather', next ? '1' : '0')
+        await updateAthleteShowWeather(formData)
+      } catch (err) {
+        setShowWeather(!next)
+        setError(toUserMessage(err, 'Could not update weather preference'))
+      }
     })
   }
 
   return (
     <section className="card-elevated space-y-4 p-5">
+      <FormError message={error} />
       <div>
         <SectionTitle variant="ui">Weather</SectionTitle>
         <Caption>
@@ -134,8 +144,13 @@ export function WeatherLocationForm({
       </div>
       <form
         action={(formData) => {
+          setError(null)
           startTransition(async () => {
-            await updateAthleteWeatherLocation(formData)
+            try {
+              await updateAthleteWeatherLocation(formData)
+            } catch (err) {
+              setError(toUserMessage(err, 'Could not save weather location'))
+            }
           })
         }}
         className="space-y-3"

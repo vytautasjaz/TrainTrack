@@ -149,49 +149,6 @@ function revalidateWorkoutPaths(workoutId?: string) {
   if (workoutId) revalidatePath(`/workouts/${workoutId}`)
 }
 
-async function cleanupLegacyRescheduleArtifacts(workout: {
-  id: string
-  athleteId: string
-  isRescheduleGhost: boolean
-  rescheduledFromId: string | null
-  rescheduledCopy: { id: string } | null
-}) {
-  if (workout.isRescheduleGhost) {
-    if (workout.rescheduledCopy) {
-      await prisma.workout.delete({ where: { id: workout.id } })
-      return workout.rescheduledCopy.id
-    }
-    await prisma.workout.update({
-      where: { id: workout.id },
-      data: { isRescheduleGhost: false },
-    })
-  }
-
-  if (workout.rescheduledFromId) {
-    const ghost = await prisma.workout.findUnique({
-      where: { id: workout.rescheduledFromId },
-      select: { id: true, isRescheduleGhost: true },
-    })
-    if (ghost?.isRescheduleGhost) {
-      await prisma.workout.delete({ where: { id: ghost.id } })
-    }
-    await prisma.workout.update({
-      where: { id: workout.id },
-      data: { rescheduledFromId: null },
-    })
-  }
-
-  if (workout.rescheduledCopy) {
-    await prisma.workout.delete({ where: { id: workout.rescheduledCopy.id } })
-    await prisma.workout.update({
-      where: { id: workout.id },
-      data: { isRescheduleGhost: false },
-    })
-  }
-
-  return workout.id
-}
-
 async function requireAthleteOwnedWorkout(workoutId: string) {
   const session = await requireSession()
   if (!session.hasAthlete) throw new Error('Athlete only')

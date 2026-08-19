@@ -114,7 +114,7 @@ export function showsDistancePresets(sportId: RaceFormSportId): boolean {
 export function showsCustomDistance(
   sportId: RaceFormSportId | null,
   runDistance: RunDistancePreset | null,
-  triDistance: TriathlonDistance | null,
+  _triDistance: TriathlonDistance | null,
 ): boolean {
   if (!sportId) return false
   if (sportId === 'RUN') return runDistance === 'CUSTOM'

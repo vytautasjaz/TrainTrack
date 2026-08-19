@@ -21,6 +21,7 @@ import {
 import { SessionType, WorkoutStatus, WorkoutType } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { FormError } from "@/components/ui/form-error";
 import { FormField } from "@/components/ui/form-field";
 import { PrivateNoteToggle } from "@/components/ui/private-note-toggle";
 import { Textarea } from "@/components/ui/textarea";
@@ -131,6 +132,7 @@ import {
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
 import { parseDateOnly } from "@/lib/dates";
 import { cn } from "@/lib/utils";
+import { toUserMessage } from "@/lib/action-error";
 
 function formatDistanceInputValue(km: number): string {
   if (!Number.isFinite(km) || km <= 0) return "";
@@ -321,6 +323,7 @@ export function SharedWorkoutEditor({
   );
 
   const [pending, startTransition] = useTransition();
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [templates, setTemplates] = useState<WorkoutTemplatePickerItem[]>([]);
   const [preferences, setPreferences] = useState<AthletePreferences | null>(
@@ -1216,6 +1219,8 @@ export function SharedWorkoutEditor({
 
   function save() {
     startTransition(async () => {
+      setSaveError(null);
+      try {
       if (athleteMode) {
         await createAthleteWorkoutFromModal({
           title: title.trim() || WORKOUT_TYPE_LABELS[sportType],
@@ -1363,6 +1368,9 @@ export function SharedWorkoutEditor({
         await createWorkoutFromModal(payload);
       }
       onSaved?.();
+      } catch (err) {
+        setSaveError(toUserMessage(err, 'Could not save workout'));
+      }
     });
   }
 
@@ -1436,7 +1444,11 @@ export function SharedWorkoutEditor({
         : "run pace zones";
 
   const footer = (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 px-5 py-3 sm:px-6">
+    <div className="border-t border-border/60 px-5 py-3 sm:px-6">
+      {saveError ? (
+        <FormError message={saveError} className="mb-2" />
+      ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-2">
       {previewOpen ? (
         <Button
           type="button"
@@ -1479,6 +1491,7 @@ export function SharedWorkoutEditor({
           <Save className="h-3.5 w-3.5" />
           {pending ? "Saving…" : "Save"}
         </Button>
+      </div>
       </div>
     </div>
   );

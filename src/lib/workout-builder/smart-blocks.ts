@@ -76,7 +76,7 @@ export function smartBlockOptionsForSection(section: WorkoutSection): SmartBlock
   return SMART_BLOCK_OPTIONS.filter((o) => o.section === 'mainSet')
 }
 
-export function addBlockMenuOptions(sportType: WorkoutType): {
+export function addBlockMenuOptions(_sportType: WorkoutType): {
   core: SmartBlockOption[]
   presets: SmartBlockOption[]
 } {

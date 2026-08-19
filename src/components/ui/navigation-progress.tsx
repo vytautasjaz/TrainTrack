@@ -1,4 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 'use client'
 
 import { Suspense, useEffect, useRef, useState } from 'react'

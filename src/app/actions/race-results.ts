@@ -7,7 +7,6 @@ import {
   RacePriority,
   RaceType,
   TriathlonDistance,
-  WorkoutType,
 } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'

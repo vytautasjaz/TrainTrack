@@ -58,7 +58,7 @@ export const DATA_TABLE_COMPACT = 'tt-data-table'
 
 export type DataTableDensity = 'comfortable' | 'compact'
 
-export function dataTableClass(density: DataTableDensity = 'comfortable') {
+export function dataTableClass(_density: DataTableDensity = 'comfortable') {
   return `${DATA_TABLE}`
 }
 

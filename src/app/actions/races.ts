@@ -57,6 +57,6 @@ export async function getSeasonRaceDetail(
   }
   if (!allowed) return null
 
-  const { athleteId: _athleteId, ...rest } = race
+  const { athleteId: _, ...rest } = race
   return rest as SeasonRace
 }

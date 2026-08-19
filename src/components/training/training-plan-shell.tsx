@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { PlanWeekDndProvider } from '@/components/plan/plan-week-dnd'
+import { PlanWeekDndProvider, PlanWeekDndErrorBanner } from '@/components/plan/plan-week-dnd'
 import {
   TrainingLibraryProvider,
   useTrainingLibrary,
@@ -59,6 +59,7 @@ export function TrainingPlanShell({
 }: TrainingPlanShellProps) {
   const body = (
     <PlanWeekDndProvider mode={isCoach ? 'coach' : 'athlete'}>
+      <PlanWeekDndErrorBanner className="mb-4" />
       {isCoach ? (
         <TrainingLibraryProvider templates={templates}>
           <TrainingPlanShellLayout>{children}</TrainingPlanShellLayout>

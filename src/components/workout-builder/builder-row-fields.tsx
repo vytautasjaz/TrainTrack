@@ -34,7 +34,7 @@ export function IntervalBlockRow({
   sportType,
   athletePreferences,
   className,
-  embedded,
+  embedded: _embedded,
 }: IntervalBlockRowProps) {
   const work = block.work ?? { mode: 'distance' as const, value: 1000, unit: 'm' as const }
   const recovery = block.recovery ?? { mode: 'time' as const, value: 2, unit: 'min' as const }
@@ -90,7 +90,7 @@ type RepetitionBlockRowProps = {
   embedded?: boolean
 }
 
-export function RepetitionBlockRow({ block, onChange, className, embedded }: RepetitionBlockRowProps) {
+export function RepetitionBlockRow({ block, onChange, className, embedded: _embedded }: RepetitionBlockRowProps) {
   const work = block.work ?? { mode: 'distance' as const, value: 100, unit: 'm' as const }
 
   return (

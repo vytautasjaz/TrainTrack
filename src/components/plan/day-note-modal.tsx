@@ -11,6 +11,7 @@ import {
 } from '@/lib/day-notes'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { FormError } from '@/components/ui/form-error'
 import { FormField } from '@/components/ui/form-field'
 import { PrivateNoteToggle } from '@/components/ui/private-note-toggle'
 import { Textarea } from '@/components/ui/textarea'
@@ -45,6 +46,7 @@ export function DayNoteModal({
 }: DayNoteModalProps) {
   const [pending, startTransition] = useTransition()
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const isAthleteKind = noteKind === 'athlete'
   const unavailable = note ? isDayNoteUnavailable(note.status) : false
   const existingText = isAthleteKind
@@ -67,20 +69,31 @@ export function DayNoteModal({
         : 'Add coach note'
 
   function handleRemove() {
+    setError(null)
     startTransition(async () => {
-      const fd = new FormData()
-      fd.set('date', dateKey)
-      fd.set('noteKind', noteKind)
-      if (athleteId) fd.set('athleteId', athleteId)
-      await deleteDayNote(fd)
-      setConfirmOpen(false)
-      onOpenChange(false)
+      try {
+        const fd = new FormData()
+        fd.set('date', dateKey)
+        fd.set('noteKind', noteKind)
+        if (athleteId) fd.set('athleteId', athleteId)
+        await deleteDayNote(fd)
+        setConfirmOpen(false)
+        onOpenChange(false)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not remove note')
+      }
     })
   }
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) setError(null)
+          onOpenChange(next)
+        }}
+      >
         <DialogContent className="max-w-md gap-0 p-4">
           <DialogHeader className="mb-3">
             <DialogTitle>{title}</DialogTitle>
@@ -127,12 +140,18 @@ export function DayNoteModal({
             <form
               className="space-y-3"
               action={(formData) => {
+                setError(null)
                 startTransition(async () => {
-                  await upsertDayNote(formData)
-                  onOpenChange(false)
+                  try {
+                    await upsertDayNote(formData)
+                    onOpenChange(false)
+                  } catch (err) {
+                    setError(err instanceof Error ? err.message : 'Could not save note')
+                  }
                 })
               }}
             >
+              <FormError message={error} />
               <input type="hidden" name="date" value={dateKey} />
               <input type="hidden" name="noteKind" value={noteKind} />
               {athleteId && <input type="hidden" name="athleteId" value={athleteId} />}

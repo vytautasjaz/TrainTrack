@@ -8,6 +8,7 @@ import {
   updateSeasonEvent,
 } from '@/app/actions/season-events'
 import { Button } from '@/components/ui/button'
+import { FormError } from '@/components/ui/form-error'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import {
@@ -50,6 +51,7 @@ export function SeasonEventModal({
   defaultEndDate,
 }: SeasonEventModalProps) {
   const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   const editing = event
   const fallbackToday = useMemo(() => todayLocalKey(), [])
   const createStart = defaultStartDate ?? fallbackToday
@@ -74,7 +76,13 @@ export function SeasonEventModal({
   }, [open, editing, createStart, createEnd])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) setError(null)
+        onOpenChange(next)
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{editing ? 'Edit event' : 'Add event'}</DialogTitle>
@@ -86,18 +94,24 @@ export function SeasonEventModal({
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault()
+            setError(null)
             const fd = new FormData(e.currentTarget)
             startTransition(async () => {
-              if (editing) {
-                fd.set('id', editing.id)
-                await updateSeasonEvent(fd)
-              } else {
-                await createSeasonEvent(fd)
+              try {
+                if (editing) {
+                  fd.set('id', editing.id)
+                  await updateSeasonEvent(fd)
+                } else {
+                  await createSeasonEvent(fd)
+                }
+                onOpenChange(false)
+              } catch (err) {
+                setError(err instanceof Error ? err.message : 'Could not save event')
               }
-              onOpenChange(false)
             })
           }}
         >
+          <FormError message={error} />
           <FormField label="Title">
             <Input
               name="title"
@@ -153,11 +167,16 @@ export function SeasonEventModal({
                 className="text-destructive"
                 disabled={pending}
                 onClick={() => {
+                  setError(null)
                   startTransition(async () => {
-                    const fd = new FormData()
-                    fd.set('id', editing.id)
-                    await deleteSeasonEvent(fd)
-                    onOpenChange(false)
+                    try {
+                      const fd = new FormData()
+                      fd.set('id', editing.id)
+                      await deleteSeasonEvent(fd)
+                      onOpenChange(false)
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : 'Could not delete event')
+                    }
                   })
                 }}
               >

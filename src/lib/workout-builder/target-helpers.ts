@@ -116,7 +116,7 @@ export function primaryTarget(block: { targets?: Target[] }, sport: WorkoutType)
 
 export function recoveryTarget(
   targets: Target[] | undefined,
-  sport: WorkoutType = 'RUN' as WorkoutType,
+  _sport: WorkoutType = 'RUN' as WorkoutType,
 ): Target {
   const existing = targets?.[1]
   if (existing) return existing
@@ -139,7 +139,7 @@ export function setRecoveryTarget(
   return [primaryTarget({ targets }, sport), recovery]
 }
 
-export function formatIntensityDisplay(target: Target, sport: WorkoutType): string {
+export function formatIntensityDisplay(target: Target, _sport: WorkoutType): string {
   const value = target.value?.trim()
   if (target.type === 'rpe' && value) return value
   if (!value) return targetTypeLabel(target.type)

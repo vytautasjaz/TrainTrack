@@ -62,7 +62,7 @@ export function collapseTriathlonRaceWorkouts(
   for (const [raceId, items] of grouped.entries()) {
     if (items.length < 2) continue
     const first = items[0]!
-    const plannedDistance = items.reduce((sum, i) => sum + (i.plannedDistance ?? 0), 0)
+    const _plannedDistance = items.reduce((sum, i) => sum + (i.plannedDistance ?? 0), 0)
     const plannedDuration = items.reduce((sum, i) => sum + (i.plannedDuration ?? 0), 0)
     const actualDistance = items.reduce((sum, i) => sum + (i.result?.actualDistance ?? 0), 0)
     const actualDuration = items.reduce((sum, i) => sum + (i.result?.actualDuration ?? 0), 0)

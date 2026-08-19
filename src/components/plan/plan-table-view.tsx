@@ -6,7 +6,7 @@ import { AddWorkoutCell } from "@/components/plan/add-workout-cell";
 import { DayDropTd } from "@/components/plan/day-drop-td";
 import { PlanMobileDayStack } from "@/components/plan/plan-mobile-day-stack";
 import { SeasonEventChips } from "@/components/plan/season-event-chips";
-import { PlanWeekDndProvider } from "@/components/plan/plan-week-dnd";
+import { PlanWeekDndProvider, PlanWeekDndErrorBanner } from "@/components/plan/plan-week-dnd";
 import { PlanWeekDayStrip } from "@/components/plan/week-day-strip";
 import {
   WORKOUT_TYPE_COLORS,
@@ -932,6 +932,7 @@ export function PlanTableView({
   if (!skipDndProvider) {
     return (
       <PlanWeekDndProvider mode={props.isCoach ? 'coach' : 'athlete'}>
+        <PlanWeekDndErrorBanner className="mb-4" />
         <PlanTableViewInner {...props} />
       </PlanWeekDndProvider>
     );

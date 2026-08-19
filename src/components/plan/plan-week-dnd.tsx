@@ -14,6 +14,8 @@ import {
   createTemplateFromWorkout,
   rescheduleWorkout,
 } from '@/app/actions/workouts'
+import { toUserMessage } from '@/lib/action-error'
+import { FormError } from '@/components/ui/form-error'
 
 export type DragPlanWorkout = {
   kind: 'plan'
@@ -47,6 +49,8 @@ type PlanWeekDndContextValue = {
   dragWorkout: DragPlanWorkout | null
   setDragWorkout: (workout: DragWorkout | null) => void
   isMoving: boolean
+  actionError: string | null
+  clearActionError: () => void
   moveWorkoutToCell: (workoutId: string, dateKey: string) => void
   scheduleTemplateToCell: (templateId: string, dateKey: string) => void
   savePlanWorkoutToLibrary: (workoutId: string) => void
@@ -75,7 +79,12 @@ function PlanWeekDndProviderInner({
   mode: PlanWeekDndMode
 }) {
   const [dragItem, setDragItem] = useState<DragItem | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [isMoving, startTransition] = useTransition()
+
+  function clearActionError() {
+    setActionError(null)
+  }
 
   function setDragWorkout(workout: DragWorkout | null) {
     setDragItem(
@@ -90,8 +99,20 @@ function PlanWeekDndProviderInner({
     )
   }
 
-  function moveWorkoutToCell(workoutId: string, dateKey: string) {
+  function runAction(action: () => Promise<void>, fallbackMessage: string) {
+    setActionError(null)
     startTransition(async () => {
+      try {
+        await action()
+        setDragItem(null)
+      } catch (error) {
+        setActionError(toUserMessage(error, fallbackMessage))
+      }
+    })
+  }
+
+  function moveWorkoutToCell(workoutId: string, dateKey: string) {
+    runAction(async () => {
       if (mode === 'athlete') {
         const formData = new FormData()
         formData.set('workoutId', workoutId)
@@ -100,27 +121,24 @@ function PlanWeekDndProviderInner({
       } else {
         await moveWorkoutToDate(workoutId, dateKey)
       }
-      setDragItem(null)
-    })
+    }, 'Could not move workout')
   }
 
   function scheduleTemplateToCell(templateId: string, dateKey: string) {
     if (mode !== 'coach') return
-    startTransition(async () => {
+    runAction(async () => {
       const formData = new FormData()
       formData.set('templateId', templateId)
       formData.set('date', dateKey)
       await createWorkoutFromTemplate(formData)
-      setDragItem(null)
-    })
+    }, 'Could not schedule template')
   }
 
   function savePlanWorkoutToLibrary(workoutId: string) {
     if (mode !== 'coach') return
-    startTransition(async () => {
+    runAction(async () => {
       await createTemplateFromWorkout(workoutId)
-      setDragItem(null)
-    })
+    }, 'Could not save to library')
   }
 
   const dragWorkout = dragItem?.kind === 'plan' ? dragItem : null
@@ -134,6 +152,8 @@ function PlanWeekDndProviderInner({
         dragWorkout,
         setDragWorkout,
         isMoving,
+        actionError,
+        clearActionError,
         moveWorkoutToCell,
         scheduleTemplateToCell,
         savePlanWorkoutToLibrary,
@@ -141,6 +161,18 @@ function PlanWeekDndProviderInner({
     >
       {children}
     </PlanWeekDndContext.Provider>
+  )
+}
+
+export function PlanWeekDndErrorBanner({ className }: { className?: string }) {
+  const dnd = useContext(PlanWeekDndContext)
+  if (!dnd?.actionError) return null
+
+  return (
+    <FormError
+      message={dnd.actionError}
+      className={className}
+    />
   )
 }
 

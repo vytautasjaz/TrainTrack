@@ -69,7 +69,7 @@ export function WorkoutBuilder({
 
   const summaryMetrics = useMemo(
     () => computeWorkoutSummaryMetrics(workout.structure, athletePreferences, workout.sportType),
-    [workout.structure, athletePreferences],
+    [workout.structure, athletePreferences, workout.sportType],
   )
 
   const canAutosave =

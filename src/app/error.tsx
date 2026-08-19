@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { toUserMessage } from '@/lib/action-error'
 
 export default function Error({
   error,
@@ -18,7 +19,7 @@ export default function Error({
     <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
       <h1 className="text-xl font-semibold">Something went wrong</h1>
       <p className="max-w-md text-sm text-muted-foreground">
-        {error.message || 'An unexpected error occurred.'}
+        {toUserMessage(error, 'An unexpected error occurred.')}
       </p>
       <Button type="button" variant="secondary" onClick={() => reset()}>
         Try again

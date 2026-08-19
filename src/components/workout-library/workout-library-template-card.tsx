@@ -12,7 +12,6 @@ import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import {
   editTemplateHref,
   isStructuredTemplate,
-  newTemplateHref,
 } from '@/lib/workout-library/config'
 import type { WorkoutLibraryTemplate } from '@/lib/workout-library/types'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS } from '@/lib/constants'

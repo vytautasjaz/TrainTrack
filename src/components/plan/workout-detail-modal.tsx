@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { ItemActions } from '@/components/ui/item-actions'
 import { Button } from '@/components/ui/button'
+import { FormError } from '@/components/ui/form-error'
 import { Textarea } from '@/components/ui/textarea'
 import { PrivateNoteToggle } from '@/components/ui/private-note-toggle'
 import { AthleteWorkoutDetailCard } from '@/components/plan/athlete-workout-detail-card'
@@ -71,6 +72,7 @@ export function WorkoutDetailModal({
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [leavingPending, setLeavingPending] = useState(false)
   const [recoverySaving, startRecoveryTransition] = useTransition()
+  const [recoveryError, setRecoveryError] = useState<string | null>(null)
   const feedbackDirtyRef = useRef(false)
   const saveFeedbackRef = useRef<(() => Promise<void>) | null>(null)
 
@@ -178,18 +180,24 @@ export function WorkoutDetailModal({
                 <p className="text-sm font-semibold">Edit comment</p>
                 <form
                   action={(formData) => {
+                    setRecoveryError(null)
                     startRecoveryTransition(async () => {
-                      await saveRecoveryDay({
-                        date: workout.dateKey,
-                        coachNotes: String(formData.get('coachNotes') ?? '').trim() || undefined,
-                        coachNotesPrivate: formData.get('coachNotesPrivate') === 'true',
-                        workoutId: workout.id,
-                      })
-                      onOpenChange(false)
+                      try {
+                        await saveRecoveryDay({
+                          date: workout.dateKey,
+                          coachNotes: String(formData.get('coachNotes') ?? '').trim() || undefined,
+                          coachNotesPrivate: formData.get('coachNotesPrivate') === 'true',
+                          workoutId: workout.id,
+                        })
+                        onOpenChange(false)
+                      } catch (err) {
+                        setRecoveryError(err instanceof Error ? err.message : 'Could not save comment')
+                      }
                     })
                   }}
                   className="space-y-3"
                 >
+                  <FormError message={recoveryError} />
                   <Textarea
                     name="coachNotes"
                     defaultValue={workout.coachNotes ?? ''}
