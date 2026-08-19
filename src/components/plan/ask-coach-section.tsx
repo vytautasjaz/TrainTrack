@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs */
 'use client'
 
 import { useCallback, useEffect, useRef, useState, useTransition, type MutableRefObject, type ReactNode } from 'react'

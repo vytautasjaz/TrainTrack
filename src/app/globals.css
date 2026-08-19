@@ -2321,3 +2321,40 @@ input[type='number'] {
 .tt-feeling-slider:active::-moz-range-thumb {
   cursor: grabbing;
 }
+
+/* ─── PWA splash screen ──────────────────────────────────────────────────── */
+
+#tt-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: #ffffff;
+  /* Only apply in standalone PWA mode so browser tabs don't get a splash */
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+/* Hide on regular browser (non-standalone) — only show when launched as PWA */
+@media not (display-mode: standalone) {
+  #tt-splash {
+    display: none;
+  }
+}
+
+#tt-splash span {
+  font-family: 'Barlow Condensed', var(--font-display-family), ui-sans-serif, system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #111111;
+}
+
+#tt-splash.tt-splash--done {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}

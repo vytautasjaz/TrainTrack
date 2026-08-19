@@ -54,6 +54,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${manrope.variable} ${barlowCondensed.variable} pwa-safe`}>
+        {/* PWA splash screen — visible during cold-start, fades out once JS runs */}
+        <div id="tt-splash" aria-hidden="true">
+          <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="72" height="72">
+            <path d="M20 68L50 32L80 68" stroke="#111111" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M50 64L59 73L50 82L41 73L50 64Z" fill="#F4511E" />
+          </svg>
+          <span>TrainTrack</span>
+        </div>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){function hide(){var el=document.getElementById('tt-splash');if(el)el.classList.add('tt-splash--done');}if(document.readyState==='complete'){hide();}else{window.addEventListener('load',hide);}})();`,
+          }}
+        />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           <NavigationProgress />
           {children}
