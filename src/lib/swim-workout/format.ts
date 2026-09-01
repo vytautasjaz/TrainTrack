@@ -1,14 +1,32 @@
 import type { SwimSection, SwimSet, SwimWorkoutStructure } from './types'
-import { isCompleteSwimSet } from './calculations'
+import {
+  effectiveRepeatCount,
+  isCompleteSwimSet,
+  sectionDistanceMetersDraft,
+} from './calculations'
 
 export function formatSwimDistance(meters: number | null | undefined): string {
   if (meters == null || meters <= 0) return ''
   return `${Math.round(meters)} m`
 }
 
+export function formatSwimSectionHeaderStats(
+  section: SwimSection,
+  meaningfulSetCount: number,
+): string {
+  const distance = sectionDistanceMetersDraft(section)
+  const parts: string[] = []
+  if (distance > 0) parts.push(formatSwimDistance(distance))
+  if (meaningfulSetCount > 0) {
+    parts.push(`${meaningfulSetCount} set${meaningfulSetCount === 1 ? '' : 's'}`)
+  }
+  if (parts.length === 0) return 'Empty'
+  return parts.join(' – ')
+}
+
 export function formatSwimSetSummary(set: SwimSet): string {
   if (!isCompleteSwimSet(set)) return ''
-  const base = `${set.repeatCount} × ${set.distanceM} m ${set.stroke}`
+  const base = `${effectiveRepeatCount(set)} × ${set.distanceM} m ${set.stroke}`
   const parts = [base]
   if (set.targetPace?.trim()) parts.push(set.targetPace.trim())
   if (set.rest?.trim()) parts.push(set.rest.trim())

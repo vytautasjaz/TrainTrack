@@ -14,6 +14,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { TrainTrackAppIcon } from '@/components/brand/traintrack-logo'
+import {
+  getCoachInviteCookie,
+  resolveCoachInvite,
+  setCoachInviteCookie,
+} from '@/lib/coach-invite'
 
 const demoEnabled =
   process.env.NODE_ENV === 'development' || process.env.ALLOW_DEMO_LOGIN === '1'
@@ -30,7 +35,7 @@ function roleLabel(roles: UserRole[]): string {
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string }>
+  searchParams?: Promise<{ error?: string; invite?: string }>
 }) {
   const session = await getSession()
   if (session) {
@@ -40,6 +45,13 @@ export default async function HomePage({
 
   const params = searchParams ? await searchParams : {}
   const authError = params.error
+
+  const inviteFromQuery = params.invite ? await resolveCoachInvite(params.invite) : null
+  if (inviteFromQuery) {
+    await setCoachInviteCookie(inviteFromQuery.code)
+  }
+  const inviteCookieCode = inviteFromQuery?.code ?? (await getCoachInviteCookie())
+  const invite = inviteFromQuery ?? (inviteCookieCode ? await resolveCoachInvite(inviteCookieCode) : null)
 
   let demoUsers: Array<{
     id: string
@@ -101,14 +113,24 @@ export default async function HomePage({
 
       <Card className="w-full max-w-md border border-border">
         <CardHeader className="space-y-1.5 px-5 pb-4 pt-5 text-center">
-          <CardTitle className="text-lg leading-tight">Sign in</CardTitle>
+          <CardTitle className="text-lg leading-tight">
+            {invite ? 'Create your athlete account' : 'Sign in'}
+          </CardTitle>
           <CardDescription className="text-sm leading-relaxed">
-            {demoEnabled
-              ? 'Use a demo account for local testing, or sign in with email / OAuth.'
-              : 'One account — Google, Strava, or email. Choose Athlete or Coach after you sign in.'}
+            {invite
+              ? `${invite.coachName} invited you to TrainTrack. Create an account, then you’ll be asked to connect with them.`
+              : demoEnabled
+                ? 'Use a demo account for local testing, or sign in with email / OAuth.'
+                : 'One account — Google, Strava, or email. Choose Athlete or Coach after you sign in.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 px-5 pb-5 pt-0">
+          {invite ? (
+            <p className="rounded-[6px] border border-brand/25 bg-brand-soft/40 px-3 py-2 text-center text-xs leading-relaxed text-foreground">
+              Invite from <span className="font-semibold">{invite.coachName}</span>
+            </p>
+          ) : null}
+
           {authError ? (
             <p className="rounded-[6px] border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-xs text-destructive">
               Sign-in failed. Try again or use another method.
@@ -207,7 +229,10 @@ export default async function HomePage({
             </Button>
           </form>
 
-          <details className="rounded-[6px] border border-border/70 bg-muted/20 px-3 py-2">
+          <details
+            className="rounded-[6px] border border-border/70 bg-muted/20 px-3 py-2"
+            open={Boolean(invite)}
+          >
             <summary className="cursor-pointer text-sm font-medium">Create an account</summary>
             <form action={registerWithEmail} className="mt-3 space-y-2.5">
               <Input name="name" placeholder="Name" required autoComplete="name" />
@@ -226,9 +251,9 @@ export default async function HomePage({
                 minLength={8}
                 autoComplete="new-password"
               />
-              <Button type="submit" variant="secondary" className="w-full">
-                Create account
-              </Button>
+                  <Button type="submit" variant="secondary" className="w-full">
+                    {invite ? 'Create athlete account' : 'Create account'}
+                  </Button>
             </form>
           </details>
         </CardContent>

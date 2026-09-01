@@ -1,92 +1,68 @@
-import Link from 'next/link'
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
-import { Plus } from 'lucide-react'
-import { format } from 'date-fns'
-import { getSession, isCoachView} from '@/lib/session'
-import { PageHeader } from '@/components/ui/page-header'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { WorkoutLibraryHubSportCard } from '@/components/workout-library/workout-library-template-card'
+import { getSession, isCoachView, resolveAthleteId } from '@/lib/session'
 import {
-  getCoachLibraryCountsBySport,
+  getCoachLibraryFolders,
   getCoachLibraryTemplates,
 } from '@/lib/workout-library/queries'
-import { LIBRARY_SPORTS } from '@/lib/workout-library/config'
+import { resolveLibraryTemplateMetricsForAthlete } from '@/lib/workout-library/template-metrics'
+import { syncApproxTagsFromSources } from '@/lib/workout-metric-source'
+import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-athlete-preferences'
+import {
+  WorkoutLibraryBrowser,
+  type LibraryBrowserTemplate,
+} from '@/components/workout-library/workout-library-browser'
+import { todayDateKey } from '@/lib/dates'
+import { parseSportSlug } from '@/lib/workout-library/config'
 
-export default async function WorkoutsPage() {
+type WorkoutsPageProps = {
+  searchParams: Promise<{ sport?: string }>
+}
+
+export default async function WorkoutsPage({ searchParams }: WorkoutsPageProps) {
   const session = await getSession()
   if (!session) redirect('/')
   if (!isCoachView(session)) redirect('/training')
 
-  const [counts, recent] = await Promise.all([
-    getCoachLibraryCountsBySport(session.userId),
+  const { sport: sportSlug } = await searchParams
+  const athleteId = await resolveAthleteId(session)
+  const [rawTemplates, folders, preferences] = await Promise.all([
     getCoachLibraryTemplates(session.userId),
+    getCoachLibraryFolders(session.userId),
+    loadAthletePreferencesForBuilder(athleteId),
   ])
 
-  const total = Object.values(counts).reduce((sum, n) => sum + n, 0)
-  const recentTemplates = recent.slice(0, 6)
+  const templates: LibraryBrowserTemplate[] = rawTemplates.map((t) => {
+    const metrics = resolveLibraryTemplateMetricsForAthlete(t, preferences)
+    return {
+      ...t,
+      folderId: t.folderId ?? null,
+      distanceKm: metrics.distanceKm,
+      durationMin: metrics.durationMin,
+      distanceSource: metrics.distanceSource,
+      durationSource: metrics.durationSource,
+      tags: syncApproxTagsFromSources(t.tags, {
+        distance: metrics.distanceSource,
+        duration: metrics.durationSource,
+      }),
+      createdAt: t.createdAt.toISOString(),
+      updatedAt: t.updatedAt.toISOString(),
+    }
+  })
+
+  const initialSport =
+    sportSlug && sportSlug !== 'all'
+      ? (parseSportSlug(sportSlug) ?? 'all')
+      : 'all'
 
   return (
-    <div className="space-y-8">
-      <PageHeader
-        title="Workout Library"
-        description="Build, store, and reuse workouts across all sports — schedule templates onto the training calendar anytime."
-        action={
-          <Button variant="secondary" size="sm" asChild>
-            <Link href="/workouts/library/run">
-              <Plus className="h-3.5 w-3.5" />
-              Browse by sport
-            </Link>
-          </Button>
-        }
+    <Suspense fallback={<div className="text-sm text-muted-foreground">Loading library…</div>}>
+      <WorkoutLibraryBrowser
+        templates={templates}
+        folders={folders}
+        today={todayDateKey()}
+        initialSport={initialSport === 'all' ? 'all' : initialSport}
       />
-
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {LIBRARY_SPORTS.map((sport) => (
-          <WorkoutLibraryHubSportCard
-            key={sport.slug}
-            slug={sport.slug}
-            label={sport.label}
-            description={sport.description}
-            count={counts[sport.type]}
-            type={sport.type}
-          />
-        ))}
-      </div>
-
-      {recentTemplates.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold">Recently updated</h2>
-              <p className="text-sm text-muted-foreground">
-                {total} saved {total === 1 ? 'workout' : 'workouts'} across all sports
-              </p>
-            </div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {recentTemplates.map((template) => (
-              <Link
-                key={template.id}
-                href={`/workouts/library/${LIBRARY_SPORTS.find((s) => s.type === template.type)?.slug ?? 'run'}`}
-                className="block"
-              >
-                <Card className="transition hover:border-brand/30">
-                  <CardContent className="flex items-center justify-between gap-3 py-4">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{template.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {LIBRARY_SPORTS.find((s) => s.type === template.type)?.label} ·{' '}
-                        {format(template.updatedAt, 'MMM d, yyyy')}
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
+    </Suspense>
   )
 }

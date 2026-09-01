@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { Prisma, SessionType, SwimEnvironment, WorkoutType, PlannedMetricSource } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
-import { requireSession, resolveAthleteId, isCoach } from '@/lib/session'
+import { requireSession, resolveAthleteId, isCoachView } from '@/lib/session'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 import { swimWorkoutFormSchema, swimTemplateFormSchema } from '@/lib/swim-workout/schema'
 import { workoutDistanceMeters } from '@/lib/swim-workout/calculations'
@@ -17,9 +17,10 @@ function revalidateSwimLibrary() {
   revalidatePath('/workouts/library/swim')
 }
 
+/** Match training UI (`isCoachView`), not only the COACH role bit. */
 function requireCoach() {
   return requireSession().then((session) => {
-    if (!isCoach(session)) throw new Error('Coach only')
+    if (!isCoachView(session)) throw new Error('Coach only')
     return session
   })
 }

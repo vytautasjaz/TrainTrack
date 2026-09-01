@@ -10,8 +10,8 @@ import {
   useSyncExternalStore,
   useTransition,
 } from 'react'
-import { CoachingAuthorRole, CoachingThreadKind, CoachingThreadStatus } from '@prisma/client'
-import { Calendar, ChevronLeft, ChevronRight, Flag, MessageSquare } from 'lucide-react'
+import { CoachingAuthorRole, CoachingThreadKind, CoachingThreadStatus, type RacePriority } from '@prisma/client'
+import { Calendar, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -29,6 +29,13 @@ import { getWorkoutCardHero, getWorkoutCardSubtitle } from '@/lib/workout-card'
 import { markCoachingThreadUnread } from '@/app/actions/coaching-inbox'
 import { InboxNotificationsToggle } from '@/components/inbox/inbox-notifications-toggle'
 import { refreshInboxUnreadBadge } from '@/components/layout/inbox-nav-badge'
+import { markInboxThreadReadClient, clearInboxThreadReadClient } from '@/lib/inbox-mark-read-client'
+import {
+  formatInboxRaceResultLabel,
+  InboxRaceReportSummary,
+  type InboxRaceReportLeg,
+} from '@/components/inbox/inbox-race-report-summary'
+import { isRaceReportCardDuplicateMessage } from '@/lib/race-feedback-report'
 import {
   INBOX_DEFAULT_PAGE_SIZE,
   INBOX_PAGE_SIZES,
@@ -62,8 +69,12 @@ export type InboxThreadListItem = {
     name: string
     dateKey: string
     type: keyof typeof RACE_TYPE_LABELS
+    priority?: RacePriority | null
     outcome: string | null
+    resultTime: string | null
+    resultPlace: string | null
     resultNotes: string | null
+    legs?: InboxRaceReportLeg[]
   } | null
   messageCount: number
   messages: CoachingThreadView['messages']
@@ -82,6 +93,7 @@ const KINDS: { id: InboxKindFilter; label: string }[] = [
 ]
 
 function kindLabel(kind: CoachingThreadKind) {
+  if (kind === CoachingThreadKind.GENERAL) return 'General'
   if (kind === CoachingThreadKind.ASK) return 'Ask'
   if (kind === CoachingThreadKind.FEEDBACK) return 'Feedback'
   return 'Race'
@@ -126,7 +138,12 @@ function threadSessionMeta(t: InboxThreadListItem): {
     return { date: formatSessionDate(t.workout.dateKey), subtitle: null, unit: null }
   }
   if (t.race) {
-    return { date: formatSessionDate(t.race.dateKey), subtitle: null, unit: null }
+    const resultLabel = formatInboxRaceResultLabel(t.race)
+    return {
+      date: formatSessionDate(t.race.dateKey),
+      subtitle: resultLabel,
+      unit: t.race.resultPlace?.trim() ?? null,
+    }
   }
   return null
 }
@@ -179,9 +196,11 @@ function scrollWithChromeOffset(target: HTMLElement) {
 
 function InboxMiniWorkoutCard({
   workout,
+  role,
   onOpen,
 }: {
   workout: PlanWorkoutDetail
+  role: 'athlete' | 'coach'
   onOpen: () => void
 }) {
   return (
@@ -195,11 +214,12 @@ function InboxMiniWorkoutCard({
       aria-label={`Open workout ${workout.title}`}
       className="w-[32%] min-w-[6.5rem] max-w-[8.5rem] shrink-0 self-start overflow-hidden rounded-[6px] text-left transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
     >
-      <PlanWorkoutDataCard
-        workout={workout}
-        density="week"
-        className="pointer-events-none"
-      />
+            <PlanWorkoutDataCard
+              workout={workout}
+              density="week"
+              isCoach={role === 'coach'}
+              className="pointer-events-none"
+            />
     </button>
   )
 }
@@ -268,6 +288,7 @@ function InboxThreadDetail({
             <PlanWorkoutDataCard
               workout={selected.workoutDetail}
               density="list"
+              isCoach={role === 'coach'}
               className="pointer-events-none max-w-full shadow-sm"
             />
           </button>
@@ -279,21 +300,10 @@ function InboxThreadDetail({
             <Link href="/season">Season plan</Link>
           </Button>
         ) : (
-          <div className="rounded-[6px] border border-border bg-muted/20 px-3 py-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className="gap-1 bg-muted text-muted-foreground">
-                <Flag className="h-3 w-3" />
-                Race
-              </Badge>
-              <h2 className="text-base font-semibold">{selected.race.name}</h2>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {formatSessionDate(selected.race.dateKey)}
-            </p>
-            <Button asChild variant="ghost" size="sm" className="mt-2">
-              <Link href="/season">Season plan</Link>
-            </Button>
-          </div>
+          <InboxRaceReportSummary
+            race={selected.race}
+            dateLabel={formatSessionDate(selected.race.dateKey)}
+          />
         )
       ) : selected.workout && !embedded ? (
         <div className="rounded-[6px] border border-border bg-muted/20 px-3 py-3">
@@ -315,7 +325,16 @@ function InboxThreadDetail({
           id: selected.id,
           status: selected.status,
           kind: selected.kind,
-          messages: selected.messages,
+          messages:
+            selected.race && !embedded
+              ? selected.messages.filter(
+                  (m) =>
+                    !(
+                      m.authorRole === CoachingAuthorRole.ATHLETE &&
+                      isRaceReportCardDuplicateMessage(m.body, selected.race)
+                    ),
+                )
+              : selected.messages,
         }}
         role={role}
         skipAutoRead={holdUnreadId === selected.id}
@@ -391,45 +410,75 @@ export function InboxClient({
   useEffect(() => {
     setItems((prev) => {
       const prevById = new Map(prev.map((t) => [t.id, t]))
+      let changed = false
       const merged = threads.map((server) => {
         const local = prevById.get(server.id)
-        if (!local) return server
+        if (!local) {
+          changed = true
+          return server
+        }
 
         const localNewer =
           local.messageCount > server.messageCount ||
           new Date(local.lastMessageAt).getTime() > new Date(server.lastMessageAt).getTime()
         if (localNewer) {
-          return {
+          const next = {
             ...local,
             workoutDetail: server.workoutDetail ?? local.workoutDetail,
             athlete: server.athlete ?? local.athlete,
           }
+          if (
+            next.workoutDetail !== local.workoutDetail ||
+            next.athlete !== local.athlete
+          ) {
+            changed = true
+            return next
+          }
+          return local
         }
 
         const sameActivity =
           local.messageCount === server.messageCount &&
           local.lastMessageAt === server.lastMessageAt
         if (sameActivity) {
+          const unread =
+            holdUnreadId === server.id
+              ? true
+              : openedReadIds.current.has(server.id)
+                ? false
+                : server.unread
+          if (
+            unread === local.unread &&
+            local.messageCount === server.messageCount &&
+            local.lastMessageAt === server.lastMessageAt &&
+            local.status === server.status
+          ) {
+            return local
+          }
+          changed = true
           return {
             ...server,
-            unread: openedReadIds.current.has(server.id) ? false : local.unread,
-            messages: local.messages,
+            unread,
+            messages: local.messages.length ? local.messages : server.messages,
             workoutDetail: server.workoutDetail ?? local.workoutDetail,
             athlete: server.athlete ?? local.athlete,
           }
         }
 
         openedReadIds.current.delete(server.id)
+        changed = true
         return server
       })
       const serverIds = new Set(threads.map((t) => t.id))
       const onlyLocal = prev.filter((t) => !serverIds.has(t.id))
+      if (onlyLocal.length) changed = true
+      if (!changed && merged.length === prev.length) return prev
       return [...merged, ...onlyLocal].sort(
         (a, b) =>
           new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
       )
     })
-  }, [threads])
+  }, [threads, holdUnreadId])
 
   useEffect(() => {
     setWorkoutModal(null)
@@ -442,9 +491,16 @@ export function InboxClient({
   useEffect(() => {
     if (!selectedId || holdUnreadId === selectedId) return
     openedReadIds.current.add(selectedId)
-    setItems((prev) =>
-      prev.map((t) => (t.id === selectedId && t.unread ? { ...t, unread: false } : t)),
-    )
+    setItems((prev) => {
+      let changed = false
+      const next = prev.map((t) => {
+        if (t.id !== selectedId || !t.unread) return t
+        changed = true
+        return { ...t, unread: false }
+      })
+      return changed ? next : prev
+    })
+    void markInboxThreadReadClient(selectedId)
   }, [selectedId, holdUnreadId])
 
   const filtered = useMemo(() => {
@@ -494,18 +550,6 @@ export function InboxClient({
 
   const unreadCount = useMemo(() => items.filter((t) => t.unread).length, [items])
 
-  useEffect(() => {
-    void refreshInboxUnreadBadge()
-  }, [])
-
-  useEffect(() => {
-    if (!selectedId) return
-    const id = setTimeout(() => {
-      void refreshInboxUnreadBadge()
-    }, 800)
-    return () => clearTimeout(id)
-  }, [selectedId])
-
   function selectThread(threadId: string) {
     if (!isLg && selectedId === threadId) {
       setSelectedId(null)
@@ -521,9 +565,16 @@ export function InboxClient({
         return next
       })
     }
-    setItems((prev) =>
-      prev.map((t) => (t.id === threadId && t.unread ? { ...t, unread: false } : t)),
-    )
+    setItems((prev) => {
+      let changed = false
+      const next = prev.map((t) => {
+        if (t.id !== threadId || !t.unread) return t
+        changed = true
+        return { ...t, unread: false }
+      })
+      return changed ? next : prev
+    })
+    // Panel also marks read when mounted; shared client helper dedupes.
     if (!isLg) {
       requestAnimationFrame(() => {
         const card = listItemRefs.current.get(threadId)
@@ -572,6 +623,7 @@ export function InboxClient({
 
   function markUnread(threadId: string) {
     openedReadIds.current.delete(threadId)
+    clearInboxThreadReadClient(threadId)
     if (threadId === selectedId) setHoldUnreadId(threadId)
     setItems((prev) => prev.map((t) => (t.id === threadId ? { ...t, unread: true } : t)))
     const formData = new FormData()
@@ -785,6 +837,7 @@ export function InboxClient({
                     {t.workoutDetail ? (
                       <InboxMiniWorkoutCard
                         workout={t.workoutDetail}
+                        role={role}
                         onOpen={() => setWorkoutModal(t.workoutDetail)}
                       />
                     ) : null}
@@ -801,8 +854,8 @@ export function InboxClient({
                       Unread
                     </button>
                   ) : null}
-                  {active && selected ? (
-                    <div className="min-w-0 border-t border-border p-3 lg:hidden">
+                  {active && selected && !isLg ? (
+                    <div className="min-w-0 border-t border-border p-3">
                       <InboxThreadDetail
                         selected={selected}
                         role={role}
@@ -878,7 +931,7 @@ export function InboxClient({
         </div>
 
         <div className="hidden min-w-0 rounded-[6px] border border-border bg-card p-4 lg:block">
-          {!selected ? (
+          {!isLg ? null : !selected ? (
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
               <MessageSquare className="h-8 w-8 opacity-40" />
               <p className="text-sm">Select a conversation</p>

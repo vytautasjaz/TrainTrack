@@ -5,47 +5,49 @@
 @custom-variant landscape (@media (orientation: landscape));
 
 @theme {
-  /* UI = Manrope (next/font → --font-ui); Display = Barlow Condensed */
-  --font-sans: var(--font-ui), 'Manrope', ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-display-family), 'Barlow Condensed', ui-sans-serif, system-ui, sans-serif;
+  /* UI = Inter (next/font → --font-ui); Display = Bebas Neue (next/font → --font-display-family).
+     Always give var() a fallback — if --font-display-family is missing, an invalid var()
+     drops the entire font-family and headings inherit Inter from body. */
+  --font-sans: var(--font-ui, 'Inter'), 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-family, 'Bebas Neue'), 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
 
-  /* Neutrals — premium endurance sports */
-  --color-background: #fafaf8;
+  /* Neutrals — redesign tokens (docs/REDESIGN-TOKENS.md) */
+  --color-background: #ffffff;
   --color-foreground: #111111;
   --color-card: #ffffff;
   --color-card-foreground: #111111;
   --color-surface: #ffffff;
-  --color-surface-subtle: #f5f5f3;
-  --color-muted: #f5f5f3;
-  --color-muted-foreground: #6b7280;
-  --color-border: #e5e7eb;
-  --color-border-subtle: #eeeeec;
+  --color-surface-subtle: #f5f5f5;
+  --color-muted: #f5f5f5;
+  --color-muted-foreground: #6b6b6b;
+  --color-border: #ebebeb;
+  --color-border-subtle: #f0f0f0;
   --color-primary: #111111;
   --color-primary-foreground: #ffffff;
 
-  /* Brand / accent — orange energy (accent, not large fills) */
-  --color-accent: #f4511e;
+  /* Brand / accent — CTA red (sport identity stays on --color-sport-*) */
+  --color-accent: #da2f36;
   --color-accent-foreground: #ffffff;
-  --color-accent-subtle: rgb(244 81 30 / 0.06);
-  --color-accent-light: rgb(244 81 30 / 0.1);
-  --color-accent-medium: rgb(244 81 30 / 0.16);
-  --color-brand: #f4511e;
+  --color-accent-subtle: rgb(218 47 54 / 0.06);
+  --color-accent-light: rgb(218 47 54 / 0.1);
+  --color-accent-medium: rgb(218 47 54 / 0.16);
+  --color-brand: #da2f36;
   --color-brand-foreground: #ffffff;
-  --color-brand-soft: rgb(244 81 30 / 0.1);
-  --color-brand-muted: rgb(244 81 30 / 0.16);
+  --color-brand-soft: rgb(218 47 54 / 0.1);
+  --color-brand-muted: rgb(218 47 54 / 0.16);
 
   --color-hero: #ffffff;
   --color-hero-foreground: #111111;
   --color-destructive: #ef4444;
-  --color-success: #2fbf71;
-  --color-chart-brand: #f4511e;
+  --color-success: #1a9f5c;
+  --color-chart-brand: #da2f36;
   --color-chart-planned: #a1a1aa;
-  --color-chart-success: #2fbf71;
+  --color-chart-success: #1a9f5c;
 
   /* Semantic text (also available as utilities via theme) */
   --color-text-primary: #111111;
-  --color-text-secondary: #6b7280;
-  --color-text-tertiary: #9ca3af;
+  --color-text-secondary: #6b6b6b;
+  --color-text-tertiary: #9a9a9a;
 
   /* Sport semantic colors */
   --color-sport-run: #f4511e;
@@ -78,8 +80,8 @@
   --color-sport-rest-border: #e4e4e7;
   --color-sport-race: #f4511e;
 
-  /* Table headers keep charcoal rail (not the light app sidebar) */
-  --color-sidebar: #111318;
+  /* Table headers — navy cousin of the dark app sidebar rail */
+  --color-sidebar: #2a3144;
   --color-sidebar-foreground: #f4f6fb;
   --color-tt-muted: #a1a1aa;
   --color-tt-completed-bg: #f0faf4;
@@ -119,6 +121,22 @@
   --tt-motion-normal: 180ms;
 }
 
+@layer base {
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']),
+  summary,
+  a[href] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role='button'][aria-disabled='true'],
+  [role='tab'][aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+}
+
 .dark {
   --color-background: #0f1117;
   --color-foreground: #f4f6fb;
@@ -132,119 +150,167 @@
   --color-border-subtle: #252932;
   --color-primary: #f4f6fb;
   --color-primary-foreground: #111827;
-  --color-accent: #f4511e;
+  --color-accent: #da2f36;
   --color-accent-foreground: #ffffff;
-  --color-accent-subtle: rgb(244 81 30 / 0.14);
-  --color-accent-light: rgb(244 81 30 / 0.2);
-  --color-accent-medium: rgb(244 81 30 / 0.28);
-  --color-brand: #f4511e;
+  --color-accent-subtle: rgb(218 47 54 / 0.14);
+  --color-accent-light: rgb(218 47 54 / 0.2);
+  --color-accent-medium: rgb(218 47 54 / 0.28);
+  --color-brand: #da2f36;
   --color-brand-foreground: #ffffff;
-  --color-brand-soft: rgb(244 81 30 / 0.18);
-  --color-brand-muted: rgb(244 81 30 / 0.28);
+  --color-brand-soft: rgb(218 47 54 / 0.18);
+  --color-brand-muted: rgb(218 47 54 / 0.28);
   --color-hero: #1a1d26;
   --color-hero-foreground: #f4f6fb;
   --color-text-primary: #f4f6fb;
   --color-text-secondary: #9ca3af;
   --color-text-tertiary: #6b7280;
-  --color-chart-brand: #f4511e;
+  --color-chart-brand: #da2f36;
   --color-chart-planned: hsl(215 14% 55%);
   --color-chart-success: #4ade80;
+  --color-success: #1a9f5c;
 }
 
 html {
-  --sidebar-width: 16rem;
+  --sidebar-width: 18.25rem; /* 292px — matches mock shell */
+  /* Redesign token aliases (docs/REDESIGN-TOKENS.md) */
+  --tt-bg: #ffffff;
+  --tt-sidebar: #f5f5f5;
+  --tt-surface: #ffffff;
+  --tt-ink: #111111;
+  --tt-ink-soft: #6b6b6b;
+  --tt-ink-faint: #9a9a9a;
+  --tt-line: #ebebeb;
+  --tt-line-strong: #dddddd;
+  --tt-red: #da2f36;
+  --tt-good: #1a9f5c;
+  --tt-good-soft: rgb(26 159 92 / 0.12);
+  /* Inline workout feedback — lighter than completed card wash */
+  --tt-feedback-soft: color-mix(in srgb, var(--color-card, #fff) 97%, var(--tt-good));
+  --tt-feedback-soft-completed: color-mix(
+    in srgb,
+    var(--color-card, #fff) 99%,
+    var(--tt-good)
+  );
+  --tt-feedback-neutral: color-mix(
+    in srgb,
+    var(--color-card, #fff) 98.5%,
+    var(--tt-ink-soft, #6b6b6b)
+  );
+  --tt-red-soft: rgb(218 47 54 / 0.08);
+  /* Week column wash under today — quieter than header red */
+  --tt-today-wash: rgb(218 47 54 / 0.035);
+  /* Soft cell wash — same family as week first-column labels, 40% muted */
+  --tt-weekend: color-mix(
+    in srgb,
+    var(--color-muted, #f5f5f5) 40%,
+    var(--color-card, #fff)
+  );
+  --tt-shadow: 0 1px 2px rgb(0 0 0 / 0.03), 0 2px 8px rgb(0 0 0 / 0.03);
+  /* Slightly deeper lift for interactive Home prescription cards on hover */
+  --tt-shadow-lift: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.05);
 }
 
 html[data-sidebar-collapsed='true'] {
   --sidebar-width: 4.5rem;
 }
 
-/* Desktop app sidebar — light editorial rail (structure unchanged; atmosphere only) */
-.tt-app-sidebar {
-  --tt-sidebar-bg: #fafaf8;
-  --tt-sidebar-ink: #111111;
-  --tt-sidebar-muted: #667085;
-  --tt-sidebar-faint: #98a2b3;
-  --tt-sidebar-accent: var(--color-accent);
-  --tt-sidebar-accent-soft: rgb(255 255 255 / 0.55);
-  --tt-sidebar-hover: rgb(17 17 17 / 0.035);
-  --tt-sidebar-border: rgb(0 0 0 / 0.06);
-  /* Do not set position here — Tailwind `lg:sticky` must win so the rail stays fixed while content scrolls. */
-  overflow: hidden;
-  isolation: isolate;
-  background: var(--tt-sidebar-bg);
-  color: var(--tt-sidebar-ink);
-  border-right: 1px solid var(--tt-sidebar-border);
+/* Week / month can grow a bit when the icon rail frees space, but stay capped. */
+html[data-sidebar-collapsed='true'] [data-app-main] {
+  max-width: 110rem;
 }
 
 /*
-  Background composition — diagonal orange + cool gray motion on the right,
-  left stays readable. Pseudo-elements only (no shape markup).
+ * Library dock open: keep the same main cap — spare right margin is claimed by
+ * the fixed rail from the calendar edge, not by widening main.
+ */
+html[data-library-dock='true'] [data-app-main] {
+  max-width: 110rem;
+}
+
+/* Desktop app sidebar — dark gradient rail (matches /design-mockups/shell) */
+.tt-app-sidebar {
+  --tt-sidebar-bg: #151827;
+  --tt-sidebar-ink: rgb(255 255 255 / 0.92);
+  --tt-sidebar-muted: rgb(255 255 255 / 0.68);
+  --tt-sidebar-faint: rgb(255 255 255 / 0.55);
+  --tt-sidebar-accent: #e84b45;
+  --tt-sidebar-accent-soft: rgb(255 255 255 / 0.055);
+  --tt-sidebar-hover: rgb(255 255 255 / 0.035);
+  --tt-sidebar-border: rgb(255 255 255 / 0.07);
+  /* Do not set position here — Tailwind `lg:sticky` must win so the rail stays fixed while content scrolls. */
+  overflow: hidden;
+  isolation: isolate;
+  box-sizing: border-box;
+  background:
+    radial-gradient(
+      circle at 15% 95%,
+      rgb(235 75 70 / 0.22) 0%,
+      rgb(110 75 170 / 0.1) 35%,
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 80% 45% at 0% 100%,
+      rgb(110 75 170 / 0.12) 0%,
+      transparent 55%
+    ),
+    var(--tt-sidebar-bg);
+  color: var(--tt-sidebar-ink);
+  border-right: 1px solid var(--tt-sidebar-border);
+  border-radius: 0;
+}
+
+/*
+  Topographic contour atmosphere — lower third only (pointer-events none).
 */
 .tt-app-sidebar::before {
   content: '';
   position: absolute;
-  inset: 0;
+  left: -20%;
+  bottom: -5%;
+  width: 140%;
+  height: 48%;
   z-index: 0;
   pointer-events: none;
+  opacity: 0.1;
   background:
-    /* ORANGE — main diagonal motion */
-    radial-gradient(
-      ellipse 42% 30% at 103% 49%,
-      rgb(244 81 30 / 0.78) 0%,
-      rgb(244 81 30 / 0.48) 20%,
-      rgb(244 81 30 / 0.22) 42%,
-      rgb(244 81 30 / 0.06) 62%,
-      transparent 78%
+    repeating-radial-gradient(
+      ellipse 120% 70% at 10% 100%,
+      transparent 0 14px,
+      rgb(255 255 255 / 0.55) 15px 16px,
+      transparent 17px 32px
     ),
-    /* WARM ORANGE — lower continuation */
-    radial-gradient(
-      ellipse 55% 24% at 92% 60%,
-      rgb(244 81 30 / 0.38) 0%,
-      rgb(244 81 30 / 0.18) 35%,
-      transparent 72%
-    ),
-    /* COOL GRAY — upper diagonal mass */
-    radial-gradient(
-      ellipse 65% 28% at 102% 27%,
-      rgb(92 108 118 / 0.38) 0%,
-      rgb(92 108 118 / 0.22) 28%,
-      rgb(92 108 118 / 0.08) 55%,
-      transparent 78%
-    ),
-    /* BLUE-GRAY — behind orange */
-    radial-gradient(
-      ellipse 55% 25% at 112% 38%,
-      rgb(115 139 150 / 0.25) 0%,
-      rgb(115 139 150 / 0.12) 38%,
-      transparent 72%
-    ),
-    /* GENERAL WARM ATMOSPHERE */
-    radial-gradient(
-      ellipse 80% 38% at 75% 45%,
-      rgb(190 165 150 / 0.12),
-      transparent 70%
+    repeating-radial-gradient(
+      ellipse 90% 55% at 5% 110%,
+      transparent 0 22px,
+      rgb(255 255 255 / 0.4) 23px 24px,
+      transparent 25px 44px
     );
-  filter: blur(22px);
-  transform: scale(1.08);
+  mask-image: linear-gradient(
+    to top,
+    black 0%,
+    rgb(0 0 0 / 0.55) 40%,
+    transparent 78%
+  );
+  filter: blur(0.3px);
 }
 
-/* Soft white / frosted veil — stronger on the left for nav readability */
 .tt-app-sidebar::after {
   content: '';
   position: absolute;
-  inset: 0;
-  z-index: 1;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 38%;
+  z-index: 0;
   pointer-events: none;
-  background: linear-gradient(
-    90deg,
-    rgb(255 255 255 / 0.72) 0%,
-    rgb(255 255 255 / 0.48) 35%,
-    rgb(255 255 255 / 0.2) 68%,
-    rgb(255 255 255 / 0.08) 100%
+  opacity: 0.08;
+  background: repeating-radial-gradient(
+    ellipse at 0% 100%,
+    transparent 0 18px,
+    rgb(255 220 210 / 0.5) 19px 20px,
+    transparent 21px 38px
   );
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
+  mask-image: linear-gradient(to top, black 0%, transparent 70%);
 }
 
 .tt-app-sidebar-content {
@@ -255,47 +321,470 @@ html[data-sidebar-collapsed='true'] {
   flex: 1;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+}
+
+.tt-app-sidebar-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  flex-shrink: 0;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--tt-sidebar-border);
+}
+
+.tt-app-sidebar-logo-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgb(12 14 28 / 0.85);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow:
+    0 0 20px rgb(110 75 170 / 0.28),
+    0 4px 14px rgb(0 0 0 / 0.35),
+    inset 0 0 0 1px rgb(255 255 255 / 0.04);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+/* Apex mark sits slightly low in its viewBox — nudge for optical center */
+.tt-app-sidebar-logo-mark svg {
+  display: block;
+  transform: translateY(-0.5px);
+}
+
+.tt-app-sidebar-logo-text {
+  font-family: var(--font-display-family, 'Bebas Neue'), 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.tt-app-sidebar-mode-switch {
+  height: 32px;
+  width: fit-content;
+  max-width: 100%;
+  flex-shrink: 0;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.05);
+  border: 1px solid var(--tt-sidebar-border);
+  display: inline-flex;
+}
+
+.tt-app-sidebar-mode-switch form {
+  flex: 0 0 auto;
+  display: flex;
+  height: 100%;
+}
+
+.tt-app-sidebar-mode-switch button {
+  width: auto;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(255 255 255 / 0.55);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  padding: 0 12px;
+  height: 100%;
+  white-space: nowrap;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.tt-app-sidebar-mode-switch button[data-active='true'] {
+  background: rgb(255 255 255 / 0.09);
+  color: #ffffff;
+  cursor: default;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.08),
+    0 1px 4px rgb(0 0 0 / 0.22);
+}
+
+.tt-app-sidebar-mode-switch button:not([data-active='true']):hover {
+  color: #ffffff;
+}
+
+.tt-app-sidebar-nav {
+  position: relative;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.tt-app-sidebar-nav-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 0;
+  border-radius: 9px;
+  background: var(--tt-sidebar-accent-soft);
+  border: 1px solid var(--tt-sidebar-border);
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, height;
+  transition:
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
+}
+
+.tt-app-sidebar-nav-indicator[data-ready='true'][data-visible='true'] {
+  opacity: 1;
+}
+
+.tt-app-sidebar-nav-indicator::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: var(--tt-sidebar-accent);
+  box-shadow:
+    0 0 8px rgb(232 75 69 / 0.55),
+    0 0 16px rgb(232 75 69 / 0.25);
 }
 
 .tt-app-sidebar-nav-link {
   position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 52px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
   color: var(--tt-sidebar-muted);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 180ms ease;
 }
 
 .tt-app-sidebar-nav-link .tt-app-sidebar-nav-icon {
-  color: var(--tt-sidebar-muted);
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  color: var(--tt-sidebar-faint);
+  transition: color 180ms ease;
 }
 
 .tt-app-sidebar-nav-link:hover {
+  color: rgb(255 255 255 / 0.9);
+}
+
+.tt-app-sidebar-nav-link:hover:not([data-active='true']) {
   background: var(--tt-sidebar-hover);
-  color: var(--tt-sidebar-ink);
 }
 
 .tt-app-sidebar-nav-link:hover .tt-app-sidebar-nav-icon {
-  color: var(--tt-sidebar-ink);
+  color: rgb(255 255 255 / 0.9);
 }
 
 .tt-app-sidebar-nav-link[data-active='true'] {
-  background: var(--tt-sidebar-accent-soft);
-  color: var(--tt-sidebar-ink);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.35);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  color: #ffffff;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
 }
 
-.tt-app-sidebar-nav-link[data-active='true']::before {
-  content: '';
+.tt-app-sidebar-nav-link[data-active='true'] .tt-app-sidebar-nav-icon {
+  color: #ffffff;
+}
+
+.tt-app-sidebar-badge {
+  margin-left: auto;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: var(--tt-sidebar-accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tt-app-sidebar-badge-dot {
   position: absolute;
-  top: 14%;
-  bottom: 14%;
-  left: 0;
-  width: 3px;
+  right: 8px;
+  top: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 999px;
   background: var(--tt-sidebar-accent);
 }
 
-.tt-app-sidebar-nav-link[data-active='true'] .tt-app-sidebar-nav-icon {
-  color: var(--tt-sidebar-accent);
+.tt-app-sidebar-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 16px;
+  border-top: 1px solid var(--tt-sidebar-border);
+  flex-shrink: 0;
+}
+
+.tt-app-sidebar-footer-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tt-sidebar-muted);
+  font-size: 14px;
+  font-weight: 500;
+  width: 100%;
+  text-align: left;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.tt-app-sidebar-footer-item .tt-app-sidebar-nav-icon {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  color: var(--tt-sidebar-faint);
+}
+
+.tt-app-sidebar-footer-item:hover {
+  background: var(--tt-sidebar-hover);
+  color: rgb(255 255 255 / 0.9);
+}
+
+.tt-app-sidebar-footer-item:hover .tt-app-sidebar-nav-icon {
+  color: rgb(255 255 255 / 0.9);
+}
+
+.tt-app-sidebar-footer-item[data-active='true'] {
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
+}
+
+.tt-app-sidebar-footer-item[data-active='true'] .tt-app-sidebar-nav-icon {
+  color: #fff;
+}
+
+.tt-app-sidebar-profile {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.07);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow:
+    0 6px 20px rgb(0 0 0 / 0.32),
+    inset 0 1px 0 rgb(255 255 255 / 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+  color: inherit;
+}
+
+.tt-app-sidebar-profile[data-open='true'] {
+  background: rgb(255 255 255 / 0.09);
+  border-color: rgb(255 255 255 / 0.14);
+}
+
+.tt-app-sidebar-profile:hover {
+  background: rgb(255 255 255 / 0.09);
+  border-color: rgb(255 255 255 / 0.12);
+}
+
+.tt-app-sidebar-profile-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+}
+
+.tt-app-sidebar-profile-main:focus-visible {
+  box-shadow: 0 0 0 2px rgb(232 75 69 / 0.45);
+}
+
+.tt-app-sidebar-profile-name {
+  min-width: 0;
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.tt-app-sidebar-profile-role {
+  margin-top: 2px;
+  font-size: 11px;
+  color: rgb(255 255 255 / 0.55);
+  line-height: 1.2;
+}
+
+.tt-app-sidebar-profile-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tt-app-sidebar-profile-panel[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+
+.tt-app-sidebar-profile-panel-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tt-app-sidebar-profile-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 280ms ease,
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tt-app-sidebar-profile-panel[data-open='true'] .tt-app-sidebar-profile-options {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tt-app-sidebar-profile-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: rgb(255 255 255 / 0.68);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.tt-app-sidebar-profile-option .tt-app-sidebar-nav-icon {
+  width: 16px;
+  height: 16px;
+  color: rgb(255 255 255 / 0.5);
+}
+
+.tt-app-sidebar-profile-option:hover {
+  background: rgb(255 255 255 / 0.06);
+  color: #fff;
+}
+
+.tt-app-sidebar-profile-option:hover .tt-app-sidebar-nav-icon {
+  color: #fff;
+}
+
+.tt-app-sidebar-profile-option[data-active='true'] {
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
+}
+
+.tt-app-sidebar-profile-option[data-active='true'] .tt-app-sidebar-nav-icon {
+  color: #fff;
+}
+
+.tt-app-sidebar-profile-switch.tt-app-sidebar-mode-switch,
+.tt-app-sidebar-profile .tt-app-sidebar-mode-switch {
+  width: 100%;
+  max-width: 100%;
+  height: 26px;
+  padding: 2px;
+  margin-bottom: 2px;
+}
+
+.tt-app-sidebar-profile-switch.tt-app-sidebar-mode-switch form,
+.tt-app-sidebar-profile .tt-app-sidebar-mode-switch form {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.tt-app-sidebar-profile-switch.tt-app-sidebar-mode-switch button,
+.tt-app-sidebar-profile .tt-app-sidebar-mode-switch button {
+  width: 100%;
+  padding: 0 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.tt-app-sidebar-profile--switch-only {
+  padding: 6px;
+}
+
+.tt-app-sidebar-subnav {
+  border-left-color: rgb(255 255 255 / 0.12);
+}
+
+.tt-app-sidebar-subnav-link {
+  color: var(--tt-sidebar-faint);
+}
+
+.tt-app-sidebar-subnav-link:hover {
+  background: var(--tt-sidebar-hover);
+  color: var(--tt-sidebar-ink);
+}
+
+.tt-app-sidebar-subnav-link[data-active='true'] {
+  background: var(--tt-sidebar-accent-soft);
+  color: #ffffff;
+}
+
+.tt-app-sidebar[data-collapsed='true'] .tt-app-sidebar-logo {
+  justify-content: center;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+}
+
+.tt-app-sidebar[data-collapsed='true'] .tt-app-sidebar-nav {
+  margin-top: 16px;
+}
+
+.tt-app-sidebar[data-collapsed='true'] .tt-app-sidebar-nav-link,
+.tt-app-sidebar[data-collapsed='true'] .tt-app-sidebar-footer-item {
+  justify-content: center;
+  padding: 0;
+  gap: 0;
 }
 
 body {
@@ -347,22 +836,439 @@ body {
 
 /* ─── Athlete Home / Dashboard ──────────────────────────────────────────── */
 .tt-dashboard-page {
-  background: #fafaf8;
+  background: var(--tt-bg, #ffffff);
   min-height: 100%;
 }
 
 .tt-dashboard-content {
   max-width: 1500px;
   margin-inline: auto;
-  padding-block: 1.5rem 3rem;
+  padding-block: 0.75rem 3rem;
 }
 
 .tt-dashboard-card {
   background: #ffffff;
-  border: 1px solid #e2e3e1;
+  border: 1px solid var(--tt-line, #ebebeb);
   border-radius: 10px;
   box-shadow: none;
-  padding: 1.25rem;
+  padding: 1rem;
+}
+
+/* Race follow-up prompt — dark calendar chrome so it reads as an action block */
+.tt-race-follow-up {
+  --tt-follow-bg: #1e2436;
+  --tt-follow-line: rgb(255 255 255 / 0.12);
+  --tt-follow-ink: rgb(255 255 255 / 0.94);
+  --tt-follow-muted: rgb(255 255 255 / 0.58);
+  --tt-follow-faint: rgb(255 255 255 / 0.38);
+  --tt-follow-field-bg: rgb(255 255 255 / 0.1);
+  --tt-follow-field-line: rgb(255 255 255 / 0.14);
+  --tt-follow-field-ink: rgb(255 255 255 / 0.92);
+  --tt-follow-field-muted: rgb(255 255 255 / 0.55);
+  --tt-follow-field-faint: rgb(255 255 255 / 0.36);
+  background: var(--tt-follow-bg);
+  border: 1px solid var(--tt-follow-line);
+  border-radius: 10px;
+  padding: 0.75rem 0.875rem 0.875rem;
+  color: var(--tt-follow-ink);
+}
+
+.tt-race-follow-up .text-muted-foreground {
+  color: var(--tt-follow-muted) !important;
+}
+
+.tt-race-follow-up .text-foreground {
+  color: var(--tt-follow-ink) !important;
+}
+
+/* Light entry surfaces on the dark panel */
+.tt-race-follow-up .tt-follow-fields {
+  background: var(--tt-follow-field-bg) !important;
+  border-color: var(--tt-follow-field-line) !important;
+  color: var(--tt-follow-field-ink);
+}
+
+.tt-race-follow-up .tt-follow-fields [class*='border-border'],
+.tt-race-follow-up .tt-follow-fields [class*='divide-border'] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--tt-follow-field-line) !important;
+}
+
+.tt-race-follow-up .tt-follow-fields [class*='bg-border'] {
+  background-color: var(--tt-follow-field-line) !important;
+}
+
+.tt-race-follow-up .tt-follow-fields [class*='bg-muted'] {
+  background-color: transparent !important;
+}
+
+.tt-race-follow-up .tt-follow-fields .text-muted-foreground {
+  color: var(--tt-follow-field-muted) !important;
+}
+
+.tt-race-follow-up .tt-follow-fields .text-foreground {
+  color: var(--tt-follow-field-ink) !important;
+}
+
+.tt-race-follow-up .tt-follow-fields :is(input, textarea) {
+  color: var(--tt-follow-field-ink);
+}
+
+.tt-race-follow-up .tt-follow-fields :is(input, textarea)::placeholder {
+  color: var(--tt-follow-field-faint);
+}
+
+.tt-race-follow-up-pill {
+  border: 1px solid var(--tt-follow-line);
+  background: transparent;
+  color: var(--tt-follow-muted);
+}
+
+.tt-race-follow-up-pill:hover {
+  color: var(--tt-follow-ink);
+  border-color: rgb(255 255 255 / 0.22);
+}
+
+.tt-race-follow-up-pill[data-active='true'] {
+  border-color: #ffffff;
+  background: #ffffff;
+  color: #1e2436;
+}
+
+.tt-race-follow-up .tt-btn-ghost-on-dark {
+  color: var(--tt-follow-muted) !important;
+}
+
+.tt-race-follow-up .tt-btn-ghost-on-dark:hover {
+  background: rgb(255 255 255 / 0.06) !important;
+  color: var(--tt-follow-ink) !important;
+}
+
+.tt-race-follow-up .tt-btn-save-on-dark {
+  border-color: transparent !important;
+  background: #ffffff !important;
+  color: #1e2436 !important;
+}
+
+.tt-race-follow-up .tt-btn-save-on-dark:hover {
+  background: rgb(255 255 255 / 0.9) !important;
+}
+
+.tt-race-follow-up .tt-btn-save-on-dark:disabled {
+  opacity: 0.55;
+}
+
+/* Race follow-up expand / collapse */
+.tt-race-follow-up-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.tt-race-follow-up-panel[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.tt-race-follow-up[data-animate='true'] .tt-race-follow-up-panel {
+  transition:
+    grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 200ms ease;
+}
+
+.tt-race-follow-up-panel-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Shared expand / collapse — attention stack, roster rows, etc. */
+.tt-expand-shell {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.tt-expand-shell[data-open='true'] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.tt-expand-shell[data-animate='true'] {
+  transition:
+    grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease;
+}
+
+.tt-expand-shell-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tt-expand-shell[data-open='false'] {
+  pointer-events: none;
+}
+
+.tt-expand-row .tt-expand-shell {
+  overflow: hidden;
+}
+
+.tt-coach-roster-expand-row .tt-expand-shell[data-animate='true'] {
+  transition:
+    grid-template-rows 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 140ms ease;
+}
+
+.tt-coach-roster-expand-row .tt-expand-shell[data-open='true'] .tt-expand-panel {
+  animation-duration: 180ms;
+}
+
+.tt-coach-roster-main-row td {
+  cursor: pointer;
+}
+
+.tt-coach-roster-main-row td:has([data-athlete-status-trigger]) {
+  cursor: default;
+}
+
+.tt-expand-panel {
+  overflow: hidden;
+  transform-origin: top center;
+}
+
+.tt-expand-shell[data-open='true'] .tt-expand-panel {
+  animation: tt-expand-panel-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes tt-expand-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tt-expand-row td {
+  vertical-align: top;
+}
+
+.tt-attention-row-handled {
+  background: color-mix(in srgb, var(--tt-good) 12%, white);
+}
+
+.tt-attention-row-handled td {
+  transition: opacity 180ms ease;
+}
+
+.tt-attention-row-handled:not([data-exiting='true']) td:not([data-handled-action='true']) {
+  opacity: 0.45;
+}
+
+.tt-attention-row-exit {
+  animation: tt-attention-row-out 240ms cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
+}
+
+@keyframes tt-attention-row-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+
+/* Roster row expand — continuous red side rail when open (border, not shadow — survives overflow clip) */
+.tt-data-table tbody.tt-coach-roster-expanded-group > tr.tt-coach-roster-expanded-main > td:first-child,
+.tt-data-table tbody.tt-coach-roster-expanded-group > tr.tt-coach-roster-expand-row > td {
+  border-left: 3px solid var(--tt-red, #e85d4c);
+}
+
+.tt-data-table[data-density='comfortable']
+  tbody.tt-coach-roster-expanded-group
+  > tr.tt-coach-roster-expanded-main
+  > td:first-child {
+  padding-left: calc(1rem - 3px);
+}
+
+.tt-data-table[data-density='compact']
+  tbody.tt-coach-roster-expanded-group
+  > tr.tt-coach-roster-expanded-main
+  > td:first-child {
+  padding-left: calc(0.75rem - 3px);
+}
+
+.tt-data-table tbody.tt-coach-roster-expanded-group > tr.tt-coach-roster-expanded-main td {
+  position: relative;
+  z-index: 2;
+  background: var(--tt-sidebar, #f5f5f5);
+  border-bottom: none;
+  box-shadow: 0 3px 8px -3px rgb(17 17 17 / 0.08);
+}
+
+.tt-data-table tbody.tt-coach-roster-expanded-group > tr.tt-coach-roster-expanded-main:hover td {
+  background: var(--tt-sidebar, #f5f5f5);
+}
+
+.tt-data-table tbody tr.tt-coach-roster-expand-row td {
+  position: relative;
+  z-index: 1;
+  padding: 0;
+  background: var(--tt-surface, #fff);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tt-data-table tbody tr.tt-coach-roster-expand-row:hover td {
+  background: var(--tt-surface, #fff);
+}
+
+.tt-coach-roster-expand {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.tt-coach-roster-expand button,
+.tt-coach-roster-expand [role='tab'] {
+  cursor: pointer;
+}
+
+.tt-coach-roster-expand-tabs {
+  background: var(--tt-surface, #fff);
+  border-top: 1px solid var(--tt-line, #ebebeb);
+}
+
+/* Coach roster — lift column header above athlete rows */
+.tt-coach-roster-table thead th {
+  position: relative;
+  z-index: 3;
+  background: var(--tt-surface, #fff);
+  border-bottom: 1px solid var(--tt-line-strong, #dddddd);
+  box-shadow: 0 3px 8px -4px rgb(17 17 17 / 0.08);
+}
+
+.tt-coach-roster-table tbody.tt-coach-roster-expanded-group:first-of-type > tr.tt-coach-roster-expanded-main td,
+.tt-coach-roster-table tbody.tt-coach-roster-group:first-of-type > tr:first-child td {
+  border-top: none;
+}
+
+.tt-coach-roster-expand-tab[data-active='true'] {
+  background: var(--tt-sidebar, #f5f5f5);
+  box-shadow: inset 0 -2px 0 0 var(--tt-line-strong, #dddddd);
+  color: var(--tt-ink);
+}
+
+.tt-coach-roster-expand-tab[data-active='true'] .title-eyebrow,
+.tt-coach-roster-expand-tab[data-active='true'] svg {
+  color: var(--tt-ink);
+}
+
+.tt-coach-roster-expand-tab[data-active='false'] {
+  background: var(--tt-surface, #fff);
+  color: var(--tt-ink-faint);
+}
+
+.tt-coach-roster-expand-tab[data-active='false'] .title-eyebrow,
+.tt-coach-roster-expand-tab[data-active='false'] svg {
+  color: var(--tt-ink-faint);
+}
+
+.tt-coach-roster-expand-tab[data-active='false']:hover {
+  background: color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 35%, var(--tt-surface, #fff));
+  color: var(--tt-ink-soft);
+}
+
+.tt-coach-roster-expand-tab[data-active='false']:hover .title-eyebrow,
+.tt-coach-roster-expand-tab[data-active='false']:hover svg {
+  color: var(--tt-ink-soft);
+}
+
+.tt-coach-roster-thread-btn[data-active='true'] {
+  background: var(--tt-sidebar, #f5f5f5);
+}
+
+.tt-coach-roster-thread-btn[data-active='false']:hover {
+  background: color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 55%, white);
+}
+
+.tt-coach-roster-detail-slot {
+  min-width: 0;
+}
+
+.tt-coach-roster-detail-rail {
+  min-width: 0;
+}
+
+@keyframes tt-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.tt-shimmer {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 92%, var(--tt-line, #ebebeb)) 0%,
+    color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 45%, #fff) 50%,
+    color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 92%, var(--tt-line, #ebebeb)) 100%
+  );
+  background-size: 200% 100%;
+  animation: tt-shimmer 1.35s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-shimmer {
+    animation: none;
+    background: var(--tt-sidebar, #f5f5f5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-coach-roster-detail-slot {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-expand-shell[data-animate='true'] {
+    transition: none;
+  }
+
+  .tt-expand-shell[data-open='true'] .tt-expand-panel {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.tt-race-follow-up-summary {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.tt-race-follow-up-summary[data-open='false'] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tt-race-follow-up[data-animate='true'] .tt-race-follow-up-summary {
+  transition:
+    grid-template-rows 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 160ms ease;
+}
+
+.tt-race-follow-up-summary-inner {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .tt-dashboard-header {
@@ -374,22 +1280,22 @@ body {
 }
 
 .tt-dashboard-title {
-  /* Alias — Home greeting uses the shared Level 1 display size */
-  font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2.2vw, 1.625rem); /* ~20–26px */
-  line-height: 0.92;
-  font-weight: 800;
-  font-style: italic;
+  /* Same Level 1 as PageHeaderTitle / mock `tt-mock-h1` */
+  font-family: var(--font-display-family, 'Bebas Neue'), 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
+  font-size: 3rem;
+  line-height: 1.125;
+  font-weight: 400;
+  font-style: normal;
   text-transform: uppercase;
-  letter-spacing: -0.025em;
-  color: #111111;
+  letter-spacing: -0.01em;
+  color: var(--tt-ink, #111111);
   margin: 0;
 }
 
 .tt-dashboard-date {
   margin-top: 0.4375rem;
-  color: #737986;
-  font-size: 0.875rem;
+  color: var(--tt-ink-soft, #6b6b6b);
+  font-size: 0.8125rem; /* 13px — match PageHeaderDescription */
 }
 
 .tt-dashboard-log-btn {
@@ -415,20 +1321,87 @@ body {
 .tt-dashboard-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 1.75rem;
+  gap: 1.25rem;
   align-items: start;
 }
 
-@media (min-width: 1100px) {
+@media (min-width: 1101px) {
   .tt-dashboard-grid {
-    grid-template-columns: minmax(0, 1fr) 390px;
+    grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.9fr);
   }
+}
+
+/* Athlete Home Today — Bebas title (mock `.tt-mock-workout-title` L) */
+.tt-home-workout-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 1.75rem;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  color: var(--tt-ink, #111);
+}
+
+/* Mock `.tt-mock-card` — soft dual shadow + light #ebebeb border */
+.tt-surface-card {
+  background: var(--tt-surface, #ffffff);
+  border: 1px solid var(--tt-line, #ebebeb);
+  border-radius: 10px;
+  box-shadow: var(--tt-shadow);
+}
+
+.tt-home-prescription-card {
+  background: var(--tt-surface, #ffffff);
+  border: 1px solid var(--tt-line, #ebebeb);
+  border-radius: 10px;
+  box-shadow: var(--tt-shadow);
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    background-color 140ms ease;
+}
+
+.tt-home-prescription-card[data-status='completed'] {
+  background-color: var(--color-tt-completed-bg, #f0faf4);
+  border-color: color-mix(
+    in srgb,
+    var(--color-tt-completed-border, #86d39a) 70%,
+    var(--tt-line, #ebebeb)
+  );
+}
+
+.tt-home-prescription-card[data-status='skipped'] {
+  background-color: var(--color-tt-skipped-bg, #fdf2f2);
+  border-color: color-mix(
+    in srgb,
+    var(--color-tt-skipped-border, #f5a3a3) 70%,
+    var(--tt-line, #ebebeb)
+  );
+}
+
+.group\/card:hover .tt-home-prescription-card:not([data-ghost='true']) {
+  border-color: var(--tt-line-strong, #dddddd);
+  box-shadow: var(--tt-shadow-lift);
+}
+
+.group\/card:hover
+  .tt-home-prescription-card[data-status='completed']:not([data-ghost='true']) {
+  border-color: var(--color-tt-completed-border, #86d39a);
+}
+
+.group\/card:hover
+  .tt-home-prescription-card[data-status='skipped']:not([data-ghost='true']) {
+  border-color: var(--color-tt-skipped-border, #f5a3a3);
+}
+
+.tt-home-prescription-card[data-ghost='true'] {
+  box-shadow: none;
 }
 
 .tt-dashboard-stack {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .tt-dashboard-section-title {
@@ -669,124 +1642,153 @@ body {
 }
 
 /* ─── Table chrome (style guide) ─────────────────────────────────────────
- * Shell: square outer frame, slightly darker than default UI border.
- * Primary: dark header — Week plan, Month calendar, Season planner, dense grids.
- * Muted: light uppercase header — sparse list tables (results, PBs, race lists).
- * Sub: mid-tone strip under a primary header (e.g. week numbers under months).
+ * Match redesign week mock (`.tt-mock-week`):
+ * - Outer frame: 1px `--tt-line` (#ebebeb) all sides, 8px radius
+ * - Body grid: same light line between cells
+ * - Header: sidebar navy; internal dividers white/12 (vert) + white/06 (bottom)
  * Prefer classes from `src/lib/table-styles.ts` in components.
  */
 .tt-table-shell {
-  --tt-table-frame-border: color-mix(
-    in oklab,
-    var(--color-foreground) 12%,
-    var(--color-border)
-  );
-  border-radius: 0;
+  --tt-table-header-bg: #2a3144;
+  --tt-table-header-fg: #ffffff;
+  --tt-table-frame-border: var(--tt-line, #ebebeb);
+  border-radius: 0.5rem;
   background: var(--color-card);
   box-shadow: none;
   overflow: hidden;
-  /* Same model as Week frame: black top, grey bottom; L/R on header/body */
-  border-top: 1px solid #000;
-  border-bottom: 1px solid var(--tt-table-frame-border);
-  border-left: none;
-  border-right: none;
+  border: 1px solid var(--tt-table-frame-border);
 }
 
 /* Border on the <table> itself — cells sit flush (no wrapper gap). Week plan. */
 .tt-table-frame {
-  --tt-table-frame-border: color-mix(
-    in oklab,
-    var(--color-foreground) 12%,
-    var(--color-border)
-  );
-  border-radius: 0;
-  border-collapse: collapse;
+  --tt-table-header-bg: #2a3144;
+  --tt-table-header-fg: #ffffff;
+  --tt-table-frame-border: var(--tt-line, #ebebeb);
+  border-radius: 0.5rem;
+  border-collapse: separate;
+  border-spacing: 0;
   background: var(--color-card);
   box-shadow: none;
-  /* Top/bottom on the table; L/R painted per-cell so header can be black and body grey */
-  border-top: 1px solid var(--tt-table-frame-border);
-  border-bottom: 1px solid var(--tt-table-frame-border);
+  border: 1px solid var(--tt-table-frame-border);
+  overflow: hidden;
+}
+
+.tt-table-header {
+  position: relative;
+  z-index: 1;
+  background: var(--tt-table-header-bg, #2a3144);
+  color: var(--tt-table-header-fg, #ffffff);
+  --tt-table-header-pad-y: 0.375rem;
+}
+
+/* Month div header: soft bottom under charcoal (sides come from shell) */
+div.tt-table-header {
+  min-height: 2.125rem;
+  align-items: stretch;
+  border-left: none;
+  border-right: none;
+  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+}
+
+div.tt-table-header > * {
+  display: flex;
+  align-items: center;
+  padding-top: var(--tt-table-header-pad-y);
+  padding-bottom: var(--tt-table-header-pad-y);
+}
+
+/* Day columns — keep labels centered (flex resets text-align) */
+div.tt-table-header > .text-center,
+div.tt-table-header > [class*='text-center'] {
+  justify-content: center;
+}
+
+/* Month body: light grey outer sides under the header (shell already frames) */
+.tt-table-body {
   border-left: none;
   border-right: none;
 }
 
-.tt-table-header {
-  @apply relative z-[1] bg-sidebar text-sidebar-foreground;
-}
-
-/* Month div header: black sides + bottom (top comes from shell) */
-div.tt-table-header {
-  border-left: 1px solid #000;
-  border-right: 1px solid #000;
-  border-bottom: 1px solid #000;
-}
-
-/* Month body: light grey outer sides under the header */
-.tt-table-body {
-  border-left: 1px solid var(--tt-table-frame-border);
-  border-right: 1px solid var(--tt-table-frame-border);
-}
-
-/* Week: black top edge */
-table.tt-table-frame:has(> thead.tt-table-header) {
-  border-top-color: #000;
-}
-
-/* Header row: black bottom + black sides only */
+/* Header row: soft divider under charcoal; no extra outer edges (frame owns them) */
 thead.tt-table-header > tr > :is(th, td),
 tr.tt-table-header > :is(th, td) {
   border-top: none !important;
   border-left: none !important;
   border-right: none !important;
-  border-bottom: 1px solid #000 !important;
+  border-bottom: 1px solid rgb(255 255 255 / 0.06) !important;
+  color: inherit;
+  background: transparent;
+  vertical-align: middle;
+  min-height: 2.125rem;
+  padding-top: var(--tt-table-header-pad-y, 0.375rem);
+  padding-bottom: var(--tt-table-header-pad-y, 0.375rem);
 }
 
 thead.tt-table-header > tr > :first-child,
-tr.tt-table-header > :first-child {
-  border-left: 1px solid #000 !important;
-}
-
+tr.tt-table-header > :first-child,
 thead.tt-table-header > tr > :last-child,
 tr.tt-table-header > :last-child {
-  border-right: 1px solid #000 !important;
+  border-left: none !important;
+  border-right: none !important;
 }
 
-/* Body rows: light grey outer sides (continues the frame under the header) */
+/* Body rows: grid lines via cell borders; outer edge from table frame */
 .tt-table-frame > tbody > tr:not(.tt-table-header) > :first-child {
-  border-left: 1px solid var(--tt-table-frame-border);
+  border-left: none;
 }
 
 .tt-table-frame > tbody > tr:not(.tt-table-header) > :last-child {
-  border-right: 1px solid var(--tt-table-frame-border);
+  border-right: none;
+}
+
+/* Horizontal hairlines on cells (tr borders are ignored with separate collapse) */
+.tt-table-frame > tbody > tr > :is(th, td) {
+  border-bottom: 1px solid var(--tt-line, #ebebeb);
+}
+
+.tt-table-frame > tbody > tr:last-child > :is(th, td) {
+  border-bottom: none;
 }
 
 .tt-table-header-cell {
-  @apply text-sidebar-foreground/75;
+  color: rgb(255 255 255 / 0.75);
 }
 
 .tt-table-header-cell-muted {
-  @apply text-sidebar-foreground/65;
+  color: rgb(255 255 255 / 0.65);
 }
 
 .tt-table-header-cell-strong {
-  @apply text-sidebar-foreground;
+  color: #ffffff;
 }
 
 .tt-table-header-cell-today {
-  @apply bg-white/10 font-bold text-white;
+  /* Solid brand red day head — must beat `thead… { background: transparent }` */
+  background: var(--tt-red, #da2f36) !important;
+  color: #ffffff !important;
 }
 
 .tt-table-header-cell-weekend {
-  background: color-mix(in oklab, var(--color-sidebar) 88%, white);
+  background: #1e2436 !important;
+  color: rgb(255 255 255 / 0.75);
 }
 
-/* Inset divider — avoids fighting cell border-right */
+.tt-table-cell-weekend {
+  background: var(--tt-weekend);
+}
+
+.tt-table-cell-today {
+  /* Soft column wash — lighter than --tt-red-soft so header reads as the today signal */
+  background: var(--tt-today-wash, rgb(218 47 54 / 0.035));
+}
+
+/* Header column dividers — mock white/12 */
 .tt-table-header-vline {
-  box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.18);
+  box-shadow: inset -1px 0 0 rgb(255 255 255 / 0.12);
 }
 
 .tt-table-header-sub {
-  @apply border-b border-black/10 bg-[#7a7f8c] text-white;
+  @apply border-b border-black/10 bg-[#343b52] text-white;
 }
 
 .tt-table-header-muted {
@@ -794,13 +1796,13 @@ tr.tt-table-header > :last-child {
 }
 
 /* ─── Editorial data tables (races, results, PBs) ─────────────────────────
- * White sheet on warm-grey page canvas — no heavy outer box, no vertical borders.
+ * Light framed sheet — quiet outer border, soft tinted header, sortable columns.
  * Calendar grids keep `.tt-table-*` chrome above.
  */
 .tt-data-table-shell {
   background: var(--color-surface);
-  border: none;
-  border-radius: 0.75rem;
+  border: 1px solid color-mix(in oklab, var(--color-foreground) 10%, var(--color-border));
+  border-radius: 0.5rem;
   box-shadow: none;
   overflow: hidden;
 }
@@ -820,10 +1822,48 @@ tr.tt-table-header > :last-child {
   text-transform: uppercase;
   text-align: left;
   color: var(--color-text-secondary);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--tt-sidebar, #f5f5f5);
+  border-bottom: 1px solid color-mix(in oklab, var(--color-foreground) 8%, var(--color-border));
   padding: 0.75rem 1rem;
   white-space: nowrap;
+}
+
+.tt-data-table thead .tt-data-sort {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.25rem;
+  margin: -0.2rem -0.35rem;
+  padding: 0.2rem 0.35rem;
+  border-radius: 0.25rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.tt-data-table thead .tt-data-sort:hover {
+  color: var(--color-text-primary);
+  background: rgb(17 17 17 / 0.04);
+}
+
+.tt-data-table thead .tt-data-sort[data-active='true'] {
+  color: var(--color-text-primary);
+}
+
+.tt-data-table thead .tt-data-sort-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+  opacity: 0.35;
+}
+
+.tt-data-table thead .tt-data-sort[data-active='true'] .tt-data-sort-icon {
+  opacity: 0.75;
 }
 
 .tt-data-table tbody td {
@@ -834,11 +1874,11 @@ tr.tt-table-header > :last-child {
 }
 
 .tt-data-table tbody tr:last-child td {
-  border-bottom-color: transparent;
+  border-bottom: none;
 }
 
 .tt-data-table tbody tr:hover td {
-  background: #fafaf9;
+  background: rgb(17 17 17 / 0.04);
 }
 
 .tt-data-table tbody tr[data-selected='true'] td {
@@ -1052,13 +2092,119 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
     border-color 120ms ease;
 }
 
+/* Week plan cards — mock S/M/L: 6px radius, 2px rail inside the card */
+.tt-week-plan-card {
+  border-radius: 6px;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.045));
+}
+
+.tt-calendar-card-sport:has(.tt-week-plan-card) {
+  --tt-card-rail: 2px;
+  --radius-workout: 6px;
+}
+
+/* Rail lives on the card (not the wrapper) so it aligns with the 6px radius + border. */
+.tt-calendar-card-sport:has(.tt-week-plan-card)::before {
+  content: none;
+}
+
+.tt-week-plan-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--tt-sport-color);
+}
+
+/* Completion mode — solid green rail (mock), not pink skipped / gradient fill. */
+.tt-calendar-card-completion .tt-week-plan-card[data-status='completed']::before {
+  background: var(--tt-good, #1a9f5c);
+}
+
+/* Completed week card — mock good-soft wash */
+.tt-calendar-card-completion .tt-week-plan-card[data-status='completed'] {
+  background: rgb(26 159 92 / 0.08) !important;
+  border-color: rgb(26 159 92 / 0.28) !important;
+}
+
+.tt-calendar-card-completion .tt-week-plan-card[data-status='skipped']::before {
+  background: var(--tt-ink-faint, #9a9a9a);
+}
+
+/* Skipped week card — white surface + grey border (mock), not pink. */
+.tt-calendar-card-completion .tt-week-plan-card.tt-week-plan-card-skipped,
+.tt-week-plan-card.tt-week-plan-card-skipped {
+  background: var(--color-card, #fff) !important;
+  border-color: var(--tt-line-strong, #dddddd) !important;
+}
+
+.tt-calendar-card-sport:has(.tt-week-plan-card[data-ghost='true']) .tt-week-plan-card::before,
+.tt-calendar-card-sport:has(.tt-week-plan-card.tt-workout-block-ghost) .tt-week-plan-card::before {
+  background: color-mix(in srgb, var(--tt-sport-color) 35%, transparent);
+}
+
+/* Week grid cell min-heights by Cards S/M/L (match mock) */
+.tt-table-frame[data-card-size='s'] tr[data-row='sport'] > .tt-week-sport-cell {
+  min-height: 3.75rem;
+}
+
+.tt-table-frame[data-card-size='m'] tr[data-row='sport'] > .tt-week-sport-cell {
+  min-height: 5.25rem;
+}
+
+.tt-table-frame[data-card-size='l'] tr[data-row='sport'] > .tt-week-sport-cell {
+  min-height: 6.75rem;
+}
+
 .tt-workout-block-planned {
-  @apply border-border bg-card;
+  @apply bg-card;
+  border-color: var(--tt-line-strong, #dddddd);
 }
 
 .tt-workout-block-completed {
   border-color: var(--color-tt-completed-border);
   background-color: var(--color-tt-completed-bg);
+}
+
+/* Workout card feedback strip — continuous section, whisper tint */
+.tt-workout-feedback-section {
+  background: var(--tt-feedback-neutral);
+  border-top-color: var(--tt-line);
+}
+
+.tt-calendar-card-completion .tt-workout-feedback-section,
+.tt-workout-feedback-section[data-feedback-tint='completion'] {
+  background: var(--tt-feedback-soft);
+  border-top-color: color-mix(in srgb, var(--tt-good) 10%, var(--tt-line));
+}
+
+.tt-calendar-card-completion
+  .tt-week-plan-card[data-status='completed']
+  .tt-workout-feedback-section,
+.tt-workout-feedback-section[data-feedback-tint='completion'][data-card-status='completed'] {
+  background: var(--tt-feedback-soft-completed);
+  border-top-color: color-mix(in srgb, var(--tt-good) 12%, var(--tt-line));
+}
+
+.tt-calendar-card-sport:not(.tt-calendar-card-white):not(
+    .tt-calendar-card-completion
+  )
+  .tt-workout-feedback-section,
+.tt-workout-feedback-section[data-feedback-tint='sport'] {
+  background: color-mix(
+    in srgb,
+    var(--color-card, #fff) 97%,
+    var(--tt-sport-color, var(--tt-ink-soft))
+  );
+  border-top-color: color-mix(
+    in srgb,
+    var(--tt-sport-color, var(--tt-line)) 12%,
+    var(--tt-line)
+  );
 }
 
 .tt-workout-block-skipped {
@@ -1282,12 +2428,12 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 
 .tt-calendar-card-white .tt-workout-block {
   background: var(--color-card, #fff) !important;
-  border-color: var(--color-border) !important;
+  border-color: var(--tt-line-strong, #dddddd) !important;
 }
 
 .tt-calendar-card-white.tt-calendar-card-sport:not(:has(.tt-workout-block)) {
   background: var(--color-card, #fff) !important;
-  border-color: var(--color-border) !important;
+  border-color: var(--tt-line-strong, #dddddd) !important;
 }
 
 /* Plain hover — wash in a bit of sport color */
@@ -1315,7 +2461,7 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 
 .tt-calendar-card-completion .tt-workout-block-planned {
   background: var(--color-card, #fff) !important;
-  border-color: var(--color-border) !important;
+  border-color: var(--tt-line-strong, #dddddd) !important;
 }
 
 /* Workout card PNG export themes (story overlays) */
@@ -1347,47 +2493,46 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
   stroke: currentColor;
 }
 
-/* ——— Typography scale (Manrope UI) ——— */
+/* ——— Typography scale (Inter UI) ——— */
 
 /*
- * TrainTrack title hierarchy — choose by semantic role, not by page.
- * ~10% editorial (Barlow) / ~90% functional UI (Manrope).
+ * TrainTrack title hierarchy — redesign (Inter + Bebas Neue).
+ * Choose by semantic role. Prefer React helpers in typography.tsx / page-header.tsx.
  *
- * 1 title-display     — editorial page H1 (Season, Home greeting) — Barlow only here
- * 2 title-section     — section H2 (Upcoming, Today's workout, This week) — Manrope
- * 3 title-eyebrow     — metadata labels (NEXT RACE, MONTHLY VOLUME)
- * 4 title-card        — workout/race names (sentence case)
- * 5 body / caption    — Manrope UI copy
- * 6 metrics           — large tabular numbers
+ * 1 title-display / title-page — page H1 (Bebas Neue, uppercase) — PageHeaderTitle
+ * 2 title-section             — section H2 (Inter) — Upcoming, Today's workout
+ * 3 title-eyebrow             — overline / metadata (Inter) — PageHeaderEyebrow
+ * 4 title-card                — workout/race names (Inter, sentence case)
+ * 5 body / caption            — Inter UI copy — PageHeaderDescription
+ * 6 metrics                   — large tabular numbers
  *
- * Functional page H1 (Training, Results, Stats, Tools): title-page
- * Never use Barlow in nav, tables, calendar headers, or section titles.
+ * Never use Bebas in nav, tables, calendar headers, or dense section titles.
  */
-.title-display {
-  font-family: var(--font-display);
-  font-size: clamp(1.25rem, 2.2vw, 1.625rem); /* ~20–26px */
-  line-height: 0.92;
-  font-weight: 800;
-  font-style: italic;
+.title-display,
+.title-page {
+  /* Match mock `.tt-mock-h1` — Bebas Neue · 48/54. Prefer next/font var directly
+     (same pattern as #tt-splash) so we never inherit Inter if theme token fails. */
+  font-family: var(--font-display-family, 'Bebas Neue'), 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
+  font-size: 3rem; /* 48px */
+  line-height: 1.125; /* 54 */
+  font-weight: 400;
+  font-style: normal;
   text-transform: uppercase;
-  letter-spacing: -0.025em;
-  color: #111111;
+  letter-spacing: -0.01em;
+  color: var(--tt-ink, #111111);
   margin: 0;
+}
+
+.title-display--compact,
+.title-page--compact {
+  /* Match mock month expanded: `!text-3xl` */
+  font-size: 1.875rem; /* 30px */
+  line-height: 1.125;
 }
 
 /* Deprecated — Level 1 display titles are single-color; do not accent words. */
 .title-display-accent {
   color: inherit;
-}
-
-.title-page {
-  font-family: var(--font-sans);
-  font-size: clamp(1.25rem, 2vw, 1.625rem); /* ~20–26px */
-  line-height: 1.1;
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  color: #111111;
-  margin: 0;
 }
 
 .title-section {
@@ -1430,13 +2575,25 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 }
 
 .title-eyebrow {
+  /* Match mock `.tt-mock-overline` / `.tt-mock-eyebrow` */
   font-family: var(--font-sans);
-  font-size: 0.625rem; /* 10px */
-  line-height: 1;
-  font-weight: 750;
-  letter-spacing: 0.1em;
+  font-size: 0.6875rem; /* 11px */
+  line-height: 1.45;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #737986;
+  color: var(--tt-ink-faint, #9a9a9a);
+  margin: 0;
+}
+
+.page-header-description {
+  /* Match mock subtitle: text-[13px] text-[var(--tt-ink-soft)] */
+  font-family: var(--font-sans);
+  font-size: 0.8125rem; /* 13px */
+  line-height: 1.4;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--tt-ink-soft, #6b6b6b);
   margin: 0;
 }
 
@@ -1463,12 +2620,14 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 
 /* Legacy aliases → hierarchy */
 .text-page-title {
-  font-family: var(--font-sans);
-  font-size: clamp(1.25rem, 2vw, 1.625rem);
-  line-height: 1.1;
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  color: #111111;
+  /* Prefer .title-page / PageHeaderTitle — mock page H1 48px */
+  font-family: var(--font-display-family, 'Bebas Neue'), 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
+  font-size: 3rem;
+  line-height: 1.125;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  color: var(--tt-ink, #111111);
 }
 
 .text-section-title {
@@ -1522,10 +2681,10 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 }
 
 .traintrack-wordmark {
-  font-family: var(--font-sans);
-  font-size: 1.0625rem; /* 17px */
-  font-weight: 800;
-  letter-spacing: 0.075em;
+  font-family: var(--font-display);
+  font-size: 1.125rem; /* 18px */
+  font-weight: 400;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   line-height: 1;
 }
@@ -1534,14 +2693,14 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
   @apply tabular-nums tracking-tight;
 }
 
-/* ——— Poster / editorial display (Barlow Condensed) ——— */
+/* ——— Poster / editorial display (Bebas Neue) ——— */
 .poster-title {
   /* Alias of title-display for existing poster components */
   font-family: var(--font-display);
-  font-weight: 800;
-  font-style: italic;
+  font-weight: 400;
+  font-style: normal;
   text-transform: uppercase;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.01em;
   line-height: 0.92;
   color: #111111;
 }
@@ -1562,13 +2721,13 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 
 .poster-title-accent,
 .title-section-accent {
-  color: #f4511e;
+  color: #da2f36;
 }
 
 .poster-metric {
   font-family: var(--font-display);
-  font-weight: 900;
-  font-style: italic;
+  font-weight: 400;
+  font-style: normal;
   text-transform: uppercase;
   letter-spacing: -0.03em;
   line-height: 0.85;
@@ -1578,8 +2737,8 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 
 .poster-metric-unit {
   font-family: var(--font-display);
-  font-weight: 700;
-  font-style: italic;
+  font-weight: 400;
+  font-style: normal;
   text-transform: uppercase;
   letter-spacing: -0.02em;
   line-height: 1;
@@ -2143,9 +3302,9 @@ input[type='number'] {
 }
 
 .tt-season-header__poster {
-  /* Legacy — prefer .title-display; keep size in sync */
-  font-size: clamp(1.25rem, 2.2vw, 1.625rem);
-  line-height: 0.92;
+  /* Legacy — prefer .title-display / PageHeaderTitle */
+  font-size: 3rem;
+  line-height: 1.125;
   max-width: none;
 }
 
@@ -2161,21 +3320,21 @@ input[type='number'] {
   color: #ffffff;
 }
 
-/* Season timeline — white map, softer header, quiet grid */
+/* Season timeline — white map; header chrome comes from shared `.tt-table-*` */
 .tt-season-timeline.tt-table-shell {
   background: #ffffff;
-  border-top-color: #3a3f48;
   border-bottom-color: #ececea;
-  border-radius: 0.5rem;
-  overflow: hidden;
 }
 
 .tt-season-timeline .tt-table-header {
-  background: #3a3f48;
-  color: #ffffff;
   border-left: none;
   border-right: none;
-  border-bottom: 1px solid rgb(255 255 255 / 0.06);
+}
+
+/* Sticky “Season” corner — opaque so month labels don’t bleed under scroll */
+.tt-season-timeline .tt-season-sticky-label {
+  background: var(--tt-table-header-bg, #2a3144);
+  box-shadow: 1px 0 0 var(--tt-table-header-bg, #2a3144);
 }
 
 .tt-season-timeline .tt-table-header-sub {
@@ -2250,78 +3409,6 @@ input[type='number'] {
   margin-top: 0.25rem;
 }
 
-/* Workout feeling slider — draggable thumb on the red→green track */
-.tt-feeling-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 1.5rem;
-  margin: 0;
-  background: transparent;
-  cursor: grab;
-  touch-action: none;
-}
-
-.tt-feeling-slider:active {
-  cursor: grabbing;
-}
-
-.tt-feeling-slider:focus-visible {
-  outline: none;
-}
-
-.tt-feeling-slider:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px rgb(17 17 17 / 0.16);
-}
-
-.tt-feeling-slider:focus-visible::-moz-range-thumb {
-  box-shadow: 0 0 0 3px rgb(17 17 17 / 0.16);
-}
-
-.tt-feeling-slider::-webkit-slider-runnable-track {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--tt-feeling-track);
-}
-
-.tt-feeling-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 18px;
-  height: 18px;
-  margin-top: -6px;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  background: var(--tt-feeling-thumb);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.22);
-  cursor: grab;
-}
-
-.tt-feeling-slider:active::-webkit-slider-thumb {
-  cursor: grabbing;
-}
-
-.tt-feeling-slider::-moz-range-track {
-  height: 6px;
-  border: none;
-  border-radius: 999px;
-  background: var(--tt-feeling-track);
-}
-
-.tt-feeling-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border: 2px solid #fff;
-  border-radius: 999px;
-  background: var(--tt-feeling-thumb);
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.22);
-  cursor: grab;
-}
-
-.tt-feeling-slider:active::-moz-range-thumb {
-  cursor: grabbing;
-}
-
 /* ─── PWA splash screen ──────────────────────────────────────────────────── */
 
 #tt-splash {
@@ -2346,10 +3433,11 @@ input[type='number'] {
 }
 
 #tt-splash span {
-  font-family: 'Barlow Condensed', var(--font-display-family), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-display-family), 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
   font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: #111111;
 }
 

@@ -1,10 +1,11 @@
 'use client'
 
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
+import { useOptimisticWorkoutStatus } from '@/components/plan/athlete-workout-quick-actions'
 import {
-  AthleteWorkoutQuickActions,
-  useOptimisticWorkoutStatus,
-} from '@/components/plan/athlete-workout-quick-actions'
+  WorkoutCardCornerOverlay,
+  workoutCardCornerSpacerClass,
+} from '@/components/plan/workout-card-corner-overlay'
 import { RacePlanItem } from '@/components/plan/race-plan-item'
 import {
   CoachRescheduleReviewActions,
@@ -50,7 +51,13 @@ export function PlanWorkoutRow({ workout, isCoach }: PlanWorkoutRowProps) {
           hideCompletedBadge={showQuickActions}
           actions={
             showQuickActions || isCoach ? (
-              <span className="inline-block w-[2.75rem]" aria-hidden />
+              <span
+                className={workoutCardCornerSpacerClass(workout, {
+                  showQuickActions,
+                  showCoachMenu: isCoach,
+                })}
+                aria-hidden
+              />
             ) : null
           }
           footer={
@@ -60,17 +67,14 @@ export function PlanWorkoutRow({ workout, isCoach }: PlanWorkoutRowProps) {
           }
         />
       </WorkoutModalTrigger>
-      {showQuickActions ? (
-        <div className="absolute right-1 top-1 z-10 opacity-80 transition group-hover/card:opacity-100">
-          <AthleteWorkoutQuickActions
-            workout={workout}
-            isCoach={isCoach}
-            size="xs"
-            displayStatus={status}
-            onDisplayStatusChange={setOptimisticStatus}
-          />
-        </div>
-      ) : null}
+      <WorkoutCardCornerOverlay
+        workout={workout}
+        isCoach={isCoach}
+        showQuickActions={showQuickActions}
+        status={status}
+        onStatusChange={setOptimisticStatus}
+        className="right-1 top-1"
+      />
     </div>
   )
 }

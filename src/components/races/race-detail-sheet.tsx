@@ -110,8 +110,16 @@ export function RaceDetailSheet({
                     </p>
                     <p className="mt-1 text-sm">{raceOutcomeSummary(race)}</p>
                   </div>
-                  {race.resultNotes?.trim() ? (
+                  {race.resultPlace?.trim() ? (
                     <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Place
+                      </p>
+                      <p className="mt-1 text-sm tabular-nums">{race.resultPlace.trim()}</p>
+                    </div>
+                  ) : null}
+                  {race.resultNotes?.trim() ? (
+                    <div className="sm:col-span-2">
                       <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                         Report
                       </p>

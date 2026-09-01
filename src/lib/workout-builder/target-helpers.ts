@@ -1,4 +1,5 @@
 import { WorkoutType } from '@prisma/client'
+import { formatPaceMinPerKm, parsePaceMinPerKm } from '@/lib/athlete-preferences'
 import type { Segment, SegmentUnit, Target, TargetType } from './types'
 import { TARGET_TYPE_LABELS } from './types'
 
@@ -55,6 +56,7 @@ export function simpleTargetTypeLabel(type: TargetType): string {
   if (type === 'powerZone') return '% FTP'
   if (type === 'pace') return 'Pace'
   if (type === 'heartRate') return 'HR'
+  if (type === 'heartRateZone') return 'Zone'
   return TARGET_TYPE_LABELS[type]
 }
 
@@ -68,6 +70,9 @@ export function intensitySuggestions(type: TargetType, sport: WorkoutType): stri
   }
   if (type === 'heartRate') {
     return [...zones, '120', '130', '140', '150', '160', '170', '180']
+  }
+  if (type === 'heartRateZone') {
+    return zones
   }
   if (type === 'power') {
     return [...zones, 'Easy', 'Tempo', 'Threshold', '180', '200', '220', '250']
@@ -94,11 +99,11 @@ export function targetPlaceholder(type: TargetType, sport: WorkoutType): string 
     case 'speed':
       return isBikeSport(sport) ? '35 km/h' : '12 km/h'
     case 'pace':
-      return '3:45/km'
+      return '4:30'
     case 'heartRate':
-      return '165-175 bpm'
+      return '165'
     case 'heartRateZone':
-      return 'Z4'
+      return 'Z3'
     case 'cadence':
       return '90 rpm'
     case 'rpe':
@@ -106,6 +111,29 @@ export function targetPlaceholder(type: TargetType, sport: WorkoutType): string 
     default:
       return ''
   }
+}
+
+/** Strip trailing /km so the field shows m:ss / mm:ss only. */
+export function paceInputDisplayValue(value: string | undefined | null): string {
+  return (value ?? '').replace(/\s*\/\s*km$/i, '').trim()
+}
+
+/**
+ * Normalize pace on blur: "5:3", "5:30", "5:30/km" → "5:30/km".
+ * Keywords / zones (Easy, Z2, …) are left unchanged.
+ */
+export function normalizePaceInputValue(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return ''
+
+  const looksLikeClock =
+    /^\d{1,2}:\d{1,2}(?:\.\d{1,3})?(?:\s*\/\s*km)?$/i.test(trimmed) ||
+    /\/\s*km$/i.test(trimmed)
+  if (!looksLikeClock) return trimmed
+
+  const parsed = parsePaceMinPerKm(trimmed)
+  if (parsed == null) return trimmed
+  return `${formatPaceMinPerKm(parsed)}/km`
 }
 
 export function primaryTarget(block: { targets?: Target[] }, sport: WorkoutType): Target {
@@ -147,6 +175,11 @@ export function formatIntensityDisplay(target: Target, _sport: WorkoutType): str
   if (target.type === 'powerZone') {
     const pct = value.replace(/%/g, '').replace(/\s*ftp/i, '').trim()
     if (/^\d+(\.\d+)?$/.test(pct)) return `${pct}% FTP`
+  }
+  if (target.type === 'pace') {
+    const clock = paceInputDisplayValue(value)
+    if (/^\d{1,2}:\d{2}(?:\.\d{1,3})?$/.test(clock)) return `${clock}/km`
+    return value
   }
   return `${targetTypeLabel(target.type)} ${value}`
 }

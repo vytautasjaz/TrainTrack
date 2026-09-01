@@ -1,33 +1,34 @@
 /**
- * TrainTrack visual language:
- * - Premium endurance sports + editorial accents + clean product UI
- * - UI font: Manrope (`--font-ui` / `font-sans`) — ~90% of UI
- * - Display font: Barlow Condensed (`--font-display`) — page/section titles only (~10%)
- * - Accent: orange `#F4511E` — max one accent word per major editorial title
+ * TrainTrack visual language (redesign):
+ * - UI font: Inter (`--font-sans`) — body, nav, sections, captions
+ * - Display font: Bebas Neue (`--font-display`) — page H1 only (~Level 1)
+ * - Prefer `PageHeader` / `PageHeaderTitle` over raw title classes
  * - Title hierarchy: see `.cursor/rules/typography-hierarchy.mdc` and `title-*` in globals.css
  */
 export const typography = {
-  /** Level 1 editorial page title (Barlow) */
+  /** Level 1 page H1 (Bebas) — same as pageTitle */
   display: 'title-display',
   displayAccent: 'title-display-accent',
-  /** Functional page title — Training, Results, Stats (Manrope) */
+  /** Level 1 page H1 (Bebas) — alias of title-display */
   pageTitle: 'title-page',
-  /** Level 2 section title (Manrope, not italic) */
+  pageTitleCompact: 'title-display title-display--compact',
+  /** Level 2 section title (Inter) */
   sectionTitle: 'title-section',
   /** @deprecated Alias of title-section */
   sectionTitleLarge: 'title-section',
   sectionAccent: 'title-section-accent',
   /** @deprecated Alias of title-section */
   subTitle: 'title-section',
-  /** Level 3 eyebrow / metadata (Manrope) */
+  /** Level 3 eyebrow / overline (Inter) */
   eyebrow: 'title-eyebrow',
-  /** Level 4 card content title (Manrope, sentence case) */
+  /** Level 4 card content title (Inter, sentence case) */
   cardTitle: 'title-card',
-  /** Day group label (Manrope) */
+  /** Day group label (Inter) */
   dayLabel: 'title-day',
   label: 'title-eyebrow',
   body: 'text-body',
   caption: 'text-caption',
+  pageHeaderDescription: 'page-header-description',
   hint: 'text-hint',
   metricXl: 'text-metric-xl',
   metricHero: 'text-metric-hero',

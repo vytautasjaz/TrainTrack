@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -7,7 +8,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { SharedWorkoutEditor } from '@/components/workout-editor/shared-workout-editor'
+import { prefetchWorkoutCoachingThread } from '@/lib/coaching-thread-prefetch'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import type { WorkoutEditorMode } from '@/lib/workout-editor/types'
 import type { WorkoutType } from '@prisma/client'
 
 type WorkoutEditorDialogProps = {
@@ -16,7 +19,11 @@ type WorkoutEditorDialogProps = {
   date: string
   sport: WorkoutType
   workout?: PlanWorkoutDetail | null
+  /** Library template id when editing an existing template */
+  entityId?: string
   athleteMode?: boolean
+  /** plan (default) or template (coach library) */
+  mode?: Extract<WorkoutEditorMode, 'plan' | 'template'>
 }
 
 export function WorkoutEditorDialog({
@@ -25,26 +32,46 @@ export function WorkoutEditorDialog({
   date,
   sport,
   workout = null,
+  entityId,
   athleteMode = false,
+  mode = 'plan',
 }: WorkoutEditorDialogProps) {
+  const isTemplate = mode === 'template'
+  const title = workout || entityId
+    ? isTemplate
+      ? 'Edit template'
+      : 'Edit Workout'
+    : isTemplate
+      ? 'New template'
+      : 'Add Workout'
+
+  useEffect(() => {
+    if (open && workout?.id && !athleteMode && !isTemplate) {
+      prefetchWorkoutCoachingThread(workout.id)
+    }
+  }, [open, workout?.id, athleteMode, isTemplate])
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[min(92vh,52rem)] w-[calc(100%-1.5rem)] max-w-[42rem] flex-col gap-0 overflow-hidden border-0 bg-transparent p-0"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
+        className="flex max-h-[min(92vh,52rem)] w-[calc(100%-1.5rem)] max-w-[min(64rem,calc(100%-1.5rem))] flex-col gap-0 overflow-hidden border-0 bg-transparent p-0 shadow-none sm:w-auto"
+        overlayClassName="bg-black/50"
+        hideCloseButton
       >
-        <DialogTitle className="sr-only">{workout ? 'Edit Workout' : 'Add Workout'}</DialogTitle>
+        <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">
-          Card-style workout editor for {sport.toLowerCase()}
+          {isTemplate
+            ? `Card-style template editor for ${sport.toLowerCase()}`
+            : `Card-style workout editor for ${sport.toLowerCase()}`}
         </DialogDescription>
         {open ? (
           <SharedWorkoutEditor
-            key={`${workout?.id ?? 'new'}-${sport}-${date}`}
-            mode="plan"
+            key={`${mode}-${entityId ?? workout?.id ?? 'new'}-${sport}-${date}`}
+            mode={mode}
             sportType={sport}
             date={date}
             workout={workout}
+            entityId={entityId}
             athleteMode={athleteMode}
             onSaved={() => onOpenChange(false)}
             onCancel={() => onOpenChange(false)}

@@ -141,6 +141,7 @@ enum DayNoteStatus {
 }
 
 enum CoachingThreadKind {
+  GENERAL
   ASK
   FEEDBACK
   RACE_REPORT
@@ -230,8 +231,25 @@ model User {
   athleteProfile    Athlete?
   coachProfile      CoachProfile?
   templates         WorkoutTemplate[]
+  templateFolders   WorkoutTemplateFolder[]
   stravaConnection  StravaConnection?
   webPushSubscriptions WebPushSubscription[]
+  coachAttentionDismissals CoachAttentionDismissal[]
+}
+
+/** Coach dismissed a Needs attention item on Home (snooze until state changes). */
+model CoachAttentionDismissal {
+  id          String   @id @default(cuid())
+  coachUserId String
+  itemKey     String
+  /** Snapshot when dismissed — used to re-show messages/planning when state changes. */
+  contextAt   String   @default("")
+  dismissedAt DateTime @default(now())
+
+  coach User @relation(fields: [coachUserId], references: [id], onDelete: Cascade)
+
+  @@unique([coachUserId, itemKey])
+  @@index([coachUserId])
 }
 
 model Account {
@@ -433,6 +451,8 @@ model Race {
   /** Set when athlete logs how the race went (or dismisses the prompt). */
   outcome      RaceOutcome?
   resultTime   String?
+  /** Overall place / ranking (e.g. "12th", "3/240") — optional. */
+  resultPlace  String?
   resultNotes  String?
   resultLoggedAt DateTime?
   /** Cleared when athlete logs a result; set when coach dismisses the dashboard alert. */
@@ -588,9 +608,27 @@ model CalendarEventMap {
   @@index([athleteId, type])
 }
 
+model WorkoutTemplateFolder {
+  id        String      @id @default(cuid())
+  coachId   String
+  /** Sport this folder belongs to — folders are per-sport topic groups */
+  sport     WorkoutType
+  name      String
+  sortOrder Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  coach     User              @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  templates WorkoutTemplate[]
+
+  @@index([coachId, sport])
+  @@unique([coachId, sport, name])
+}
+
 model WorkoutTemplate {
   id          String       @id @default(cuid())
   coachId     String
+  folderId    String?
   title       String
   type        WorkoutType
   sessionType SessionType  @default(CUSTOM)
@@ -611,10 +649,12 @@ model WorkoutTemplate {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  coach    User      @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  coach    User                   @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  folder   WorkoutTemplateFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
   workouts Workout[]
 
   @@index([coachId])
+  @@index([folderId])
 }
 
 model Workout {
@@ -665,7 +705,8 @@ model WorkoutResult {
   id               String   @id @default(cuid())
   workoutId        String   @unique
   actualDistance   Float?
-  actualDuration   Int?
+  /** Actual duration in minutes (fractional minutes preserve seconds from Strava). */
+  actualDuration   Float?
   rpe              Int?
   /** Athlete 1–10 how the session felt (1 rough, 10 great). */
   feeling          Int?
@@ -682,6 +723,28 @@ model WorkoutResult {
   stravaActivityName String?
   /** Strava activity description — suggested coach comment; not shared until athlete opts in. */
   stravaActivityDescription String?
+  /** Strava average heart rate (bpm). */
+  averageHeartrate Float?
+  /** Strava max heart rate (bpm). */
+  maxHeartrate     Float?
+  /** Strava average speed (m/s). */
+  averageSpeedMps  Float?
+  /** Strava max speed (m/s). */
+  maxSpeedMps      Float?
+  /** Strava total elevation gain (meters). */
+  elevationGainM   Float?
+  /** Strava relative effort / suffer score. */
+  sufferScore      Int?
+  /** Strava average cadence (spm / rpm depending on sport). */
+  averageCadence   Float?
+  /** Strava kilojoules (rides). */
+  kilojoules       Float?
+  /** Strava calories when available from detailed activity. */
+  calories         Float?
+  /** Strava average watts (rides). */
+  averageWatts     Float?
+  /** Encoded Google polyline from Strava map.summary_polyline (GPS route). */
+  summaryPolyline  String?
   logType          AthleteLogType?
   completedAt      DateTime @default(now())
   createdAt        DateTime @default(now())

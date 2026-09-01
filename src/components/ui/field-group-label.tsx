@@ -9,7 +9,12 @@ export function FieldGroupLabel({
   className?: string
 }) {
   return (
-    <span className={cn('mb-1 block text-xs font-medium text-muted-foreground', className)}>
+    <span
+      className={cn(
+        'mb-0.5 block text-[10px] font-medium leading-none tracking-wide text-muted-foreground',
+        className,
+      )}
+    >
       {children}
     </span>
   )

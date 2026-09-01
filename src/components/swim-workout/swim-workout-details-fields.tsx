@@ -2,7 +2,7 @@
 
 import { SwimWorkoutBuilder } from '@/components/swim-workout/swim-workout-builder'
 import { createDefaultSwimStructure } from '@/lib/swim-workout/defaults'
-import { workoutDistanceMeters } from '@/lib/swim-workout/calculations'
+import { workoutDistanceMetersDraft } from '@/lib/swim-workout/calculations'
 import type { SwimSection, SwimWorkoutForm } from '@/lib/swim-workout/types'
 import { cn } from '@/lib/utils'
 
@@ -23,7 +23,7 @@ export function SwimWorkoutDetailsFields({
 
   function updateSections(next: SwimSection[]) {
     const nextStructure = { version: 1 as const, sections: next }
-    const computed = workoutDistanceMeters(nextStructure)
+    const computed = workoutDistanceMetersDraft(nextStructure)
     onChange({
       builderEnabled: true,
       swimStructure: nextStructure,

@@ -142,7 +142,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <main
           data-app-main
-          className="w-full min-w-0 max-w-6xl flex-1 px-4 pb-4 pt-3 landscape:max-lg:px-2 lg:max-w-[90rem] lg:px-8 lg:pb-6 lg:pt-0"
+          className="w-full min-w-0 max-w-6xl flex-1 px-4 pb-4 pt-3 landscape:max-lg:px-2 lg:max-w-[110rem] lg:px-8 lg:pb-6 lg:pt-0"
         >
           {children}
         </main>

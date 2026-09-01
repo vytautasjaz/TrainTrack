@@ -1,4 +1,8 @@
 import { cn } from '@/lib/utils'
+import {
+  PageHeaderDescription,
+  PageHeaderTitle,
+} from '@/components/ui/page-header'
 
 type SeasonPlanHeaderProps = {
   description?: string
@@ -6,7 +10,7 @@ type SeasonPlanHeaderProps = {
 }
 
 /**
- * Season Plan page identity — Level 1 editorial display title.
+ * Season Plan page identity — shared PageHeaderTitle (Bebas page H1).
  */
 export function SeasonPlanHeader({
   description = 'Plan your season. Set your goals. Stay focused.',
@@ -19,10 +23,12 @@ export function SeasonPlanHeader({
     >
       <div className="tt-season-header__abstract" aria-hidden="true" />
       <div className="relative z-[1] max-w-xl space-y-2">
-        <h1 className="title-display whitespace-nowrap">PLAN THE SEASON.</h1>
-        <p className="max-w-md text-[13px] leading-relaxed text-muted-foreground">
+        <PageHeaderTitle className="whitespace-nowrap">
+          Plan the season.
+        </PageHeaderTitle>
+        <PageHeaderDescription className="max-w-md leading-relaxed">
           {description}
-        </p>
+        </PageHeaderDescription>
       </div>
     </header>
   )

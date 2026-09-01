@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type DragEvent } from "react";
 import type { WorkoutType } from "@prisma/client";
 import {
   ChevronDown,
@@ -15,6 +15,7 @@ import {
   createSmartBlock,
   duplicateBlock,
   inferSmartBlockLabel,
+  smartBlockAccentStyles,
   type PresetBlockKind,
   type SmartBlockKind,
 } from "@/lib/workout-builder/smart-blocks";
@@ -25,6 +26,7 @@ import {
 import {
   appendListedBlock,
   flattenStructure,
+  insertListedBlock,
   moveListedBlock,
   removeListedBlock,
   unflattenBlocks,
@@ -38,9 +40,17 @@ import {
 } from "@/components/workout-builder/builder-row-fields";
 import { ProgressiveBlockRow } from "@/components/workout-builder/builder-segment-editor";
 import { WorkoutDetailsBlockList } from "@/components/workout-builder/workout-details-block-list";
+import { WorkoutStructureChart } from "@/components/workout-builder/workout-structure-chart";
 import { SmartBlockPicker } from "@/components/workout-builder/smart-block-picker";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DragInsertIndicator,
+  decodeAddBlockDragData,
+  insertIndexFromDragEvent,
+  isMeaningfulInsert,
+  targetIndexFromInsert,
+} from "@/components/ui/drag-insert-indicator";
 import { cn } from "@/lib/utils";
 
 type WorkoutBlockListV2Props = {
@@ -52,6 +62,18 @@ type WorkoutBlockListV2Props = {
   compact?: boolean;
 };
 
+function isPresetKind(kind: SmartBlockKind): kind is PresetBlockKind {
+  return (
+    kind === "WARM_UP" ||
+    kind === "COOL_DOWN" ||
+    kind === "THRESHOLD" ||
+    kind === "VO2_MAX" ||
+    kind === "TEMPO" ||
+    kind === "TEMPO_INTERVALS" ||
+    kind === "FARTLEK"
+  );
+}
+
 export function WorkoutBlockListV2({
   structure,
   onChange,
@@ -61,6 +83,8 @@ export function WorkoutBlockListV2({
   compact = false,
 }: WorkoutBlockListV2Props) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragAddKind, setDragAddKind] = useState<SmartBlockKind | null>(null);
+  const [insertIndex, setInsertIndex] = useState<number | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
 
   const items = useMemo(() => flattenStructure(structure), [structure]);
@@ -81,23 +105,28 @@ export function WorkoutBlockListV2({
     onChange(unflattenBlocks(nextItems));
   }
 
-  function addBlock(kind: SmartBlockKind) {
-    const option =
-      kind === "WARM_UP" ||
-      kind === "COOL_DOWN" ||
-      kind === "THRESHOLD" ||
-      kind === "VO2_MAX" ||
-      kind === "TEMPO" ||
-      kind === "TEMPO_INTERVALS" ||
-      kind === "FARTLEK"
-        ? createPresetBlockWithPrefs(
-            kind as PresetBlockKind,
-            items.length,
-            sportType,
-            builderPrefs,
-          )
-        : createSmartBlock(kind, items.length, sportType);
-    commit(appendListedBlock(items, { block: option, section: "mainSet" }));
+  function clearDrag() {
+    setDragIndex(null);
+    setDragAddKind(null);
+    setInsertIndex(null);
+  }
+
+  function createBlockForKind(kind: SmartBlockKind) {
+    return isPresetKind(kind)
+      ? createPresetBlockWithPrefs(kind, items.length, sportType, builderPrefs)
+      : createSmartBlock(kind, items.length, sportType);
+  }
+
+  function addBlock(kind: SmartBlockKind, at?: number) {
+    const entry = {
+      block: createBlockForKind(kind),
+      section: "mainSet" as const,
+    };
+    if (at == null || at >= items.length) {
+      commit(appendListedBlock(items, entry));
+      return;
+    }
+    commit(insertListedBlock(items, Math.max(0, at), entry));
   }
 
   function updateBlock(flatIndex: number, block: (typeof items)[0]["block"]) {
@@ -120,10 +149,26 @@ export function WorkoutBlockListV2({
     commit(moveListedBlock(items, flatIndex, target));
   }
 
-  function handleDrop(targetIndex: number) {
-    if (dragIndex === null || dragIndex === targetIndex) return;
-    commit(moveListedBlock(items, dragIndex, targetIndex));
-    setDragIndex(null);
+  function handleDropAt(insertAt: number, e?: DragEvent) {
+    const kind = (e ? decodeAddBlockDragData(e.dataTransfer) : null) ??
+      dragAddKind;
+    if (kind) {
+      addBlock(kind as SmartBlockKind, insertAt);
+      clearDrag();
+      return;
+    }
+    if (dragIndex === null || !isMeaningfulInsert(dragIndex, insertAt)) {
+      clearDrag();
+      return;
+    }
+    commit(
+      moveListedBlock(
+        items,
+        dragIndex,
+        targetIndexFromInsert(dragIndex, insertAt),
+      ),
+    );
+    clearDrag();
   }
 
   function toggleCollapsed(id: string) {
@@ -135,12 +180,55 @@ export function WorkoutBlockListV2({
     });
   }
 
+  function setDropEffect(e: DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = dragAddKind ? "copy" : "move";
+  }
+
+  const dragging = dragIndex != null || dragAddKind != null;
+
+  const showInsertAt = (slot: number) =>
+    dragging &&
+    insertIndex === slot &&
+    (dragAddKind != null ||
+      (dragIndex != null && isMeaningfulInsert(dragIndex, slot)));
+
   return (
     <div className="min-w-0 space-y-3">
-      {items.length === 0 && (
-        <p className="py-2 text-sm text-muted-foreground">
-          No blocks yet — add your first block below.
-        </p>
+      {items.length > 0 ? (
+        <WorkoutStructureChart
+          structure={structure}
+          size="md"
+          showCaption
+          onReorderBlocks={(from, to) => {
+            commit(moveListedBlock(items, from, to));
+          }}
+        />
+      ) : (
+        <div
+          onDragOver={(e) => {
+            if (!dragAddKind) return;
+            setDropEffect(e);
+            if (insertIndex !== 0) setInsertIndex(0);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            if (!dragAddKind && !decodeAddBlockDragData(e.dataTransfer)) {
+              return;
+            }
+            handleDropAt(0, e);
+          }}
+          className={cn(
+            "rounded-lg border border-dashed px-3 py-4 text-center text-sm text-muted-foreground transition",
+            dragAddKind
+              ? "border-[#86D39A]/70 bg-[#F3FAF5]"
+              : "border-transparent",
+          )}
+        >
+          {dragAddKind
+            ? "Drop here to add the first block"
+            : "No blocks yet — add your first block below, or drag a type here."}
+        </div>
       )}
 
       {items.map((item, index) => {
@@ -148,32 +236,47 @@ export function WorkoutBlockListV2({
         const smart = inferSmartBlockLabel(block, section, sportType);
         const summary = formatPlanBlockSummary(block);
         const collapsed = collapsedIds.has(block.id);
+        const accent = smartBlockAccentStyles(block, section);
 
         return (
-          <div
-            key={block.id}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => handleDrop(index)}
-            className={cn(
-              "overflow-hidden rounded-lg border border-border/80",
-              dragIndex === index && "opacity-50",
-            )}
-          >
+          <div key={block.id} className="relative">
+            <DragInsertIndicator show={showInsertAt(index)} />
+            <div
+              onDragOver={(e) => {
+                setDropEffect(e);
+                const next = insertIndexFromDragEvent(e, index);
+                if (next !== insertIndex) setInsertIndex(next);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                handleDropAt(insertIndexFromDragEvent(e, index), e);
+              }}
+              className={cn(
+                "overflow-hidden rounded-lg border border-l-[3px] border-y-border/60 border-r-border/60",
+                accent.surface,
+                accent.edge,
+                dragIndex === index && "opacity-50",
+              )}
+            >
             <div
               className={cn(
                 "flex items-start gap-1 px-3 py-2.5",
-                !collapsed && "border-b border-border/50",
+                !collapsed && "border-b border-black/[0.04]",
               )}
             >
               <span
                 draggable
                 onDragStart={(e) => {
                   e.stopPropagation();
+                  e.dataTransfer.effectAllowed = "move";
+                  e.dataTransfer.setData("text/plain", String(index));
+                  setDragAddKind(null);
                   setDragIndex(index);
                 }}
-                onDragEnd={() => setDragIndex(null)}
+                onDragEnd={clearDrag}
                 className={cn(
-                  "mt-0.5 shrink-0 cursor-grab touch-none text-muted-foreground/50 active:cursor-grabbing",
+                  "mt-0.5 shrink-0 cursor-grab touch-none active:cursor-grabbing",
+                  accent.grip,
                   compact ? "hidden sm:inline-flex" : "inline-flex",
                 )}
                 aria-label="Drag to reorder"
@@ -273,30 +376,38 @@ export function WorkoutBlockListV2({
                 />
               </div>
             )}
+            </div>
           </div>
         );
       })}
+
+      {items.length > 0 ? (
+        <div
+          className="relative h-2"
+          onDragOver={(e) => {
+            setDropEffect(e);
+            if (insertIndex !== items.length) setInsertIndex(items.length);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleDropAt(items.length, e);
+          }}
+        >
+          <DragInsertIndicator show={showInsertAt(items.length)} />
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/50 pt-3">
         <SmartBlockPicker
           onSelect={addBlock}
           sportType={sportType}
           builderPrefs={builderPrefs}
+          onDragAddStart={(kind) => {
+            setDragIndex(null);
+            setDragAddKind(kind);
+          }}
+          onDragAddEnd={clearDrag}
         />
-        <button
-          type="button"
-          onClick={() => addBlock("WARM_UP")}
-          className="text-xs text-muted-foreground transition hover:text-foreground"
-        >
-          + Warm up
-        </button>
-        <button
-          type="button"
-          onClick={() => addBlock("COOL_DOWN")}
-          className="text-xs text-muted-foreground transition hover:text-foreground"
-        >
-          + Cool down
-        </button>
       </div>
     </div>
   );

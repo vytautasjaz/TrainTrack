@@ -202,11 +202,11 @@ export function getWorkoutCardHero(
   }
 
   if (primary === 'duration') {
-    return durationHero() ?? distanceHero()
+    return durationHero()
   }
 
   if (primary === 'distance') {
-    return distanceHero() ?? durationHero()
+    return distanceHero()
   }
 
   if (metrics.distance) {
@@ -411,6 +411,22 @@ export function isWorkoutCardCompleted(
 
 export function isWorkoutCardSkipped(status: WorkoutStatus): boolean {
   return status === WorkoutStatus.SKIPPED
+}
+
+/**
+ * True when the athlete logged real completion numbers (or a self-added session).
+ * Quick "Done" with no result should not show actual / planned metrics.
+ */
+export function workoutHasLoggedActuals(workout: PlanWorkoutDetail): boolean {
+  if (workout.selfLogged) return true
+  const result = workout.result
+  if (!result) return false
+  if (result.actualDuration != null && result.actualDuration > 0) return true
+  if (result.actualDistance != null && Number.isFinite(result.actualDistance)) {
+    if (workout.isRace) return true
+    if (result.actualDistance > 0) return true
+  }
+  return false
 }
 
 /**

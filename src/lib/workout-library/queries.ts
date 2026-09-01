@@ -17,9 +17,27 @@ const templateSelect = {
   swimStructure: true,
   plannedDistanceMeters: true,
   tags: true,
+  folderId: true,
   createdAt: true,
   updatedAt: true,
 } as const
+
+export type LibraryFolderRow = {
+  id: string
+  sport: WorkoutType
+  name: string
+  sortOrder: number
+}
+
+export async function getCoachLibraryFolders(
+  coachId: string,
+): Promise<LibraryFolderRow[]> {
+  return prisma.workoutTemplateFolder.findMany({
+    where: { coachId },
+    orderBy: [{ sport: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+    select: { id: true, sport: true, name: true, sortOrder: true },
+  })
+}
 
 export async function getCoachLibraryTemplates(
   coachId: string,

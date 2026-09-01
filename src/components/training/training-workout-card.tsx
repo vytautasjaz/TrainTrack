@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
+import { useOptimisticWorkoutStatus } from '@/components/plan/athlete-workout-quick-actions'
 import {
-  AthleteWorkoutQuickActions,
-  useOptimisticWorkoutStatus,
-} from '@/components/plan/athlete-workout-quick-actions'
+  WorkoutCardCornerOverlay,
+  workoutCardCornerSpacerClass,
+} from '@/components/plan/workout-card-corner-overlay'
 import {
   CoachRescheduleReviewActions,
   needsCoachRescheduleReview,
@@ -83,16 +84,17 @@ export function TrainingWorkoutCard({
             workout={workout}
             density="lg"
             status={status}
+            isCoach={isCoach}
             hideCompletedBadge={showQuickActions}
             hideFingerprint={isDashboardToday}
             hideSubtitle={isDashboardToday}
             actions={
               reserveActions ? (
                 <span
-                  className={cn(
-                    'inline-block',
-                    showCoachDelete ? 'w-7' : showQuickActions ? 'w-14' : 'w-7',
-                  )}
+                  className={workoutCardCornerSpacerClass(workout, {
+                    showQuickActions,
+                    showCoachMenu: showCoachDelete,
+                  })}
                   aria-hidden
                 />
               ) : null
@@ -105,18 +107,20 @@ export function TrainingWorkoutCard({
           />
         </WorkoutModalTrigger>
 
-        <div className="absolute right-2 top-2 z-10 flex items-center gap-1 opacity-70 transition group-hover/card:opacity-100">
-          {showCoachDelete ? <PlanWorkoutActionsMenu workout={workout} /> : null}
-          {showQuickActions ? (
-            <AthleteWorkoutQuickActions
-              workout={workout}
-              isCoach={isCoach}
-              size="sm"
-              displayStatus={status}
-              onDisplayStatusChange={setOptimisticStatus}
-            />
-          ) : null}
-        </div>
+        <WorkoutCardCornerOverlay
+          workout={workout}
+          isCoach={isCoach}
+          showQuickActions={showQuickActions}
+          status={status}
+          onStatusChange={setOptimisticStatus}
+          quickActionSize="sm"
+          className="right-2 top-2"
+          leading={
+            showCoachDelete ? (
+              <PlanWorkoutActionsMenu workout={workout} />
+            ) : undefined
+          }
+        />
       </div>
     </div>
   )

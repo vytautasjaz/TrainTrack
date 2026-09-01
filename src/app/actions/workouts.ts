@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, coachCanAccessAthlete } from '@/lib/session'
+import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, isCoachView, coachCanAccessAthlete } from '@/lib/session'
 import { parseDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
 import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, CoachAthleteLinkStatus, PlannedMetricSource } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
@@ -352,10 +352,11 @@ export async function rescheduleWorkout(formData: FormData) {
 
 /**
  * Coach accepts an athlete reschedule: remove the ghost, keep the workout on the new day.
+ * Gate with `isCoachView` so it matches the training UI (not only the COACH role bit).
  */
 export async function acceptAthleteReschedule(workoutId: string) {
   const session = await requireSession()
-  if (!isCoach(session)) throw new Error('Coach only')
+  if (!isCoachView(session)) throw new Error('Coach only')
 
   const pair = await resolvePendingReschedulePairForCoach(session.userId, workoutId)
   await prisma.$transaction([
@@ -378,7 +379,7 @@ export async function acceptAthleteReschedule(workoutId: string) {
  */
 export async function rejectAthleteReschedule(workoutId: string) {
   const session = await requireSession()
-  if (!isCoach(session)) throw new Error('Coach only')
+  if (!isCoachView(session)) throw new Error('Coach only')
 
   const pair = await resolvePendingReschedulePairForCoach(session.userId, workoutId)
   const sortOrder = await getNextWorkoutSortOrder(pair.athleteId, pair.originalDate)
@@ -1419,6 +1420,10 @@ export async function logRaceOutcome(formData: FormData) {
     outcomeRaw === RaceOutcome.FINISHED || outcomeRaw === RaceOutcome.DNF
       ? parseOptionalString(formData.get('resultTime'))
       : null
+  const resultPlace =
+    outcomeRaw === RaceOutcome.FINISHED
+      ? parseOptionalString(formData.get('resultPlace'))
+      : null
   const resultNotes =
     outcomeRaw === RaceOutcome.DISMISSED
       ? null
@@ -1434,6 +1439,7 @@ export async function logRaceOutcome(formData: FormData) {
     data: {
       outcome: outcomeRaw,
       resultTime,
+      resultPlace,
       resultNotes,
       resultLoggedAt: new Date(),
       resultDismissedAt:
@@ -1446,26 +1452,50 @@ export async function logRaceOutcome(formData: FormData) {
     await saveRaceLegResultFields(existing.id, formData)
   }
 
-  if (
-    resultNotes &&
-    isLoggedResult &&
-    session.hasAthlete &&
-    !isCoach(session)
-  ) {
+  if (isLoggedResult && session.hasAthlete && !isCoach(session)) {
     const { askOrCommentOnRace } = await import('@/app/actions/coaching-inbox')
-    const noteForm = new FormData()
-    noteForm.set('raceId', raceId)
-    noteForm.set('body', resultNotes)
-    try {
-      await askOrCommentOnRace(noteForm)
-    } catch {
-      // No connected coach or other soft failure — race result still saved
+    const {
+      formatRaceFeedbackReportBody,
+      RACE_RESULT_LOGGED_MESSAGE,
+    } = await import('@/lib/race-feedback-report')
+    const updated = await prisma.race.findUnique({
+      where: { id: raceId },
+      select: {
+        outcome: true,
+        resultTime: true,
+        resultPlace: true,
+        resultNotes: true,
+        type: true,
+        legs: {
+          select: {
+            kind: true,
+            sortOrder: true,
+            resultTime: true,
+            actualDurationMin: true,
+          },
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    })
+    const hasReport = updated ? Boolean(formatRaceFeedbackReportBody(updated)) : false
+    if (hasReport) {
+      // Structured result + notes live on the race card; keep a short placeholder for the thread.
+      const noteForm = new FormData()
+      noteForm.set('raceId', raceId)
+      noteForm.set('body', RACE_RESULT_LOGGED_MESSAGE)
+      try {
+        await askOrCommentOnRace(noteForm)
+      } catch {
+        // No connected coach or other soft failure — race result still saved
+      }
     }
   }
 
   revalidatePath('/dashboard')
   revalidatePath('/season')
   revalidatePath('/inbox')
+  revalidatePath('/inbox', 'layout')
+  revalidatePath('/', 'layout')
   revalidatePath(`/athletes/${existing.athleteId}`)
   await onRacesCalendarDataChanged(existing.athleteId)
 

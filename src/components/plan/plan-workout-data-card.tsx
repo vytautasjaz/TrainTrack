@@ -6,8 +6,8 @@ import { Clock, Flag } from 'lucide-react'
 import { WorkoutCardDiagram, workoutHasCardDiagram } from '@/components/plan/workout-card-diagram'
 import { PlanWorkoutCardInlineEdit } from '@/components/plan/plan-workout-card-inline-edit'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
-import { WorkoutStatusIcon } from '@/components/ui/workout-status-icon'
-import { isStravaSynced, type PlanWorkoutDetail } from '@/lib/plan-workout'
+import { WorkoutChatIndicator } from '@/components/plan/workout-chat-indicator'
+import { isStravaSynced, workoutHasCoachingChat, type PlanWorkoutDetail } from '@/lib/plan-workout'
 import {
   getWorkoutCardDuration,
   getWorkoutCardHero,
@@ -34,6 +34,7 @@ type PlanWorkoutDataCardProps = {
    * Not used for library templates (edit those via modal/page only).
    */
   editable?: boolean
+  isCoach?: boolean
 }
 
 const DENSITY = {
@@ -126,6 +127,7 @@ export function PlanWorkoutDataCard({
   actions,
   hideCompletedBadge = false,
   editable = false,
+  isCoach = false,
 }: PlanWorkoutDataCardProps) {
   const styles = DENSITY[density]
   const completed = isWorkoutCardCompleted(status)
@@ -145,16 +147,30 @@ export function PlanWorkoutDataCard({
     !skipped &&
     (density === 'week' || density === 'list')
 
-  const completedStatus = showCompletedBadge ? (
-    stravaSynced ? (
+  const completedStatus =
+    showCompletedBadge && stravaSynced ? (
       <StravaSyncedIndicator
         workout={workout}
         variant="wordmark"
         size={density === 'list' ? 'sm' : 'xs'}
       />
-    ) : (
-      <WorkoutStatusIcon kind="completed" size="xs" aria-label="Completed" />
-    )
+    ) : null
+
+  const chatIndicator =
+    !actions && workoutHasCoachingChat(workout) ? (
+      <WorkoutChatIndicator
+        workout={workout}
+        role={isCoach ? 'coach' : 'athlete'}
+        size={density === 'list' ? 'sm' : 'xs'}
+      />
+    ) : null
+
+  const titleActionsCluster = chatIndicator || completedStatus || actions ? (
+    <div className="flex h-0 shrink-0 items-start gap-0.5 overflow-visible">
+      {chatIndicator}
+      {completedStatus}
+      {actions}
+    </div>
   ) : null
 
   const showStructureDiagram =
@@ -176,12 +192,7 @@ export function PlanWorkoutDataCard({
         subtitleClassName={styles.subtitle}
         gapClassName={styles.gap}
         titleActions={
-          !styles.showSportIcon ? (
-            <div className="flex h-0 shrink-0 items-start gap-0.5 overflow-visible">
-              {completedStatus}
-              {actions}
-            </div>
-          ) : null
+          !styles.showSportIcon ? titleActionsCluster : null
         }
       />
       {showStructureDiagram ? (
@@ -204,12 +215,7 @@ export function PlanWorkoutDataCard({
     >
       <div className="flex min-w-0 items-start justify-between gap-0.5">
         <p className={cn('min-w-0 flex-1 truncate', styles.title)}>{workout.title}</p>
-        {!styles.showSportIcon ? (
-          <div className="flex h-0 shrink-0 items-start gap-0.5 overflow-visible">
-            {completedStatus}
-            {actions}
-          </div>
-        ) : null}
+        {!styles.showSportIcon ? titleActionsCluster : null}
       </div>
 
       {subtitle ? (
@@ -316,8 +322,9 @@ export function PlanWorkoutDataCard({
             />
           </span>
           {textBlock}
-          {(showCompletedBadge || actions) && (
+          {(chatIndicator || showCompletedBadge || actions) && (
             <div className="flex h-0 shrink-0 items-start gap-0.5 overflow-visible">
+              {chatIndicator}
               {completedStatus}
               {actions}
             </div>

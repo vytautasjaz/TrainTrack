@@ -8,41 +8,55 @@ alwaysApply: false
 
 Typography is determined by **semantic hierarchy**, not by page. Do not invent one-off heading styles.
 
-Aim for ~**10% editorial (Barlow Condensed)** / ~**90% functional UI (Manrope)**.
+Families: **Inter** (UI) + **Bebas Neue** (page H1 / large workout titles only).
 
-CSS classes live in `src/app/globals.css`. React helpers in `src/components/ui/typography.tsx`. Tokens in `src/lib/design-tokens.ts` (`typography.*`).
+CSS classes live in `src/app/globals.css`. React helpers in `src/components/ui/typography.tsx` and `src/components/ui/page-header.tsx`. Tokens in `src/lib/design-tokens.ts` (`typography.*`).
 
-**Live reference:** `/style-guide`
+**Live reference:** `/style-guide` · redesign mocks `/design-mockups/*`
 
 ## Levels
 
-| Level | Class | Font | Use |
+| Level | Class / component | Font | Use |
 |---|---|---|---|
-| **1 Display** | `title-display` | Barlow italic uppercase ~20–26px · single color | Editorial page H1 only — `PLAN THE SEASON.`, Home greeting |
-| **1 Page** | `title-page` / `PageTitle` | Manrope ~20–26px | Functional page H1 — Training, Results, Stats, Tools |
-| **2 Section** | `title-section` / `SectionTitle` | Manrope 16px · not italic · uppercase | Content sections — `UPCOMING`, `TODAY'S WORKOUT`, `THIS WEEK`, Settings |
-| **3 Eyebrow** | `title-eyebrow` / `EyebrowTitle` | Manrope 10px / 0.10em / uppercase | Metadata — `NEXT RACE`, `MONTHLY VOLUME` |
-| **4 Card** | `title-card` / `CardTitle` | Manrope 15px sentence case | Workout/race names — `Easy Ride` |
-| **Day** | `title-day` / `DayLabel` | Manrope 10px uppercase | `WEDNESDAY 12 AUG` |
+| **1 Page H1** | `title-display` / `title-page` · `PageHeader` · `PageHeaderTitle` | Bebas · **48px** (3rem) · uppercase | Every app screen H1 — Training, Stats, Library, Season |
+| **1 Compact** | `title-display--compact` · `size="compact"` | Bebas · **30px** (1.875rem) | Nested edit screens / month expanded |
+| **2 Section** | `title-section` / `SectionTitle` | Inter 16px · uppercase | Content sections — `UPCOMING`, `TODAY'S WORKOUT` |
+| **3 Eyebrow** | `title-eyebrow` / `PageHeaderEyebrow` | Inter 11px · 0.08em · uppercase | Overlines — `TRAINING · COACH`, `NEXT RACE` |
+| **4 Card** | `title-card` / `CardTitle` | Inter 15px sentence case | Workout/race names — `Easy Ride` |
+| **Day** | `title-day` / `DayLabel` | Inter 10px uppercase | `WEDNESDAY 12 AUG` |
+| **Support** | `PageHeaderDescription` | Inter 13px soft | Subtitle under page H1 |
 
-Barlow Condensed is **only** for Level 1 display titles. Section titles are never italic Barlow.
+Bebas is **only** for Level 1 page H1s (and XL/L workout titles). Section titles are never Bebas.
 
-Do **not** split Level 1 display titles into two colors (no orange accent word).
+## Page headers (required)
+
+Use `PageHeader` for every top-level screen:
+
+```tsx
+<PageHeader
+  eyebrow="Training · Coach"
+  title="Week plan"
+  description={`${athlete} · ${weekLabel}`}
+  action={<Controls />}
+/>
+```
+
+Or compose: `PageHeaderEyebrow` · `PageHeaderTitle` · `PageHeaderDescription` · `PageHeaderActions`.
+
+Use `size="compact"` only on nested edit screens.
 
 ## Critical don'ts
 
-- Do **not** use Barlow in navigation, section titles, table headers, or calendar day headers
-- Do **not** turn Training into giant italic `TRAINING`
+- Do **not** invent one-off H1 fonts/sizes — use `PageHeader` / `PageHeaderTitle`
+- Do **not** use Bebas in navigation, section titles, table headers, or calendar day headers
 - Do **not** uppercase workout names (`EASY RIDE`)
-- Do **not** put poster type inside table cells — use `TablePosterHeading` **above** tables
-- Do **not** use a separate Barlow “section” style — `title-section` is Manrope
-- Do **not** accent individual words in `title-display`
+- Do **not** put display type inside table cells
+- Do **not** accent individual words in page H1s
+- Do **not** mix Inter bold `title-page` with Bebas — both classes are the same Level 1 now
 
 ## Components
 
-- `PageHeader` → functional `title-page`
-- `SectionTitle` → Level 2 `title-section` (Manrope)
-- `TablePosterHeading` → Level 2 `title-section`
-- Season Plan header → `title-display` (single color)
-- Home greeting → `tt-dashboard-title` (display variant, single color)
-- Home: Today's workout, Upcoming, This week → `title-section`; right-column KPI labels → eyebrows
+- `PageHeader` → Level 1 page chrome
+- `SectionTitle` → Level 2
+- Season / Home greeting → `PageHeaderTitle` (same Level 1)
+- Home sections (Today's workout, Upcoming) → `title-section`

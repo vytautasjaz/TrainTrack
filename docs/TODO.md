@@ -24,19 +24,40 @@ Replace single `athleteNotes` / `coachReply` on `WorkoutResult` with a real mess
 
 ## Ideas (unprioritized)
 
-### Training block planning
+### Training block planning (season phases)
 
-**Status:** idea
+**Status:** idea  
+**Related:** Season planner UX; Training plan library  
+**UI placement:** undecided — may live in **training plan creation**, **season planner**, or both (decide later)
 
-Coach can plan a **training block** spanning a week, two weeks, three weeks, a month, or similar — a named period with a clear purpose (e.g. base, build, race prep, recovery).
+Split the training year / season into named **phases / blocks**, e.g.:
 
-- Coach defines: name, purpose/intent, date range (or week count), optional notes
+- Base  
+- Build  
+- Race-specific / race prep  
+- Recovery / deload  
+- (custom types later)
+
+Coach defines: name, phase type, purpose/intent, date range (or week count), optional notes/color.
+
 - Workouts in that range belong to / are tagged with the block (or the block is a calendar overlay)
-- Athlete can **see** the active (and upcoming) block — name, purpose, dates — so the plan context is visible, not only individual sessions
-- Calendar / week / month views could show block chrome (label, tint, or header strip)
-- **Season overview** should make these blocks first-class (see Season planner UX below)
+- Athlete can **see** the active (and upcoming) block — name, purpose, dates — so plan context is visible, not only individual sessions
+- Calendar / week / month / season views could show block chrome (label, tint, or header strip)
 
-Open questions when designing: one block at a time vs overlapping; whether blocks are templates that can be reused; how rescheduling workouts interacts with block boundaries.
+Open questions when designing: create/edit surface (plan builder vs season board); one block at a time vs overlapping; reusable block templates; how rescheduling interacts with block boundaries.
+
+### Week intensity / load pattern
+
+**Status:** idea  
+**Related:** Training block planning; Training plan library; Workout Progression
+
+Mark or prescribe **week-level intensity / load**, not only session difficulty — e.g. a hard / high-load week followed by a recovery / deload week (or 3:1, 2:1 patterns).
+
+- Coach can label weeks (or set a load level) within a block or plan: hard · moderate · recovery · race week · etc.
+- Useful for planning stress/recovery rhythm at a glance (season board, plan library apply, week headers)
+- Later: optional coupling to volume targets or progression rules; athlete-visible “this is a recovery week” context
+
+Exact model and UI TBD — park the concept so it isn’t lost when building blocks / plans.
 
 ### Season planner UX (Excel-style)
 
@@ -54,17 +75,45 @@ Clearer season view + ability to **paint / create training blocks by color** acr
 
 Goal: replace the Excel screenshot workflow with an in-app season board that is scannable at a glance.
 
-### Training program library
+### Training plan library
 
-**Status:** idea
-Coach builds a reusable **training program** in the library (multi-week/mesocycle template with ordered workouts, optional blocks, purpose/name), then **adapts and assigns** it to a specific athlete (or several).
+**Status:** idea · **high priority** (core future goal)  
+**Related:** Workout Templates; Workout Progression; Training block planning
 
-- Library: create / edit / duplicate programs independent of a live calendar
-- Assign to athlete: pick start date, map program weeks onto their plan
-- Adaptation: tweak distances, intensities, rest days, or drop sessions per athlete without breaking the source template
-- Clear link between assigned plan and source program (for “update from template?” later)
+Reusable **multi-week training plans** (mesocycles / programs) in the library — not just single workouts — that coaches build once, then **adapt and assign** to different athletes.
 
-Related to training blocks, but programs are the reusable template; blocks are the lived calendar periods (possibly created when a program is applied).
+- Library: create / edit / duplicate full plans independent of a live calendar (ordered weeks, sessions per day, optional named blocks / purpose)
+- Assign to athlete(s): pick start date, map plan weeks onto their calendar
+- Adaptation per athlete: tweak volume, intensity, rest days, drop or swap sessions — **without changing the source plan**
+- Clear link assigned plan → source (for “update from template?” later)
+- Can compose **parameterized workouts**, **progressions**, and **blocks** from the related backlog items
+
+**Goal:** coaches maintain a library of proven training plans and roll them out customized per runner, instead of rebuilding each athlete’s calendar from scratch.
+
+Distinct from today’s workout Library (single fixed templates) and from **Training block planning** (blocks = lived calendar periods; plans = reusable definitions that often *create* those blocks when applied).
+
+### Workout Templates (parameterized)
+
+**Status:** idea  
+**Related:** Training plan library; Workout Progression; today’s Library (`WorkoutTemplate`) is fixed-value only
+
+Save individual workouts as reusable templates whose **structure and logic** can be parameterized, then filled when assigning to an athlete.
+
+Example:
+
+```
+Interval Session
+Warm-up: 2 km
+Main set: {REPS} × {DISTANCE}
+Pace: {PACE}
+Recovery: {RECOVERY}
+Cool-down: 2 km
+```
+
+- Beyond today’s fixed-value library templates
+- Coach adjusts parameters to fitness level without rebuilding the session
+- Source template stays intact
+- Feeds into **Training plan library** (plans reuse these workout templates) and **Workout Progression**
 
 ### Bulk & recurring workout creation
 
@@ -74,11 +123,55 @@ Create several workouts in one go, instead of adding them one by one.
 
 **Recurring (same session):** e.g. Easy Run 10 km every Monday — N repeats, or until a date.
 
-**Progressive series:** same “shape”, values step up each occurrence — e.g. Easy Run 10 → 11 → 12 km; or 3×2000 → 4×2000 → … (reps, distance, duration, intensity as step fields).
+**Progressive series:** same “shape”, values step up each occurrence — e.g. Easy Run 10 → 11 → 12 km; or 3×2000 → 4×2000 → … (reps, distance, duration, intensity as step fields). Prefer the fuller **Workout Progression** item below when designing this.
 
 **Manual multi-create:** add 2 / 3 / 5 / 10 future workouts at once via a small table or calendar multi-select (dates + shared or per-row sport/type/metrics), then save as a batch.
 
-UI could live as an “Add series” / “Add multiple” flow from the plan calendar, distinct from full program library apply.
+UI could live as an “Add series” / “Add multiple” flow from the plan calendar, distinct from **Training plan library** apply.
+
+### Workout Progression
+
+**Status:** idea  
+**Related:** Bulk & recurring workout creation; Training plan library; Workout Templates (parameterized)
+
+Create a workout progression across multiple weeks **without manually duplicating** the workout.
+
+Selected parameters should be able to change progressively over time, for example:
+
+- **Volume:** 10 km → 12 km → 14 km → 16 km  
+- **Repetitions:** 4 × 1000 → 5 × 1000 → 6 × 1000 → 8 × 1000  
+- **Distance (per rep):** 6 × 600 m → 6 × 800 m → 6 × 1000 m  
+- **Intensity:** 4:15/km → 4:10/km → 4:05/km  
+- **Recovery:** 2:00 → 1:45 → 1:30  
+- **Combined:** change multiple parameters at once  
+
+Coach defines a **progression rule** (e.g. +1 rep/week, +2 km/week, −5 sec/km/week) **or** manually adjusts each week’s values.
+
+The system generates the resulting workouts while keeping them **connected as one progression / template**, so the same progression can later be adapted to different athletes instead of rebuilding each session from scratch.
+
+**Later consideration:** show the progression visually as a week-by-week preview directly in the workout builder.
+
+### TSS (Training Stress Score)
+
+**Status:** idea  
+**Related:** Week intensity / load pattern; Stats; Athlete Home training-load (deferred)
+
+Calculate **TSS** (or sport-equivalent load) so coaches and athletes can see session stress and aggregate load — not only distance/duration.
+
+**Per workout**
+
+- Compute planned TSS from prescription (duration × intensity factor / IF², pace/power/HR zones, or structure blocks)
+- Compute actual TSS from logged / Strava-synced results when available
+- Show on workout card / detail (planned vs actual)
+
+**Aggregates & surfaces**
+
+- Week / month totals (plan vs completed)
+- Stats / trends charts (rolling load, CTL/ATL/TSB later if desired)
+- Athlete Home “training load” stand-in (replace mock chart with real series)
+- Coach roster / attention: optional load flags (spike, undertrained)
+
+**Open when designing:** which formula per sport (run pace vs bike power vs swim); thresholds / FTP/CSS inputs already in zones; store computed values vs compute on read.
 
 ### Sign-in with Google & Strava
 

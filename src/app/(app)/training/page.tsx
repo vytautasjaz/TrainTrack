@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 import type { WorkoutType } from "@prisma/client";
-import { PageHeader } from "@/components/ui/page-header";
+import { PageHeader, PageHeaderActions, PageHeaderDescription, PageHeaderEyebrow, PageHeaderTitle } from "@/components/ui/page-header";
 import { PlanMultiWeekTables } from "@/components/plan/plan-multi-week-tables";
 import { CalendarMonthView } from "@/components/training/calendar-month-view";
 import { TrainingMobileWeekView } from "@/components/training/training-mobile-week-view";
 import { TrainingCalendarControls } from "@/components/training/training-calendar-controls";
+import { TrainingListToolbar } from "@/components/training/training-list-toolbar";
 import { TrainingTableView } from "@/components/training/training-table-view";
 import {
   getDayNotesForRange,
@@ -37,7 +38,7 @@ import {
   todayDateOnly,
   toDateKey,
 } from "@/lib/dates";
-import { getCoachLibraryTemplates } from "@/lib/workout-library/queries";
+import { getCoachLibraryFolders, getCoachLibraryTemplates } from "@/lib/workout-library/queries";
 import { resolveLibraryTemplateMetricsForAthlete } from "@/lib/workout-library/template-metrics";
 import { loadAthletePreferencesForBuilder } from "@/lib/workout-builder/load-athlete-preferences";
 import { TrainingPlanShell } from "@/components/training/training-plan-shell";
@@ -317,7 +318,17 @@ export default async function TrainingPage({
         : `/training?view=week&week=${weekOffset}`
       : null;
 
-  const trainingTitle = isCoach ? "Plan" : "Training";
+  const trainingTitle =
+    view === "calendar"
+      ? "Month plan"
+      : view === "list"
+        ? "This week"
+        : "Week plan";
+  const trainingEyebrow = isCoach ? "Training · Coach" : "Training";
+  const athleteLabel =
+    isCoach
+      ? (selectedAthlete?.name ?? "Athlete")
+      : (session.name ?? "You");
 
   const periodLabel =
     usesMonthGrid
@@ -325,6 +336,11 @@ export default async function TrainingPage({
         ? formatDateOnly(anchor, "MMMM yyyy")
         : `${formatDateOnly(anchor, "MMMM yyyy")} – ${formatDateOnly(rangeEndMonth, "MMMM yyyy")}`
       : firstWeek.weekLabel;
+
+  const trainingDescription =
+    view === "list"
+      ? `${athleteLabel} · ${periodLabel} · list agenda`
+      : `${athleteLabel} · ${periodLabel}`;
 
   const monthBlocks =
     usesMonthGrid
@@ -350,22 +366,46 @@ export default async function TrainingPage({
         })
       : [];
 
-  const pageHeader = (
-    <PageHeader
-      title={trainingTitle}
-      action={
-        <TrainingCalendarControls
-          view={view}
-          weekHref={weekHref}
-          listHref={listHref}
-          calendarHref={calendarHref}
-          canLogWorkout={canLogWorkout}
-          showLibraryToggle={isCoach}
-          showSportFilter={view === "list"}
-        />
-      }
+  const calendarControls = (
+    <TrainingCalendarControls
+      view={view}
+      weekHref={weekHref}
+      listHref={listHref}
+      calendarHref={calendarHref}
+      canLogWorkout={canLogWorkout}
+      showLibraryToggle={isCoach && view === "list"}
+      showSportFilter={false}
     />
   );
+
+  const pageHeader =
+    view === "list" ? (
+      <PageHeader className="mb-3 items-end">
+        <div className="min-w-0">
+          {trainingEyebrow ? (
+            <PageHeaderEyebrow>{trainingEyebrow}</PageHeaderEyebrow>
+          ) : null}
+          <PageHeaderTitle className={trainingEyebrow ? "mt-1" : undefined}>
+            {trainingTitle}
+          </PageHeaderTitle>
+          {trainingDescription ? (
+            <PageHeaderDescription>{trainingDescription}</PageHeaderDescription>
+          ) : null}
+        </div>
+        <PageHeaderActions className="flex-col items-end gap-2 pt-0 sm:gap-2.5">
+          {calendarControls}
+          <TrainingListToolbar />
+        </PageHeaderActions>
+      </PageHeader>
+    ) : (
+      <PageHeader
+        title={trainingTitle}
+        eyebrow={trainingEyebrow}
+        description={trainingDescription}
+        className="mb-4"
+        action={calendarControls}
+      />
+    );
 
   const weekViewBlocks = weekBlocks.map((block) => {
     const sports = weekSportByKey.get(block.weekStartKey)!;
@@ -397,12 +437,21 @@ export default async function TrainingPage({
           plannedDistanceMeters: t.plannedDistanceMeters,
           distanceApprox: metrics.distanceApprox,
           durationApprox: metrics.durationApprox,
+          folderId: t.folderId ?? null,
         };
       })
     : [];
 
+  const libraryFolders = isCoach
+    ? await getCoachLibraryFolders(session.userId)
+    : [];
+
   return (
-    <TrainingPlanShell isCoach={isCoach} templates={libraryTemplates}>
+    <TrainingPlanShell
+      isCoach={isCoach}
+      templates={libraryTemplates}
+      folders={libraryFolders}
+    >
       {pageHeader}
 
       {view === "calendar" ? (
@@ -417,6 +466,8 @@ export default async function TrainingPage({
           isCoach={isCoach}
           canEditDayNotes
           athleteId={athleteId}
+          athleteName={isCoach ? selectedAthlete?.name : undefined}
+          athleteAvatarUrl={isCoach ? selectedAthlete?.avatarUrl : undefined}
           planSportRows={athletePlanConfig?.planSportRows ?? []}
           swimCssSecPer100m={swimCssSecPer100m}
           prevMonthHref={prevHref}
@@ -428,7 +479,7 @@ export default async function TrainingPage({
             eachDateOnlyDay(listRangeStart, listRangeEnd),
             byDate,
             notesByDate,
-            undefined,
+            eventsByDate,
             weatherByDate,
           ).map((day) => ({
             dateKey: day.dateKey,
@@ -436,10 +487,18 @@ export default async function TrainingPage({
             dateLabel: day.dateLabel,
             isToday: day.isToday,
             workouts: day.workouts,
+            dayNote: day.dayNote ?? null,
+            seasonEvents: day.seasonEvents ?? [],
+            weather:
+              (athletePlanConfig?.showWeather ?? true)
+                ? (day.weather ?? null)
+                : null,
           }))}
           initialFromKey={listFromKey}
           initialToKey={listToKey}
           isCoach={isCoach}
+          canEditDayNotes
+          athleteId={athleteId}
         />
       ) : (
         <>
@@ -450,6 +509,7 @@ export default async function TrainingPage({
               canEditDayNotes
               athleteId={athleteId}
               athleteName={isCoach ? selectedAthlete?.name : undefined}
+              athleteAvatarUrl={isCoach ? selectedAthlete?.avatarUrl : undefined}
               planSportRows={athletePlanConfig?.planSportRows ?? []}
               prevWeekHref={prevHref}
               nextWeekHref={nextHref}

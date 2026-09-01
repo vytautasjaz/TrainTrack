@@ -17,6 +17,7 @@ export type WorkoutLibraryTemplate = {
   swimStructure: unknown
   plannedDistanceMeters: number | null
   tags: string[]
+  folderId: string | null
   createdAt: Date
   updatedAt: Date
 }

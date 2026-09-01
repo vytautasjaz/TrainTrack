@@ -4,7 +4,6 @@ import {
   Flag,
   Library,
   LineChart,
-  Medal,
   MessageSquare,
   Settings,
   Users,
@@ -45,13 +44,11 @@ const TOOLS_NAV: NavItem = {
   children: CALCULATOR_NAV_TABS.map(({ href, label }) => ({ href, label })),
 }
 
-/** Home is via the app logo → /dashboard; not listed in nav. */
+/** Home is via the app logo → /dashboard; not listed in athlete nav. */
 export const MAIN_NAV: NavItem[] = [
   { href: '/training', label: 'Training', icon: CalendarRange },
   { href: '/inbox', label: 'Inbox', icon: MessageSquare },
-  { href: '/workouts', label: 'Library', icon: Library },
-  { href: '/season', label: 'Season plan', icon: Flag },
-  { href: '/results', label: 'Results', icon: Medal },
+  { href: '/season', label: 'Season', icon: Flag },
   { href: '/progress', label: 'Stats', icon: LineChart },
   TOOLS_NAV,
 ]
@@ -59,15 +56,22 @@ export const MAIN_NAV: NavItem[] = [
 export function getMainNav(isCoach: boolean): NavItem[] {
   if (isCoach) {
     return [
+      { href: '/athletes', label: 'Athletes', icon: Users },
       { href: '/training', label: 'Training', icon: CalendarRange },
       { href: '/inbox', label: 'Inbox', icon: MessageSquare },
-      { href: '/season', label: 'Season plan', icon: Flag },
-      { href: '/results', label: 'Results', icon: Medal },
+      { href: '/season', label: 'Season', icon: Flag },
+      { href: '/progress', label: 'Stats', icon: LineChart },
       { href: '/workouts', label: 'Library', icon: Library },
       TOOLS_NAV,
     ]
   }
-  return MAIN_NAV.filter((item) => item.href !== '/workouts')
+  return [
+    { href: '/training', label: 'Training', icon: CalendarRange },
+    { href: '/inbox', label: 'Inbox', icon: MessageSquare },
+    { href: '/season', label: 'Season', icon: Flag },
+    { href: '/progress', label: 'Stats', icon: LineChart },
+    TOOLS_NAV,
+  ]
 }
 
 export const PREFERENCES_NAV: NavItem = {

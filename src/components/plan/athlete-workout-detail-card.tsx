@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   CalendarClock,
+  Check,
   Clock,
   ExternalLink,
   Flame,
@@ -16,7 +17,6 @@ import {
   X,
 } from "lucide-react";
 import { WorkoutStatus, WorkoutType } from "@prisma/client";
-import { DialogClose } from "@/components/ui/dialog";
 import { WorkoutSportIcon } from "@/components/plan/workout-sport-icon";
 import { SelfAddedBadge } from "@/components/plan/self-added-badge";
 import { RescheduleBadge } from "@/components/plan/reschedule-badge";
@@ -60,6 +60,7 @@ import { hasSwimStructureContent } from "@/lib/swim-workout/calculations";
 import { getSportEditorConfig } from "@/lib/workout-editor/types";
 import { WORKOUT_TYPE_LABELS } from "@/lib/constants";
 import { parseDateOnly } from "@/lib/dates";
+import { formatPaceMinPerKm } from "@/lib/athlete-preferences";
 import { cn } from "@/lib/utils";
 import type { PlanColorMode } from "@/lib/plan-sport-filter";
 
@@ -73,6 +74,8 @@ const SPORT_ACCENT: Record<WorkoutType, string> = {
   RECOVERY: "var(--color-sport-recovery)",
   REST: "var(--color-sport-rest)",
 };
+
+type HeroTone = "dark" | "light";
 
 function formatWorkoutDate(dateKey: string) {
   return parseDateOnly(dateKey).toLocaleDateString("en-GB", {
@@ -113,6 +116,68 @@ function isHardIntensity(label: string | null): boolean {
   return /hard|vo2|threshold|race|interval/i.test(label);
 }
 
+/** Clock-style elapsed from planned/actual minutes (e.g. 49.2 → 49:12). */
+function formatResultClock(minutes: number): string {
+  const totalSecs = Math.max(0, Math.round(minutes * 60));
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function resultThirdMetric(workout: PlanWorkoutDetail): {
+  value: string;
+  unit: string;
+  label: string;
+} | null {
+  const distanceKm = workout.result?.actualDistance;
+  const durationMin = workout.result?.actualDuration;
+  if (
+    distanceKm == null ||
+    distanceKm <= 0 ||
+    durationMin == null ||
+    durationMin <= 0
+  ) {
+    return null;
+  }
+
+  if (workout.type === WorkoutType.BIKE) {
+    const hours = durationMin / 60;
+    const kph = distanceKm / hours;
+    if (!Number.isFinite(kph) || kph <= 0) return null;
+    return {
+      value: kph >= 10 ? kph.toFixed(1) : kph.toFixed(2),
+      unit: "km/h",
+      label: "Avg speed",
+    };
+  }
+
+  if (workout.type === WorkoutType.SWIM) {
+    const pace100 = formatPaceMinPerKm(durationMin / (distanceKm * 10));
+    if (!pace100) return null;
+    return { value: pace100, unit: "/100m", label: "Avg pace" };
+  }
+
+  if (
+    workout.type === WorkoutType.RUN ||
+    workout.type === WorkoutType.TRIATHLON ||
+    workout.type === WorkoutType.HYROX
+  ) {
+    const pace = formatPaceMinPerKm(durationMin / distanceKm);
+    if (!pace) return null;
+    return {
+      value: pace,
+      unit: "/km",
+      label: "Avg pace",
+    };
+  }
+
+  return null;
+}
+
 function HeroMetricColumn({
   label,
   value,
@@ -120,6 +185,7 @@ function HeroMetricColumn({
   approximate,
   planned,
   icon,
+  tone = "dark",
 }: {
   label: string;
   value: string | null;
@@ -127,10 +193,17 @@ function HeroMetricColumn({
   approximate?: boolean;
   planned?: string | null;
   icon?: ReactNode;
+  tone?: HeroTone;
 }) {
+  const dark = tone === "dark";
   return (
     <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center">
-      <div className="inline-flex h-4 shrink-0 items-center justify-center gap-1 text-[#737986]">
+      <div
+        className={cn(
+          "inline-flex h-4 shrink-0 items-center justify-center gap-1",
+          dark ? "text-white/50" : "text-[var(--tt-ink-soft)]",
+        )}
+      >
         {icon}
         <span className="text-[10px] font-bold uppercase tracking-wide">
           {label}
@@ -138,41 +211,58 @@ function HeroMetricColumn({
       </div>
       <div className="mt-1.5 flex h-9 w-full shrink-0 items-center justify-center gap-0.5">
         {approximate && value ? (
-          <span className="text-sm font-semibold leading-none text-[#9aa0a8]">
+          <span
+            className={cn(
+              "text-sm font-semibold leading-none",
+              dark ? "text-white/40" : "text-[var(--tt-ink-faint)]",
+            )}
+          >
             ~
           </span>
         ) : null}
         <span
           className={cn(
-            "max-w-full truncate text-[22px] font-bold leading-none tracking-tight tabular-nums text-[#111111]",
-            !value && "text-[#c9cbc7]",
+            "max-w-full truncate text-[22px] font-bold leading-none tracking-tight tabular-nums",
+            dark
+              ? value
+                ? "text-white"
+                : "text-white/25"
+              : value
+                ? "text-[var(--tt-ink)]"
+                : "text-[var(--tt-line-strong)]",
           )}
         >
           {value || "—"}
         </span>
         {unit ? (
-          <span className="text-[12px] font-semibold leading-none tracking-tight text-[#111111]">
+          <span
+            className={cn(
+              "text-[12px] font-semibold leading-none tracking-tight",
+              dark ? "text-white/90" : "text-[var(--tt-ink)]",
+            )}
+          >
             {unit}
           </span>
         ) : null}
       </div>
       {planned ? (
-        <p className="mt-1 text-[11px] font-medium tabular-nums text-[#9aa0a8]">
+        <p
+          className={cn(
+            "mt-0.5 text-[11px] font-medium tabular-nums",
+            dark ? "text-white/40" : "text-[var(--tt-ink-faint)]",
+          )}
+        >
           / {planned}
         </p>
-      ) : (
-        <div className="mt-1 h-4 shrink-0" aria-hidden />
-      )}
+      ) : null}
     </div>
   );
 }
 
 function StructureRow({
   block,
-  sportColor,
 }: {
   block: PhaseBlockDisplay;
-  sportColor: string;
 }) {
   const subtitle = blockSubtitle(block);
   const durationLabel = block.durationLabel
@@ -182,29 +272,29 @@ function StructureRow({
     : null;
 
   return (
-    <div className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-[#f4f4f3]/80">
-      <div
-        className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-        style={{ background: sportColor }}
-        aria-hidden
-      />
+    <div className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-[var(--tt-sidebar)]/80">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[14px] font-semibold text-[#111111]">
+        <p className="truncate text-[14px] font-semibold text-[var(--tt-ink)]">
           {block.title}
         </p>
         {subtitle ? (
-          <p className="mt-0.5 truncate text-[12px] text-[#737986]">
+          <p className="mt-0.5 truncate text-[12px] text-[var(--tt-ink-soft)]">
             {subtitle}
           </p>
         ) : null}
         {block.recoveryNote ? (
-          <p className="mt-0.5 truncate text-[12px] text-[#9aa0a8]">
+          <p className="mt-0.5 truncate text-[12px] text-[var(--tt-ink-faint)]">
             {block.recoveryNote}
+          </p>
+        ) : null}
+        {block.notes ? (
+          <p className="mt-0.5 text-[12px] leading-snug text-[var(--tt-ink-faint)]">
+            {block.notes}
           </p>
         ) : null}
       </div>
       {durationLabel ? (
-        <span className="shrink-0 pt-0.5 text-[12px] font-semibold tabular-nums text-[#737986]">
+        <span className="shrink-0 pt-0.5 text-[12px] font-semibold tabular-nums text-[var(--tt-ink-soft)]">
           {durationLabel}
         </span>
       ) : null}
@@ -226,8 +316,12 @@ type AthleteWorkoutDetailCardProps = {
   showStatusBadge?: boolean;
   /** Matches training Color / Plain / Completion chrome. */
   colorMode?: PlanColorMode;
+  /** Modal / preview use dark; list side panel stays light. */
+  heroTone?: HeroTone;
   onShare?: () => void;
   onRescheduleDone?: () => void;
+  /** Prefer over DialogClose when detail is not inside a Dialog (e.g. list panel). */
+  onClose?: () => void;
 };
 
 export function AthleteWorkoutDetailCard({
@@ -239,8 +333,10 @@ export function AthleteWorkoutDetailCard({
   showUtilityActions = false,
   showStatusBadge = false,
   colorMode = "completion",
+  heroTone = "dark",
   onShare,
   onRescheduleDone,
+  onClose,
 }: AthleteWorkoutDetailCardProps) {
   const [stravaConnected, setStravaConnected] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -275,18 +371,27 @@ export function AthleteWorkoutDetailCard({
   const completed = workout.status === WorkoutStatus.COMPLETED;
   const skipped = workout.status === WorkoutStatus.SKIPPED;
   const statusChrome = colorMode === "completion";
-  const accentColor =
-    statusChrome && completed
-      ? "#1b7a3d"
-      : statusChrome && skipped
-        ? "#b91c1c"
-        : sportColor;
-  const accentSoft =
-    statusChrome && completed
-      ? "#86d39a"
-      : statusChrome && skipped
-        ? "#f5a3a3"
-        : sportColor;
+  const darkHero = heroTone === "dark";
+  const accentColor = completed
+    ? "var(--tt-good)"
+    : statusChrome && skipped
+      ? "#b91c1c"
+      : sportColor;
+  const accentSoft = completed
+    ? "var(--tt-good)"
+    : statusChrome && skipped
+      ? "#f5a3a3"
+      : sportColor;
+  const dividerClass = darkHero
+    ? "w-px shrink-0 self-stretch bg-white/15"
+    : "w-px shrink-0 self-stretch bg-[var(--tt-line)]";
+  const metricsRowClass = cn(
+    "mt-5 flex min-w-0 items-stretch overflow-hidden",
+    !darkHero && "border-y border-[var(--tt-line)] py-2.5",
+  );
+  const iconButtonClass = darkHero
+    ? "rounded-md p-1.5 text-white/55 transition hover:bg-white/10 hover:text-white"
+    : "rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground";
 
   const canReschedule =
     showUtilityActions &&
@@ -384,18 +489,43 @@ export function AthleteWorkoutDetailCard({
     Boolean(intensityLabel) || distanceOnCard || durationOnCard;
 
   const statusBadge =
-    showStatusBadge && completed ? (
-      <StatusPill tone="completed">Completed</StatusPill>
-    ) : showStatusBadge && skipped ? (
+    showStatusBadge && skipped ? (
       <StatusPill tone="skipped">Skipped</StatusPill>
     ) : null;
 
   const dateLabel = formatWorkoutDate(workout.dateKey);
   const coachNotes = workout.coachNotes?.trim() || null;
+  const thirdMetric = completed ? resultThirdMetric(workout) : null;
+  const actualDistanceParts = metrics.distance
+    ? splitDistanceDisplay(metrics.distance)
+    : null;
+  const plannedDistanceCaption =
+    metrics.showPlannedComparison && metrics.plannedDistance
+      ? metrics.plannedDistance
+      : null;
+  const actualTimeLabel =
+    workout.result?.actualDuration != null && workout.result.actualDuration > 0
+      ? formatResultClock(workout.result.actualDuration)
+      : metrics.duration;
+  const plannedTimeCaption =
+    metrics.showPlannedComparison &&
+    workout.plannedDuration != null &&
+    workout.plannedDuration > 0
+      ? formatResultClock(workout.plannedDuration)
+      : metrics.showPlannedComparison && metrics.plannedDuration
+        ? metrics.plannedDuration
+        : null;
 
   return (
     <div className={cn(className)}>
-      <div className="px-5 pb-4 pt-5">
+      <div
+        className={cn(
+          "tt-workout-hero px-5 pb-5 pt-5",
+          darkHero
+            ? "bg-[var(--tt-workout-hero-bg,#151827)] text-white/[0.92]"
+            : "bg-white text-[var(--tt-ink)]",
+        )}
+      >
         <div
           className={cn(
             "relative flex items-start gap-3",
@@ -408,32 +538,62 @@ export function AthleteWorkoutDetailCard({
                   : "pr-16",
           )}
         >
-          <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px]"
-            style={{
-              background: `color-mix(in srgb, ${accentSoft} 12%, white)`,
-              color: accentColor,
-            }}
-          >
-            <WorkoutSportIcon
-              type={workout.type}
-              isRace={workout.isRace}
-              size="xs"
-              appearance="outline"
-              className="!h-auto !w-auto !border-0 !bg-transparent"
-            />
-          </div>
+          {darkHero ? (
+            <div className="mt-0.5 shrink-0">
+              <WorkoutSportIcon
+                type={workout.type}
+                isRace={workout.isRace}
+                size="md"
+                className={
+                  completed
+                    ? "!bg-[color-mix(in_srgb,var(--tt-good)_22%,transparent)] !text-[var(--tt-good)]"
+                    : statusChrome && skipped
+                      ? "!bg-[color-mix(in_srgb,#b91c1c_22%,transparent)] !text-[#fca5a5]"
+                      : undefined
+                }
+              />
+            </div>
+          ) : (
+            <div
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px]"
+              style={{
+                background: `color-mix(in srgb, ${accentSoft} 12%, white)`,
+                color: accentColor,
+              }}
+            >
+              <WorkoutSportIcon
+                type={workout.type}
+                isRace={workout.isRace}
+                size="xs"
+                appearance="outline"
+                className="!h-auto !w-auto !border-0 !bg-transparent"
+              />
+            </div>
+          )}
 
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <h2 className="text-[18px] font-bold leading-snug text-[#111111]">
+              <h2
+                className={cn(
+                  "text-[18px] font-bold leading-snug",
+                  darkHero ? "text-white" : "text-[var(--tt-ink)]",
+                )}
+              >
                 {workout.title}
               </h2>
               {workout.selfLogged ? <SelfAddedBadge /> : null}
               <RescheduleBadge workout={workout} />
             </div>
-            <p className="mt-0.5 text-[12px] text-[#737986]">
-              <span className="font-semibold" style={{ color: accentColor }}>
+            <p
+              className={cn(
+                "mt-0.5 text-[12px]",
+                darkHero ? "text-white/55" : "text-[var(--tt-ink-soft)]",
+              )}
+            >
+              <span
+                className={cn("font-semibold", darkHero && "text-white/75")}
+                style={darkHero ? undefined : { color: accentColor }}
+              >
                 {sportLabel}
               </span>
               {" · "}
@@ -445,6 +605,17 @@ export function AthleteWorkoutDetailCard({
                 </>
               ) : null}
             </p>
+            {completed ? (
+              <p
+                className={cn(
+                  "mt-1 inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide",
+                  darkHero ? "text-[#86d39a]" : "text-[var(--tt-good)]",
+                )}
+              >
+                <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                Completed
+              </p>
+            ) : null}
           </div>
 
           <div className="absolute right-0 top-0 z-10 flex items-center gap-1.5">
@@ -469,7 +640,7 @@ export function AthleteWorkoutDetailCard({
                   <button
                     type="button"
                     aria-label="Workout actions"
-                    className="rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
+                    className={iconButtonClass}
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </button>
@@ -538,10 +709,16 @@ export function AthleteWorkoutDetailCard({
               </DropdownMenu.Root>
             ) : null}
 
-            <DialogClose className="rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">
-              <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
-            </DialogClose>
+            {onClose ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className={iconButtonClass}
+              >
+                <X className="h-4 w-4" />
+                <span className="sr-only">Close</span>
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -573,24 +750,57 @@ export function AthleteWorkoutDetailCard({
           />
         ) : null}
 
-        {showMetricsRow ? (
-          <div className="mt-4 flex min-w-0 items-stretch overflow-hidden">
+        {completed ? (
+          <div className={metricsRowClass}>
+            <HeroMetricColumn
+              tone={heroTone}
+              label="Distance"
+              value={actualDistanceParts?.value ?? null}
+              unit={
+                actualDistanceParts?.unit ||
+                (config.showDistance ? config.distanceUnit : null)
+              }
+              planned={plannedDistanceCaption}
+              icon={<Link2 className="h-3 w-3" strokeWidth={1.75} />}
+            />
+            <div className={dividerClass} />
+            <HeroMetricColumn
+              tone={heroTone}
+              label="Time"
+              value={actualTimeLabel ?? null}
+              planned={plannedTimeCaption}
+              icon={<Clock className="h-3 w-3" strokeWidth={1.75} />}
+            />
+            <div className={dividerClass} />
+            <HeroMetricColumn
+              tone={heroTone}
+              label={thirdMetric?.label ?? "Avg pace"}
+              value={thirdMetric?.value ?? null}
+              unit={thirdMetric?.unit ?? null}
+            />
+          </div>
+        ) : showMetricsRow ? (
+          <div className={metricsRowClass}>
             {intensityLabel ? (
               <>
                 <HeroMetricColumn
+                  tone={heroTone}
                   label="Workout type"
                   value={intensityLabel}
                   icon={
                     isHardIntensity(intensityLabel) ? (
                       <Flame
-                        className="h-3 w-3 text-[#B91C1C]"
+                        className={cn(
+                          "h-3 w-3",
+                          darkHero ? "text-[#fca5a5]" : "text-[#B91C1C]",
+                        )}
                         strokeWidth={2.25}
                       />
                     ) : undefined
                   }
                 />
                 {distanceOnCard || durationOnCard ? (
-                  <div className="w-px shrink-0 self-stretch bg-[#e2e3e1]" />
+                  <div className={dividerClass} />
                 ) : null}
               </>
             ) : null}
@@ -598,6 +808,7 @@ export function AthleteWorkoutDetailCard({
             {distanceOnCard ? (
               <>
                 <HeroMetricColumn
+                  tone={heroTone}
                   label="Distance"
                   value={distanceParts?.value ?? null}
                   unit={distanceParts?.unit || config.distanceUnit}
@@ -613,14 +824,13 @@ export function AthleteWorkoutDetailCard({
                   }
                   icon={<Link2 className="h-3 w-3" strokeWidth={1.75} />}
                 />
-                {durationOnCard ? (
-                  <div className="w-px shrink-0 self-stretch bg-[#e2e3e1]" />
-                ) : null}
+                {durationOnCard ? <div className={dividerClass} /> : null}
               </>
             ) : null}
 
             {durationOnCard ? (
               <HeroMetricColumn
+                tone={heroTone}
                 label="Time"
                 value={durationParts?.value ?? null}
                 unit={durationParts?.unit ?? null}
@@ -635,29 +845,30 @@ export function AthleteWorkoutDetailCard({
             ) : null}
           </div>
         ) : null}
-
-        {(hasBuilderStructure || hasIncludes) && workout.structure ? (
-          <div className="mt-4">
-            <WorkoutStructureChart
-              structure={workout.structure}
-              durationMinutes={workout.plannedDuration ?? undefined}
-              size="md"
-              showCaption
-              tone={
-                statusChrome && completed
-                  ? "completed"
-                  : statusChrome && skipped
-                    ? "skipped"
-                    : "default"
-              }
-            />
-          </div>
-        ) : null}
       </div>
+
+      {/* Intensity graph — keep for planned and completed */}
+      {(hasBuilderStructure || hasIncludes) && workout.structure ? (
+        <div className="px-5 pt-6">
+          <WorkoutStructureChart
+            structure={workout.structure}
+            durationMinutes={workout.plannedDuration ?? undefined}
+            size="md"
+            showCaption
+            tone={
+              statusChrome && completed
+                ? "completed"
+                : statusChrome && skipped
+                  ? "skipped"
+                  : "default"
+            }
+          />
+        </div>
+      ) : null}
 
       {hasSwimStructure && workout.swimStructure ? (
         <section className="space-y-2 px-5 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9aa0a8]">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
             Workout details
           </p>
           <SwimWorkoutBuilder
@@ -667,33 +878,41 @@ export function AthleteWorkoutDetailCard({
           />
         </section>
       ) : hasBuilderStructure && structureDisplay ? (
-        <div className="divide-y divide-[#e2e3e1]/80">
-          {structureDisplay.blocks.map((block) => (
-            <StructureRow
-              key={block.id}
-              block={block}
-              sportColor={sportColor}
-            />
-          ))}
-        </div>
+        <>
+          <div className="divide-y divide-[var(--tt-line)]">
+            {structureDisplay.blocks.map((block) => (
+              <StructureRow key={block.id} block={block} />
+            ))}
+          </div>
+          {hasIncludes && workout.structure?.includeItems ? (
+            <section className="mx-5 mb-4 mt-2 rounded-[8px] bg-[var(--tt-sidebar)] px-3 py-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
+                Include
+              </p>
+              <div className="mt-1.5">
+                <IncludeItemsSummary items={workout.structure.includeItems} />
+              </div>
+            </section>
+          ) : null}
+        </>
       ) : hasIncludes && workout.structure?.includeItems ? (
-        <section className="space-y-2 px-5 pb-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9aa0a8]">
+        <section className="mx-5 mb-4 space-y-2 rounded-[8px] bg-[var(--tt-sidebar)] px-3 py-2.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
             Include
           </p>
           <IncludeItemsSummary items={workout.structure.includeItems} />
           {showDescriptionDetails && fullDescription ? (
-            <p className="whitespace-pre-wrap pt-1 text-[14px] leading-relaxed text-[#111111]">
+            <p className="whitespace-pre-wrap pt-1 text-[14px] leading-relaxed text-[var(--tt-ink)]">
               {fullDescription}
             </p>
           ) : null}
         </section>
       ) : showDescriptionDetails && fullDescription ? (
         <section className="space-y-1.5 px-5 pb-4">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[#9aa0a8]">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
             Session plan
           </p>
-          <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-[#111111]">
+          <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-[var(--tt-ink)]">
             {fullDescription}
           </p>
         </section>
@@ -701,7 +920,7 @@ export function AthleteWorkoutDetailCard({
 
       {coachNotes ? (
         <section className="space-y-1.5 px-5 py-4">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#9aa0a8]">
+          <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
             <MessageSquare className="h-3 w-3" strokeWidth={2.25} />
             Coach notes
             {workout.coachNotesPrivate ? (
@@ -710,7 +929,7 @@ export function AthleteWorkoutDetailCard({
               </span>
             ) : null}
           </div>
-          <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-[#111111]">
+          <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-[var(--tt-ink)]">
             {coachNotes}
           </p>
         </section>

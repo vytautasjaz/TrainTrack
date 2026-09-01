@@ -6,7 +6,6 @@ import { Clock, Eye, EyeOff, Link2 } from "lucide-react";
 import { WorkoutType } from "@prisma/client";
 import { WorkoutSportIcon } from "@/components/plan/workout-sport-icon";
 import { WORKOUT_TYPE_LABELS } from "@/lib/constants";
-import { getSportHeroGradientClass } from "@/lib/workout-editor/sport-theme";
 import type {
   DistanceUnit,
   DurationUnit,
@@ -25,9 +24,9 @@ function AutoTextButton({
   onClick,
   disabled,
 }: {
-  active: boolean;
-  onClick: () => void;
-  disabled?: boolean;
+  active: boolean
+  onClick: () => void
+  disabled?: boolean
 }) {
   return (
     <button
@@ -36,16 +35,16 @@ function AutoTextButton({
       disabled={disabled}
       aria-pressed={active}
       className={cn(
-        "shrink-0 whitespace-nowrap text-[11px] font-medium transition",
+        'shrink-0 whitespace-nowrap text-[11px] font-medium transition',
         active
-          ? "text-muted-foreground/70"
-          : "text-muted-foreground/45 hover:text-muted-foreground/70",
-        disabled && "pointer-events-none opacity-40",
+          ? 'text-white/55'
+          : 'text-white/35 hover:text-white/55',
+        disabled && 'pointer-events-none opacity-40',
       )}
     >
       Auto
     </button>
-  );
+  )
 }
 
 function SourceToggle({
@@ -53,26 +52,24 @@ function SourceToggle({
   locked,
   onToggle,
 }: {
-  isAuto: boolean;
-  locked?: boolean;
-  onToggle: () => void;
+  isAuto: boolean
+  locked?: boolean
+  onToggle: () => void
 }) {
   if (locked) {
     return (
-      <span className="text-[11px] font-medium text-muted-foreground/45">
-        Auto
-      </span>
-    );
+      <span className="text-[11px] font-medium text-white/40">Auto</span>
+    )
   }
   return (
     <button
       type="button"
       onClick={onToggle}
-      className="text-[11px] font-medium text-muted-foreground/55 transition hover:text-muted-foreground"
+      className="text-[11px] font-medium text-white/50 transition hover:text-white/75"
     >
-      {isAuto ? "Auto" : "Manual"}
+      {isAuto ? 'Auto' : 'Manual'}
     </button>
-  );
+  )
 }
 
 function MetricFooterControls({
@@ -83,12 +80,12 @@ function MetricFooterControls({
   canHide,
   onToggleCardVisibility,
 }: {
-  isAuto: boolean;
-  locked?: boolean;
-  onToggleSource: () => void;
-  onCard: boolean;
-  canHide: boolean;
-  onToggleCardVisibility: () => void;
+  isAuto: boolean
+  locked?: boolean
+  onToggleSource: () => void
+  onCard: boolean
+  canHide: boolean
+  onToggleCardVisibility: () => void
 }) {
   return (
     <div className="flex flex-nowrap items-center justify-center gap-x-2">
@@ -101,33 +98,33 @@ function MetricFooterControls({
         aria-label={
           onCard
             ? canHide
-              ? "Hide on workout card"
-              : "At least one metric must stay on the card"
-            : "Show on workout card"
+              ? 'Hide on workout card'
+              : 'At least one metric must stay on the card'
+            : 'Show on workout card'
         }
         title={
           onCard
             ? canHide
-              ? "Hide on workout card"
-              : "At least one metric must stay on the card"
-            : "Show on workout card"
+              ? 'Hide on workout card'
+              : 'At least one metric must stay on the card'
+            : 'Show on workout card'
         }
         className={cn(
-          "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm transition",
+          'inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm transition',
           onCard
-            ? "text-muted-foreground/55 hover:text-muted-foreground"
-            : "text-muted-foreground/70 hover:text-muted-foreground",
-          onCard && !canHide && "pointer-events-none opacity-40",
+            ? 'text-white/90 hover:text-white'
+            : 'text-white/30 hover:text-white/45',
+          onCard && !canHide && 'pointer-events-none opacity-40',
         )}
       >
         {onCard ? (
-          <Eye className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+          <Eye className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
         ) : (
-          <EyeOff className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+          <EyeOff className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
         )}
       </button>
     </div>
-  );
+  )
 }
 
 export type EditableWorkoutCardShellProps = {
@@ -186,7 +183,7 @@ export function EditableWorkoutCardShell({
   autoDurationInput = "",
   durationManual,
   distanceManual,
-  secondaryMetricVisible = true,
+  secondaryMetricVisible = false,
   metricsLocked,
   showDistance = true,
   distanceUnit = "km",
@@ -250,15 +247,14 @@ export function EditableWorkoutCardShell({
     ? durationInput.trim().length > 0
     : Boolean(autoDurationDisplay || durationInput.trim());
 
-  /** Both metrics stay visible until a primary is chosen; then eye toggle applies. */
+  /** Only the primary metric is on the card unless the coach enables both eyes. */
   const distanceOnCard =
     showDistance &&
-    (!hasPrimary || primaryMetric === "distance" || secondaryMetricVisible);
+    hasPrimary &&
+    (primaryMetric === "distance" || secondaryMetricVisible);
   const durationOnCard =
-    !hasPrimary ||
-    primaryMetric === "duration" ||
-    !showDistance ||
-    secondaryMetricVisible;
+    hasPrimary &&
+    (primaryMetric === "duration" || !showDistance || secondaryMetricVisible);
   const canHideDistance = hasPrimary && distanceOnCard && durationOnCard;
   const canHideDuration =
     hasPrimary && showDistance && distanceOnCard && durationOnCard;
@@ -267,13 +263,11 @@ export function EditableWorkoutCardShell({
 
   function selectDistanceSource(source: "manual" | "auto") {
     if (lockDistance) return;
-    if (!distanceIsPrimary) onSecondaryMetricVisibleChange?.(true);
     onDistanceSourceChange?.(source);
   }
 
   function selectDurationSource(source: "manual" | "auto") {
     if (lockDuration) return;
-    if (!durationIsPrimary) onSecondaryMetricVisibleChange?.(true);
     onDurationSourceChange?.(source);
   }
 
@@ -290,7 +284,7 @@ export function EditableWorkoutCardShell({
   function toggleDistanceCardVisibility() {
     if (!hasPrimary) {
       onPrimaryMetricChange("distance");
-      onSecondaryMetricVisibleChange?.(true);
+      onSecondaryMetricVisibleChange?.(false);
       return;
     }
     if (distanceOnCard) {
@@ -312,7 +306,7 @@ export function EditableWorkoutCardShell({
   function toggleDurationCardVisibility() {
     if (!hasPrimary) {
       onPrimaryMetricChange("duration");
-      onSecondaryMetricVisibleChange?.(true);
+      onSecondaryMetricVisibleChange?.(false);
       return;
     }
     if (durationOnCard) {
@@ -333,7 +327,7 @@ export function EditableWorkoutCardShell({
 
   /**
    * Size follows pending/actual primary (grows on focus).
-   * Color stays grey until a value is actually entered.
+   * Color stays soft until a value is actually entered.
    */
   const valueTone = (
     onCard: boolean,
@@ -341,10 +335,10 @@ export function EditableWorkoutCardShell({
     hasEnteredValue: boolean,
   ) =>
     cn(
-      "font-bold",
-      isPrimary ? "text-[32px]" : "text-[18px]",
-      onCard && hasEnteredValue ? "text-[#111827]" : "text-muted-foreground/45",
-    );
+      'font-bold',
+      isPrimary ? 'text-[32px]' : 'text-[18px]',
+      onCard && hasEnteredValue ? 'text-white' : 'text-white/35',
+    )
 
   const unitTone = (
     onCard: boolean,
@@ -352,10 +346,10 @@ export function EditableWorkoutCardShell({
     hasEnteredValue: boolean,
   ) =>
     cn(
-      "font-semibold leading-none tracking-tight",
-      onCard && hasEnteredValue ? "text-[#111827]" : "text-muted-foreground/45",
-      isPrimary ? "text-base" : "text-[11px]",
-    );
+      'font-semibold leading-none tracking-tight',
+      onCard && hasEnteredValue ? 'text-white/90' : 'text-white/35',
+      isPrimary ? 'text-base' : 'text-[11px]',
+    )
 
   const sportIcon = canChangeSport ? (
     <DropdownMenu.Root modal={false}>
@@ -403,14 +397,14 @@ export function EditableWorkoutCardShell({
   return (
     <div
       className={cn(
-        "relative rounded-none border-0 border-b border-black/20 bg-gradient-to-b px-5 pb-6 pt-5 shadow-none sm:px-6",
-        getSportHeroGradientClass(sportType),
-        cornerSlot && "pb-14",
+        'tt-workout-hero relative rounded-none border-0 border-b border-white/[0.08] px-5 pb-5 pt-5 shadow-none sm:px-6',
+        'bg-[var(--tt-workout-hero-bg,#151827)] text-white/[0.92]',
+        cornerSlot && 'pb-14',
         className,
       )}
     >
       {dateLabel ? (
-        <p className="mb-2.5 text-[13px] leading-snug text-[#6B7280]">
+        <p className="mb-2.5 text-[13px] leading-snug text-white/55">
           {dateLabel}
         </p>
       ) : null}
@@ -425,7 +419,7 @@ export function EditableWorkoutCardShell({
               onChange={(e) => onTitleChange(e.target.value)}
               aria-label="Workout title"
               style={{ width: `${Math.max(title.length + 1, 6)}ch` }}
-              className="max-w-[calc(100%-2.75rem)] min-w-0 bg-transparent text-[17px] font-semibold leading-snug text-[#111827] outline-none placeholder:text-muted-foreground/50"
+              className="max-w-[calc(100%-2.75rem)] min-w-0 bg-transparent text-[17px] font-semibold leading-snug text-white outline-none placeholder:text-white/35"
               placeholder="Workout title"
             />
             <AutoTextButton active={titleAuto} onClick={onTitleAutoEnable} />
@@ -437,7 +431,7 @@ export function EditableWorkoutCardShell({
               onChange={(e) => onSubtitleChange(e.target.value)}
               aria-label="Workout subtitle"
               style={{ width: `${Math.max(subtitle.length + 1, 6)}ch` }}
-              className="max-w-[calc(100%-2.75rem)] min-w-0 bg-transparent text-[13px] leading-snug text-[#6B7280] outline-none placeholder:text-muted-foreground/40"
+              className="max-w-[calc(100%-2.75rem)] min-w-0 bg-transparent text-[13px] leading-snug text-white/60 outline-none placeholder:text-white/30"
               placeholder="Subtitle"
             />
             <AutoTextButton
@@ -448,24 +442,29 @@ export function EditableWorkoutCardShell({
         </div>
       </div>
 
-      <div className="mt-[18px] flex min-w-0 items-stretch overflow-hidden">
+      <div className="mt-5 flex min-w-0 items-stretch overflow-hidden">
         {workoutTypeControl ? (
           <>
             <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-2 text-center">
-              <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-white/50">
                 Workout type
               </span>
               <div className="mt-1.5 flex h-8 w-full shrink-0 items-center justify-center overflow-hidden">
                 {workoutTypeControl}
               </div>
             </div>
-            <div className="w-px shrink-0 self-stretch bg-foreground/20" />
+            <div className="w-px shrink-0 self-stretch bg-white/15" />
           </>
         ) : null}
 
         {showDistance ? (
           <>
-            <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center">
+            <div
+              className={cn(
+                "flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center transition-opacity",
+                !distanceOnCard && "opacity-55",
+              )}
+            >
               <button
                 type="button"
                 aria-pressed={distanceIsPrimary && distanceOnCard}
@@ -478,15 +477,14 @@ export function EditableWorkoutCardShell({
                 }
                 onClick={() => {
                   onPrimaryMetricChange("distance");
-                  onSecondaryMetricVisibleChange?.(true);
                 }}
                 className={cn(
                   "inline-flex h-4 shrink-0 items-center justify-center gap-1.5",
                   hasPrimary && distanceOnCard && distanceHasEnteredValue
-                    ? "text-foreground"
+                    ? "text-white"
                     : distanceIsPrimary
-                      ? "text-muted-foreground/70"
-                      : "text-muted-foreground/40",
+                      ? "text-white/65"
+                      : "text-white/35",
                 )}
               >
                 <Link2 className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -495,19 +493,14 @@ export function EditableWorkoutCardShell({
                 </span>
               </button>
 
-              <div
-                className={cn(
-                  "mt-1.5 flex h-8 w-full shrink-0 items-center justify-center gap-0.5",
-                  !distanceOnCard && "opacity-90",
-                )}
-              >
+              <div className="mt-1.5 flex h-8 w-full shrink-0 items-center justify-center gap-0.5">
                 {distanceIsAuto && shownDistance ? (
                   <span
                     className={cn(
                       "font-semibold leading-none",
                       distanceOnCard
-                        ? "text-muted-foreground"
-                        : "text-muted-foreground/40",
+                        ? "text-white/55"
+                        : "text-white/30",
                       distanceIsPrimary ? "text-xl" : "text-sm",
                     )}
                   >
@@ -523,7 +516,7 @@ export function EditableWorkoutCardShell({
                         distanceIsPrimary,
                         distanceHasEnteredValue,
                       ),
-                      !shownDistance && "text-muted-foreground/40",
+                      !shownDistance && "text-white/35",
                     )}
                   >
                     {shownDistance || "—"}
@@ -547,7 +540,7 @@ export function EditableWorkoutCardShell({
                       ),
                     }}
                     className={cn(
-                      "m-0 bg-transparent p-0 text-center tabular-nums leading-none tracking-tight outline-none placeholder:text-muted-foreground/45",
+                      "m-0 bg-transparent p-0 text-center tabular-nums leading-none tracking-tight outline-none placeholder:text-white/30",
                       valueTone(
                         distanceOnCard,
                         distanceIsPrimary,
@@ -578,11 +571,16 @@ export function EditableWorkoutCardShell({
                 />
               </div>
             </div>
-            <div className="w-px shrink-0 self-stretch bg-foreground/20" />
+            <div className="w-px shrink-0 self-stretch bg-white/15" />
           </>
         ) : null}
 
-        <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center">
+        <div
+          className={cn(
+            "flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center transition-opacity",
+            !durationOnCard && "opacity-55",
+          )}
+        >
           <button
             type="button"
             aria-pressed={durationIsPrimary && durationOnCard}
@@ -595,15 +593,14 @@ export function EditableWorkoutCardShell({
             }
             onClick={() => {
               onPrimaryMetricChange("duration");
-              onSecondaryMetricVisibleChange?.(true);
             }}
             className={cn(
               "inline-flex h-4 shrink-0 items-center justify-center gap-1.5",
               hasPrimary && durationOnCard && durationHasEnteredValue
-                ? "text-foreground"
+                ? "text-white"
                 : durationIsPrimary
-                  ? "text-muted-foreground/70"
-                  : "text-muted-foreground/40",
+                  ? "text-white/65"
+                  : "text-white/35",
             )}
           >
             <Clock className="h-3.5 w-3.5" strokeWidth={1.75} />
@@ -612,19 +609,14 @@ export function EditableWorkoutCardShell({
             </span>
           </button>
 
-          <div
-            className={cn(
-              "mt-1.5 flex h-8 w-full shrink-0 items-center justify-center gap-0.5",
-              !durationOnCard && "opacity-90",
-            )}
-          >
+          <div className="mt-1.5 flex h-8 w-full shrink-0 items-center justify-center gap-0.5">
             {durationIsAuto && shownDuration ? (
               <span
                 className={cn(
                   "font-semibold leading-none",
                   durationOnCard
-                    ? "text-muted-foreground"
-                    : "text-muted-foreground/40",
+                    ? "text-white/55"
+                    : "text-white/30",
                   durationIsPrimary ? "text-xl" : "text-sm",
                 )}
               >
@@ -640,7 +632,7 @@ export function EditableWorkoutCardShell({
                     durationIsPrimary,
                     durationHasEnteredValue,
                   ),
-                  !shownDuration && "text-muted-foreground/40",
+                  !shownDuration && "text-white/35",
                 )}
               >
                 {shownDuration || "—"}
@@ -662,7 +654,7 @@ export function EditableWorkoutCardShell({
                   ),
                 }}
                 className={cn(
-                  "m-0 bg-transparent p-0 text-center tabular-nums leading-none tracking-tight outline-none placeholder:text-muted-foreground/45",
+                  "m-0 bg-transparent p-0 text-center tabular-nums leading-none tracking-tight outline-none placeholder:text-white/30",
                   valueTone(
                     durationOnCard,
                     durationIsPrimary,

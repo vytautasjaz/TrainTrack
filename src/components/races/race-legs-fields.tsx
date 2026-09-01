@@ -137,40 +137,87 @@ export function RaceLegsResultFields({
   className,
 }: RaceLegsResultFieldsProps) {
   const ordered = [...legs].sort((a, b) => a.sortOrder - b.sortOrder)
+  const colCount = ordered.length
 
   return (
-    <div className={cn('space-y-2.5', className)}>
-      <p className="text-xs font-medium text-muted-foreground">Splits</p>
-      {ordered.map((leg) => (
-        <RaceLegResultRow
-          key={leg.id}
-          raceId={raceId}
-          leg={leg}
-          allowStravaLink={allowStravaLink}
-        />
-      ))}
+    <div className={cn('space-y-1', className)}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Split times
+      </p>
+      {/* Calculator-style horizontal splits: label · time · optional Strava */}
+      <div
+        className={cn(
+          'tt-follow-fields grid gap-2 rounded-[6px] border border-border/60 bg-muted/5 px-2 py-2 sm:gap-0 sm:divide-x sm:divide-border/70 sm:px-0 sm:py-2',
+          colCount >= 5
+            ? 'grid-cols-2 sm:grid-cols-5'
+            : colCount === 4
+              ? 'grid-cols-2 sm:grid-cols-4'
+              : colCount === 3
+                ? 'grid-cols-3'
+                : 'grid-cols-2',
+        )}
+      >
+        {ordered.map((leg, index) => (
+          <RaceLegResultCell
+            key={leg.id}
+            raceId={raceId}
+            leg={leg}
+            allowStravaLink={allowStravaLink}
+            isFirst={index === 0}
+            isLast={index === ordered.length - 1}
+          />
+        ))}
+      </div>
     </div>
   )
 }
 
-function RaceLegResultRow({
+function RaceLegResultCell({
   raceId,
   leg,
   allowStravaLink,
+  isFirst,
+  isLast,
 }: {
   raceId: string
   leg: RaceLegView
   allowStravaLink: boolean
+  isFirst: boolean
+  isLast: boolean
 }) {
   const kind = leg.kind as RaceLegKind
   const supportsStrava = raceLegSupportsStrava(kind)
 
   return (
-    <div className="rounded-[6px] border border-border/60 bg-muted/15 px-3 py-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {RACE_LEG_LABELS[kind]}
-        </p>
+    <div
+      className={cn(
+        'min-w-0 space-y-0.5 text-center',
+        isFirst && 'sm:pr-2 sm:pl-2',
+        !isFirst && !isLast && 'sm:px-2',
+        isLast && !isFirst && 'sm:pl-2 sm:pr-2',
+      )}
+    >
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {RACE_LEG_LABELS[kind]}
+      </p>
+      <Input
+        name={`legResultTime_${kind}`}
+        defaultValue={leg.resultTime ?? ''}
+        placeholder={supportsStrava ? '1:05:00' : '3:30'}
+        autoComplete="off"
+        variant="ghost"
+        align="center"
+        className="h-7 min-h-0 w-full px-0 py-0 text-sm font-semibold tabular-nums tracking-tight"
+        aria-label={`${RACE_LEG_LABELS[kind]} time`}
+        title={
+          leg.plannedTime
+            ? `Plan ${leg.plannedTime}`
+            : supportsStrava
+              ? 'Filled from Strava when linked, or enter manually'
+              : 'Transition time'
+        }
+      />
+      <div className="flex h-6 items-center justify-center">
         {supportsStrava && allowStravaLink ? (
           <RaceStravaLinkPicker
             raceId={raceId}
@@ -178,33 +225,23 @@ function RaceLegResultRow({
             linkedUrl={leg.stravaActivityUrl}
             linkedName={leg.stravaActivityName}
             compact
+            iconOnly
           />
         ) : supportsStrava && leg.stravaActivityUrl ? (
           <a
             href={leg.stravaActivityUrl}
             target="_blank"
             rel="noreferrer"
-            className="text-xs font-medium text-[#FC4C02] hover:underline"
+            className="text-[10px] font-medium text-[#FC4C02] hover:underline"
           >
             Strava
           </a>
-        ) : null}
+        ) : (
+          <span className="text-[10px] text-transparent" aria-hidden>
+            —
+          </span>
+        )}
       </div>
-      <FormField
-        label="Time"
-        hint={supportsStrava ? 'Filled from Strava when linked, or enter manually' : 'Transition time'}
-        className="mt-2"
-      >
-        <Input
-          name={`legResultTime_${kind}`}
-          defaultValue={leg.resultTime ?? ''}
-          placeholder={supportsStrava ? '1:05:00' : '3:30'}
-          autoComplete="off"
-        />
-      </FormField>
-      {leg.plannedTime ? (
-        <p className="mt-1 text-[11px] text-muted-foreground">Plan: {leg.plannedTime}</p>
-      ) : null}
     </div>
   )
 }

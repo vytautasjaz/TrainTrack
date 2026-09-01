@@ -9,7 +9,7 @@ import { athleteHasQuickLogActions, type PlanWorkoutDetail } from '@/lib/plan-wo
 import { toUserMessage } from '@/lib/action-error'
 import {
   WorkoutStatusIcon,
-  workoutStatusIconClass,
+  workoutQuickActionIconClass,
   type WorkoutStatusIconSize,
 } from '@/components/ui/workout-status-icon'
 import { cn } from '@/lib/utils'
@@ -75,7 +75,7 @@ export function AthleteWorkoutQuickActions({
 
   const isCompleted = status === WorkoutStatus.COMPLETED
   const isSkipped = status === WorkoutStatus.SKIPPED
-  const iconClass = workoutStatusIconClass(size)
+  const iconClass = workoutQuickActionIconClass(size)
   const buttonClass =
     size === 'xs'
       ? 'rounded-md p-0.5 transition hover:bg-muted/60'

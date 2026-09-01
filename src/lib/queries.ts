@@ -10,7 +10,7 @@ import {
 } from '@/lib/dates'
 import type { DayNoteData, DayNoteViewer } from '@/lib/day-notes'
 import { redactDayNoteForViewer } from '@/lib/day-notes'
-import { AthleteStatus, WorkoutStatus, WorkoutType } from '@prisma/client'
+import { AthleteStatus, RaceIntent, WorkoutStatus, WorkoutType, CoachingAuthorRole, CoachingMessageKind, CoachingThreadStatus } from '@prisma/client'
 import { buildProgressStats } from '@/lib/progress-stats'
 import {
   resolveRaceDistancesBySport,
@@ -19,6 +19,123 @@ import {
 } from '@/lib/race-distance-stats'
 import { WORKOUT_LIST_ORDER_BY } from '@/lib/workout-sort'
 import { athleteOwnedByCoachWhere } from '@/lib/session'
+import {
+  listCoachInboxThreads,
+  serializeInboxThread,
+  toCoachingThreadView,
+  INBOX_LIST_MAX,
+  ensureGeneralChatThreads,
+  listCoachGeneralChatThreads,
+  type CoachingThreadWithMessages,
+} from '@/lib/coaching-inbox'
+import { CoachingThreadKind } from '@prisma/client'
+import {
+  buildCoachRosterRows,
+  type CoachHomeActivityFeedItem,
+  type CoachHomeNeedsReplyThread,
+  type CoachHomeTodayAthlete,
+  type CoachNeedsReplySummary,
+  type CoachRosterChatThread,
+  type CoachRosterFeedbackItem,
+  type CoachRosterRow,
+} from '@/lib/coach-roster'
+import { toPlanWorkoutDetail, redactPlanWorkoutNotesForViewer } from '@/lib/plan-workout'
+import { getWorkoutCompletionSource } from '@/lib/workout-history'
+import { formatDateKeyCompact } from '@/lib/dates'
+import { daysUntil } from '@/lib/utils'
+import { getWorkoutCardHero, getWorkoutCardSubtitle } from '@/lib/workout-card'
+import { formatInboxRaceResultLabel } from '@/components/inbox/inbox-race-report-summary'
+import type { RaceLegView } from '@/lib/race-legs'
+import {
+  athleteOptionsFromRoster,
+  buildCoachHomeActivityTableRows,
+  buildCoachHomeAttentionItems,
+  buildCoachHomePlanningCoverageRows,
+  buildCoachHomeRaceActivityRows,
+  filterDismissedCoachHomeAttentionItems,
+  mergeCoachHomeActivityFeed,
+  type CoachHomeRaceFeedSource,
+} from '@/lib/coach-home'
+
+function mapCoachHomeRaceLegs(
+  legs: Array<{
+    id: string
+    kind: RaceLegView['kind']
+    sortOrder: number
+    plannedTime: string | null
+    plannedNotes: string | null
+    plannedDistanceKm: number | null
+    resultTime: string | null
+    stravaActivityId: string | null
+    stravaActivityUrl: string | null
+    stravaActivityName: string | null
+    actualDistanceKm: number | null
+    actualDurationMin: number | null
+  }>,
+): RaceLegView[] {
+  return legs.map((leg) => ({
+    id: leg.id,
+    kind: leg.kind,
+    sortOrder: leg.sortOrder,
+    plannedTime: leg.plannedTime,
+    plannedNotes: leg.plannedNotes,
+    plannedDistanceKm: leg.plannedDistanceKm,
+    resultTime: leg.resultTime,
+    stravaActivityId: leg.stravaActivityId,
+    stravaActivityUrl: leg.stravaActivityUrl,
+    stravaActivityName: leg.stravaActivityName,
+    actualDistanceKm: leg.actualDistanceKm,
+    actualDurationMin: leg.actualDurationMin,
+  }))
+}
+
+function rosterChatThreadContext(
+  row: ReturnType<typeof serializeInboxThread>,
+  threadKind: CoachingThreadKind,
+) {
+  if (row.workoutDetail) {
+    const hero = getWorkoutCardHero(row.workoutDetail)
+    const contextMetric = hero?.value
+      ? `${hero.approximate ? '~' : ''}${hero.value}${hero.unit ? ` ${hero.unit}` : ''}`.trim()
+      : null
+    return {
+      contextTitle: row.workoutDetail.title,
+      contextSubtitle: getWorkoutCardSubtitle(row.workoutDetail),
+      contextMetric,
+      contextDateKey: row.workoutDetail.dateKey,
+    }
+  }
+  if (row.race) {
+    return {
+      contextTitle: row.race.name,
+      contextSubtitle: formatInboxRaceResultLabel(row.race),
+      contextMetric: row.race.resultPlace?.trim() || null,
+      contextDateKey: row.race.dateKey,
+    }
+  }
+  if (threadKind === CoachingThreadKind.ASK) {
+    return {
+      contextTitle: 'Ask coach',
+      contextSubtitle: null,
+      contextMetric: null,
+      contextDateKey: null,
+    }
+  }
+  if (threadKind === CoachingThreadKind.GENERAL) {
+    return {
+      contextTitle: 'General chat',
+      contextSubtitle: 'Not tied to a workout',
+      contextMetric: null,
+      contextDateKey: null,
+    }
+  }
+  return {
+    contextTitle: null,
+    contextSubtitle: null,
+    contextMetric: null,
+    contextDateKey: null,
+  }
+}
 
 export const DEFAULT_PLANNING_LEAD_DAYS = 3
 export const MIN_PLANNING_LEAD_DAYS = 1
@@ -32,7 +149,100 @@ export function clampPlanningLeadDays(value: number): number {
 export const WORKOUT_PLAN_INCLUDE = {
   result: true,
   rescheduledCopy: { select: { id: true, date: true } },
+  coachingThread: {
+    select: {
+      status: true,
+      lastMessageAt: true,
+      coachLastReadAt: true,
+      athleteLastReadAt: true,
+      _count: { select: { messages: true } },
+      messages: {
+        select: { authorRole: true, kind: true },
+        orderBy: { createdAt: 'asc' as const },
+      },
+    },
+  },
 } as const
+
+const ACTIVITY_FEED_WORKOUT_INCLUDE = {
+  ...WORKOUT_PLAN_INCLUDE,
+  coachingThread: {
+    select: {
+      id: true,
+      kind: true,
+      status: true,
+      lastMessageAt: true,
+      coachLastReadAt: true,
+      athleteLastReadAt: true,
+      messages: {
+        select: {
+          id: true,
+          authorRole: true,
+          kind: true,
+          body: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: 'asc' as const },
+      },
+    },
+  },
+} as const
+
+function buildActivityFeedThreadView(
+  workout: {
+    result: { feeling?: number | null } | null
+    coachingThread: {
+      id: string
+      kind: CoachingThreadKind
+      status: CoachingThreadStatus
+      lastMessageAt: Date
+      coachLastReadAt: Date | null
+      athleteLastReadAt: Date | null
+      messages: Array<{
+        id: string
+        authorRole: CoachingAuthorRole
+        kind: CoachingMessageKind
+        body: string
+        createdAt: Date
+      }>
+    } | null
+  },
+): ReturnType<typeof toCoachingThreadView> | null {
+  const thread = workout.coachingThread
+  if (!thread || thread.messages.length === 0) return null
+  return toCoachingThreadView({
+    id: thread.id,
+    status: thread.status,
+    kind: thread.kind,
+    messages: thread.messages,
+    workout: { result: workout.result ? { feeling: workout.result.feeling ?? null } : null },
+  })
+}
+
+function mapActivityFeedCoachingThread(
+  thread: NonNullable<Parameters<typeof buildActivityFeedThreadView>[0]['coachingThread']>,
+) {
+  return {
+    status: thread.status,
+    lastMessageAt: thread.lastMessageAt,
+    coachLastReadAt: thread.coachLastReadAt,
+    athleteLastReadAt: thread.athleteLastReadAt,
+    _count: { messages: thread.messages.length },
+    messages: thread.messages.map((message) => ({
+      authorRole: message.authorRole,
+      kind: message.kind,
+    })),
+  }
+}
+
+function buildActivityFeedFeedbackThread(
+  workout: Parameters<typeof buildActivityFeedThreadView>[0],
+): ReturnType<typeof toCoachingThreadView> | null {
+  const thread = workout.coachingThread
+  if (!thread || thread.messages.length === 0) return null
+  if (thread.kind !== CoachingThreadKind.FEEDBACK) return null
+  return buildActivityFeedThreadView(workout)
+}
 
 /** Workouts that count toward weekly compliance (not rest/recovery markers or day notes). */
 export function countsTowardCompliance(workout: {
@@ -87,7 +297,7 @@ export async function getAthleteDashboard(athleteId: string) {
   const [
     todayWorkouts,
     upcomingWorkouts,
-    nextRace,
+    nextRaces,
     pendingRaceFollowUpsRaw,
     weekStatsWindowWorkouts,
     monthWorkouts,
@@ -104,10 +314,11 @@ export async function getAthleteDashboard(athleteId: string) {
       prisma.workout.findMany({
         where: { athleteId, date: { gt: today } },
         include: WORKOUT_PLAN_INCLUDE,
-        orderBy: { date: 'asc' },
-        take: 5,
+        orderBy: [{ date: 'asc' }, { sortOrder: 'asc' }],
+        /** Glanceable Home list — full schedule via View plan. */
+        take: 7,
       }),
-      prisma.race.findFirst({
+      prisma.race.findMany({
         where: {
           athleteId,
           intent: 'PLANNED',
@@ -115,6 +326,7 @@ export async function getAthleteDashboard(athleteId: string) {
           date: { gte: today },
         },
         orderBy: { date: 'asc' },
+        take: 5,
       }),
       prisma.race.findMany({
         where: {
@@ -244,7 +456,8 @@ export async function getAthleteDashboard(athleteId: string) {
   return {
     todayWorkouts,
     upcomingWorkouts,
-    nextRace,
+    nextRace: nextRaces[0] ?? null,
+    nextRaces,
     pendingRaceFollowUps,
     weekPlanned,
     weekCompleted,
@@ -299,7 +512,9 @@ export async function getPendingCoachRequests(coachUserId: string) {
       coachingCode: true,
       links: {
         where: { status: 'PENDING' },
-        include: { athlete: { select: { id: true, name: true } } },
+        include: {
+          athlete: { select: { id: true, name: true, avatarUrl: true } },
+        },
         orderBy: { createdAt: 'asc' },
       },
     },
@@ -374,25 +589,30 @@ export async function getCoachDashboard(coachId: string) {
   })
 
   const activeAthletes = athletes.filter((a) => a.status === AthleteStatus.ACTIVE)
+
   const coverage =
-    activeAthletes.length > 0
+    athletes.length > 0
       ? await prisma.workout.groupBy({
           by: ['athleteId'],
           where: {
-            athleteId: { in: activeAthletes.map((a) => a.id) },
+            athleteId: { in: athletes.map((a) => a.id) },
             date: { gte: today },
+            isRescheduleGhost: false,
           },
           _max: { date: true },
         })
       : []
-  const coverageByAthlete = new Map(
-    coverage.map((row) => [row.athleteId, row._max.date ? toDateKey(row._max.date) : null]),
+  const lastPlannedKeyByAthlete = new Map<string, string | null>(
+    coverage.map((row) => [
+      row.athleteId,
+      row._max.date ? toDateKey(row._max.date) : null,
+    ]),
   )
   const horizonKey = toDateKey(horizonDate)
 
   const planningWarnings = activeAthletes
     .map((athlete) => {
-      const lastPlannedKey = coverageByAthlete.get(athlete.id) ?? null
+      const lastPlannedKey = lastPlannedKeyByAthlete.get(athlete.id) ?? null
       const needsPlan = !lastPlannedKey || lastPlannedKey < horizonKey
       if (!needsPlan) return null
       return {
@@ -437,6 +657,426 @@ export async function getCoachDashboard(coachId: string) {
     recentRaceReports,
     planningLeadDays,
     planningWarnings,
+    lastPlannedKeyByAthlete,
+  }
+}
+
+function buildRosterChatThread(
+  thread: CoachingThreadWithMessages & {
+    athlete?: { id: string; name: string; avatarUrl?: string | null }
+  },
+): CoachRosterChatThread {
+  const row = serializeInboxThread(thread, 'coach')
+  const view = toCoachingThreadView(thread)
+  const context = rosterChatThreadContext(row, thread.kind)
+  return {
+    id: thread.id,
+    unread: row.unread,
+    needsReply: row.needsReply,
+    preview: row.preview,
+    lastMessageAt: row.lastMessageAt,
+    contextTitle: context.contextTitle,
+    contextSubtitle: context.contextSubtitle,
+    contextMetric: context.contextMetric,
+    contextDateKey: context.contextDateKey,
+    threadKind: thread.kind,
+    workoutDetail: row.workoutDetail,
+    thread: view,
+  }
+}
+
+export async function getCoachNeedsReplySummaries(
+  coachUserId: string,
+): Promise<CoachNeedsReplySummary[]> {
+  const { needsReply } = await getCoachInboxAthleteStats(coachUserId)
+  return needsReply
+}
+
+async function getCoachInboxAthleteStats(coachUserId: string) {
+  const threads = await listCoachInboxThreads(coachUserId, {
+    filter: 'all',
+    take: INBOX_LIST_MAX,
+  })
+
+  const summaryMap = new Map<string, CoachNeedsReplySummary>()
+  const needsReplyByAthlete = new Map<string, number>()
+  const chatThreadsByAthlete = new Map<string, CoachRosterChatThread[]>()
+  const feedbackThreadsByAthlete = new Map<string, CoachRosterFeedbackItem[]>()
+  const needsReplyThreads: CoachHomeNeedsReplyThread[] = []
+
+  function pushChat(athleteId: string, item: CoachRosterChatThread) {
+    const list = chatThreadsByAthlete.get(athleteId) ?? []
+    list.push(item)
+    chatThreadsByAthlete.set(athleteId, list)
+  }
+
+  function pushFeedback(athleteId: string, item: CoachRosterFeedbackItem) {
+    const list = feedbackThreadsByAthlete.get(athleteId) ?? []
+    list.push(item)
+    feedbackThreadsByAthlete.set(athleteId, list)
+  }
+
+  for (const thread of threads) {
+    if (!thread.athlete) continue
+
+    const athleteId = thread.athlete.id
+    const row = serializeInboxThread(thread, 'coach')
+    const view = toCoachingThreadView(thread)
+    const context = rosterChatThreadContext(row, thread.kind)
+
+    if (thread.kind !== CoachingThreadKind.GENERAL) {
+      const isFeedbackThread =
+        thread.kind === CoachingThreadKind.FEEDBACK ||
+        thread.kind === CoachingThreadKind.RACE_REPORT
+
+      if (isFeedbackThread && thread.messages.length > 0) {
+        const title =
+          thread.kind === CoachingThreadKind.RACE_REPORT
+            ? 'Race report'
+            : 'Workout feedback'
+        pushFeedback(athleteId, {
+          id: thread.id,
+          athleteId,
+          athleteName: thread.athlete.name,
+          avatarUrl: thread.athlete.avatarUrl,
+          unread: row.unread,
+          preview: row.preview,
+          lastMessageAt: row.lastMessageAt,
+          title,
+          body: row.preview,
+          workoutTitle: context.contextTitle,
+          workoutDateKey: context.contextDateKey,
+          thread: view,
+        })
+      } else if (thread.messages.length > 0) {
+        pushChat(athleteId, buildRosterChatThread(thread))
+      }
+    }
+
+    if (!row.needsReply) continue
+
+    needsReplyByAthlete.set(athleteId, (needsReplyByAthlete.get(athleteId) ?? 0) + 1)
+
+    needsReplyThreads.push({
+      id: thread.id,
+      athleteId,
+      athleteName: thread.athlete.name,
+      avatarUrl: thread.athlete.avatarUrl,
+      preview: row.preview,
+      lastMessageAt: row.lastMessageAt,
+      contextTitle: context.contextTitle,
+      contextDateKey: context.contextDateKey,
+      threadKind: thread.kind,
+      workoutType: row.workoutDetail?.type ?? null,
+      thread: view,
+    })
+
+    const existing = summaryMap.get(athleteId)
+    if (existing) {
+      existing.count += 1
+      if (new Date(row.lastMessageAt) > new Date(existing.lastMessageAt)) {
+        existing.preview = row.preview
+        existing.lastMessageAt = row.lastMessageAt
+      }
+      continue
+    }
+
+    summaryMap.set(athleteId, {
+      athleteId,
+      athleteName: thread.athlete.name,
+      avatarUrl: thread.athlete.avatarUrl,
+      preview: row.preview,
+      count: 1,
+      lastMessageAt: row.lastMessageAt,
+    })
+  }
+
+  for (const list of chatThreadsByAthlete.values()) {
+    list.sort(
+      (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
+    )
+  }
+  for (const list of feedbackThreadsByAthlete.values()) {
+    list.sort(
+      (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
+    )
+  }
+
+  const needsReply = Array.from(summaryMap.values()).sort(
+    (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
+  )
+
+  needsReplyThreads.sort(
+    (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
+  )
+
+  return {
+    needsReply,
+    needsReplyByAthlete,
+    chatThreadsByAthlete,
+    feedbackThreadsByAthlete,
+    needsReplyThreads,
+  }
+}
+
+function groupWorkoutsByAthlete<T extends { athleteId: string }>(rows: T[]) {
+  const map = new Map<string, T[]>()
+  for (const row of rows) {
+    const list = map.get(row.athleteId) ?? []
+    list.push(row)
+    map.set(row.athleteId, list)
+  }
+  return map
+}
+
+export async function getCoachHomeData(coachId: string) {
+  const today = todayDateOnly()
+  const weekStart = startOfWeekDateOnly(today)
+  const lastWeekStart = addDateOnlyDays(weekStart, -7)
+  const lastWeekEnd = addDateOnlyDays(weekStart, -1)
+  const athleteWhere = athleteOwnedByCoachWhere(coachId)
+
+  const volumeWorkoutSelect = {
+    athleteId: true,
+    date: true,
+    status: true,
+    type: true,
+    selfLogged: true,
+    plannedDistance: true,
+    plannedDuration: true,
+    isRescheduleGhost: true,
+    result: { select: { actualDistance: true, actualDuration: true } },
+  } as const
+
+  const [dashboard, pendingCoach, inboxStats, lastWeekWorkouts, todayWorkoutRows, recentCompletedRows, recentRaceRows] =
+    await Promise.all([
+    getCoachDashboard(coachId),
+    getPendingCoachRequests(coachId),
+    getCoachInboxAthleteStats(coachId),
+    prisma.workout.findMany({
+        where: {
+          athlete: athleteWhere,
+          date: { gte: lastWeekStart, lte: lastWeekEnd },
+          isRescheduleGhost: false,
+        },
+        select: volumeWorkoutSelect,
+      }),
+    prisma.workout.findMany({
+      where: {
+        athlete: athleteWhere,
+        date: today,
+        isRescheduleGhost: false,
+      },
+      include: {
+        ...WORKOUT_PLAN_INCLUDE,
+        athlete: { select: { id: true, name: true, avatarUrl: true, status: true } },
+      },
+      orderBy: WORKOUT_LIST_ORDER_BY,
+    }),
+    prisma.workout.findMany({
+      where: {
+        athlete: athleteWhere,
+        status: { in: [WorkoutStatus.COMPLETED, WorkoutStatus.SKIPPED] },
+        isRescheduleGhost: false,
+        result: { isNot: null },
+      },
+      include: {
+        ...ACTIVITY_FEED_WORKOUT_INCLUDE,
+        athlete: { select: { id: true, name: true, avatarUrl: true } },
+        result: true,
+      },
+      orderBy: { result: { completedAt: 'desc' } },
+      take: 200,
+    }),
+    prisma.race.findMany({
+      where: {
+        athlete: athleteWhere,
+        intent: RaceIntent.PLANNED,
+        resultsLogOnly: false,
+      },
+      include: {
+        athlete: { select: { id: true, name: true, avatarUrl: true } },
+        legs: { orderBy: { sortOrder: 'asc' } },
+      },
+      orderBy: [{ date: 'desc' }],
+      take: 200,
+    }),
+  ])
+
+  const {
+    needsReply,
+    needsReplyByAthlete,
+    chatThreadsByAthlete,
+    feedbackThreadsByAthlete,
+    needsReplyThreads,
+  } = inboxStats
+
+  const athleteIds = dashboard.athletes.map((a) => a.id)
+  await ensureGeneralChatThreads(athleteIds)
+  const generalThreads = await listCoachGeneralChatThreads(coachId)
+  const generalChatByAthlete = new Map<string, CoachRosterChatThread>(
+    generalThreads.map((thread) => [thread.athleteId, buildRosterChatThread(thread)]),
+  )
+
+  const lastWeekWorkoutsByAthlete = groupWorkoutsByAthlete(lastWeekWorkouts)
+  const planningWarningIds = new Set(
+    dashboard.planningWarnings.map((w) => w.athleteId),
+  )
+
+  const todayWorkoutsByAthlete = new Map<string, ReturnType<typeof toPlanWorkoutDetail>[]>()
+  for (const workout of todayWorkoutRows) {
+    const list = todayWorkoutsByAthlete.get(workout.athleteId) ?? []
+    list.push(redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(workout), 'coach'))
+    todayWorkoutsByAthlete.set(workout.athleteId, list)
+  }
+
+  const todayAthletes: CoachHomeTodayAthlete[] = dashboard.athletes
+    .filter((athlete) => athlete.status === AthleteStatus.ACTIVE)
+    .map((athlete) => ({
+      athleteId: athlete.id,
+      athleteName: athlete.name,
+      avatarUrl: athlete.avatarUrl,
+      status: athlete.status,
+      workouts: todayWorkoutsByAthlete.get(athlete.id) ?? [],
+    }))
+
+  const latestFeedback: CoachRosterFeedbackItem[] = []
+  for (const list of feedbackThreadsByAthlete.values()) {
+    latestFeedback.push(...list)
+  }
+  latestFeedback.sort(
+    (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
+  )
+
+  const activityFeed: CoachHomeActivityFeedItem[] = recentCompletedRows.map((workout) => {
+    const kind = workout.status === WorkoutStatus.SKIPPED ? 'skipped' : 'completed'
+    const workoutForDetail = {
+      ...workout,
+      coachingThread: workout.coachingThread
+        ? mapActivityFeedCoachingThread(workout.coachingThread)
+        : null,
+    }
+    return {
+      athleteId: workout.athlete.id,
+      athleteName: workout.athlete.name,
+      avatarUrl: workout.athlete.avatarUrl,
+      activityAt: workout.result!.completedAt.toISOString(),
+      kind,
+      source: kind === 'completed' ? getWorkoutCompletionSource(workout) : null,
+      workout: redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(workoutForDetail), 'coach'),
+      feedbackThread: buildActivityFeedFeedbackThread(workout),
+    }
+  })
+
+  const rosterRows: CoachRosterRow[] = buildCoachRosterRows({
+    athletes: dashboard.athletes.map((a) => ({
+      id: a.id,
+      name: a.name,
+      status: a.status,
+      avatarUrl: a.avatarUrl,
+      races: a.races,
+      workouts: a.workouts,
+    })),
+    lastWeekWorkoutsByAthlete,
+    planningWarningIds,
+    lastPlannedKeyByAthlete: dashboard.lastPlannedKeyByAthlete,
+    needsReplyByAthlete,
+    chatThreadsByAthlete,
+    feedbackThreadsByAthlete,
+    generalChatByAthlete,
+    formatNextRace: (race) => {
+      const d = daysUntil(race.date)
+      return { label: `${race.name} · ${d}d`, days: d }
+    },
+  })
+
+  const avatarByAthlete = new Map(
+    dashboard.athletes.map((a) => [a.id, a.avatarUrl]),
+  )
+
+  const attentionItemsRaw = buildCoachHomeAttentionItems({
+    joinRequests: [],
+    needsReplyThreads,
+    planningWarnings: dashboard.planningWarnings,
+    rosterRows,
+  })
+
+  const coachingRequests = pendingCoach.requests.map((link) => ({
+    id: link.id,
+    createdAt: link.createdAt.toISOString(),
+    athlete: {
+      id: link.athlete.id,
+      name: link.athlete.name,
+      avatarUrl: link.athlete.avatarUrl ?? null,
+    },
+  }))
+
+  const attentionDismissals = await prisma.coachAttentionDismissal.findMany({
+    where: { coachUserId: coachId },
+    select: { itemKey: true, contextAt: true, dismissedAt: true },
+  })
+
+  const attentionItems = filterDismissedCoachHomeAttentionItems(
+    attentionItemsRaw,
+    attentionDismissals.map((row) => ({
+      itemKey: row.itemKey,
+      contextAt: row.contextAt,
+      dismissedAt: row.dismissedAt,
+    })),
+  )
+
+  const planningCoverageRows = buildCoachHomePlanningCoverageRows({
+    rosterRows,
+    planningLeadDays: dashboard.planningLeadDays,
+  }).map((row) => ({
+    ...row,
+    avatarUrl: avatarByAthlete.get(row.athleteId) ?? null,
+  }))
+
+  const needsPlanCount = dashboard.planningWarnings.length
+
+  const activityTableRows = mergeCoachHomeActivityFeed(
+    buildCoachHomeActivityTableRows(activityFeed),
+    buildCoachHomeRaceActivityRows(
+      recentRaceRows.map(
+        (race): CoachHomeRaceFeedSource => ({
+          id: race.id,
+          name: race.name,
+          date: race.date,
+          location: race.location,
+          type: race.type,
+          sport: race.sport,
+          priority: race.priority,
+          outcome: race.outcome,
+          resultTime: race.resultTime,
+          resultPlace: race.resultPlace,
+          resultNotes: race.resultNotes,
+          resultLoggedAt: race.resultLoggedAt,
+          stravaActivityUrl: race.stravaActivityUrl,
+          stravaActivityName: race.stravaActivityName,
+          legs: mapCoachHomeRaceLegs(race.legs),
+          athlete: race.athlete,
+        }),
+      ),
+    ),
+  )
+  const athleteOptions = athleteOptionsFromRoster(rosterRows)
+
+  return {
+    ...dashboard,
+    pendingCoach,
+    needsReply,
+    needsReplyThreads,
+    todayAthletes,
+    activityFeed,
+    latestFeedback: latestFeedback.slice(0, 8),
+    rosterRows,
+    attentionItems,
+    coachingRequests,
+    planningCoverageRows,
+    needsPlanCount,
+    activityTableRows,
+    athleteOptions,
   }
 }
 

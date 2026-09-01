@@ -13,7 +13,7 @@ type PlanWorkoutModalProps = {
   onOpenChange: (open: boolean) => void
 }
 
-/** Plan/training workout modal — coaches land in the editor; athletes get the view modal. */
+/** Plan/training workout modal — coaches edit planned sessions; logged ones open the detail view. */
 export function PlanWorkoutModal({
   workout,
   isCoach,

@@ -12,10 +12,6 @@ import {
 } from '@/lib/plan-sport-filter'
 import { usePlanSportFilter } from '@/components/training/plan-sport-filter-context'
 import { WORKOUT_TYPE_DOT_CLASS } from '@/lib/workout-display'
-import {
-  SegmentedControl,
-  SegmentedControlItem,
-} from '@/components/ui/segmented-control'
 import { cn } from '@/lib/utils'
 
 const VIEW_MODE_OPTIONS: { id: PlanColorMode; label: string }[] = [
@@ -39,27 +35,60 @@ export function ToolbarDivider({ className }: { className?: string }) {
   )
 }
 
-/** Color / Plain / Completion — soft segmented control. */
+const VIEW_MODE_HINTS: Record<PlanColorMode, string> = {
+  sport: 'Tint cards by sport',
+  white: 'White cards with sport accent',
+  completion: 'Green done, muted skipped',
+}
+
+/** Color / Plain / Completion — quiet text toggles (match redesign week toolbar). */
 export function PlanViewModeControl({ className }: { className?: string }) {
   const { colorMode, setColorMode } = usePlanSportFilter()
 
   return (
-    <SegmentedControl
+    <div
+      className={cn('flex shrink-0 items-center gap-0.5', className)}
+      role="group"
       aria-label="View mode"
-      className={cn('shrink-0', className)}
     >
       {VIEW_MODE_OPTIONS.map((opt) => (
-        <SegmentedControlItem
+        <ToolbarTextToggle
           key={opt.id}
-          type="button"
-          active={colorMode === opt.id}
+          pressed={colorMode === opt.id}
           onClick={() => setColorMode(opt.id)}
-          className="px-2.5 sm:px-3"
+          title={VIEW_MODE_HINTS[opt.id]}
         >
           {opt.label}
-        </SegmentedControlItem>
+        </ToolbarTextToggle>
       ))}
-    </SegmentedControl>
+    </div>
+  )
+}
+
+/** Labeled filter cluster — type name + controls (Filter / Layers / View / …). */
+export function ToolbarFilterGroup({
+  label,
+  hint,
+  children,
+  className,
+}: {
+  label: string
+  hint: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div
+      className={cn('flex shrink-0 flex-col gap-0.5', className)}
+      title={hint}
+      role="group"
+      aria-label={label}
+    >
+      <span className="px-1.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground/55">
+        {label}
+      </span>
+      <div className="flex items-center gap-0.5">{children}</div>
+    </div>
   )
 }
 
@@ -153,7 +182,7 @@ export function PlanSportsMenu({ className }: { className?: string }) {
                     setSportVisible(sport, next === true)
                   }
                   onSelect={(e) => e.preventDefault()}
-                  className="cursor-pointer rounded-[4px] px-2 py-1.5 text-xs outline-none data-[highlighted]:bg-muted/60"
+                  className="cursor-pointer rounded-[4px] px-2 py-1.5 text-xs outline-none data-[highlighted]:bg-foreground/[0.04]"
                 >
                   <MenuCheckRow
                     checked={checked}
@@ -206,7 +235,7 @@ export function PlanStatusMenu({ className }: { className?: string }) {
                   setStatusVisible(opt.id, next === true)
                 }
                 onSelect={(e) => e.preventDefault()}
-                className="cursor-pointer rounded-[4px] px-2 py-1.5 text-xs outline-none data-[highlighted]:bg-muted/60"
+                className="cursor-pointer rounded-[4px] px-2 py-1.5 text-xs outline-none data-[highlighted]:bg-foreground/[0.04]"
               >
                 <MenuCheckRow checked={checked} label={opt.label} />
               </DropdownMenu.CheckboxItem>

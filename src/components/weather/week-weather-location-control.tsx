@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 import type { WeatherPlace } from '@/lib/weather/places'
+import { formatWeatherLocationCompact } from '@/lib/weather/places'
 import { WeatherLocationSearch } from '@/components/weather/weather-location-search'
 
 export type WeekWeatherLocation = {
@@ -15,17 +16,16 @@ type WeekWeatherLocationControlProps = {
   location?: WeekWeatherLocation | null
   onSelect: (place: WeatherPlace) => void
   onReset?: () => void
+  /** Prefer panel under the right edge of the trigger (Home header). */
+  align?: 'start' | 'end'
   className?: string
-}
-
-function shortLocationName(name: string) {
-  return name.split(',')[0]?.trim() || name
 }
 
 export function WeekWeatherLocationControl({
   location,
   onSelect,
   onReset,
+  align = 'start',
   className,
 }: WeekWeatherLocationControlProps) {
   const buttonId = useId()
@@ -38,8 +38,10 @@ export function WeekWeatherLocationControl({
     const rect = buttonRef.current?.getBoundingClientRect()
     if (!rect) return
     const width = 260
+    const preferred =
+      align === 'end' ? rect.right - width : rect.left
     const left = Math.min(
-      Math.max(8, rect.left),
+      Math.max(8, preferred),
       Math.max(8, window.innerWidth - width - 8),
     )
     setPos({ top: rect.bottom + 4, left })
@@ -65,10 +67,11 @@ export function WeekWeatherLocationControl({
       window.removeEventListener('resize', onScrollOrResize)
       document.removeEventListener('mousedown', onPointerDown)
     }
-  }, [open])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reposition when open/align
+  }, [open, align])
 
   const label = location?.name
-    ? shortLocationName(location.name)
+    ? formatWeatherLocationCompact(location.name)
     : 'Set location'
 
   return (

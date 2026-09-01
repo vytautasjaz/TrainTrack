@@ -2,10 +2,11 @@
  * Shared table chrome — keep calendar grids and list/data tables consistent.
  *
  * Calendar grids (Week / Month / Season planner timeline):
- * - **shell** / **frame** / **primary header** — charcoal chrome for dense plans
+ * - **shell** / **frame** — 1px `--tt-line` (#ebebeb) outer border, 8px radius (mock week)
+ * - **primary header** — sidebar navy `#2a3144`; weekends `#1e2436`; header dividers white/12
  *
  * Editorial list tables (races, results, PBs):
- * - **data table** — light continuous surface, muted uppercase headers, no heavy box
+ * - **data table** — light framed sheet, soft tinted header, sortable columns
  */
 
 /** Outer frame for div grids (Month calendar). Square; black top, grey bottom. */
@@ -29,11 +30,17 @@ export const TABLE_HEADER_CELL_MUTED = 'tt-table-header-cell-muted'
 /** Full-contrast label on a primary header. */
 export const TABLE_HEADER_CELL_STRONG = 'tt-table-header-cell-strong'
 
-/** Today highlight inside a primary header. */
+/** Today highlight inside a primary header — brand red day head. */
 export const TABLE_HEADER_CELL_TODAY = 'tt-table-header-cell-today'
 
-/** Weekend wash inside a primary header (Month calendar). */
+/** Weekend wash inside a primary header (slightly darker navy). */
 export const TABLE_HEADER_CELL_WEEKEND = 'tt-table-header-cell-weekend'
+
+/** Weekend column body wash (week grid). */
+export const TABLE_CELL_WEEKEND = 'tt-table-cell-weekend'
+
+/** Today column body wash — brand red soft (week grid). */
+export const TABLE_CELL_TODAY = 'tt-table-cell-today'
 
 /** Vertical divider between primary header cells. */
 export const TABLE_HEADER_VLINE = 'tt-table-header-vline'

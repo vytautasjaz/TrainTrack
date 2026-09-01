@@ -10,7 +10,7 @@ import {
   requireAthleteSession,
   requireSession,
   resolveAthleteId,
-  isCoach,
+  isCoachView,
 } from '@/lib/session'
 import { rethrowActionError } from '@/lib/action-error'
 import { builderPayloadSchema } from '@/lib/workout-builder/schema'
@@ -36,9 +36,10 @@ import {
 } from '@/lib/workout-builder/workout-type-prefs'
 import { onTrainingCalendarDataChanged } from '@/lib/calendar-invalidation'
 
+/** Coach workspace actions — match training UI (`isCoachView`), not only COACH role. */
 function requireCoach() {
   return requireSession().then((session) => {
-    if (!isCoach(session)) throw new Error('Coach only')
+    if (!isCoachView(session)) throw new Error('Coach only')
     return session
   })
 }
@@ -87,25 +88,69 @@ export type WorkoutTemplatePickerItem = {
   durationMin: number | null
   notes: string | null
   structure: unknown
+  folderId: string | null
+}
+
+export type WorkoutLibraryFolderPickerItem = {
+  id: string
+  sport: WorkoutType
+  name: string
+}
+
+export async function getCoachLibraryForPicker(): Promise<{
+  templates: WorkoutTemplatePickerItem[]
+  folders: WorkoutLibraryFolderPickerItem[]
+}> {
+  const session = await requireCoach()
+  const [rows, folders] = await Promise.all([
+    prisma.workoutTemplate.findMany({
+      where: { coachId: session.userId },
+      orderBy: { title: 'asc' },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        sessionType: true,
+        description: true,
+        distanceKm: true,
+        durationMin: true,
+        notes: true,
+        structure: true,
+        swimStructure: true,
+        plannedDistanceMeters: true,
+        folderId: true,
+      },
+    }),
+    prisma.workoutTemplateFolder.findMany({
+      where: { coachId: session.userId },
+      orderBy: [{ sport: 'asc' }, { sortOrder: 'asc' }, { name: 'asc' }],
+      select: { id: true, sport: true, name: true },
+    }),
+  ])
+
+  return {
+    folders,
+    templates: rows.map((t) => ({
+      id: t.id,
+      title: t.title,
+      type: t.type,
+      sessionType: t.sessionType,
+      description: t.description,
+      distanceKm:
+        t.type === WorkoutType.SWIM && t.plannedDistanceMeters != null
+          ? t.plannedDistanceMeters / 1000
+          : t.distanceKm,
+      durationMin: t.durationMin,
+      notes: t.notes,
+      structure: t.type === WorkoutType.SWIM ? t.swimStructure : t.structure,
+      folderId: t.folderId,
+    })),
+  }
 }
 
 export async function getCoachTemplatesForPicker(): Promise<WorkoutTemplatePickerItem[]> {
-  const session = await requireCoach()
-  return prisma.workoutTemplate.findMany({
-    where: { coachId: session.userId },
-    orderBy: { title: 'asc' },
-    select: {
-      id: true,
-      title: true,
-      type: true,
-      sessionType: true,
-      description: true,
-      distanceKm: true,
-      durationMin: true,
-      notes: true,
-      structure: true,
-    },
-  })
+  const { templates } = await getCoachLibraryForPicker()
+  return templates
 }
 
 export async function getAthletePreferencesForWorkoutModal() {
@@ -127,7 +172,7 @@ export async function getCoachEditorPrefsForModal(): Promise<{
   sessionOptions: WorkoutTypePrefs
 }> {
   const session = await requireSession()
-  if (!isCoach(session)) {
+  if (!isCoachView(session)) {
     return { builder: {}, sessionOptions: defaultWorkoutTypePrefs() }
   }
   const user = await prisma.user.findUnique({
@@ -593,4 +638,106 @@ export async function saveWorkoutAsTemplate(workoutId: string) {
 
   revalidatePath('/workouts')
   redirect(`/workouts/templates/builder/${template.id}`)
+}
+
+export type SaveWorkoutDraftToLibraryPayload = {
+  title: string
+  description?: string | null
+  sportType: WorkoutType
+  sessionType: SessionType
+  folderId?: string | null
+  durationMin?: number | null
+  distanceKm?: number | null
+  durationSource?: PlannedMetricSource | null
+  distanceSource?: PlannedMetricSource | null
+  notes?: string | null
+  structure?: unknown
+  tags?: string[]
+  /** Swim-specific */
+  swimEnvironment?: import('@prisma/client').SwimEnvironment | null
+  swimStructure?: unknown
+  plannedDistanceMeters?: number | null
+  plannedDistanceMetersSource?: PlannedMetricSource | null
+}
+
+/** Save the current modal draft as a new library template (does not create a plan workout). */
+export async function saveWorkoutDraftToLibrary(
+  payload: SaveWorkoutDraftToLibraryPayload,
+) {
+  const session = await requireCoach()
+  const title = payload.title.trim()
+  if (!title) throw new Error('Title required')
+  if (payload.sportType === WorkoutType.REST) {
+    throw new Error('Cannot save rest days to library')
+  }
+
+  let folderId: string | null = payload.folderId?.trim() || null
+  if (folderId) {
+    const folder = await prisma.workoutTemplateFolder.findFirst({
+      where: {
+        id: folderId,
+        coachId: session.userId,
+        sport: payload.sportType,
+      },
+      select: { id: true },
+    })
+    if (!folder) throw new Error('Folder not found')
+    folderId = folder.id
+  }
+
+  const isSwim = payload.sportType === WorkoutType.SWIM
+  const tags = payload.tags ?? []
+
+  const template = await prisma.workoutTemplate.create({
+    data: {
+      coachId: session.userId,
+      folderId,
+      title,
+      type: payload.sportType,
+      sessionType: payload.sessionType,
+      description: payload.description?.trim() || null,
+      durationMin:
+        payload.durationMin != null && payload.durationMin > 0
+          ? Math.round(payload.durationMin)
+          : null,
+      distanceKm:
+        !isSwim && payload.distanceKm != null && payload.distanceKm > 0
+          ? payload.distanceKm
+          : null,
+      durationSource: payload.durationSource ?? undefined,
+      distanceSource: isSwim ? undefined : (payload.distanceSource ?? undefined),
+      notes: payload.notes?.trim() || null,
+      structure: isSwim
+        ? undefined
+        : payload.structure != null
+          ? (payload.structure as Prisma.InputJsonValue)
+          : undefined,
+      swimEnvironment: isSwim ? (payload.swimEnvironment ?? undefined) : undefined,
+      swimStructure: isSwim
+        ? payload.swimStructure != null
+          ? (payload.swimStructure as Prisma.InputJsonValue)
+          : undefined
+        : undefined,
+      plannedDistanceMeters:
+        isSwim &&
+        payload.plannedDistanceMeters != null &&
+        payload.plannedDistanceMeters > 0
+          ? Math.round(payload.plannedDistanceMeters)
+          : null,
+      plannedDistanceMetersSource: isSwim
+        ? (payload.plannedDistanceMetersSource ?? undefined)
+        : undefined,
+      tags,
+    },
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      folderId: true,
+    },
+  })
+
+  revalidatePath('/workouts')
+  revalidatePath('/training')
+  return template
 }

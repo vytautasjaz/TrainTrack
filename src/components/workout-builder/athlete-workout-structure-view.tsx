@@ -196,6 +196,9 @@ function PhaseBlockRow({
       {block.recoveryNote && !compact ? (
         <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{block.recoveryNote}</p>
       ) : null}
+      {block.notes && !compact ? (
+        <p className="mt-1 text-[11px] leading-snug text-muted-foreground">{block.notes}</p>
+      ) : null}
       {showTimeline && block.intervalPreview ? (
         <IntervalTimeline preview={block.intervalPreview} compact={compact} />
       ) : null}

@@ -20,6 +20,8 @@ type FieldSelectProps = {
   id?: string
   disabled?: boolean
   'aria-label'?: string
+  /** Match compact value+unit shells in the workout builder. */
+  variant?: 'default' | 'shell'
 }
 
 export function FieldSelect({
@@ -31,6 +33,7 @@ export function FieldSelect({
   id,
   disabled,
   'aria-label': ariaLabel,
+  variant = 'default',
 }: FieldSelectProps) {
   const selected = options.find((option) => option.value === value)
 
@@ -40,7 +43,10 @@ export function FieldSelect({
         id={id}
         aria-label={ariaLabel}
         className={cn(
-          'input-field flex items-center justify-between gap-2 text-left',
+          'flex items-center justify-between gap-2 text-left',
+          variant === 'default' && 'input-field',
+          variant === 'shell' &&
+            'h-7 rounded border border-border/70 bg-white px-2 text-xs font-medium shadow-none outline-none focus-visible:ring-0',
           className,
         )}
       >
@@ -49,7 +55,12 @@ export function FieldSelect({
           <SelectPrimitive.Value placeholder={placeholder} />
         </span>
         <SelectPrimitive.Icon asChild>
-          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <ChevronDown
+            className={cn(
+              'shrink-0 text-muted-foreground',
+              variant === 'shell' ? 'h-3 w-3 text-muted-foreground/80' : 'h-4 w-4',
+            )}
+          />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
@@ -63,7 +74,7 @@ export function FieldSelect({
               <SelectPrimitive.Item
                 key={option.value}
                 value={option.value}
-                className="relative flex cursor-pointer select-none items-center gap-2 rounded-md py-2 pl-3 pr-3 text-sm outline-none data-[highlighted]:bg-muted/60 data-[state=checked]:font-medium"
+                className="relative flex cursor-pointer select-none items-center gap-2 rounded-md py-2 pl-3 pr-3 text-sm outline-none data-[highlighted]:bg-foreground/[0.04] data-[state=checked]:font-medium"
               >
                 <span className="flex h-4 w-4 shrink-0 items-center justify-center">
                   <SelectPrimitive.ItemIndicator>

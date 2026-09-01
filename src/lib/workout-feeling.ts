@@ -1,6 +1,5 @@
 export const WORKOUT_FEELING_MIN = 1
 export const WORKOUT_FEELING_MAX = 10
-export const WORKOUT_FEELING_DEFAULT = 5
 
 export type WorkoutFeelingTone = 'bad' | 'ok' | 'good'
 

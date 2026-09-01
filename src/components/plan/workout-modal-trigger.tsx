@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from 'react'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import { prefetchWorkoutCoachingThread } from '@/lib/coaching-thread-prefetch'
 import { PlanWorkoutModal } from '@/components/plan/plan-workout-modal'
 import { cn } from '@/lib/utils'
 
@@ -86,6 +87,7 @@ export function WorkoutModalTrigger({
   }
 
   function handlePointerDown(e: React.PointerEvent) {
+    prefetchWorkoutCoachingThread(workout.id)
     openedThisGestureRef.current = false
     if (isNestedControlTarget(e.target)) {
       pointerDownRef.current = null

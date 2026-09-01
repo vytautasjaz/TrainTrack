@@ -1,5 +1,3 @@
-import { Prisma } from '@prisma/client'
-
 export type ActionErrorCode =
   | 'UNAUTHORIZED'
   | 'FORBIDDEN'
@@ -33,10 +31,19 @@ function looksLikeInternalMessage(message: string): boolean {
   return INTERNAL_MESSAGE_PATTERNS.some((pattern) => pattern.test(message))
 }
 
+/** Duck-type Prisma known request errors — avoids `instanceof` (breaks when Prisma is client-bundled). */
 export function isPrismaKnownRequestError(
   error: unknown,
-): error is Prisma.PrismaClientKnownRequestError {
-  return error instanceof Prisma.PrismaClientKnownRequestError
+): error is Error & { code: string } {
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as { name?: unknown; code?: unknown }
+  return (
+    typeof candidate.code === 'string' &&
+    /^P\d{4}$/.test(candidate.code) &&
+    (candidate.name === 'PrismaClientKnownRequestError' ||
+      // Some bundlers strip/alter `.name`; accept P-code + Error shape.
+      error instanceof Error)
+  )
 }
 
 export function mapPrismaError(error: unknown): ActionError | null {

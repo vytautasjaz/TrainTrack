@@ -106,7 +106,9 @@ export function AccountProfileSection({
           <p className="mt-0.5 font-semibold tracking-wide text-foreground">
             {coachingCode}
           </p>
-          <Caption className="mt-1">Share this code so athletes can connect to you.</Caption>
+          <Caption className="mt-1">
+            Share this code, or use Invite athlete below for a ready-made link.
+          </Caption>
         </div>
       ) : null}
 

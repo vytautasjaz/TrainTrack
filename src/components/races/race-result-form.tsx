@@ -17,6 +17,7 @@ type RaceResultFormProps = {
   raceType: RaceType
   outcome: RaceOutcome | null
   resultTime: string | null
+  resultPlace: string | null
   resultNotes: string | null
   legs: RaceLegView[]
   allowStravaLink: boolean
@@ -27,6 +28,7 @@ export function RaceResultForm({
   raceType,
   outcome,
   resultTime,
+  resultPlace,
   resultNotes,
   legs,
   allowStravaLink,
@@ -62,14 +64,24 @@ export function RaceResultForm({
             <option value={RaceOutcome.DNF}>DNF</option>
           </Select>
         </FormField>
-        <FormField label="Overall result" hint="e.g. 3:27:16">
-          <Input
-            name="resultTime"
-            defaultValue={resultTime ?? ''}
-            placeholder="3:27:16"
-            autoComplete="off"
-          />
-        </FormField>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Finish time" hint="e.g. 3:27:16">
+            <Input
+              name="resultTime"
+              defaultValue={resultTime ?? ''}
+              placeholder="3:27:16"
+              autoComplete="off"
+            />
+          </FormField>
+          <FormField label="Place" hint="Optional">
+            <Input
+              name="resultPlace"
+              defaultValue={resultPlace ?? ''}
+              placeholder="12th"
+              autoComplete="off"
+            />
+          </FormField>
+        </div>
         {raceUsesLegs(raceType) && legs.length > 0 ? (
           <RaceLegsResultFields
             raceId={raceId}

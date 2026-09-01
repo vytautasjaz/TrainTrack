@@ -44,8 +44,43 @@ function metersToKm(meters: number): number {
   return Math.round((meters / 1000) * 100) / 100
 }
 
+/** Convert Strava seconds → minutes. Keeps second precision (26:03 → 26.05). */
 function secondsToMinutes(seconds: number): number {
+  const sec = Math.max(0, Math.round(seconds))
+  return sec / 60
+}
+
+/** Whole minutes for Int columns (race legs, previews that expect integers). */
+function secondsToWholeMinutes(seconds: number): number {
   return Math.max(1, Math.round(seconds / 60))
+}
+
+function optionalFinite(value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null
+  return value
+}
+
+/** Persistable Strava extras beyond distance/duration (for display + future use). */
+function stravaMetricsFromActivity(activity: StravaActivity) {
+  const summaryPolyline = activity.map?.summary_polyline?.trim() || null
+  return {
+    averageHeartrate: optionalFinite(activity.average_heartrate),
+    maxHeartrate: optionalFinite(activity.max_heartrate),
+    averageSpeedMps: optionalFinite(activity.average_speed),
+    maxSpeedMps: optionalFinite(activity.max_speed),
+    elevationGainM: optionalFinite(activity.total_elevation_gain),
+    sufferScore:
+      activity.suffer_score != null && Number.isFinite(activity.suffer_score)
+        ? Math.round(activity.suffer_score)
+        : null,
+    averageCadence: optionalFinite(activity.average_cadence),
+    kilojoules: optionalFinite(activity.kilojoules),
+    calories: optionalFinite(activity.calories),
+    averageWatts: optionalFinite(
+      activity.average_watts ?? activity.weighted_average_watts,
+    ),
+    summaryPolyline,
+  }
 }
 
 function isValidDateKey(value: string): boolean {
@@ -143,12 +178,34 @@ async function applyActivityToWorkout(
   const durationMin = secondsToMinutes(activity.moving_time || activity.elapsed_time)
   const activityName = activity.name?.trim() || null
 
-  // List summaries omit description — fetch detail only when we matched a workout.
+  // List summaries omit description / calories / sometimes map — fetch detail when needed.
   let activityDescription = activity.description?.trim() || null
-  if (!activityDescription) {
+  let detailedCalories = optionalFinite(activity.calories)
+  let summaryPolyline = activity.map?.summary_polyline?.trim() || null
+  if (!activityDescription || detailedCalories == null || !summaryPolyline) {
     try {
       const detailed = await fetchStravaActivity(accessToken, activity.id)
-      activityDescription = detailed.description?.trim() || null
+      activityDescription = activityDescription || detailed.description?.trim() || null
+      detailedCalories = detailedCalories ?? optionalFinite(detailed.calories)
+      summaryPolyline =
+        summaryPolyline || detailed.map?.summary_polyline?.trim() || null
+      // Prefer richer metrics from the detailed payload when present.
+      Object.assign(activity, {
+        average_heartrate: activity.average_heartrate ?? detailed.average_heartrate,
+        max_heartrate: activity.max_heartrate ?? detailed.max_heartrate,
+        average_speed: activity.average_speed ?? detailed.average_speed,
+        max_speed: activity.max_speed ?? detailed.max_speed,
+        total_elevation_gain:
+          activity.total_elevation_gain ?? detailed.total_elevation_gain,
+        average_cadence: activity.average_cadence ?? detailed.average_cadence,
+        kilojoules: activity.kilojoules ?? detailed.kilojoules,
+        average_watts: activity.average_watts ?? detailed.average_watts,
+        weighted_average_watts:
+          activity.weighted_average_watts ?? detailed.weighted_average_watts,
+        suffer_score: activity.suffer_score ?? detailed.suffer_score,
+        calories: activity.calories ?? detailed.calories,
+        map: activity.map?.summary_polyline ? activity.map : detailed.map,
+      })
     } catch (err) {
       console.warn('Strava activity detail fetch skipped:', err)
     }
@@ -168,6 +225,13 @@ async function applyActivityToWorkout(
     (existingNotes === activityName ||
       (Boolean(activityDescription) && existingNotes === activityDescription))
 
+  const metrics = {
+    ...stravaMetricsFromActivity(activity),
+    calories: detailedCalories ?? optionalFinite(activity.calories),
+    summaryPolyline:
+      summaryPolyline || stravaMetricsFromActivity(activity).summaryPolyline,
+  }
+
   await prisma.workoutResult.upsert({
     where: { workoutId },
     create: {
@@ -179,6 +243,7 @@ async function applyActivityToWorkout(
       stravaActivityUrl: stravaActivityUrl(activity.id),
       stravaActivityName: activityName,
       stravaActivityDescription: activityDescription,
+      ...metrics,
       completedAt: new Date(activity.start_date),
     },
     update: {
@@ -189,6 +254,7 @@ async function applyActivityToWorkout(
       stravaActivityUrl: stravaActivityUrl(activity.id),
       stravaActivityName: activityName,
       stravaActivityDescription: activityDescription,
+      ...metrics,
       completedAt: new Date(activity.start_date),
       ...(clearAutoCopiedNotes ? { athleteNotes: null } : {}),
     },
@@ -246,23 +312,70 @@ export async function syncStravaActivitiesForUser(
       where: { stravaActivityId: String(activity.id) },
     })
     if (existing) {
-      // Backfill description for previously synced activities (list API omits it).
-      if (!existing.stravaActivityDescription?.trim()) {
+      // Backfill description / metrics / GPS / second-precise duration for previously synced activities.
+      const needsDescription = !existing.stravaActivityDescription?.trim()
+      const needsMetrics = existing.averageHeartrate == null && existing.averageSpeedMps == null
+      const needsPolyline = !existing.summaryPolyline?.trim()
+      const durationMin = secondsToMinutes(activity.moving_time || activity.elapsed_time)
+      const needsDurationPrecision =
+        existing.actualDuration == null ||
+        Number.isInteger(existing.actualDuration)
+      if (needsDescription || needsMetrics || needsPolyline || needsDurationPrecision) {
         try {
-          const detailed = await fetchStravaActivity(accessToken, activity.id)
-          const description = detailed.description?.trim() || null
-          if (description) {
-            await prisma.workoutResult.update({
-              where: { id: existing.id },
-              data: {
-                stravaActivityDescription: description,
-                stravaActivityName:
-                  existing.stravaActivityName?.trim() || detailed.name?.trim() || null,
-              },
-            })
-          }
+          const detailed =
+            needsDescription || needsPolyline
+              ? await fetchStravaActivity(accessToken, activity.id)
+              : activity
+          const description =
+            existing.stravaActivityDescription?.trim() ||
+            detailed.description?.trim() ||
+            null
+          const metrics = stravaMetricsFromActivity({
+            ...activity,
+            ...detailed,
+            map: detailed.map ?? activity.map,
+          })
+          const preciseDuration = secondsToMinutes(
+            detailed.moving_time ||
+              detailed.elapsed_time ||
+              activity.moving_time ||
+              activity.elapsed_time,
+          )
+          await prisma.workoutResult.update({
+            where: { id: existing.id },
+            data: {
+              ...(description ? { stravaActivityDescription: description } : {}),
+              stravaActivityName:
+                existing.stravaActivityName?.trim() ||
+                detailed.name?.trim() ||
+                activity.name?.trim() ||
+                null,
+              ...(needsDurationPrecision ? { actualDuration: preciseDuration || durationMin } : {}),
+              ...(needsPolyline && metrics.summaryPolyline
+                ? { summaryPolyline: metrics.summaryPolyline }
+                : {}),
+              ...(needsMetrics
+                ? {
+                    averageHeartrate:
+                      existing.averageHeartrate ?? metrics.averageHeartrate,
+                    maxHeartrate: existing.maxHeartrate ?? metrics.maxHeartrate,
+                    averageSpeedMps:
+                      existing.averageSpeedMps ?? metrics.averageSpeedMps,
+                    maxSpeedMps: existing.maxSpeedMps ?? metrics.maxSpeedMps,
+                    elevationGainM:
+                      existing.elevationGainM ?? metrics.elevationGainM,
+                    sufferScore: existing.sufferScore ?? metrics.sufferScore,
+                    averageCadence:
+                      existing.averageCadence ?? metrics.averageCadence,
+                    kilojoules: existing.kilojoules ?? metrics.kilojoules,
+                    calories: existing.calories ?? metrics.calories,
+                    averageWatts: existing.averageWatts ?? metrics.averageWatts,
+                  }
+                : {}),
+            },
+          })
         } catch (err) {
-          console.warn('Strava description backfill skipped:', err)
+          console.warn('Strava activity backfill skipped:', err)
         }
       }
       skipped += 1
@@ -416,6 +529,17 @@ export async function unlinkStravaFromWorkoutForAthlete(
         stravaActivityUrl: null,
         stravaActivityName: null,
         stravaActivityDescription: null,
+        averageHeartrate: null,
+        maxHeartrate: null,
+        averageSpeedMps: null,
+        maxSpeedMps: null,
+        elevationGainM: null,
+        sufferScore: null,
+        averageCadence: null,
+        kilojoules: null,
+        calories: null,
+        averageWatts: null,
+        summaryPolyline: null,
         actualDistance: null,
         actualDuration: null,
         logType: null,
@@ -692,7 +816,7 @@ function stravaFieldsFromActivity(activity: StravaActivity) {
     stravaActivityName: activity.name?.trim() || null,
     resultTime: formatElapsedClock(elapsed),
     actualDistanceKm: activity.distance > 0 ? metersToKm(activity.distance) : null,
-    actualDurationMin: secondsToMinutes(elapsed),
+    actualDurationMin: secondsToWholeMinutes(elapsed),
   }
 }
 

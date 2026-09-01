@@ -43,7 +43,7 @@ export async function RoleSwitcher({
           : 'flex flex-wrap items-center justify-end gap-2 text-sm',
       )}
     >
-      {isSidebar && <p className="px-1 text-label">Account</p>}
+      {isSidebar && <p className="px-1 text-label">Demo / account</p>}
 
       <Badge className={cn('bg-brand-soft text-brand', isSidebar && 'w-fit')}>
         {roleLabel}

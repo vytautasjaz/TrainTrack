@@ -1,6 +1,6 @@
 'use client'
 
-import { useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, X, CalendarClock } from 'lucide-react'
 import {
@@ -12,6 +12,7 @@ import {
   isRescheduledWorkout,
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
+import { toUserMessage } from '@/lib/action-error'
 import { cn } from '@/lib/utils'
 
 export function needsCoachRescheduleReview(workout: PlanWorkoutDetail): boolean {
@@ -35,14 +36,20 @@ export function CoachRescheduleReviewActions({
 }: CoachRescheduleReviewActionsProps) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   const label = getRescheduleBadgeLabel(workout)
 
   if (!isCoach || !needsCoachRescheduleReview(workout)) return null
 
   function run(action: (id: string) => Promise<void>) {
+    setError(null)
     startTransition(async () => {
-      await action(workout.id)
-      router.refresh()
+      try {
+        await action(workout.id)
+        router.refresh()
+      } catch (err) {
+        setError(toUserMessage(err, 'Could not update reschedule'))
+      }
     })
   }
 
@@ -51,7 +58,7 @@ export function CoachRescheduleReviewActions({
       <button
         type="button"
         disabled={pending}
-        title="Accept move — remove ghost"
+        title={error ?? 'Accept move — remove ghost'}
         aria-label="Accept reschedule"
         onClick={() => run(acceptAthleteReschedule)}
         className={cn(
@@ -67,7 +74,7 @@ export function CoachRescheduleReviewActions({
       <button
         type="button"
         disabled={pending}
-        title="Reject move — restore original day"
+        title={error ?? 'Reject move — restore original day'}
         aria-label="Reject reschedule"
         onClick={() => run(rejectAthleteReschedule)}
         className={cn(
@@ -87,7 +94,7 @@ export function CoachRescheduleReviewActions({
     return (
       <div
         className={cn(
-          'flex max-w-full items-center gap-1.5 overflow-hidden rounded-md border border-amber-500/30 bg-amber-50/95 p-0.5 shadow-sm dark:bg-amber-950/80',
+          'flex max-w-full flex-col gap-0.5 overflow-hidden rounded-md border border-amber-500/30 bg-amber-50/95 p-0.5 shadow-sm dark:bg-amber-950/80',
           className,
         )}
         onClick={(e) => {
@@ -96,16 +103,23 @@ export function CoachRescheduleReviewActions({
         }}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {label ? (
-          <span
-            className="inline-flex min-w-0 items-center gap-1 overflow-hidden px-1 text-[9px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300"
-            title={label}
-          >
-            <CalendarClock className="h-2.5 w-2.5 shrink-0" strokeWidth={2} aria-hidden />
-            <span className="min-w-0 truncate">{label}</span>
-          </span>
+        <div className="flex max-w-full items-center gap-1.5 overflow-hidden">
+          {label ? (
+            <span
+              className="inline-flex min-w-0 items-center gap-1 overflow-hidden px-1 text-[9px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300"
+              title={label}
+            >
+              <CalendarClock className="h-2.5 w-2.5 shrink-0" strokeWidth={2} aria-hidden />
+              <span className="min-w-0 truncate">{label}</span>
+            </span>
+          ) : null}
+          {buttons}
+        </div>
+        {error ? (
+          <p className="px-1 pb-0.5 text-[9px] font-medium leading-snug text-red-600 dark:text-red-400">
+            {error}
+          </p>
         ) : null}
-        {buttons}
       </div>
     )
   }
@@ -118,6 +132,7 @@ export function CoachRescheduleReviewActions({
         className,
       )}
       data-review-footer="true"
+      title={error ?? undefined}
       onClick={(e) => {
         e.preventDefault()
         e.stopPropagation()
@@ -127,10 +142,10 @@ export function CoachRescheduleReviewActions({
       {label ? (
         <span
           className="inline-flex min-w-0 items-center gap-1 overflow-hidden text-[8px] font-semibold uppercase leading-none tracking-wide text-muted-foreground"
-          title={label}
+          title={error ?? label}
         >
           <CalendarClock className="h-2.5 w-2.5 shrink-0" strokeWidth={2} aria-hidden />
-          <span className="min-w-0 truncate">{label}</span>
+          <span className="min-w-0 truncate">{error ?? label}</span>
         </span>
       ) : (
         <span />

@@ -11,10 +11,9 @@ import { progressiveMidpointTarget } from './progressive'
 import { hasStructureContent } from './utils'
 import {
   INCLUDE_PLACEMENT_LABELS,
-  INCLUDE_PLACEMENT_SPLIT,
-  INCLUDE_PLACEMENTS,
   normalizeIncludePlacement,
 } from './include-placement'
+import { parsePaceMinPerKm } from '@/lib/athlete-preferences'
 
 export type StructureChartSegmentKind =
   | 'warmup'
@@ -31,8 +30,19 @@ export type StructureChartSegment = {
   intensity: number
 }
 
+/** One workout block as a contiguous chart region (may contain many stripes). */
+export type StructureChartBlockGroup = {
+  id: string
+  /** Index in flattenStructure order (warmup → main → cooldown). */
+  index: number
+  segments: StructureChartSegment[]
+  weight: number
+}
+
 export type StructureChartModel = {
   segments: StructureChartSegment[]
+  /** Present when chart regions map 1:1 to reorderable blocks. */
+  blocks: StructureChartBlockGroup[] | null
   caption: string
 }
 
@@ -40,61 +50,135 @@ const MAX_INTERVAL_STRIPES = 24
 const MAX_PROGRESSIVE_STEPS = 16
 const MIN_PROGRESSIVE_STEPS = 4
 
+/** Defaults when no target text is set — kept clearly stepped. */
 const KIND_INTENSITY: Record<StructureChartSegmentKind, number> = {
   rest: 0.14,
-  recovery: 0.28,
-  easy: 0.38,
-  cooldown: 0.34,
-  warmup: 0.44,
-  work: 0.88,
+  recovery: 0.26,
+  easy: 0.36,
+  cooldown: 0.32,
+  warmup: 0.4,
+  work: 0.78,
 }
 
-function parsePaceMinPerKm(raw: string): number | null {
-  const match = raw.trim().match(/(\d+):(\d{1,2})\s*\/?\s*km?/i)
-  if (!match) return null
-  const minutes = parseInt(match[1], 10)
-  const seconds = parseInt(match[2], 10)
-  if (Number.isNaN(minutes) || Number.isNaN(seconds)) return null
-  return minutes + seconds / 60
-}
-
+/**
+ * Map clock pace (min/km) → chart height.
+ * Slow / easy paces stay low; threshold+ paces climb toward the top.
+ */
 function paceToIntensity(minPerKm: number): number {
   if (minPerKm <= 3.5) return 0.96
-  if (minPerKm <= 4.25) return 0.84
-  if (minPerKm <= 5) return 0.68
-  if (minPerKm <= 5.75) return 0.54
-  if (minPerKm <= 6.5) return 0.42
-  return 0.3
+  if (minPerKm <= 4.0) return 0.9
+  if (minPerKm <= 4.5) return 0.82
+  if (minPerKm <= 5.0) return 0.68
+  if (minPerKm <= 5.5) return 0.54
+  if (minPerKm <= 6.0) return 0.42
+  if (minPerKm <= 6.75) return 0.32
+  return 0.24
+}
+
+/** Named effort / zone labels → height (harder patterns first). */
+function intensityFromKeywords(raw: string): number | null {
+  const value = raw.toLowerCase().trim()
+  if (!value) return null
+
+  if (/\b(vo\s*2|vo₂|v\.?o\.?\s*2|max|sprint|all[-\s]?out)\b/.test(value)) {
+    return 0.96
+  }
+  if (/\bz\s*5\b|zone\s*5/.test(value)) return 0.95
+  if (/\b(hard|race|5k|10k|interval)\b/.test(value)) return 0.9
+  if (/\bz\s*4\b|zone\s*4|\b(threshold|critical|css)\b/.test(value)) return 0.82
+  if (/\bz\s*3\b|zone\s*3|\b(tempo|sweet\s*spot|moderate|marathon)\b/.test(value)) {
+    return 0.64
+  }
+  if (/\bz\s*2\b|zone\s*2|\b(easy|endurance|aerobic)\b/.test(value)) return 0.38
+  if (
+    /\bz\s*1\b|zone\s*1|\b(recovery|recover|jog|walk|stand|standing)\b/.test(value)
+  ) {
+    return 0.26
+  }
+  return null
+}
+
+function intensityFromSingleTarget(target: Target): number | null {
+  const raw = (target.value ?? '').trim()
+  const value = raw.toLowerCase()
+
+  // Explicit zones (Z1–Z5) — strongest signal for height.
+  const zoneMatch = value.match(/^z\s*([1-5])$/) ?? value.match(/^zone\s*([1-5])$/)
+  if (zoneMatch || target.type === 'heartRateZone') {
+    const zone = parseInt((zoneMatch?.[1] ?? value.replace(/\D/g, '')).slice(0, 1), 10)
+    if (zone >= 1 && zone <= 5) {
+      return [0.26, 0.38, 0.64, 0.82, 0.95][zone - 1]!
+    }
+  }
+
+  const fromKeywords = intensityFromKeywords(raw)
+  if (fromKeywords != null) return fromKeywords
+
+  // Numeric RPE 1–10
+  if (target.type === 'rpe') {
+    const rpe = parseFloat(value)
+    if (!Number.isNaN(rpe) && rpe > 0) {
+      return Math.min(0.98, Math.max(0.18, rpe / 10))
+    }
+  }
+
+  // Clock pace: "4:30", "4:30/km", m:ss
+  if (
+    target.type === 'pace' ||
+    /\/\s*km/i.test(raw) ||
+    /^\d{1,2}:\d{1,2}/.test(raw)
+  ) {
+    const pace = parsePaceMinPerKm(raw)
+    if (pace != null) return paceToIntensity(pace)
+  }
+
+  // Bike watts
+  if (target.type === 'power') {
+    const watts = parseFloat(value.replace(/[^\d.]/g, ''))
+    if (!Number.isNaN(watts) && watts > 0) {
+      if (watts >= 320) return 0.96
+      if (watts >= 280) return 0.9
+      if (watts >= 240) return 0.82
+      if (watts >= 200) return 0.64
+      if (watts >= 160) return 0.42
+      return 0.3
+    }
+  }
+
+  // % FTP
+  if (target.type === 'powerZone') {
+    const pct = parseFloat(value.replace(/[^\d.]/g, ''))
+    if (!Number.isNaN(pct) && pct > 0) {
+      if (pct >= 110) return 0.96
+      if (pct >= 100) return 0.9
+      if (pct >= 90) return 0.82
+      if (pct >= 75) return 0.64
+      if (pct >= 60) return 0.42
+      return 0.28
+    }
+  }
+
+  // Heart rate bpm (rough bands)
+  if (target.type === 'heartRate') {
+    const hr = parseFloat(value.replace(/[^\d.]/g, ''))
+    if (!Number.isNaN(hr) && hr > 40) {
+      if (hr >= 175) return 0.92
+      if (hr >= 165) return 0.8
+      if (hr >= 150) return 0.64
+      if (hr >= 135) return 0.42
+      return 0.28
+    }
+  }
+
+  return null
 }
 
 function intensityFromTargets(targets?: Target[]): number | null {
   if (!targets?.length) return null
-
   for (const target of targets) {
-    const value = (target.value ?? '').toLowerCase()
-
-    if (target.type === 'rpe') {
-      const rpe = parseInt(value, 10)
-      if (!Number.isNaN(rpe)) return Math.min(0.98, Math.max(0.15, rpe / 10))
-    }
-
-    if (target.type === 'heartRateZone' || /^z\s*[1-5]$/i.test(value.trim())) {
-      const zone = parseInt(value.replace(/\D/g, ''), 10)
-      if (zone >= 1 && zone <= 5) return [0.3, 0.45, 0.62, 0.8, 0.95][zone - 1]!
-    }
-
-    if (target.type === 'pace' || value.includes('/km') || value.includes('km')) {
-      const pace = parsePaceMinPerKm(target.value ?? '')
-      if (pace != null) return paceToIntensity(pace)
-    }
-
-    if (value.includes('vo2') || value.includes('interval') || value.includes('5k pace')) return 0.94
-    if (value.includes('threshold') || value.includes('tempo') || value.includes('z4')) return 0.78
-    if (value.includes('marathon') || value.includes('z3')) return 0.62
-    if (value.includes('easy') || value.includes('z2')) return 0.4
-    if (value.includes('recovery') || value.includes('z1')) return 0.28
+    const intensity = intensityFromSingleTarget(target)
+    if (intensity != null) return intensity
   }
-
   return null
 }
 
@@ -146,8 +230,10 @@ function segmentKindForBlock(
   block: WorkoutBlock,
   section: 'warmup' | 'mainSet' | 'cooldown',
 ): StructureChartSegmentKind {
-  if (section === 'warmup') return 'warmup'
-  if (section === 'cooldown') return 'cooldown'
+  const name = (block.name ?? '').toLowerCase()
+  // Flat builder stores all blocks in mainSet — name still marks bookends.
+  if (section === 'warmup' || name.includes('warm')) return 'warmup'
+  if (section === 'cooldown' || name.includes('cool')) return 'cooldown'
   if (block.type === 'REST') return 'rest'
   if (block.type === 'RECOVERY' || targetLooksEasy(block)) return 'easy'
   if (block.type === 'FREE_TEXT') return 'easy'
@@ -164,11 +250,39 @@ function intensityForKind(
     const fromMid = intensityFromTargets(mid ? [mid] : block.targets)
     if (fromMid != null) return fromMid
   }
+
+  // Prefer primary (work) target so Easy / Z1 / pace drive column height.
+  const primary = block?.targets?.[0]
+  const fromPrimary = primary ? intensityFromSingleTarget(primary) : null
+  if (fromPrimary != null && kind !== 'recovery' && kind !== 'rest') {
+    return fromPrimary
+  }
+
   const fromTargets = block ? intensityFromTargets(block.targets) : null
   if (fromTargets != null && kind !== 'recovery' && kind !== 'rest') {
     return fromTargets
   }
+
+  // Unspecified continuous effort should not look like hard intervals.
+  if (kind === 'work' && block?.type === 'CONTINUOUS') return KIND_INTENSITY.easy
   return KIND_INTENSITY[kind]
+}
+
+/** Representative 0–1 effort for a whole block (builder rail + chart alignment). */
+export function resolveBlockIntensity(
+  block: WorkoutBlock,
+  section: 'warmup' | 'mainSet' | 'cooldown' = 'mainSet',
+): number {
+  if (block.type === 'INTERVAL') {
+    const kind = segmentKindForBlock(block, section)
+    return intensityForKind(kind, block)
+  }
+  if (block.type === 'PROGRESSIVE') {
+    const { start, end } = progressiveIntensityRange(block)
+    return (start + end) / 2
+  }
+  const kind = segmentKindForBlock(block, section)
+  return intensityForKind(kind, block)
 }
 
 /** Start → end intensity for progressive ramp chart (0–1). */
@@ -248,9 +362,17 @@ function expandProgressiveBlock(
 }
 
 function recoveryIntensity(block: WorkoutBlock): number {
+  const restTarget = block.targets?.[1]
+  const fromTarget = restTarget ? intensityFromSingleTarget(restTarget) : null
+  // Use the rest target as-is so matching work/rest paces land at similar heights.
+  // Only fall back to soft recovery defaults when no intensity is set.
+  if (fromTarget != null) return fromTarget
+
   const description = block.recovery?.description?.toLowerCase() ?? ''
   if (description.includes('walk') || description.includes('stand')) return 0.16
   if (description.includes('jog') || description.includes('easy')) return 0.26
+  const fromDescription = intensityFromKeywords(description)
+  if (fromDescription != null) return fromDescription
   return KIND_INTENSITY.recovery
 }
 
@@ -363,52 +485,46 @@ function buildIncludeChart(
 ): StructureChartModel | null {
   if (items.length === 0) return null
 
-  const grouped = Object.fromEntries(
-    INCLUDE_PLACEMENTS.map((placement) => [placement, [] as WorkoutIncludeItem[]]),
-  ) as Record<(typeof INCLUDE_PLACEMENTS)[number], WorkoutIncludeItem[]>
-
-  for (const item of items) {
-    grouped[normalizeIncludePlacement(item.placementHint)].push(item)
-  }
-
-  const includeWeight = items.reduce((sum, item) => {
-    const { work, recovery } = includeItemMinutes(item)
-    return sum + Math.max(1, item.repetitions) * (work + recovery)
-  }, 0)
-
-  const planned = durationMinutes && durationMinutes > 0 ? durationMinutes : 0
-  const easyTotal = Math.max(planned - includeWeight, includeWeight * 2.2, 24)
-
-  const segments: StructureChartSegment[] = []
-  let cursor = 0
-
-  for (const placement of INCLUDE_PLACEMENTS) {
-    const slotItems = grouped[placement]
-    const at = INCLUDE_PLACEMENT_SPLIT[placement]
-    if (slotItems.length === 0) continue
-
-    if (at > cursor) {
-      segments.push({
-        kind: 'warmup',
-        weight: (at - cursor) * easyTotal,
-        intensity: BASE_INTENSITY,
-      })
-      cursor = at
-    }
-    for (const item of slotItems) {
-      segments.push(...expandIncludeItem(item))
-    }
-  }
-
-  if (cursor < 1) {
-    segments.push({
-      kind: 'warmup',
-      weight: (1 - cursor) * easyTotal,
-      intensity: BASE_INTENSITY,
+  // Editor / list order: one draggable region per include item (same order as the list).
+  const blocks: StructureChartBlockGroup[] = []
+  for (let index = 0; index < items.length; index++) {
+    const item = items[index]!
+    const itemSegments = expandIncludeItem(item)
+    if (itemSegments.length === 0) continue
+    const weight = itemSegments.reduce((sum, segment) => sum + segment.weight, 0)
+    blocks.push({
+      id: item.id,
+      index,
+      segments: itemSegments,
+      weight: Math.max(weight, 0.15),
     })
   }
 
-  return { segments, caption: includeCaption(items) }
+  if (blocks.length === 0) return null
+
+  const includeWeight = blocks.reduce((sum, block) => sum + block.weight, 0)
+  const planned = durationMinutes && durationMinutes > 0 ? durationMinutes : 0
+  const easyPad = Math.max(planned - includeWeight, includeWeight * 0.35, 8)
+
+  // Soft easy bookends for silhouette context (not reorderable).
+  const lead: StructureChartSegment = {
+    kind: 'easy',
+    weight: easyPad * 0.45,
+    intensity: BASE_INTENSITY,
+  }
+  const trail: StructureChartSegment = {
+    kind: 'easy',
+    weight: easyPad * 0.55,
+    intensity: BASE_INTENSITY,
+  }
+
+  const segments = [lead, ...blocks.flatMap((block) => block.segments), trail]
+
+  return {
+    segments,
+    blocks,
+    caption: includeCaption(items),
+  }
 }
 
 export function buildStructureChart(
@@ -418,23 +534,42 @@ export function buildStructureChart(
   if (!structure) return null
 
   if (hasStructureContent(structure)) {
-    const segments: StructureChartSegment[] = []
+    const blocks: StructureChartBlockGroup[] = []
+    let index = 0
+
+    const pushBlock = (
+      block: WorkoutBlock,
+      section: 'warmup' | 'mainSet' | 'cooldown',
+    ) => {
+      const segments = expandBlock(block, section)
+      if (segments.length === 0) return
+      const weight = segments.reduce((sum, segment) => sum + segment.weight, 0)
+      blocks.push({
+        id: block.id,
+        index,
+        segments,
+        weight,
+      })
+      index += 1
+    }
 
     for (const block of structure.warmup) {
-      segments.push(...expandBlock(block, 'warmup'))
+      pushBlock(block, 'warmup')
     }
     for (const block of structure.mainSet) {
-      segments.push(...expandBlock(block, 'mainSet'))
+      pushBlock(block, 'mainSet')
     }
     for (const block of structure.cooldown) {
-      segments.push(...expandBlock(block, 'cooldown'))
+      pushBlock(block, 'cooldown')
     }
 
+    const segments = blocks.flatMap((block) => block.segments)
     const totalWeight = segments.reduce((sum, segment) => sum + segment.weight, 0)
     if (totalWeight <= 0) return null
 
     return {
       segments,
+      blocks,
       caption: buildCaption(structure),
     }
   }

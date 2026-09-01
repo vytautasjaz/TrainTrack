@@ -6,9 +6,11 @@ import {
   type CoachingMessage,
   type CoachingThread,
   type Race,
+  type RaceOutcome,
 } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { toDateKey } from '@/lib/dates'
+import { formatRaceFeedbackReportBody } from '@/lib/race-feedback-report'
 import { athleteOwnedByCoachWhere } from '@/lib/session'
 import {
   redactPlanWorkoutNotesForViewer,
@@ -20,6 +22,7 @@ import {
   COACHING_MESSAGE_MAX_LEN,
   INBOX_LIST_MAX,
   isThreadUnreadForRole,
+  threadHasChatConversation,
   threadNeedsReplyFrom,
   type InboxFilter,
   type InboxKindFilter,
@@ -75,6 +78,16 @@ const workoutDetailSelect = {
       stravaActivityUrl: true,
       stravaActivityName: true,
       stravaActivityDescription: true,
+      averageHeartrate: true,
+      maxHeartrate: true,
+      averageSpeedMps: true,
+      maxSpeedMps: true,
+      elevationGainM: true,
+      sufferScore: true,
+      averageCadence: true,
+      kilojoules: true,
+      calories: true,
+      averageWatts: true,
       logType: true,
     },
   },
@@ -83,7 +96,27 @@ const workoutDetailSelect = {
 export type CoachingThreadWithMessages = CoachingThread & {
   messages: CoachingMessage[]
   workout: Parameters<typeof toPlanWorkoutDetail>[0] | null
-  race: Pick<Race, 'id' | 'name' | 'date' | 'type' | 'outcome' | 'resultNotes'> | null
+  race: Pick<
+    Race,
+    | 'id'
+    | 'name'
+    | 'date'
+    | 'type'
+    | 'priority'
+    | 'outcome'
+    | 'resultTime'
+    | 'resultPlace'
+    | 'resultNotes'
+  > & {
+    legs: Array<{
+      id: string
+      kind: import('@prisma/client').RaceLegKind
+      sortOrder: number
+      resultTime: string | null
+      plannedTime: string | null
+      stravaActivityUrl: string | null
+    }>
+  } | null
   athlete?: { id: string; name: string; avatarUrl: string | null }
 }
 
@@ -96,8 +129,22 @@ const threadInclude = {
       name: true,
       date: true,
       type: true,
+      priority: true,
       outcome: true,
+      resultTime: true,
+      resultPlace: true,
       resultNotes: true,
+      legs: {
+        select: {
+          id: true,
+          kind: true,
+          sortOrder: true,
+          resultTime: true,
+          plannedTime: true,
+          stravaActivityUrl: true,
+        },
+        orderBy: { sortOrder: 'asc' as const },
+      },
     },
   },
 } as const
@@ -149,6 +196,12 @@ function applyListFilters<
   if (filter === 'unread') {
     list = list.filter((t) => isThreadUnreadForRole(t, role))
   }
+  list = list.filter(
+    (t) =>
+      t.kind !== CoachingThreadKind.GENERAL ||
+      t.messages.length > 0 ||
+      role === 'athlete',
+  )
   return list
 }
 
@@ -332,8 +385,34 @@ export function serializeInboxThread(
 ) {
   const last = thread.messages[thread.messages.length - 1]
   const workoutDetail: PlanWorkoutDetail | null = thread.workout
-    ? redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(thread.workout), role)
+    ? {
+        ...redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(thread.workout), role),
+        coachingChat:
+          threadHasChatConversation(thread.messages)
+            ? {
+                messageCount: thread.messages.length,
+                lastMessageAt: thread.lastMessageAt.toISOString(),
+                coachLastReadAt: thread.coachLastReadAt?.toISOString() ?? null,
+                athleteLastReadAt: thread.athleteLastReadAt?.toISOString() ?? null,
+                status: thread.status,
+                lastAuthorRole:
+                  thread.messages[thread.messages.length - 1]?.authorRole ?? null,
+              }
+            : null,
+      }
     : null
+
+  const raceReportPreview =
+    thread.kind === CoachingThreadKind.RACE_REPORT && thread.race
+      ? formatRaceFeedbackReportBody({
+          outcome: thread.race.outcome as RaceOutcome | null,
+          resultTime: thread.race.resultTime,
+          resultPlace: thread.race.resultPlace,
+          resultNotes: thread.race.resultNotes,
+          type: thread.race.type,
+          legs: thread.race.legs,
+        })
+      : ''
 
   return {
     id: thread.id,
@@ -342,7 +421,7 @@ export function serializeInboxThread(
     lastMessageAt: thread.lastMessageAt.toISOString(),
     unread: isThreadUnreadForRole(thread, role),
     needsReply: threadNeedsReplyFrom(thread, role),
-    preview: last?.body?.slice(0, 140) ?? '',
+    preview: (raceReportPreview || last?.body || '').slice(0, 140),
     lastAuthorRole: last?.authorRole ?? null,
     athlete: thread.athlete
       ? {
@@ -369,8 +448,12 @@ export function serializeInboxThread(
           name: thread.race.name,
           dateKey: toDateKey(thread.race.date),
           type: thread.race.type,
+          priority: thread.race.priority,
           outcome: thread.race.outcome,
+          resultTime: thread.race.resultTime,
+          resultPlace: thread.race.resultPlace,
           resultNotes: thread.race.resultNotes,
+          legs: thread.race.legs,
         }
       : null,
     messageCount: thread.messages.length,
@@ -413,4 +496,124 @@ export function toCoachingThreadView(thread: {
       }
     }),
   }
+}
+
+export type CoachRosterFeedbackListItem = {
+  id: string
+  preview: string
+  lastMessageAt: string
+  title: string
+  body: string
+  workoutTitle: string | null
+  workoutDateKey: string | null
+}
+
+export function mapThreadToFeedbackListItem(
+  thread: CoachingThreadWithMessages,
+): CoachRosterFeedbackListItem | null {
+  if (
+    thread.kind !== CoachingThreadKind.FEEDBACK &&
+    thread.kind !== CoachingThreadKind.RACE_REPORT
+  ) {
+    return null
+  }
+  if (thread.messages.length === 0) return null
+
+  const row = serializeInboxThread(thread, 'coach')
+  const contextTitle =
+    row.workout?.title ?? row.race?.name ?? null
+  const contextDateKey = row.workout?.dateKey ?? row.race?.dateKey ?? null
+  const title =
+    thread.kind === CoachingThreadKind.RACE_REPORT ? 'Race report' : 'Workout feedback'
+
+  return {
+    id: thread.id,
+    preview: row.preview,
+    lastMessageAt: row.lastMessageAt,
+    title,
+    body: row.preview,
+    workoutTitle: contextTitle,
+    workoutDateKey: contextDateKey,
+  }
+}
+
+export async function listAthleteFeedbackThreads(
+  athleteId: string,
+  opts: { take?: number; cursor?: string } = {},
+) {
+  const take = opts.take ?? 15
+  const threads = await prisma.coachingThread.findMany({
+    where: {
+      athleteId,
+      kind: { in: [CoachingThreadKind.FEEDBACK, CoachingThreadKind.RACE_REPORT] },
+      messages: { some: {} },
+      ...(opts.cursor ? { lastMessageAt: { lt: new Date(opts.cursor) } } : {}),
+    },
+    include: threadInclude,
+    orderBy: { lastMessageAt: 'desc' },
+    take: take + 1,
+  })
+
+  const hasMore = threads.length > take
+  const slice = hasMore ? threads.slice(0, take) : threads
+  const items = slice
+    .map(mapThreadToFeedbackListItem)
+    .filter((item): item is CoachRosterFeedbackListItem => item != null)
+
+  return {
+    items,
+    nextCursor: hasMore ? (items.at(-1)?.lastMessageAt ?? null) : null,
+  }
+}
+
+export async function ensureGeneralChatThreads(athleteIds: string[]) {
+  if (athleteIds.length === 0) return
+
+  const existing = await prisma.coachingThread.findMany({
+    where: { athleteId: { in: athleteIds }, kind: CoachingThreadKind.GENERAL },
+    select: { athleteId: true },
+  })
+  const have = new Set(existing.map((row) => row.athleteId))
+  const missing = athleteIds.filter((id) => !have.has(id))
+  if (missing.length === 0) return
+
+  await prisma.coachingThread.createMany({
+    data: missing.map((athleteId) => ({
+      athleteId,
+      kind: CoachingThreadKind.GENERAL,
+      status: CoachingThreadStatus.OPEN,
+      coachLastReadAt: new Date(),
+    })),
+  })
+}
+
+export async function listCoachGeneralChatThreads(coachUserId: string) {
+  return prisma.coachingThread.findMany({
+    where: {
+      kind: CoachingThreadKind.GENERAL,
+      athlete: athleteOwnedByCoachWhere(coachUserId),
+    },
+    include: {
+      ...threadInclude,
+      athlete: { select: { id: true, name: true, avatarUrl: true } },
+    },
+  })
+}
+
+export async function getOrCreateAthleteGeneralChatThread(athleteId: string) {
+  const existing = await prisma.coachingThread.findFirst({
+    where: { athleteId, kind: CoachingThreadKind.GENERAL },
+    include: threadInclude,
+  })
+  if (existing) return existing
+
+  return prisma.coachingThread.create({
+    data: {
+      athleteId,
+      kind: CoachingThreadKind.GENERAL,
+      status: CoachingThreadStatus.OPEN,
+      athleteLastReadAt: new Date(),
+    },
+    include: threadInclude,
+  })
 }

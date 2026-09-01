@@ -1,5 +1,6 @@
 import {
   CoachingAuthorRole,
+  CoachingMessageKind,
   WorkoutStatus,
   WorkoutType,
 } from '@prisma/client'
@@ -52,23 +53,29 @@ export function athleteCanFollowUpWithCoachAboutWorkout(workout: {
 
 export function isThreadUnreadForRole(
   thread: {
-    lastMessageAt: Date
-    coachLastReadAt: Date | null
-    athleteLastReadAt: Date | null
-    messages: Array<{ authorRole?: CoachingAuthorRole; createdAt?: Date }>
+    lastMessageAt: Date | string
+    coachLastReadAt: Date | string | null
+    athleteLastReadAt: Date | string | null
+    messages: Array<{ authorRole?: CoachingAuthorRole; createdAt?: Date | string }>
   },
   role: 'athlete' | 'coach',
 ): boolean {
   const last = thread.messages.at(-1)
   if (!last) return false
-  const mine = role === 'coach' ? CoachingAuthorRole.COACH : CoachingAuthorRole.ATHLETE
-  if (last.authorRole === mine) return false
-  const lastRead = role === 'coach' ? thread.coachLastReadAt : thread.athleteLastReadAt
-  if (!lastRead) return true
-  const lastAt = last.createdAt
-    ? Math.max(thread.lastMessageAt.getTime(), last.createdAt.getTime())
-    : thread.lastMessageAt.getTime()
-  return lastAt > lastRead.getTime()
+
+  const lastReadRaw = role === 'coach' ? thread.coachLastReadAt : thread.athleteLastReadAt
+  // null = never opened or explicitly “Mark as unread” (including when the last
+  // message is your own — otherwise mark-unread cannot stick for the athlete).
+  if (lastReadRaw == null) return true
+
+  const lastReadMs = new Date(lastReadRaw).getTime()
+  if (!Number.isFinite(lastReadMs)) return true
+
+  // Canonical activity time is thread.lastMessageAt (kept in sync on every send).
+  const lastAtMs = new Date(thread.lastMessageAt).getTime()
+  if (!Number.isFinite(lastAtMs)) return false
+
+  return lastAtMs > lastReadMs
 }
 
 export function threadNeedsReplyFrom(
@@ -81,4 +88,23 @@ export function threadNeedsReplyFrom(
   if (!last) return false
   if (role === 'coach') return last.authorRole === CoachingAuthorRole.ATHLETE
   return last.authorRole === CoachingAuthorRole.COACH
+}
+
+/** True when the thread is a real chat (coach reply or athlete ASK), not feedback-only. */
+export function threadHasChatConversation(
+  messages: Array<{
+    authorRole: CoachingAuthorRole
+    kind?: CoachingMessageKind | 'CHAT' | 'FEEDBACK' | string
+  }>,
+): boolean {
+  if (messages.length === 0) return false
+  return (
+    messages.some((m) => m.authorRole === CoachingAuthorRole.COACH) ||
+    messages.some(
+      (m) =>
+        m.authorRole === CoachingAuthorRole.ATHLETE &&
+        m.kind !== CoachingMessageKind.FEEDBACK &&
+        m.kind !== 'FEEDBACK',
+    )
+  )
 }

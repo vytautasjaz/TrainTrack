@@ -12,9 +12,11 @@ export function formatDistance(km: number | null | undefined): string {
 
 export function formatDuration(min: number | null | undefined): string {
   if (min == null || min <= 0) return '—'
-  if (min < 60) return `${min} min`
-  const h = Math.floor(min / 60)
-  const m = min % 60
+  const total = Math.round(min)
+  if (total <= 0) return '—'
+  if (total < 60) return `${total} min`
+  const h = Math.floor(total / 60)
+  const m = total % 60
   return m > 0 ? `${h}h ${m}m` : `${h}h`
 }
 

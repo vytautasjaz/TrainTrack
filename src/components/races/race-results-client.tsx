@@ -42,6 +42,12 @@ import {
 import { RACE_OUTCOME_LABELS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import {
+  DataSortHeader,
+  compareDataSort,
+  nextDataSort,
+  type DataSortState,
+} from '@/components/ui/data-sort-header'
+import {
   DATA_CELL_PRIMARY,
   DATA_CELL_SECONDARY,
   DATA_EMPTY,
@@ -56,6 +62,8 @@ type RaceResultsClientProps = {
 
 const ALL = 'all'
 
+type ResultsSortKey = 'race' | 'date' | 'sport' | 'distance' | 'result' | 'source'
+
 export function RaceResultsClient({ results }: RaceResultsClientProps) {
   const [sport, setSport] = useState<string>(ALL)
   const [distance, setDistance] = useState<string>(ALL)
@@ -65,6 +73,10 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
   const [addOpen, setAddOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [sort, setSort] = useState<DataSortState<ResultsSortKey> | null>({
+    key: 'date',
+    dir: 'desc',
+  })
 
   const years = useMemo(() => {
     const set = new Set(results.map((r) => raceResultYear(r.date)))
@@ -97,12 +109,56 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
         if (key !== distance) return false
       }
       if (q) {
-        const hay = `${row.name} ${row.location ?? ''} ${row.resultNotes ?? ''}`.toLowerCase()
+        const hay = `${row.name} ${row.location ?? ''} ${row.resultPlace ?? ''} ${row.resultNotes ?? ''}`.toLowerCase()
         if (!hay.includes(q)) return false
       }
       return true
     })
   }, [results, sport, distance, year, outcome, query])
+
+  const sorted = useMemo(() => {
+    if (!sort) return filtered
+    return [...filtered].sort((a, b) => {
+      const av =
+        sort.key === 'race'
+          ? a.name
+          : sort.key === 'date'
+            ? a.date
+            : sort.key === 'sport'
+              ? WORKOUT_TYPE_LABELS[a.sport]
+              : sort.key === 'distance'
+                ? raceResultDistanceLabel(a)
+                : sort.key === 'result'
+                  ? a.resultTime ?? raceResultOutcomeLabel(a.outcome)
+                  : a.resultsLogOnly
+                    ? 'Manual'
+                    : 'Season'
+      const bv =
+        sort.key === 'race'
+          ? b.name
+          : sort.key === 'date'
+            ? b.date
+            : sort.key === 'sport'
+              ? WORKOUT_TYPE_LABELS[b.sport]
+              : sort.key === 'distance'
+                ? raceResultDistanceLabel(b)
+                : sort.key === 'result'
+                  ? b.resultTime ?? raceResultOutcomeLabel(b.outcome)
+                  : b.resultsLogOnly
+                    ? 'Manual'
+                    : 'Season'
+      return compareDataSort(av, bv, sort.dir)
+    })
+  }, [filtered, sort])
+
+  const sortHeader = (key: ResultsSortKey, label: string) => (
+    <DataSortHeader
+      label={label}
+      active={sort?.key === key}
+      dir={sort?.key === key ? sort.dir : null}
+      onClick={() => setSort((s) => nextDataSort(s, key))}
+    />
+  )
 
   function handleDelete(id: string) {
     setError(null)
@@ -215,19 +271,19 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
               </colgroup>
               <thead>
                 <tr>
-                  <th>Race</th>
-                  <th>Date</th>
-                  <th>Sport</th>
-                  <th>Distance</th>
-                  <th>Result</th>
-                  <th>Source</th>
+                  <th>{sortHeader('race', 'Race')}</th>
+                  <th>{sortHeader('date', 'Date')}</th>
+                  <th>{sortHeader('sport', 'Sport')}</th>
+                  <th>{sortHeader('distance', 'Distance')}</th>
+                  <th>{sortHeader('result', 'Result')}</th>
+                  <th>{sortHeader('source', 'Source')}</th>
                   <th>
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row) => {
+                {sorted.map((row) => {
                   const splits = row.legSplits
                   const showSplits =
                     row.type === RaceType.TRIATHLON && hasRaceResultLegSplits(splits)
@@ -286,7 +342,17 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
                               {row.resultTime}
                             </p>
                           ) : null}
-                          {isFinished && !hasTimes ? (
+                          {isFinished && row.resultPlace ? (
+                            <p
+                              className={cn(
+                                'text-xs font-medium tabular-nums text-muted-foreground',
+                                row.resultTime || showSplits ? 'mt-1' : undefined,
+                              )}
+                            >
+                              {row.resultPlace}
+                            </p>
+                          ) : null}
+                          {isFinished && !hasTimes && !row.resultPlace ? (
                             <span className="tabular-nums text-muted-foreground">—</span>
                           ) : null}
                           {showSplits && splits ? (
@@ -532,17 +598,28 @@ function LogPastResultDialog({
 
           {outcome === RaceOutcome.FINISHED || outcome === RaceOutcome.DNF ? (
             <>
-              <FormField
-                label={sportId === 'TRIATHLON' ? 'Total time' : 'Result time'}
-                hint="e.g. 1:25:00"
-              >
-                <Input
-                  name="resultTime"
-                  placeholder="1:25:00"
-                  inputMode="numeric"
-                  autoComplete="off"
-                />
-              </FormField>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <FormField
+                  label={sportId === 'TRIATHLON' ? 'Finish time' : 'Finish time'}
+                  hint="e.g. 1:25:00"
+                >
+                  <Input
+                    name="resultTime"
+                    placeholder="1:25:00"
+                    inputMode="numeric"
+                    autoComplete="off"
+                  />
+                </FormField>
+                {outcome === RaceOutcome.FINISHED ? (
+                  <FormField label="Place" hint="Optional">
+                    <Input
+                      name="resultPlace"
+                      placeholder="12th"
+                      autoComplete="off"
+                    />
+                  </FormField>
+                ) : null}
+              </div>
               {sportId === 'TRIATHLON' ? (
                 <div className="grid grid-cols-3 gap-2">
                   <FormField label="Swim">
@@ -575,7 +652,7 @@ function LogPastResultDialog({
           ) : null}
 
           <FormField label="Notes" hint="Optional">
-            <Textarea name="resultNotes" rows={2} placeholder="Conditions, placing…" />
+            <Textarea name="resultNotes" rows={2} placeholder="Conditions, how it felt…" />
           </FormField>
 
           {error ? <FormMessage variant="error">{error}</FormMessage> : null}

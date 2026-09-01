@@ -26,12 +26,21 @@ export function hasRole(roles: UserRole[], role: UserRole): boolean {
   return roles.includes(role)
 }
 
-/** Permission: user has the COACH role (regardless of UI workspace). */
-export function isCoach(session: Pick<SessionContext, 'roles'>): boolean {
+/**
+ * Permission: user can act as coach (regardless of UI workspace).
+ * Prefer `hasCoach` (profile) when present — `roles` can lag behind profile creation.
+ */
+export function isCoach(
+  session: Pick<SessionContext, 'roles'> & Partial<Pick<SessionContext, 'hasCoach'>>,
+): boolean {
+  if (session.hasCoach) return true
   return hasRole(session.roles, UserRole.COACH)
 }
 
-export function isAthleteRole(session: Pick<SessionContext, 'roles'>): boolean {
+export function isAthleteRole(
+  session: Pick<SessionContext, 'roles'> & Partial<Pick<SessionContext, 'hasAthlete'>>,
+): boolean {
+  if (session.hasAthlete) return true
   return hasRole(session.roles, UserRole.ATHLETE)
 }
 
@@ -65,11 +74,26 @@ function resolveViewMode(
   return 'athlete'
 }
 
-function primaryRole(roles: UserRole[]): UserRole {
-  if (roles.includes(UserRole.COACH)) return UserRole.COACH
-  if (roles.includes(UserRole.ATHLETE)) return UserRole.ATHLETE
+function primaryRole(
+  roles: UserRole[],
+  opts?: { hasCoach?: boolean; hasAthlete?: boolean },
+): UserRole {
+  if (roles.includes(UserRole.COACH) || opts?.hasCoach) return UserRole.COACH
+  if (roles.includes(UserRole.ATHLETE) || opts?.hasAthlete) return UserRole.ATHLETE
   if (roles.includes(UserRole.ADMIN)) return UserRole.ADMIN
   return UserRole.ATHLETE
+}
+
+/** Keep `User.roles` aligned with athlete/coach profiles (roles can lag onboarding). */
+function rolesWithProfiles(
+  roles: UserRole[],
+  hasAthlete: boolean,
+  hasCoach: boolean,
+): UserRole[] {
+  const next = new Set(roles)
+  if (hasAthlete) next.add(UserRole.ATHLETE)
+  if (hasCoach) next.add(UserRole.COACH)
+  return [...next]
 }
 
 export async function getSession(): Promise<SessionContext | null> {
@@ -91,6 +115,12 @@ export async function getSession(): Promise<SessionContext | null> {
       const athleteIdCookie = cookieStore.get('tt_athlete')?.value
       const hasAthlete = Boolean(user.athleteProfile)
       const hasCoach = Boolean(user.coachProfile)
+      const roles = rolesWithProfiles(user.roles, hasAthlete, hasCoach)
+      if (roles.length !== user.roles.length) {
+        void prisma.user
+          .update({ where: { id: user.id }, data: { roles } })
+          .catch(() => {})
+      }
       const viewMode = resolveViewMode(
         cookieStore.get(VIEW_MODE_COOKIE)?.value,
         hasAthlete,
@@ -108,8 +138,8 @@ export async function getSession(): Promise<SessionContext | null> {
       }
       return {
         userId: user.id,
-        role: primaryRole(user.roles),
-        roles: user.roles,
+        role: primaryRole(roles, { hasAthlete, hasCoach }),
+        roles,
         athleteId,
         name: user.name,
         hasAthlete,
@@ -123,10 +153,15 @@ export async function getSession(): Promise<SessionContext | null> {
 
   const session = await auth()
   if (session?.user?.id) {
-    const roles = session.user.roles ?? []
     const athleteIdCookie = cookieStore.get('tt_athlete')?.value ?? null
     const hasAthlete = session.user.hasAthlete
     const hasCoach = session.user.hasCoach
+    const roles = rolesWithProfiles(session.user.roles ?? [], hasAthlete, hasCoach)
+    if (roles.length !== (session.user.roles ?? []).length) {
+      void prisma.user
+        .update({ where: { id: session.user.id }, data: { roles } })
+        .catch(() => {})
+    }
     const onboardingSkipped = session.user.onboardingSkipped
     const viewMode = resolveViewMode(
       cookieStore.get(VIEW_MODE_COOKIE)?.value,
@@ -154,7 +189,7 @@ export async function getSession(): Promise<SessionContext | null> {
 
     return {
       userId: session.user.id,
-      role: primaryRole(roles),
+      role: primaryRole(roles, { hasAthlete, hasCoach }),
       roles,
       athleteId,
       name: session.user.name ?? 'User',

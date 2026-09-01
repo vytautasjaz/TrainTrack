@@ -43,6 +43,9 @@ export function AthleteStatusPill({
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
         disabled={isPending}
+        data-athlete-status-trigger=""
+        onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         className={cn(
           'inline-flex items-center gap-0.5 rounded-full font-medium transition',
           'outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-foreground/20',

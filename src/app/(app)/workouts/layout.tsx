@@ -1,5 +1,6 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
-import { getSession, isCoachView} from '@/lib/session'
+import { getSession, isCoachView } from '@/lib/session'
 import { WorkoutLibraryNav } from '@/components/workout-library/workout-library-nav'
 
 export default async function WorkoutsLayout({
@@ -15,7 +16,9 @@ export default async function WorkoutsLayout({
 
   return (
     <div>
-      <WorkoutLibraryNav />
+      <Suspense fallback={null}>
+        <WorkoutLibraryNav />
+      </Suspense>
       {children}
     </div>
   )

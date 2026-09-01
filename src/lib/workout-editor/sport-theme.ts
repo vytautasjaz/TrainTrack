@@ -1,5 +1,17 @@
 import { WorkoutType } from '@prisma/client'
 
+/** Dark workout hero — matches app sidebar rail. */
+export const WORKOUT_EDITOR_HERO_BG = '#151827'
+
+/**
+ * Active Build / Include / Library — light tint of the hero, same for every sport.
+ */
+export const WORKOUT_EDITOR_SECTION_ACTIVE = {
+  section:
+    'bg-[color-mix(in_srgb,#151827_9%,white)] hover:bg-[color-mix(in_srgb,#151827_14%,white)]',
+  sectionText: 'text-[#151827]',
+} as const
+
 export type WorkoutEditorSportTheme = {
   /** Card surface: border + soft fill */
   card: string
@@ -13,7 +25,7 @@ export type WorkoutEditorSportTheme = {
   controlOn: string
   /** Duration unit accent when primary */
   unitAccent: string
-  /** Soft section header (Workout Details) */
+  /** Soft section header (Build workout / Include / Library) */
   section: string
   /** Section header text / icons */
   sectionText: string
@@ -23,8 +35,18 @@ export type WorkoutEditorSportTheme = {
   heroGradient: string
 }
 
+function themeBase(
+  partial: Omit<WorkoutEditorSportTheme, 'section' | 'sectionText'>,
+): WorkoutEditorSportTheme {
+  return {
+    ...partial,
+    section: WORKOUT_EDITOR_SECTION_ACTIVE.section,
+    sectionText: WORKOUT_EDITOR_SECTION_ACTIVE.sectionText,
+  }
+}
+
 const THEMES: Record<WorkoutType, WorkoutEditorSportTheme> = {
-  RUN: {
+  RUN: themeBase({
     card: 'border-[var(--color-sport-run-border)] bg-[var(--color-sport-run-bg)]',
     iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-run)_20%,white)] text-[var(--color-sport-run)]',
     chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-run)_22%,white)] text-[var(--color-sport-run)]',
@@ -33,12 +55,10 @@ const THEMES: Record<WorkoutType, WorkoutEditorSportTheme> = {
     controlOn:
       'border-[var(--color-sport-run)] bg-[color-mix(in_oklab,var(--color-sport-run)_18%,white)] text-[var(--color-sport-run)]',
     unitAccent: 'text-[var(--color-sport-run)] hover:bg-[var(--color-sport-run-bg)]',
-    section: 'bg-[var(--color-sport-run-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-run)_12%,white)]',
-    sectionText: 'text-[var(--color-sport-run)]',
     focus: 'data-[state=open]:border-[var(--color-sport-run)]',
     heroGradient: 'from-white to-[var(--color-sport-run-bg)]',
-  },
-  BIKE: {
+  }),
+  BIKE: themeBase({
     card: 'border-[var(--color-sport-bike-border)] bg-[var(--color-sport-bike-bg)]',
     iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-bike)_20%,white)] text-[var(--color-sport-bike)]',
     chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-bike)_22%,white)] text-[var(--color-sport-bike)]',
@@ -47,12 +67,10 @@ const THEMES: Record<WorkoutType, WorkoutEditorSportTheme> = {
     controlOn:
       'border-[var(--color-sport-bike)] bg-[color-mix(in_oklab,var(--color-sport-bike)_18%,white)] text-[var(--color-sport-bike)]',
     unitAccent: 'text-[var(--color-sport-bike)] hover:bg-[var(--color-sport-bike-bg)]',
-    section: 'bg-[var(--color-sport-bike-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-bike)_12%,white)]',
-    sectionText: 'text-[var(--color-sport-bike)]',
     focus: 'data-[state=open]:border-[var(--color-sport-bike)]',
     heroGradient: 'from-white to-[var(--color-sport-bike-bg)]',
-  },
-  SWIM: {
+  }),
+  SWIM: themeBase({
     card: 'border-[var(--color-sport-swim-border)] bg-[var(--color-sport-swim-bg)]',
     iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-swim)_20%,white)] text-[var(--color-sport-swim)]',
     chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-swim)_22%,white)] text-[var(--color-sport-swim)]',
@@ -61,12 +79,10 @@ const THEMES: Record<WorkoutType, WorkoutEditorSportTheme> = {
     controlOn:
       'border-[var(--color-sport-swim)] bg-[color-mix(in_oklab,var(--color-sport-swim)_18%,white)] text-[var(--color-sport-swim)]',
     unitAccent: 'text-[var(--color-sport-swim)] hover:bg-[var(--color-sport-swim-bg)]',
-    section: 'bg-[var(--color-sport-swim-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-swim)_12%,white)]',
-    sectionText: 'text-[var(--color-sport-swim)]',
     focus: 'data-[state=open]:border-[var(--color-sport-swim)]',
     heroGradient: 'from-white to-[var(--color-sport-swim-bg)]',
-  },
-  STRENGTH: {
+  }),
+  STRENGTH: themeBase({
     card: 'border-[var(--color-sport-strength-border)] bg-[var(--color-sport-strength-bg)]',
     iconWrap:
       'bg-[color-mix(in_oklab,var(--color-sport-strength)_20%,white)] text-[var(--color-sport-strength)]',
@@ -77,13 +93,10 @@ const THEMES: Record<WorkoutType, WorkoutEditorSportTheme> = {
     controlOn:
       'border-[var(--color-sport-strength)] bg-[color-mix(in_oklab,var(--color-sport-strength)_18%,white)] text-[var(--color-sport-strength)]',
     unitAccent: 'text-[var(--color-sport-strength)] hover:bg-[var(--color-sport-strength-bg)]',
-    section:
-      'bg-[var(--color-sport-strength-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-strength)_12%,white)]',
-    sectionText: 'text-[var(--color-sport-strength)]',
     focus: 'data-[state=open]:border-[var(--color-sport-strength)]',
     heroGradient: 'from-white to-[var(--color-sport-strength-bg)]',
-  },
-  HYROX: {
+  }),
+  HYROX: themeBase({
     card: 'border-[var(--color-sport-hyrox-border)] bg-[var(--color-sport-hyrox-bg)]',
     iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-hyrox)_20%,white)] text-[var(--color-sport-hyrox)]',
     chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-hyrox)_22%,white)] text-[var(--color-sport-hyrox)]',
@@ -92,12 +105,10 @@ const THEMES: Record<WorkoutType, WorkoutEditorSportTheme> = {
     controlOn:
       'border-[var(--color-sport-hyrox)] bg-[color-mix(in_oklab,var(--color-sport-hyrox)_18%,white)] text-[var(--color-sport-hyrox)]',
     unitAccent: 'text-[var(--color-sport-hyrox)] hover:bg-[var(--color-sport-hyrox-bg)]',
-    section: 'bg-[var(--color-sport-hyrox-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-hyrox)_12%,white)]',
-    sectionText: 'text-[var(--color-sport-hyrox)]',
     focus: 'data-[state=open]:border-[var(--color-sport-hyrox)]',
     heroGradient: 'from-white to-[var(--color-sport-hyrox-bg)]',
-  },
-  TRIATHLON: {
+  }),
+  TRIATHLON: themeBase({
     card: 'border-[var(--color-sport-tri-border)] bg-[var(--color-sport-tri-bg)]',
     iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-tri)_20%,white)] text-[var(--color-sport-tri)]',
     chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-tri)_22%,white)] text-[var(--color-sport-tri)]',
@@ -106,12 +117,10 @@ const THEMES: Record<WorkoutType, WorkoutEditorSportTheme> = {
     controlOn:
       'border-[var(--color-sport-tri)] bg-[color-mix(in_oklab,var(--color-sport-tri)_18%,white)] text-[var(--color-sport-tri)]',
     unitAccent: 'text-[var(--color-sport-tri)] hover:bg-[var(--color-sport-tri-bg)]',
-    section: 'bg-[var(--color-sport-tri-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-tri)_12%,white)]',
-    sectionText: 'text-[var(--color-sport-tri)]',
     focus: 'data-[state=open]:border-[var(--color-sport-tri)]',
     heroGradient: 'from-white to-[var(--color-sport-tri-bg)]',
-  },
-  RECOVERY: {
+  }),
+  RECOVERY: themeBase({
     card: 'border-[var(--color-sport-recovery-border)] bg-[var(--color-sport-recovery-bg)]',
     iconWrap:
       'bg-[color-mix(in_oklab,var(--color-sport-recovery)_20%,white)] text-[var(--color-sport-recovery)]',
@@ -122,13 +131,10 @@ const THEMES: Record<WorkoutType, WorkoutEditorSportTheme> = {
     controlOn:
       'border-[var(--color-sport-recovery)] bg-[color-mix(in_oklab,var(--color-sport-recovery)_18%,white)] text-[var(--color-sport-recovery)]',
     unitAccent: 'text-[var(--color-sport-recovery)] hover:bg-[var(--color-sport-recovery-bg)]',
-    section:
-      'bg-[var(--color-sport-recovery-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-recovery)_12%,white)]',
-    sectionText: 'text-[var(--color-sport-recovery)]',
     focus: 'data-[state=open]:border-[var(--color-sport-recovery)]',
     heroGradient: 'from-white to-[var(--color-sport-recovery-bg)]',
-  },
-  REST: {
+  }),
+  REST: themeBase({
     card: 'border-[var(--color-sport-rest-border)] bg-[var(--color-sport-rest-bg)]',
     iconWrap: 'bg-[color-mix(in_oklab,var(--color-sport-rest)_20%,white)] text-[var(--color-sport-rest)]',
     chipOn: 'bg-[color-mix(in_oklab,var(--color-sport-rest)_22%,white)] text-[var(--color-sport-rest)]',
@@ -137,15 +143,28 @@ const THEMES: Record<WorkoutType, WorkoutEditorSportTheme> = {
     controlOn:
       'border-[var(--color-sport-rest)] bg-[color-mix(in_oklab,var(--color-sport-rest)_18%,white)] text-[var(--color-sport-rest)]',
     unitAccent: 'text-[var(--color-sport-rest)] hover:bg-[var(--color-sport-rest-bg)]',
-    section: 'bg-[var(--color-sport-rest-bg)] hover:bg-[color-mix(in_oklab,var(--color-sport-rest)_12%,white)]',
-    sectionText: 'text-[var(--color-sport-rest)]',
     focus: 'data-[state=open]:border-[var(--color-sport-rest)]',
     heroGradient: 'from-white to-[var(--color-sport-rest-bg)]',
-  },
+  }),
 }
 
 export function getWorkoutEditorSportTheme(sport: WorkoutType): WorkoutEditorSportTheme {
   return THEMES[sport]
+}
+
+/** Soft flat hero wash (legacy light hero). */
+export function getSportHeroWashClass(sport: WorkoutType): string {
+  const map: Record<WorkoutType, string> = {
+    RUN: 'bg-[color-mix(in_srgb,var(--color-sport-run)_10%,white)]',
+    BIKE: 'bg-[color-mix(in_srgb,var(--color-sport-bike)_10%,white)]',
+    SWIM: 'bg-[color-mix(in_srgb,var(--color-sport-swim)_10%,white)]',
+    STRENGTH: 'bg-[color-mix(in_srgb,var(--color-sport-strength)_10%,white)]',
+    HYROX: 'bg-[color-mix(in_srgb,var(--color-sport-hyrox)_10%,white)]',
+    TRIATHLON: 'bg-[color-mix(in_srgb,var(--color-sport-tri)_10%,white)]',
+    RECOVERY: 'bg-[color-mix(in_srgb,var(--color-sport-recovery)_10%,white)]',
+    REST: 'bg-[color-mix(in_srgb,var(--color-sport-rest)_10%,white)]',
+  }
+  return map[sport]
 }
 
 /** Modal / detail hero wash — always from globals sport palette. */

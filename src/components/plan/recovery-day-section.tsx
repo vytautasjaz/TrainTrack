@@ -4,6 +4,10 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { RecoveryDayModal } from '@/components/plan/recovery-day-modal'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
+import {
+  WeekAddPlusMark,
+  weekAddPlusButtonClass,
+} from '@/components/plan/week-add-plus'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { formatRecoveryDayNote } from '@/lib/recovery-day'
 import { cn } from '@/lib/utils'
@@ -120,14 +124,16 @@ export function RecoveryDaySection({
   if (compact) {
     return (
       <>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="group flex w-full min-h-[4.5rem] items-center justify-center rounded-lg transition-colors hover:bg-muted/20 landscape:max-lg:min-h-0 landscape:max-lg:py-2 lg:min-h-[5rem]"
-          aria-label={`Mark recovery day on ${dateKey}`}
-        >
-          <Plus className="h-5 w-5 shrink-0 text-muted-foreground/20 transition-colors group-hover:text-brand/40 landscape:max-lg:h-4 landscape:max-lg:w-4" />
-        </button>
+        <div className="relative min-h-[3.25rem] w-full lg:min-h-[5rem]">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className={cn(weekAddPlusButtonClass.cell, 'absolute inset-0 min-h-0')}
+            aria-label={`Mark recovery day on ${dateKey}`}
+          >
+            <WeekAddPlusMark size="cell" />
+          </button>
+        </div>
         {modal}
       </>
     )

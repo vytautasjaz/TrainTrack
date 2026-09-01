@@ -6,6 +6,8 @@ import type { AthletePreferences } from '@/lib/athlete-preferences'
 import type { WorkoutBlock, WorkoutSection } from '@/lib/workout-builder/types'
 import { BLOCK_TYPE_LABELS } from '@/lib/workout-builder/types'
 import {
+  normalizePaceInputValue,
+  paceInputDisplayValue,
   targetPlaceholder,
   targetTypeLabel,
   targetTypesForSport,
@@ -187,14 +189,36 @@ function TargetFields({
       </label>
       <label className="block min-w-0 text-sm">
         <span className="text-muted-foreground">Target value</span>
-        <Input
-          value={target.value ?? ''}
-          onChange={(e) =>
-            onChange({ targets: [{ ...target, value: e.target.value }] })
-          }
-          className="mt-1"
-          placeholder={targetPlaceholder(target.type, sportType)}
-        />
+        {target.type === 'pace' ? (
+          <div className="mt-1 flex items-center gap-1.5 rounded-md border border-border bg-card px-2">
+            <Input
+              value={paceInputDisplayValue(target.value)}
+              onChange={(e) =>
+                onChange({ targets: [{ ...target, value: e.target.value }] })
+              }
+              onBlur={() => {
+                const next = normalizePaceInputValue(
+                  paceInputDisplayValue(target.value),
+                )
+                if (next !== (target.value ?? '')) {
+                  onChange({ targets: [{ ...target, value: next }] })
+                }
+              }}
+              className="border-0 bg-transparent shadow-none focus-visible:ring-0"
+              placeholder={targetPlaceholder(target.type, sportType)}
+            />
+            <span className="shrink-0 text-xs text-muted-foreground">/km</span>
+          </div>
+        ) : (
+          <Input
+            value={target.value ?? ''}
+            onChange={(e) =>
+              onChange({ targets: [{ ...target, value: e.target.value }] })
+            }
+            className="mt-1"
+            placeholder={targetPlaceholder(target.type, sportType)}
+          />
+        )}
       </label>
     </div>
   )

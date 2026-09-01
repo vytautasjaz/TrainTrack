@@ -27,6 +27,7 @@ const SEASON_RACE_SELECT = {
   preparationWeeks: true,
   outcome: true,
   resultTime: true,
+  resultPlace: true,
   resultNotes: true,
   stravaActivityUrl: true,
   stravaActivityName: true,

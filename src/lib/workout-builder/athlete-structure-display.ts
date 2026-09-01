@@ -31,6 +31,8 @@ export type PhaseBlockDisplay = {
   paceLabel: string | null
   zoneLabel: string | null
   recoveryNote: string | null
+  /** Coach note on this block (visible to athlete). */
+  notes: string | null
   durationLabel: string | null
   /** True when duration is estimated from defaults/zones instead of explicit block entry. */
   durationApproximate: boolean
@@ -222,6 +224,7 @@ function buildPhaseBlock(
     paceLabel,
     zoneLabel,
     recoveryNote: buildRecoveryNote(block, sportType),
+    notes: block.notes?.trim() || null,
     durationApproximate: !hasExactDurationInput(block),
     durationLabel: durationMin > 0 ? `~${formatSegmentDurationLabel(durationMin)}` : null,
     accent: inferSmartBlockAccent(block),
@@ -345,12 +348,20 @@ export function formatListDurationLabel(minutes: number): string {
 }
 
 export function formatListPhaseDetail(block: PhaseBlockDisplay): string {
+  let detail: string
   if (block.intervalPreview) {
-    return `${block.primary} • ${block.intervalPreview.recovery}`
+    detail = `${block.primary} • ${block.intervalPreview.recovery}`
+  } else if (block.paceLabel) {
+    detail = `${block.primary} • ${block.paceLabel}`
+  } else if (block.zoneLabel) {
+    detail = `${block.primary} • ${block.zoneLabel}`
+  } else {
+    detail = block.primary
   }
-  if (block.paceLabel) return `${block.primary} • ${block.paceLabel}`
-  if (block.zoneLabel) return `${block.primary} • ${block.zoneLabel}`
-  return block.primary
+  if (block.notes) {
+    return detail ? `${detail} · ${block.notes}` : block.notes
+  }
+  return detail
 }
 
 export function buildListPhaseRows(display: AthleteStructureDisplay): ListPhaseRow[] {

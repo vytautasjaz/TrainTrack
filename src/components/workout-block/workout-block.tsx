@@ -6,16 +6,16 @@ import { Clock, Flag } from 'lucide-react'
 import { WorkoutCardDiagram } from '@/components/plan/workout-card-diagram'
 import { PlanWorkoutCardInlineEdit } from '@/components/plan/plan-workout-card-inline-edit'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
+import { WorkoutChatIndicator } from '@/components/plan/workout-chat-indicator'
 import { SelfAddedBadge } from '@/components/plan/self-added-badge'
 import {
   getRescheduleBadgeLabel,
   RescheduleBadge,
 } from '@/components/plan/reschedule-badge'
-import { WorkoutStatusIcon } from '@/components/ui/workout-status-icon'
 import { useOptionalPlanSportFilter } from '@/components/training/plan-sport-filter-context'
 import { surfaces } from '@/lib/design-tokens'
 import { RACE_PRIORITY_BLOCK } from '@/lib/race-day'
-import { isStravaSynced, type PlanWorkoutDetail } from '@/lib/plan-workout'
+import { isStravaSynced, workoutHasCoachingChat, type PlanWorkoutDetail } from '@/lib/plan-workout'
 import type { PlanColorMode } from '@/lib/plan-sport-filter'
 import {
   getWorkoutCardDuration,
@@ -56,6 +56,7 @@ type WorkoutBlockProps = {
   hideFingerprint?: boolean
   /** Home today hero: omit sport/intensity subtitle. */
   hideSubtitle?: boolean
+  isCoach?: boolean
 }
 
 const DENSITY = {
@@ -160,6 +161,7 @@ export function WorkoutBlock({
   colorMode: colorModeProp,
   hideFingerprint = false,
   hideSubtitle = false,
+  isCoach = false,
 }: WorkoutBlockProps) {
   const filterColorMode = useOptionalPlanSportFilter()?.colorMode
   const colorMode = colorModeProp ?? filterColorMode ?? 'completion'
@@ -174,8 +176,6 @@ export function WorkoutBlock({
   const secondary = styles.showSecondary
     ? getWorkoutCardDuration(workout, status)
     : null
-  const showCompletedBadge =
-    completed && !hideCompletedBadge && colorMode === 'completion'
   const SportIcon = workout.isRace ? Flag : WORKOUT_TYPE_ICONS[workout.type]
   const stravaSynced = isStravaSynced(workout)
   const completionPercent =
@@ -200,15 +200,13 @@ export function WorkoutBlock({
     !skipped &&
     (density === 'md' || density === 'lg')
 
-  // Always keep Strava when synced; completion check only in Completion mode.
+  // Strava wordmark only — completion is shown via card chrome, not status icons.
   const completedStatus = stravaSynced ? (
     <StravaSyncedIndicator
       workout={workout}
       variant="wordmark"
       size={density === 'lg' ? 'sm' : 'xs'}
     />
-  ) : showCompletedBadge ? (
-    <WorkoutStatusIcon kind="completed" size="xs" aria-label="Completed" />
   ) : null
 
   const isDenseCard = density !== 'lg'
@@ -234,16 +232,27 @@ export function WorkoutBlock({
     ) : null
   const selfAddedRow = metaBelowTitle
 
+  const chatIndicator =
+    !actions && workoutHasCoachingChat(workout) ? (
+      <WorkoutChatIndicator
+        workout={workout}
+        role={isCoach ? 'coach' : 'athlete'}
+        size={density === 'lg' ? 'sm' : 'xs'}
+      />
+    ) : null
+
   // Title-row only — keeps metrics full-width while title truncates before logo/menu.
   const titleTrailing =
     selfAddedBadge ||
     (!isDenseCard && rescheduleBadge) ||
     completedStatus ||
+    chatIndicator ||
     actions ? (
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-0.5 self-start">
         {selfAddedBadge}
         {!isDenseCard ? rescheduleBadge : null}
         {completedStatus}
+        {chatIndicator}
         {actions}
       </div>
     ) : null

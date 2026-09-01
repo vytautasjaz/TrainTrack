@@ -1,60 +1,57 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { GripVertical, Library, PanelRightClose, Search, X } from 'lucide-react'
-import { WorkoutStatus, WorkoutType } from '@prisma/client'
+import { useEffect, useMemo, useState } from 'react'
+import { Folder, FolderOpen, GripVertical, Layers, Search, X } from 'lucide-react'
+import { WorkoutType } from '@prisma/client'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
-import { planWorkoutDataCardSurfaceClass } from '@/components/plan/plan-workout-data-card'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import {
   useTrainingLibrary,
   type TrainingLibraryTemplateItem,
 } from '@/components/training/training-library-context'
+import {
+  LibraryFilterPicker,
+  type LibraryFilterOption,
+} from '@/components/workout-library/library-filter-picker'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { LIBRARY_SPORTS } from '@/lib/workout-library/config'
 import { SESSION_TYPE_LABELS } from '@/lib/workout-builder/types'
 import { cn } from '@/lib/utils'
 
-function formatTemplateHero(t: TrainingLibraryTemplateItem): {
-  value: string
-  unit: string
-} | null {
+type FolderFilter = 'all' | 'unfiled' | string
+
+function formatTemplateMeta(t: TrainingLibraryTemplateItem): string {
+  const parts: string[] = []
+  const session = SESSION_TYPE_LABELS[t.sessionType]
+  if (session) parts.push(session)
+
   if (t.type === WorkoutType.SWIM && t.plannedDistanceMeters != null) {
-    return { value: String(t.plannedDistanceMeters), unit: 'm' }
-  }
-  if (t.distanceKm != null) {
+    parts.push(`${t.plannedDistanceMeters} m`)
+  } else if (t.distanceKm != null) {
     const km = Math.round(t.distanceKm * 10) / 10
-    return {
-      value: t.distanceApprox ? `~${km}` : String(km),
-      unit: 'km',
-    }
+    parts.push(t.distanceApprox ? `~${km} km` : `${km} km`)
   }
+
   if (t.durationMin != null) {
-    return {
-      value: t.durationApprox ? `~${t.durationMin}` : String(t.durationMin),
-      unit: 'min',
-    }
+    parts.push(t.durationApprox ? `~${t.durationMin} min` : `${t.durationMin} min`)
   }
-  return null
+
+  if (parts.length === 0) return WORKOUT_TYPE_LABELS[t.type]
+  return parts.join(' · ')
 }
 
-function formatTemplateDuration(t: TrainingLibraryTemplateItem): string | null {
-  if (t.distanceKm == null && !(t.type === WorkoutType.SWIM && t.plannedDistanceMeters != null)) {
-    return null
-  }
-  if (t.durationMin == null) return null
-  return t.durationApprox ? `~${t.durationMin} min` : `${t.durationMin} min`
-}
-
-function LibraryTemplateCard({ template }: { template: TrainingLibraryTemplateItem }) {
+function LibraryTemplateRow({
+  template,
+  folderLabel,
+}: {
+  template: TrainingLibraryTemplateItem
+  folderLabel: string | null
+}) {
   const dnd = usePlanWeekDnd()
   const [dragging, setDragging] = useState(false)
-  const hero = formatTemplateHero(template)
-  const duration = formatTemplateDuration(template)
-  const sessionLabel = SESSION_TYPE_LABELS[template.sessionType] ?? template.sessionType
 
   return (
-    <div
+    <li
       draggable={Boolean(dnd)}
       onDragStart={(e) => {
         if (!dnd) return
@@ -72,44 +69,30 @@ function LibraryTemplateCard({ template }: { template: TrainingLibraryTemplateIt
         dnd?.setDragItem(null)
       }}
       className={cn(
-        'group cursor-grab active:cursor-grabbing',
+        'flex cursor-grab items-center gap-2 rounded-[8px] border border-[var(--tt-line-strong,#d4d4d4)] bg-white px-2.5 py-2 shadow-[0_1px_0_rgba(17,17,17,0.04)] active:cursor-grabbing',
         dragging && 'opacity-40',
       )}
     >
-      <div
-        className={cn(
-          planWorkoutDataCardSurfaceClass(WorkoutStatus.PLANNED),
-          'flex items-start gap-2 p-2.5',
-        )}
-      >
-        <WorkoutSportIcon type={template.type} size="xs" appearance="outline" />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start gap-1">
-            <p className="min-w-0 flex-1 truncate text-[12px] font-semibold leading-snug text-[#111827]">
-              {template.title}
-            </p>
-            <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/40 group-hover:text-muted-foreground" />
-          </div>
-          <p className="mt-0.5 truncate text-[10px] leading-snug text-[#6B7280]">
-            {WORKOUT_TYPE_LABELS[template.type]}
-            {sessionLabel ? ` · ${sessionLabel}` : ''}
-          </p>
-          {hero ? (
-            <div className="mt-1 flex items-baseline gap-0.5">
-              <span className="text-[20px] font-bold leading-none tracking-tight tabular-nums text-[#111827]">
-                {hero.value}
-              </span>
-              <span className="text-[11px] font-medium leading-none text-[#111827]">
-                {hero.unit}
-              </span>
-            </div>
-          ) : null}
-          {duration ? (
-            <p className="mt-0.5 text-[11px] font-medium text-[#6B7280]">{duration}</p>
-          ) : null}
-        </div>
+      <GripVertical
+        className="h-3.5 w-3.5 shrink-0 text-[var(--tt-ink-faint,#9a9a9a)]"
+        strokeWidth={1.75}
+        aria-hidden
+      />
+      <WorkoutSportIcon
+        type={template.type}
+        size="xs"
+        className="!h-3.5 !w-3.5 !rounded-sm"
+      />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-semibold text-[var(--tt-ink,#111)]">
+          {template.title}
+        </p>
+        <p className="truncate text-[11px] text-[var(--tt-ink-soft,#6b6b6b)]">
+          {folderLabel ? `${folderLabel} · ` : null}
+          {formatTemplateMeta(template)}
+        </p>
       </div>
-    </div>
+    </li>
   )
 }
 
@@ -118,20 +101,135 @@ export function TrainingLibraryPanel() {
   const dnd = usePlanWeekDnd()
   const [query, setQuery] = useState('')
   const [sport, setSport] = useState<WorkoutType | 'ALL'>('ALL')
+  const [folderFilter, setFolderFilter] = useState<FolderFilter>('all')
   const [isOver, setIsOver] = useState(false)
 
-  const filtered = useMemo(() => {
+  useEffect(() => {
+    setFolderFilter('all')
+  }, [sport])
+
+  const foldersForSport = useMemo(() => {
     if (!library) return []
+    const list =
+      sport === 'ALL'
+        ? library.folders
+        : library.folders.filter((f) => f.sport === sport)
+    return [...list].sort((a, b) => a.name.localeCompare(b.name))
+  }, [library, sport])
+
+  const folderNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const f of library?.folders ?? []) map.set(f.id, f.name)
+    return map
+  }, [library?.folders])
+
+  const sportTemplates = useMemo(() => {
+    if (!library) return []
+    return library.templates.filter((t) =>
+      sport === 'ALL' ? true : t.type === sport,
+    )
+  }, [library, sport])
+
+  const folderCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      all: sportTemplates.length,
+      unfiled: 0,
+    }
+    for (const t of sportTemplates) {
+      if (!t.folderId) counts.unfiled += 1
+      else counts[t.folderId] = (counts[t.folderId] ?? 0) + 1
+    }
+    return counts
+  }, [sportTemplates])
+
+  const sportOptions = useMemo<LibraryFilterOption[]>(
+    () => [
+      {
+        value: 'ALL',
+        label: 'All sports',
+        icon: (
+          <Layers
+            className="h-3.5 w-3.5 text-[var(--tt-ink-faint,#9a9a9a)]"
+            strokeWidth={1.75}
+          />
+        ),
+      },
+      ...LIBRARY_SPORTS.map((s) => ({
+        value: s.type,
+        label: s.label,
+        icon: (
+          <WorkoutSportIcon
+            type={s.type}
+            size="xs"
+            className="!h-4 !w-4 !rounded-sm"
+          />
+        ),
+      })),
+    ],
+    [],
+  )
+
+  const folderOptions = useMemo<LibraryFilterOption[]>(
+    () => [
+      {
+        value: 'all',
+        label: 'All folders',
+        count: folderCounts.all ?? 0,
+        icon: (
+          <FolderOpen
+            className="h-3.5 w-3.5 text-[var(--tt-ink-soft,#6b6b6b)]"
+            strokeWidth={1.75}
+          />
+        ),
+      },
+      {
+        value: 'unfiled',
+        label: 'Unfiled',
+        count: folderCounts.unfiled ?? 0,
+        icon: (
+          <Folder
+            className="h-3.5 w-3.5 text-[var(--tt-ink-faint,#9a9a9a)]"
+            strokeWidth={1.75}
+          />
+        ),
+      },
+      ...foldersForSport.map((f) => ({
+        value: f.id,
+        label: f.name,
+        count: folderCounts[f.id] ?? 0,
+        icon: (
+          <Folder
+            className="h-3.5 w-3.5 text-[var(--tt-ink-soft,#6b6b6b)]"
+            strokeWidth={1.75}
+          />
+        ),
+      })),
+    ],
+    [foldersForSport, folderCounts],
+  )
+
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return library.templates.filter((t) => {
-      if (sport !== 'ALL' && t.type !== sport) return false
+    return sportTemplates.filter((t) => {
+      if (folderFilter === 'unfiled' && t.folderId) return false
+      if (
+        folderFilter !== 'all' &&
+        folderFilter !== 'unfiled' &&
+        t.folderId !== folderFilter
+      ) {
+        return false
+      }
       if (!q) return true
+      const folderName = t.folderId
+        ? (folderNameById.get(t.folderId) ?? '')
+        : 'unfiled'
       return (
         t.title.toLowerCase().includes(q) ||
-        WORKOUT_TYPE_LABELS[t.type].toLowerCase().includes(q)
+        WORKOUT_TYPE_LABELS[t.type].toLowerCase().includes(q) ||
+        folderName.toLowerCase().includes(q)
       )
     })
-  }, [library, query, sport])
+  }, [sportTemplates, folderFilter, query, folderNameById])
 
   const canDropPlan = dnd?.dragItem?.kind === 'plan'
   const showDropHint = Boolean(canDropPlan)
@@ -165,47 +263,45 @@ export function TrainingLibraryPanel() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={cn(
-        'sticky top-0 flex h-full max-h-[calc(100dvh-1rem)] flex-col overflow-hidden bg-card transition',
-        canDropPlan && !isOver && 'bg-brand/[0.03]',
-        canDropPlan && isOver && 'bg-brand/[0.07]',
+        'flex h-full flex-col overflow-hidden bg-white transition',
+        '[&_button:not(:disabled)]:cursor-pointer',
+        canDropPlan && !isOver && 'bg-[color-mix(in_srgb,var(--tt-red,#da2f36)_4%,white)]',
+        canDropPlan && isOver && 'bg-[color-mix(in_srgb,var(--tt-red,#da2f36)_8%,white)]',
       )}
     >
-      <div className="flex items-center justify-between gap-2 border-b border-border/40 px-1 pb-2.5 pt-0.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <Library className="h-4 w-4 shrink-0 text-brand" />
-          <div className="min-w-0">
-            <p className="text-sm font-semibold tracking-tight">Library</p>
-            <p className="text-[11px] text-muted-foreground">
-              {showDropHint
-                ? 'Drop workout to save as template'
-                : 'Drag both ways with plan days'}
-            </p>
-          </div>
+      <div className="flex items-center justify-between border-b border-[var(--tt-line,#ebebeb)] px-4 py-3">
+        <div>
+          <p className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+            Library
+          </p>
+          <p className="text-[13px] font-semibold text-[var(--tt-ink,#111)]">
+            {showDropHint ? 'Drop workout to save' : 'Drop onto a day'}
+          </p>
         </div>
         <button
           type="button"
           onClick={() => library.setOpen(false)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground"
+          className="inline-flex h-8 w-8 items-center justify-center rounded-[6px] text-[var(--tt-ink-faint,#9a9a9a)] transition hover:bg-[var(--tt-sidebar,#f5f5f5)] hover:text-[var(--tt-ink,#111)]"
           aria-label="Close library"
         >
-          <PanelRightClose className="h-4 w-4" />
+          <X className="h-4 w-4" strokeWidth={1.75} />
         </button>
       </div>
 
-      <div className="space-y-2 border-b border-border/40 px-1 py-2.5">
+      <div className="space-y-2 border-b border-[var(--tt-line,#ebebeb)] px-3 py-2.5">
         <div className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--tt-ink-faint,#9a9a9a)]" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search templates…"
-            className="input-field-compact w-full pl-8 pr-8 text-sm"
+            className="h-8 w-full rounded-[6px] border border-[var(--tt-line,#ebebeb)] bg-white pl-8 pr-8 text-[13px] text-[var(--tt-ink,#111)] outline-none placeholder:text-[var(--tt-ink-faint,#9a9a9a)] focus:border-[var(--tt-line-strong,#ddd)]"
           />
           {query ? (
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] hover:text-[var(--tt-ink,#111)]"
               aria-label="Clear search"
             >
               <X className="h-3.5 w-3.5" />
@@ -213,54 +309,49 @@ export function TrainingLibraryPanel() {
           ) : null}
         </div>
 
-        <div className="flex flex-wrap gap-1">
-          <button
-            type="button"
-            onClick={() => setSport('ALL')}
-            className={cn(
-              'rounded-full px-2 py-0.5 text-[11px] font-medium transition',
-              sport === 'ALL'
-                ? 'bg-brand/15 text-brand'
-                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-            )}
-          >
-            All
-          </button>
-          {LIBRARY_SPORTS.map((s) => (
-            <button
-              key={s.type}
-              type="button"
-              onClick={() => setSport(s.type)}
-              className={cn(
-                'rounded-full px-2 py-0.5 text-[11px] font-medium transition',
-                sport === s.type
-                  ? 'bg-brand/15 text-brand'
-                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-              )}
-            >
-              {s.label}
-            </button>
-          ))}
+        <div className="flex flex-col gap-2.5 px-0.5 pt-0.5">
+          <LibraryFilterPicker
+            label="Sport"
+            value={sport}
+            onValueChange={(v) => setSport(v as WorkoutType | 'ALL')}
+            options={sportOptions}
+            aria-label="Filter by sport"
+          />
+          <LibraryFilterPicker
+            label="Folder"
+            value={folderFilter}
+            onValueChange={(v) => setFolderFilter(v as FolderFilter)}
+            options={folderOptions}
+            aria-label="Filter by folder"
+          />
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-1 py-2">
+      <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain bg-[var(--tt-sidebar,#f5f5f5)]/40 p-3">
         {showDropHint && filtered.length === 0 ? (
-          <p className="px-1 py-8 text-center text-xs font-medium text-brand">
+          <li className="list-none px-1 py-8 text-center text-xs font-medium text-[var(--tt-red,#da2f36)]">
             Drop here to save to library
-          </p>
+          </li>
         ) : filtered.length === 0 ? (
-          <p className="px-1 py-6 text-center text-xs text-muted-foreground">
+          <li className="list-none px-1 py-6 text-center text-xs text-[var(--tt-ink-faint,#9a9a9a)]">
             {library.templates.length === 0
               ? 'No templates yet. Drag a plan workout here to save one.'
               : 'No templates match.'}
-          </p>
+          </li>
         ) : (
           filtered.map((template) => (
-            <LibraryTemplateCard key={template.id} template={template} />
+            <LibraryTemplateRow
+              key={template.id}
+              template={template}
+              folderLabel={
+                template.folderId
+                  ? (folderNameById.get(template.folderId) ?? null)
+                  : null
+              }
+            />
           ))
         )}
-      </div>
+      </ul>
     </aside>
   )
 }

@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 import type { SessionType, WorkoutType } from '@prisma/client'
+import { setLibraryDockOpen } from '@/lib/library-dock'
 
 const STORAGE_KEY = 'tt-training-library-open'
 
@@ -24,6 +25,13 @@ export type TrainingLibraryTemplateItem = {
   plannedDistanceMeters: number | null
   distanceApprox?: boolean
   durationApprox?: boolean
+  folderId?: string | null
+}
+
+export type TrainingLibraryFolderItem = {
+  id: string
+  sport: WorkoutType
+  name: string
 }
 
 type TrainingLibraryContextValue = {
@@ -31,6 +39,7 @@ type TrainingLibraryContextValue = {
   setOpen: (open: boolean) => void
   toggle: () => void
   templates: TrainingLibraryTemplateItem[]
+  folders: TrainingLibraryFolderItem[]
 }
 
 const TrainingLibraryContext = createContext<TrainingLibraryContextValue | null>(null)
@@ -41,49 +50,58 @@ export function useTrainingLibrary() {
 
 type TrainingLibraryProviderProps = {
   templates: TrainingLibraryTemplateItem[]
+  folders?: TrainingLibraryFolderItem[]
   children: ReactNode
 }
 
 export function TrainingLibraryProvider({
   templates,
+  folders = [],
   children,
 }: TrainingLibraryProviderProps) {
   const [open, setOpenState] = useState(false)
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
+    let next = false
     try {
-      setOpenState(localStorage.getItem(STORAGE_KEY) === '1')
+      next = localStorage.getItem(STORAGE_KEY) === '1'
     } catch {
       /* ignore */
     }
+    setOpenState(next)
     setHydrated(true)
+    return () => setLibraryDockOpen(false)
   }, [])
+
+  // Side effects stay out of setState updaters (those can run during render).
+  useEffect(() => {
+    if (!hydrated) return
+    setLibraryDockOpen(open)
+    try {
+      localStorage.setItem(STORAGE_KEY, open ? '1' : '0')
+    } catch {
+      /* ignore */
+    }
+  }, [hydrated, open])
 
   const setOpen = useCallback((next: boolean) => {
     setOpenState(next)
-    try {
-      localStorage.setItem(STORAGE_KEY, next ? '1' : '0')
-    } catch {
-      /* ignore */
-    }
   }, [])
 
   const toggle = useCallback(() => {
-    setOpenState((prev) => {
-      const next = !prev
-      try {
-        localStorage.setItem(STORAGE_KEY, next ? '1' : '0')
-      } catch {
-        /* ignore */
-      }
-      return next
-    })
+    setOpenState((prev) => !prev)
   }, [])
 
   const value = useMemo(
-    () => ({ open: hydrated ? open : false, setOpen, toggle, templates }),
-    [hydrated, open, setOpen, toggle, templates],
+    () => ({
+      open: hydrated ? open : false,
+      setOpen,
+      toggle,
+      templates,
+      folders,
+    }),
+    [hydrated, open, setOpen, toggle, templates, folders],
   )
 
   return (

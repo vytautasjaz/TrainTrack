@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react'
 import { format } from 'date-fns'
 import {
@@ -14,25 +15,61 @@ import {
   type TrainingTableDayDto,
 } from '@/app/actions/training-table'
 import { PlanWorkoutModal } from '@/components/plan/plan-workout-modal'
+import {
+  planWorkoutUsesListDetailPanel,
+  WorkoutDetailView,
+} from '@/components/plan/workout-detail-view'
 import { DayDropSection } from '@/components/plan/day-drop-section'
+import { DayNoteSection } from '@/components/plan/day-note-section'
+import { SeasonEventChips } from '@/components/plan/season-event-chips'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import { TrainingListWorkoutRow } from '@/components/training/training-list-workout-row'
+import {
+  ListDayWeatherMini,
+  ListDayWeatherStrip,
+} from '@/components/weather/list-day-weather'
 import type { PlanDay } from '@/lib/plan-week'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { useFilteredPlanDays } from '@/components/training/use-plan-sport-filter-data'
 import { collapseTriathlonRaceWorkouts } from '@/lib/triathlon-race-summary'
+import { dayNoteHasVisibleContent } from '@/lib/day-notes'
 import { addDateOnlyDays, parseDateOnly, toDateKey } from '@/lib/dates'
 import { yesterdayKey } from '@/lib/training-timeline'
+import {
+  SHOW_EVENTS_STORAGE_KEY,
+  SHOW_NOTES_STORAGE_KEY,
+} from '@/lib/plan-calendar-layers'
+import { useStoredFlag } from '@/hooks/use-stored-flag'
 import { cn } from '@/lib/utils'
 
 const CHUNK_DAYS = 14
 const DAY_SECTION_ID = 'training-table-day'
+/** Ignore repeated top/bottom loads while content settles. */
+const LOAD_COOLDOWN_MS = 450
+const LG_QUERY = '(min-width: 1024px)'
+
+function subscribeLg(onChange: () => void) {
+  const mq = window.matchMedia(LG_QUERY)
+  mq.addEventListener('change', onChange)
+  return () => mq.removeEventListener('change', onChange)
+}
+
+function getLgSnapshot() {
+  return window.matchMedia(LG_QUERY).matches
+}
+
+function useIsLg() {
+  // Server + hydration snapshot must match; prefer no panel until client knows.
+  return useSyncExternalStore(subscribeLg, getLgSnapshot, () => false)
+}
 
 type TrainingTableViewProps = {
   initialDays: TrainingTableDayDto[]
   initialFromKey: string
   initialToKey: string
   isCoach: boolean
+  canEditDayNotes?: boolean
+  athleteId?: string
 }
 
 function toPlanDays(days: TrainingTableDayDto[]): PlanDay[] {
@@ -43,20 +80,34 @@ function toPlanDays(days: TrainingTableDayDto[]): PlanDay[] {
     dateLabel: day.dateLabel,
     isToday: day.isToday,
     workouts: day.workouts,
-    dayNote: null,
+    dayNote: day.dayNote ?? null,
+    seasonEvents: day.seasonEvents ?? [],
+    weather: day.weather ?? null,
   }))
+}
+
+function dayHasListContent(
+  day: {
+    workouts: PlanWorkoutDetail[]
+    dayNote?: PlanDay['dayNote']
+    seasonEvents?: PlanDay['seasonEvents']
+  },
+  opts: { showNotes: boolean; showEvents: boolean },
+) {
+  return (
+    day.workouts.length > 0 ||
+    (opts.showNotes && dayNoteHasVisibleContent(day.dayNote)) ||
+    (opts.showEvents && (day.seasonEvents?.length ?? 0) > 0)
+  )
 }
 
 function mergeDays(
   existing: TrainingTableDayDto[],
   incoming: TrainingTableDayDto[],
-  direction: 'past' | 'future',
 ): TrainingTableDayDto[] {
   const byKey = new Map(existing.map((d) => [d.dateKey, d]))
   for (const day of incoming) byKey.set(day.dateKey, day)
-  const merged = [...byKey.values()].sort((a, b) => a.dateKey.localeCompare(b.dateKey))
-  void direction
-  return merged
+  return [...byKey.values()].sort((a, b) => a.dateKey.localeCompare(b.dateKey))
 }
 
 function getBottomInset() {
@@ -67,11 +118,17 @@ function getBottomInset() {
   return window.innerHeight - rect.top + 8
 }
 
+function daySectionEl(dateKey: string) {
+  return document.getElementById(`${DAY_SECTION_ID}-${dateKey}`)
+}
+
 export function TrainingTableView({
   initialDays,
   initialFromKey,
   initialToKey,
   isCoach,
+  canEditDayNotes = false,
+  athleteId,
 }: TrainingTableViewProps) {
   const [days, setDays] = useState(initialDays)
   const [fromKey, setFromKey] = useState(initialFromKey)
@@ -80,6 +137,9 @@ export function TrainingTableView({
   const [loadingFuture, setLoadingFuture] = useState(false)
   const [selected, setSelected] = useState<PlanWorkoutDetail | null>(null)
   const [listHeight, setListHeight] = useState<number | null>(null)
+  const [showNotes] = useStoredFlag(SHOW_NOTES_STORAGE_KEY, true)
+  const [showEvents] = useStoredFlag(SHOW_EVENTS_STORAGE_KEY, true)
+  const isLg = useIsLg()
 
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const topSentinelRef = useRef<HTMLDivElement | null>(null)
@@ -92,6 +152,13 @@ export function TrainingTableView({
   const emptyPastStreakRef = useRef(0)
   const emptyFutureStreakRef = useRef(0)
   const hasScrolledToInitial = useRef(false)
+  const pastCooldownUntilRef = useRef(0)
+  const futureCooldownUntilRef = useRef(0)
+  /** Restore this day's viewport offset after prepending past days. */
+  const pendingPastAnchorRef = useRef<{
+    dateKey: string
+    offsetTop: number
+  } | null>(null)
 
   // Reset when athlete/server initial window changes
   useEffect(() => {
@@ -105,6 +172,9 @@ export function TrainingTableView({
     emptyPastStreakRef.current = 0
     emptyFutureStreakRef.current = 0
     hasScrolledToInitial.current = false
+    pendingPastAnchorRef.current = null
+    pastCooldownUntilRef.current = 0
+    futureCooldownUntilRef.current = 0
     return () => window.clearTimeout(timeoutId)
   }, [initialDays, initialFromKey, initialToKey])
 
@@ -134,7 +204,30 @@ export function TrainingTableView({
   const loadPast = useCallback(async () => {
     if (loadingPastRef.current) return
     if (!wantsPastRef.current) return
+    if (Date.now() < pastCooldownUntilRef.current) return
     if (emptyPastStreakRef.current >= 4) return
+
+    const container = scrollRef.current
+    if (!container) return
+
+    // Anchor to the first on-screen day section so prepends don't jump.
+    const sections = container.querySelectorAll<HTMLElement>(
+      `[id^="${DAY_SECTION_ID}-"]`,
+    )
+    let anchor: { dateKey: string; offsetTop: number } | null = null
+    const containerTop = container.getBoundingClientRect().top
+    for (const section of sections) {
+      const rect = section.getBoundingClientRect()
+      if (rect.bottom > containerTop + 8) {
+        const dateKey = section.id.slice(`${DAY_SECTION_ID}-`.length)
+        anchor = {
+          dateKey,
+          offsetTop: rect.top - containerTop,
+        }
+        break
+      }
+    }
+
     loadingPastRef.current = true
     setLoadingPast(true)
     try {
@@ -145,33 +238,26 @@ export function TrainingTableView({
         d.workouts.some((w) => w.type !== 'REST' && w.type !== 'RECOVERY'),
       )
       emptyPastStreakRef.current = hadWorkouts ? 0 : emptyPastStreakRef.current + 1
-      const container = scrollRef.current
-      const prevHeight = container?.scrollHeight ?? 0
-      const prevTop = container?.scrollTop ?? 0
-      setDays((prev) => mergeDays(prev, chunk, 'past'))
+
+      if (anchor) pendingPastAnchorRef.current = anchor
+      setDays((prev) => mergeDays(prev, chunk))
       setFromKey(toDateKey(start))
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const next = scrollRef.current
-          if (!next) return
-          const delta = next.scrollHeight - prevHeight
-          next.scrollTop = prevTop + delta
-        })
-      })
     } catch {
-      // keep existing window
+      pendingPastAnchorRef.current = null
     } finally {
       loadingPastRef.current = false
       setLoadingPast(false)
+      pastCooldownUntilRef.current = Date.now() + LOAD_COOLDOWN_MS
     }
   }, [fromKey])
 
   const loadFuture = useCallback(async () => {
     if (loadingFutureRef.current) return
+    if (Date.now() < futureCooldownUntilRef.current) return
     const container = scrollRef.current
     const shortPage = container
       ? container.scrollHeight <= container.clientHeight + 40
-      : document.documentElement.scrollHeight <= window.innerHeight + 40
+      : false
     if (!userScrolledRef.current && !shortPage) return
     if (emptyFutureStreakRef.current >= 4) return
     loadingFutureRef.current = true
@@ -184,13 +270,14 @@ export function TrainingTableView({
         d.workouts.some((w) => w.type !== 'REST' && w.type !== 'RECOVERY'),
       )
       emptyFutureStreakRef.current = hadWorkouts ? 0 : emptyFutureStreakRef.current + 1
-      setDays((prev) => mergeDays(prev, chunk, 'future'))
+      setDays((prev) => mergeDays(prev, chunk))
       setToKey(toDateKey(end))
     } catch {
       // keep existing window
     } finally {
       loadingFutureRef.current = false
       setLoadingFuture(false)
+      futureCooldownUntilRef.current = Date.now() + LOAD_COOLDOWN_MS
     }
   }, [toKey])
 
@@ -203,7 +290,7 @@ export function TrainingTableView({
     const onScroll = () => {
       const y = container.scrollTop
       userScrolledRef.current = true
-      if (y < lastY && y < 64) wantsPastRef.current = true
+      if (y < lastY && y < 80) wantsPastRef.current = true
       lastY = y
     }
     const onWheel = (event: WheelEvent) => {
@@ -244,6 +331,8 @@ export function TrainingTableView({
       (entries) => {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue
+          if (loadingPastRef.current) continue
+          if (Date.now() < pastCooldownUntilRef.current) continue
           void loadPast()
         }
       },
@@ -253,10 +342,12 @@ export function TrainingTableView({
       (entries) => {
         for (const entry of entries) {
           if (!entry.isIntersecting) continue
+          if (loadingFutureRef.current) continue
+          if (Date.now() < futureCooldownUntilRef.current) continue
           void loadFuture()
         }
       },
-      { root, rootMargin: '320px 0px', threshold: 0 },
+      { root, rootMargin: '240px 0px', threshold: 0 },
     )
 
     topObserver.observe(top)
@@ -273,6 +364,11 @@ export function TrainingTableView({
   const showEmptyDropDays =
     isCoach && dnd?.dragItem?.kind === 'plan'
 
+  const layerOpts = useMemo(
+    () => ({ showNotes, showEvents }),
+    [showNotes, showEvents],
+  )
+
   const displayDays = useMemo(() => {
     const mapped = filteredDays.map((day) => ({
       ...day,
@@ -281,18 +377,34 @@ export function TrainingTableView({
       ),
     }))
     if (!showEmptyDropDays) {
-      return mapped.filter((day) => day.workouts.length > 0)
+      return mapped.filter((day) => dayHasListContent(day, layerOpts))
     }
-    // While dragging, fill empty days between first/last workout days so
+    // While dragging, fill empty days between first/last content days so
     // coaches can drop onto rest days without exploding the list.
-    const withWorkouts = mapped.filter((day) => day.workouts.length > 0)
-    if (withWorkouts.length === 0) return mapped
-    const firstKey = withWorkouts[0]!.dateKey
-    const lastKey = withWorkouts[withWorkouts.length - 1]!.dateKey
+    const withContent = mapped.filter((day) =>
+      dayHasListContent(day, layerOpts),
+    )
+    if (withContent.length === 0) return mapped
+    const firstKey = withContent[0]!.dateKey
+    const lastKey = withContent[withContent.length - 1]!.dateKey
     return mapped.filter(
       (day) => day.dateKey >= firstKey && day.dateKey <= lastKey,
     )
-  }, [filteredDays, showEmptyDropDays])
+  }, [filteredDays, showEmptyDropDays, layerOpts])
+
+  useLayoutEffect(() => {
+    const pending = pendingPastAnchorRef.current
+    if (!pending) return
+    pendingPastAnchorRef.current = null
+
+    const container = scrollRef.current
+    const target = daySectionEl(pending.dateKey)
+    if (!container || !target) return
+
+    const containerTop = container.getBoundingClientRect().top
+    const nextOffset = target.getBoundingClientRect().top - containerTop
+    container.scrollTop += nextOffset - pending.offsetTop
+  }, [displayDays])
 
   useLayoutEffect(() => {
     if (hasScrolledToInitial.current || listHeight == null) return
@@ -303,7 +415,7 @@ export function TrainingTableView({
     if (!targetKey) return
 
     const container = scrollRef.current
-    const target = document.getElementById(`${DAY_SECTION_ID}-${targetKey}`)
+    const target = daySectionEl(targetKey)
     if (!container || !target) return
 
     const top =
@@ -313,89 +425,234 @@ export function TrainingTableView({
     hasScrolledToInitial.current = true
   }, [listHeight, displayDays])
 
+  // Keep selection in sync when list data refreshes; clear if workout is gone.
+  useEffect(() => {
+    setSelected((prev) => {
+      if (!prev) return prev
+      return (
+        days.flatMap((d) => d.workouts).find((w) => w.id === prev.id) ?? null
+      )
+    })
+  }, [days])
+
+  const panelWorkout =
+    selected && planWorkoutUsesListDetailPanel(isCoach, selected)
+      ? selected
+      : null
+  const showDesktopPanel = isLg
+  const showModal =
+    selected != null &&
+    (!isLg || !planWorkoutUsesListDetailPanel(isCoach, selected))
+
   return (
     <>
       <div
-        ref={scrollRef}
-        className="min-h-0 overflow-y-auto overscroll-y-contain [overflow-anchor:none] [scrollbar-gutter:stable]"
+        className="flex min-h-0 items-stretch gap-8"
         style={listHeight != null ? { height: listHeight } : undefined}
       >
-        <div className="w-full space-y-5 pb-2">
-          <div ref={topSentinelRef} className="h-1 w-full" aria-hidden />
-          {loadingPast ? (
-            <p className="py-2 text-center text-xs text-muted-foreground">
-              Loading earlier days…
-            </p>
-          ) : null}
+        <div
+          ref={scrollRef}
+          className="relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none] [scrollbar-gutter:stable]"
+          aria-busy={loadingPast || loadingFuture}
+        >
+          {/* Zero-height sticky overlays — load labels must not shift scroll height */}
+          <div className="pointer-events-none sticky top-0 z-10 h-0 overflow-visible">
+            {loadingPast ? (
+              <p className="bg-background/80 py-1.5 text-center text-[10px] text-muted-foreground/80 backdrop-blur-[1px]">
+                Loading earlier…
+              </p>
+            ) : null}
+          </div>
 
-          {displayDays.length === 0 ? (
-            <p className="rounded-[6px] border border-dashed border-border/70 bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
-              No workouts from today onward yet. Scroll down for later days, or
-              pull up for earlier ones.
-            </p>
-          ) : (
-            displayDays.map((day) => (
-              <DayDropSection
-                key={day.dateKey}
-                id={`${DAY_SECTION_ID}-${day.dateKey}`}
-                dateKey={day.dateKey}
-                enabled={isCoach}
-                className="space-y-2 rounded-[8px]"
-              >
-                {day.isToday ? (
-                  <div
-                    className="mb-1 flex items-center gap-3 pt-1"
-                    role="separator"
-                    aria-label="Today"
-                  >
-                    <div className="h-px flex-1 bg-foreground/20" />
-                    <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                      Today
-                    </span>
-                    <div className="h-px flex-1 bg-foreground/20" />
-                  </div>
-                ) : null}
-                <div className="flex items-center gap-2 px-0.5">
-                  <p
-                    className={cn(
-                      'text-[11px] font-semibold uppercase tracking-wide text-muted-foreground',
-                      day.isToday && 'text-foreground',
-                    )}
-                  >
-                    {format(day.date, 'EEEE d MMM')}
-                  </p>
-                </div>
+          <div className="w-full space-y-7 pb-2">
+            <div ref={topSentinelRef} className="h-px w-full" aria-hidden />
 
-                <div className="space-y-1.5">
-                  {day.workouts.length === 0 ? (
-                    <div className="rounded-[6px] border border-dashed border-brand/30 bg-brand/[0.03] px-3 py-5 text-center text-xs text-muted-foreground">
-                      Drop workout here
+            {displayDays.length === 0 ? (
+              <p className="rounded-[10px] border border-dashed border-[var(--tt-line,#ebebeb)] bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
+                No workouts from today onward yet. Scroll down for later days, or
+                pull up for earlier ones.
+              </p>
+            ) : (
+              displayDays.map((day) => (
+                <DayDropSection
+                  key={day.dateKey}
+                  id={`${DAY_SECTION_ID}-${day.dateKey}`}
+                  dateKey={day.dateKey}
+                  enabled={isCoach}
+                  className={cn(
+                    'scroll-mt-14 space-y-2.5',
+                    day.isToday && 'scroll-mt-16',
+                  )}
+                >
+                  {day.isToday ? (
+                    <div className="flex flex-wrap items-center gap-3 pt-1">
+                      <p className="shrink-0 text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink,#1a1a1a)]">
+                        Today
+                      </p>
+                      <div
+                        className="h-px min-w-[1.5rem] flex-1 bg-[var(--tt-line-strong,#ddd)]"
+                        aria-hidden
+                      />
+                      {day.weather ? (
+                        <ListDayWeatherStrip
+                          weather={day.weather}
+                          className="shrink-0 justify-end text-right"
+                        />
+                      ) : null}
                     </div>
                   ) : (
-                    day.workouts.map((workout) => (
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-soft,#6b6b6b)]">
+                        {format(day.date, 'EEEE d MMM')}
+                      </p>
+                      {day.weather ? (
+                        <ListDayWeatherMini
+                          weather={day.weather}
+                          className="ml-auto"
+                        />
+                      ) : null}
+                    </div>
+                  )}
+
+                  <div
+                    className={cn(
+                      'overflow-hidden rounded-[10px] border border-[var(--tt-line,#ebebeb)] bg-white',
+                      'shadow-[0_1px_2px_rgb(0_0_0_/0.03),0_2px_8px_rgb(0_0_0_/0.03)]',
+                      /* Today = soft wash (not a red left rail — that fights completed green rails). */
+                      day.isToday &&
+                        'bg-[var(--tt-today-wash,rgb(218_47_54/0.035))]',
+                    )}
+                  >
+                    {day.workouts.length === 0 &&
+                    !(showNotes && dayNoteHasVisibleContent(day.dayNote)) &&
+                    !(showEvents && (day.seasonEvents?.length ?? 0) > 0) ? (
+                      <div className="px-3.5 py-5 text-center text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
+                        {isCoach ? 'Drop workout here' : 'Rest / empty'}
+                      </div>
+                    ) : null}
+
+                    {day.workouts.map((workout, i) => (
                       <TrainingListWorkoutRow
                         key={workout.id}
                         workout={workout}
                         isCoach={isCoach}
+                        last={
+                          i === day.workouts.length - 1 &&
+                          !(
+                            showNotes &&
+                            dayNoteHasVisibleContent(day.dayNote)
+                          ) &&
+                          !(
+                            showEvents &&
+                            (day.seasonEvents?.length ?? 0) > 0
+                          )
+                        }
+                        selected={
+                          showDesktopPanel && panelWorkout?.id === workout.id
+                        }
                         onOpen={() => setSelected(workout)}
                       />
-                    ))
-                  )}
-                </div>
-              </DayDropSection>
-            ))
-          )}
+                    ))}
 
-          {loadingFuture ? (
-            <p className="py-2 text-center text-xs text-muted-foreground">
-              Loading later days…
-            </p>
-          ) : null}
-          <div ref={bottomSentinelRef} className="h-1 w-full" aria-hidden />
+                    {showEvents && (day.seasonEvents?.length ?? 0) > 0 ? (
+                      <div
+                        className={cn(
+                          'bg-amber-50/90 px-3.5 py-3.5 pl-4',
+                          day.workouts.length > 0 &&
+                            'border-t border-amber-200/80',
+                        )}
+                      >
+                        <SeasonEventChips
+                          events={day.seasonEvents ?? []}
+                          variant="strip"
+                          editable={isCoach}
+                          dateKey={day.dateKey}
+                        />
+                      </div>
+                    ) : null}
+
+                    {showNotes && dayNoteHasVisibleContent(day.dayNote) ? (
+                      <div
+                        className={cn(
+                          'px-3.5 py-3.5 pl-4',
+                          (day.workouts.length > 0 ||
+                            (showEvents &&
+                              (day.seasonEvents?.length ?? 0) > 0)) &&
+                            'border-t border-amber-200/80 bg-amber-50/90',
+                          day.workouts.length === 0 &&
+                            !(
+                              showEvents &&
+                              (day.seasonEvents?.length ?? 0) > 0
+                            ) &&
+                            'bg-amber-50/90',
+                        )}
+                      >
+                        <DayNoteSection
+                          dateKey={day.dateKey}
+                          note={day.dayNote}
+                          canEdit={canEditDayNotes}
+                          noteKind={isCoach ? 'coach' : 'athlete'}
+                          athleteId={athleteId}
+                          compact
+                          showFullText
+                          hideEmptyAdd
+                          variant="strip"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </DayDropSection>
+              ))
+            )}
+
+            <div ref={bottomSentinelRef} className="h-px w-full" aria-hidden />
+          </div>
+
+          <div className="pointer-events-none sticky bottom-0 z-10 h-0 overflow-visible">
+            {loadingFuture ? (
+              <p className="absolute inset-x-0 bottom-0 bg-background/80 py-1.5 text-center text-[10px] text-muted-foreground/80 backdrop-blur-[1px]">
+                Loading later…
+              </p>
+            ) : null}
+          </div>
         </div>
+
+        {showDesktopPanel ? (
+          <aside
+            className="hidden min-h-0 w-[28rem] shrink-0 flex-col lg:flex xl:w-[30rem]"
+            aria-label="Workout detail"
+          >
+            <div
+              className={cn(
+                'flex h-full min-h-0 flex-col overflow-hidden rounded-[10px] border border-[var(--tt-line,#ebebeb)] bg-white',
+                'shadow-[0_1px_2px_rgb(0_0_0_/0.03),0_2px_8px_rgb(0_0_0_/0.03)]',
+              )}
+            >
+              {panelWorkout ? (
+                <WorkoutDetailView
+                  key={panelWorkout.id}
+                  workout={panelWorkout}
+                  isCoach={isCoach}
+                  active
+                  heroTone="light"
+                  onClose={() => setSelected(null)}
+                />
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center gap-1 px-6 py-10 text-center">
+                  <p className="text-sm font-medium text-foreground">
+                    Workout detail
+                  </p>
+                  <p className="max-w-[16rem] text-[13px] leading-snug text-muted-foreground">
+                    Select a workout from the list to open it here.
+                  </p>
+                </div>
+              )}
+            </div>
+          </aside>
+        ) : null}
       </div>
 
-      {selected ? (
+      {showModal && selected ? (
         <PlanWorkoutModal
           workout={selected}
           isCoach={isCoach}

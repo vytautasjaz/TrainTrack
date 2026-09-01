@@ -26,7 +26,7 @@ export function WorkoutEditorPage({
   const router = useRouter()
 
   return (
-    <div className="mx-auto max-w-2xl overflow-hidden rounded-[6px] border border-border bg-card shadow-none">
+    <div className="mx-auto max-w-2xl overflow-hidden rounded-[10px] border border-[#151827]/35 bg-card shadow-none">
       <SharedWorkoutEditor
         mode={mode}
         sportType={sportType}

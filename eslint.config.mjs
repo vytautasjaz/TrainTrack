@@ -21,6 +21,9 @@ const eslintConfig = [
           caughtErrorsIgnorePattern: '^_',
         },
       ],
+      // Valid sync patterns (reset-on-filter, map init, data fetch) — too noisy as error.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/refs': 'off',
     },
   },
 ]

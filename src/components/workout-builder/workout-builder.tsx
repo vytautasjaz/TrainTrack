@@ -17,7 +17,7 @@ import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { PageTitle } from '@/components/ui/typography'
+import { PageHeaderTitle } from '@/components/ui/page-header'
 import {
   saveTemplateBuilder,
   saveTemplateBuilderAndRedirect,
@@ -166,9 +166,9 @@ export function WorkoutBuilder({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <BackButton variant="link" fallbackHref={fallbackHref} className="px-0" />
-          <PageTitle className="mt-1 text-xl">
+          <PageHeaderTitle size="compact" className="mt-1">
             {mode === 'workout' ? 'Workout builder' : 'Template builder'}
-          </PageTitle>
+          </PageHeaderTitle>
         </div>
         <div className="text-right text-caption">
           {isPending && 'Saving…'}

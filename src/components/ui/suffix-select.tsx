@@ -27,11 +27,11 @@ export function SuffixSelect({
     <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
       <SelectPrimitive.Trigger
         aria-label={ariaLabel}
-        className="inline-flex h-full min-w-[3.75rem] items-center justify-center gap-1 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-0 data-[state=open]:text-foreground"
+        className="inline-flex h-full min-w-[2.75rem] items-center justify-center gap-0.5 px-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-0 data-[state=open]:text-foreground"
       >
         <SelectPrimitive.Value />
         <SelectPrimitive.Icon asChild>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/80" />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectDropdownContent align="end">
@@ -63,13 +63,13 @@ export function FillSelect({
     <SelectPrimitive.Root value={value || undefined} onValueChange={onValueChange}>
       <SelectPrimitive.Trigger
         className={cn(
-          'flex h-10 w-full items-center gap-1 px-3 text-left text-sm font-medium focus:outline-none focus-visible:ring-0',
+          'flex h-7 w-full items-center gap-0.5 px-2 text-left text-xs font-medium focus:outline-none focus-visible:ring-0',
           !value && 'text-muted-foreground',
         )}
       >
         <SelectPrimitive.Value placeholder={placeholder} />
         <SelectPrimitive.Icon asChild>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground/80" />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectDropdownContent align={align}>

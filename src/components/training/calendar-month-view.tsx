@@ -21,38 +21,51 @@ import {
 import { PlanWorkoutActionsMenu } from "@/components/plan/plan-workout-actions-menu";
 import { SeasonEventChips } from "@/components/plan/season-event-chips";
 import { WorkoutModalTrigger } from "@/components/plan/workout-modal-trigger";
+import { WeekPlanWorkoutCard } from "@/components/plan/week-plan-workout-card";
+import {
+  WeekCardSizeProvider,
+  useWeekCardSize,
+} from "@/components/plan/week-card-size-context";
+import { WeekCardSizeSwitch } from "@/components/plan/week-card-size-switch";
 import { usePlanWeekDnd } from "@/components/plan/plan-week-dnd";
-import { WorkoutBlock } from "@/components/workout-block";
+import { useOptimisticWorkoutStatus } from "@/components/plan/athlete-workout-quick-actions";
+import {
+  WorkoutCardCornerOverlay,
+  workoutCardCornerSpacerClass,
+} from "@/components/plan/workout-card-corner-overlay";
 import { CalendarWeekStatsCell } from "@/components/training/calendar-week-stats-cell";
 import {
   PlanSportFilterBar,
   PlanViewModeControl,
   ToolbarDivider,
+  ToolbarFilterGroup,
   ToolbarTextToggle,
 } from "@/components/training/plan-sport-filter-bar";
 import { useFilteredWorkoutsByDate } from "@/components/training/use-plan-sport-filter-data";
 import { useTrainingLibrary } from "@/components/training/training-library-context";
+import { TrainingLibraryToolbarToggle } from "@/components/training/training-library-toolbar-toggle";
+import { FeedbackLayerToggle } from "@/components/training/feedback-layer-toggle";
+import { AthleteAvatar } from "@/components/athlete/athlete-avatar";
 import type { DayNoteData } from "@/lib/day-notes";
 import { dayNoteHasVisibleContent } from "@/lib/day-notes";
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
-import { canDragPlanWorkout } from "@/lib/plan-workout";
+import {
+  athleteHasQuickLogActions,
+  canDragPlanWorkout,
+} from "@/lib/plan-workout";
 import { getRecoveryWorkout } from "@/lib/recovery-day";
 import type { SeasonEventData } from "@/lib/season-planner";
 import { parseDateOnly } from "@/lib/dates";
 import { setCalendarExpanded } from "@/lib/calendar-expand";
+import { MONTH_CARD_SIZE_STORAGE_KEY } from "@/lib/week-card-size";
 import { cn } from "@/lib/utils";
 import { collapseTriathlonRaceWorkouts } from "@/lib/triathlon-race-summary";
-import {
-  SegmentedControl,
-  SegmentedControlItem,
-} from "@/components/ui/segmented-control";
 import {
   SHOW_EVENTS_STORAGE_KEY,
   SHOW_NOTES_STORAGE_KEY,
   SHOW_STATS_STORAGE_KEY,
-  readStoredFlag,
-  writeStoredFlag,
 } from "@/lib/plan-calendar-layers";
+import { useStoredFlag } from "@/hooks/use-stored-flag";
 import {
   TABLE_BODY,
   TABLE_HEADER,
@@ -77,6 +90,11 @@ const DAY_NAMES = [
 const STATS_GRID_COLS =
   "grid-cols-[minmax(11rem,14rem)_repeat(7,minmax(0,1fr))]";
 
+function MonthCardSizeToolbarControl() {
+  const { cardSize, setCardSize } = useWeekCardSize();
+  return <WeekCardSizeSwitch value={cardSize} onChange={setCardSize} />;
+}
+
 type CalendarDay = {
   dateKey: string;
   dayNumber: number;
@@ -100,6 +118,8 @@ type CalendarMonthViewProps = {
   isCoach: boolean;
   canEditDayNotes?: boolean;
   athleteId?: string;
+  athleteName?: string;
+  athleteAvatarUrl?: string | null;
   planSportRows?: WorkoutType[];
   swimCssSecPer100m?: number | null;
   prevMonthHref?: string;
@@ -115,7 +135,9 @@ function CalendarWorkoutCard({
 }) {
   const dnd = usePlanWeekDnd();
   const [dragging, setDragging] = useState(false);
-  const canDrag = Boolean(dnd) && canDragPlanWorkout(workout);
+  const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout);
+  const canDrag = Boolean(dnd) && canDragPlanWorkout(workout, status);
+  const showQuickActions = athleteHasQuickLogActions(workout, isCoach);
   const showCoachMenu =
     isCoach && !workout.isRace && workout.type !== WorkoutType.RECOVERY;
   const showReview = isCoach && needsCoachRescheduleReview(workout);
@@ -154,28 +176,45 @@ function CalendarWorkoutCard({
           dnd?.setDragWorkout(null);
         }}
       >
-        <div className="min-w-0">
-          <WorkoutBlock
-            workout={workout}
-            density="xs"
-            actions={
-              showCoachMenu ? (
-                <span className="inline-block w-5" aria-hidden />
-              ) : null
-            }
-            footer={
-              showReview ? (
-                <CoachRescheduleReviewActions workout={workout} isCoach={isCoach} />
-              ) : null
-            }
-          />
-        </div>
+        <WeekPlanWorkoutCard
+          workout={workout}
+          status={status}
+          isCoach={isCoach}
+          hideCompletedBadge={showQuickActions}
+          actions={
+            showQuickActions || showCoachMenu ? (
+              <span
+                className={workoutCardCornerSpacerClass(workout, {
+                  showQuickActions,
+                  showCoachMenu,
+                })}
+                aria-hidden
+              />
+            ) : null
+          }
+          footer={
+            showReview ? (
+              <CoachRescheduleReviewActions
+                workout={workout}
+                isCoach={isCoach}
+              />
+            ) : null
+          }
+        />
       </WorkoutModalTrigger>
-      {showCoachMenu ? (
-        <div className="absolute right-0.5 top-0.5 z-10 opacity-80 transition group-hover/card:opacity-100">
-          <PlanWorkoutActionsMenu workout={workout} compact />
-        </div>
-      ) : null}
+      <WorkoutCardCornerOverlay
+        workout={workout}
+        isCoach={isCoach}
+        showQuickActions={showQuickActions}
+        status={status}
+        onStatusChange={setOptimisticStatus}
+        className="right-0.5 top-0.5"
+        leading={
+          showCoachMenu ? (
+            <PlanWorkoutActionsMenu workout={workout} compact />
+          ) : undefined
+        }
+      />
     </div>
   );
 }
@@ -191,53 +230,39 @@ export function CalendarMonthView({
   isCoach,
   canEditDayNotes = false,
   athleteId,
+  athleteName,
+  athleteAvatarUrl,
   planSportRows = [],
   swimCssSecPer100m = null,
   prevMonthHref,
   nextMonthHref,
 }: CalendarMonthViewProps) {
-  const [showNotes, setShowNotes] = useState(() =>
-    readStoredFlag(SHOW_NOTES_STORAGE_KEY, true),
+  const [showNotes, setShowNotes] = useStoredFlag(SHOW_NOTES_STORAGE_KEY, true);
+  const [showEvents, setShowEvents] = useStoredFlag(
+    SHOW_EVENTS_STORAGE_KEY,
+    true,
   );
-  const [showEvents, setShowEvents] = useState(() =>
-    readStoredFlag(SHOW_EVENTS_STORAGE_KEY, true),
-  );
-  const [showStats, setShowStats] = useState(() =>
-    readStoredFlag(SHOW_STATS_STORAGE_KEY, false),
-  );
+  const [showStats, setShowStats] = useStoredFlag(SHOW_STATS_STORAGE_KEY, false);
   const [expanded, setExpanded] = useState(false);
   const library = useTrainingLibrary();
   const filteredByDate = useFilteredWorkoutsByDate(workoutsByDate);
 
   function toggleShowNotes() {
-    setShowNotes((prev) => {
-      const next = !prev;
-      writeStoredFlag(SHOW_NOTES_STORAGE_KEY, next);
-      return next;
-    });
+    setShowNotes((prev) => !prev);
   }
 
   function toggleShowEvents() {
-    setShowEvents((prev) => {
-      const next = !prev;
-      writeStoredFlag(SHOW_EVENTS_STORAGE_KEY, next);
-      return next;
-    });
+    setShowEvents((prev) => !prev);
   }
 
   function toggleShowStats() {
-    setShowStats((prev) => {
-      const next = !prev;
-      writeStoredFlag(SHOW_STATS_STORAGE_KEY, next);
-      return next;
-    });
+    setShowStats((prev) => !prev);
   }
 
   function toggleExpanded() {
     setExpanded((prev) => {
       const next = !prev;
       setCalendarExpanded(next);
-      if (next) library?.setOpen(false);
       return next;
     });
   }
@@ -303,94 +328,149 @@ export function CalendarMonthView({
   const gridCols = showStats ? STATS_GRID_COLS : "grid-cols-7";
 
   return (
+    <WeekCardSizeProvider storageKey={MONTH_CARD_SIZE_STORAGE_KEY}>
     <div className={cn("space-y-4", expanded && "tt-calendar-expanded-root space-y-2")}>
-      <div className="flex min-w-0 items-center gap-1 overflow-x-auto pb-0.5">
-        {/* Left: date only */}
-        <CalendarPeriodNav
-          label={rangeLabel}
-          prevHref={prevMonthHref}
-          nextHref={nextMonthHref}
-          prevAriaLabel="Previous month"
-          nextAriaLabel="Next month"
-          align="start"
-          className="mb-0 shrink-0"
-        />
+      <div className="mb-2 flex min-w-0 items-end gap-1 overflow-x-auto pb-0.5">
+        <div className="mb-0.5 flex min-w-0 shrink-0 items-end gap-3">
+          {expanded && isCoach && athleteName ? (
+            <div className="flex min-w-0 items-center gap-2.5">
+              <AthleteAvatar
+                name={athleteName}
+                avatarUrl={athleteAvatarUrl}
+                size="sm"
+              />
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+                  Planning for
+                </p>
+                <p className="truncate text-sm font-semibold leading-tight text-[var(--tt-ink,#111)]">
+                  {athleteName}
+                </p>
+              </div>
+            </div>
+          ) : null}
+          <CalendarPeriodNav
+            label={rangeLabel}
+            prevHref={prevMonthHref}
+            nextHref={nextMonthHref}
+            prevAriaLabel="Previous month"
+            nextAriaLabel="Next month"
+            align="start"
+            className="mb-0 shrink-0"
+          />
+        </div>
 
-        {/* Right: filters + layers + look + layout */}
-        <div className="ml-auto flex min-w-0 shrink-0 items-center gap-1">
-          <PlanSportFilterBar className="shrink-0" />
+        <div className="ml-auto flex min-w-0 shrink-0 items-end gap-2">
+          <ToolbarFilterGroup
+            label="Filter"
+            hint="Show or hide sports and workout statuses"
+          >
+            <PlanSportFilterBar className="shrink-0" />
+          </ToolbarFilterGroup>
 
-          <ToolbarDivider className="mx-1.5" />
+          <ToolbarDivider className="mb-1.5 mx-0.5" />
 
-          <div className="flex shrink-0 items-center gap-0.5">
-            <ToolbarTextToggle
-              pressed={showNotes}
-              onClick={toggleShowNotes}
-              title={showNotes ? "Hide day notes" : "Show day notes"}
-            >
-              <StickyNote className="h-3 w-3" aria-hidden />
-              Notes
-            </ToolbarTextToggle>
-            <ToolbarTextToggle
-              pressed={showEvents}
-              onClick={toggleShowEvents}
-              title={showEvents ? "Hide season events" : "Show season events"}
-            >
-              <CalendarDays className="h-3 w-3" aria-hidden />
-              Events
-            </ToolbarTextToggle>
-            <ToolbarTextToggle
-              pressed={showStats}
-              onClick={toggleShowStats}
-              title={
-                showStats
-                  ? "Hide weekly sport stats"
-                  : "Show weekly sport stats"
-              }
-            >
-              <ChartColumn className="h-3 w-3" aria-hidden />
-              Stats
-            </ToolbarTextToggle>
-          </div>
+          <ToolbarFilterGroup
+            label="Layers"
+            hint="Toggle Notes, Events, Stats, and Feedback on cards"
+          >
+            <div className="flex shrink-0 items-center gap-0.5">
+              <ToolbarTextToggle
+                pressed={showNotes}
+                onClick={toggleShowNotes}
+                title={showNotes ? "Hide day notes" : "Show day notes"}
+              >
+                <StickyNote className="h-3 w-3" aria-hidden />
+                Notes
+              </ToolbarTextToggle>
+              <ToolbarTextToggle
+                pressed={showEvents}
+                onClick={toggleShowEvents}
+                title={showEvents ? "Hide season events" : "Show season events"}
+              >
+                <CalendarDays className="h-3 w-3" aria-hidden />
+                Events
+              </ToolbarTextToggle>
+              <ToolbarTextToggle
+                pressed={showStats}
+                onClick={toggleShowStats}
+                title={
+                  showStats
+                    ? "Hide weekly sport stats"
+                    : "Show weekly sport stats"
+                }
+              >
+                <ChartColumn className="h-3 w-3" aria-hidden />
+                Stats
+              </ToolbarTextToggle>
+              <FeedbackLayerToggle />
+            </div>
+          </ToolbarFilterGroup>
 
-          <ToolbarDivider className="mx-1.5" />
+          <ToolbarDivider className="mb-1.5 mx-0.5" />
 
-          <PlanViewModeControl className="shrink-0" />
+          <ToolbarFilterGroup label="View" hint="How workout cards are colored">
+            <PlanViewModeControl className="shrink-0" />
+          </ToolbarFilterGroup>
 
-          <ToolbarDivider className="mx-1.5" />
+          <ToolbarDivider className="mb-1.5 mx-0.5" />
 
-          <div className="flex shrink-0 items-center gap-1">
-            <SegmentedControl aria-label="Months shown" className="shrink-0">
+          <ToolbarFilterGroup
+            label="Cards"
+            hint="Workout card density on the month grid"
+          >
+            <MonthCardSizeToolbarControl />
+          </ToolbarFilterGroup>
+
+          <ToolbarDivider className="mb-1.5 mx-0.5" />
+
+          <ToolbarFilterGroup
+            label="Layout"
+            hint="Months shown and expanded calendar"
+          >
+            <div className="flex items-center gap-0.5" role="group" aria-label="Months shown">
               {([1, 2, 3] as const).map((n) => (
-                <SegmentedControlItem key={n} asChild active={monthSpan === n}>
-                  <Link
-                    href={spanHrefs[n]}
-                    title={`Show ${n} month${n > 1 ? "s" : ""}`}
-                    className="px-2.5 sm:px-3"
-                  >
-                    {n}m
-                  </Link>
-                </SegmentedControlItem>
+                <Link
+                  key={n}
+                  href={spanHrefs[n]}
+                  title={`Show ${n} month${n > 1 ? "s" : ""}`}
+                  aria-current={monthSpan === n ? "page" : undefined}
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-0.5 rounded-[4px] px-1.5 py-1 text-xs transition",
+                    monthSpan === n
+                      ? "font-semibold text-foreground"
+                      : "font-medium text-muted-foreground/40 hover:text-muted-foreground/70",
+                  )}
+                >
+                  {n}m
+                </Link>
               ))}
-            </SegmentedControl>
-            <button
-              type="button"
-              onClick={toggleExpanded}
-              className={cn(
-                "inline-flex h-7 w-7 items-center justify-center rounded-[5px] text-muted-foreground transition hover:text-foreground",
-                expanded && "bg-muted text-foreground",
-              )}
-              aria-pressed={expanded}
-              title={expanded ? "Exit expanded view" : "Expand calendar"}
-              aria-label={expanded ? "Exit expanded view" : "Expand calendar"}
-            >
-              {expanded ? (
-                <Minimize2 className="h-3.5 w-3.5" aria-hidden />
-              ) : (
-                <Maximize2 className="h-3.5 w-3.5" aria-hidden />
-              )}
-            </button>
-          </div>
+              <ToolbarTextToggle
+                pressed={expanded}
+                onClick={toggleExpanded}
+                title={expanded ? "Exit expanded view" : "Expand calendar"}
+                className="font-semibold text-foreground hover:text-foreground [&_svg]:opacity-100"
+              >
+                {expanded ? (
+                  <Minimize2 className="h-3.5 w-3.5" aria-hidden />
+                ) : (
+                  <Maximize2 className="h-3.5 w-3.5" aria-hidden />
+                )}
+              </ToolbarTextToggle>
+            </div>
+          </ToolbarFilterGroup>
+
+          {library ? (
+            <>
+              <ToolbarDivider className="mb-1.5 mx-0.5" />
+              <ToolbarFilterGroup
+                label="Library"
+                hint="Open or close the workout library panel"
+              >
+                <TrainingLibraryToolbarToggle />
+              </ToolbarFilterGroup>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -399,7 +479,7 @@ export function CalendarMonthView({
           {showStats ? (
             <div
               className={cn(
-                "px-1.5 py-1.5 text-left text-[11px] font-semibold",
+                "flex items-center px-1.5 py-2 text-left text-[11px] font-semibold",
                 TABLE_HEADER_VLINE,
                 TABLE_HEADER_CELL_MUTED,
               )}
@@ -411,7 +491,7 @@ export function CalendarMonthView({
             <div
               key={name.full}
               className={cn(
-                "px-1 py-1.5 text-center text-[11px] font-semibold",
+                "flex items-center justify-center px-1 py-2 text-center text-[11px] font-semibold",
                 i < 6 && TABLE_HEADER_VLINE,
                 i >= 5 && TABLE_HEADER_CELL_WEEKEND,
                 i >= 5 ? TABLE_HEADER_CELL : TABLE_HEADER_CELL_STRONG,
@@ -447,6 +527,7 @@ export function CalendarMonthView({
         </div>
       </div>
     </div>
+    </WeekCardSizeProvider>
   );
 }
 
@@ -558,91 +639,129 @@ function CalendarDayCell({
       })
     : null;
 
+  const hasContent =
+    filtered.length > 0 ||
+    (showEvents && events.length > 0) ||
+    (showNotes && dayNoteHasVisibleContent(note));
+
+  const addMenu = (
+    <PlanDayAddMenu
+      dateKey={day.dateKey}
+      isCoach={isCoach}
+      canAddNote={canEditDayNotes}
+      athleteId={athleteId}
+      dayNote={note}
+      recoveryWorkout={getRecoveryWorkout(
+        workoutsByDate.get(day.dateKey) ?? [],
+      )}
+      revealOnHover
+    />
+  );
+
+  const emptyAddMenu = (
+    <PlanDayAddMenu
+      dateKey={day.dateKey}
+      isCoach={isCoach}
+      canAddNote={canEditDayNotes}
+      athleteId={athleteId}
+      dayNote={note}
+      recoveryWorkout={getRecoveryWorkout(
+        workoutsByDate.get(day.dateKey) ?? [],
+      )}
+      hitArea="cell"
+    />
+  );
+
+  const dateHead = (
+    <div
+      className={cn(
+        "min-w-0 px-1 text-left text-[11px] font-semibold tabular-nums",
+        day.isToday ? "text-foreground" : "text-muted-foreground",
+      )}
+    >
+      {monthLabel ? (
+        <span className="inline-flex items-baseline gap-1">
+          <span
+            className={cn(
+              day.isToday &&
+                "inline-flex h-5 min-w-5 items-center justify-center rounded-[4px] bg-foreground px-1 text-[11px] font-bold text-background",
+            )}
+          >
+            {day.dayNumber}
+          </span>
+          <span className="text-[10px] font-semibold tracking-wide text-foreground/70">
+            {monthLabel}
+          </span>
+        </span>
+      ) : day.isToday ? (
+        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-[4px] bg-foreground px-1 text-[11px] font-bold text-background">
+          {day.dayNumber}
+        </span>
+      ) : (
+        day.dayNumber
+      )}
+    </div>
+  );
+
   return (
     <DayDropSection
       dateKey={day.dateKey}
       enabled
       className={cn(
-        "group/day flex min-h-[7.5rem] cursor-default flex-col gap-1 p-1 transition-colors [&_button]:cursor-default",
+        "group/day relative flex min-h-[7.5rem] cursor-default flex-col gap-1 p-1 transition-colors [&_button]:cursor-pointer",
         isWeekend
-          ? "bg-[color-mix(in_oklab,var(--color-muted)_40%,var(--color-card))] hover:bg-[color-mix(in_oklab,var(--color-muted)_58%,var(--color-card))]"
-          : "bg-card hover:bg-[color-mix(in_oklab,var(--color-muted)_20%,var(--color-card))]",
+          ? "bg-[var(--tt-weekend)] hover:bg-[color-mix(in_srgb,var(--color-muted,#f5f5f5)_74%,var(--color-card,#fff))]"
+          : "bg-card hover:bg-[color-mix(in_srgb,var(--color-muted,#f5f5f5)_36%,var(--color-card,#fff))]",
         monthBoundary &&
           dayIndex > 0 &&
           "border-l-[3px] border-l-foreground/35",
-        day.isToday &&
-          "bg-[color-mix(in_oklab,var(--color-muted)_32%,var(--color-card))] ring-2 ring-inset ring-foreground/55 hover:bg-[color-mix(in_oklab,var(--color-muted)_42%,var(--color-card))]",
+        day.isToday && "ring-2 ring-inset ring-foreground/50",
       )}
     >
-      <div className="flex items-start justify-between gap-0.5">
-        <div
-          className={cn(
-            "min-w-0 px-1 text-left text-[11px] font-semibold tabular-nums",
-            day.isToday ? "text-foreground" : "text-muted-foreground",
-          )}
-        >
-          {monthLabel ? (
-            <span className="inline-flex items-baseline gap-1">
-              <span
-                className={cn(
-                  day.isToday &&
-                    "inline-flex h-5 min-w-5 items-center justify-center bg-foreground px-1 text-[11px] text-background",
-                )}
-              >
-                {day.dayNumber}
-              </span>
-              <span className="text-[10px] font-semibold tracking-wide text-foreground/70">
-                {monthLabel}
-              </span>
-            </span>
-          ) : day.isToday ? (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center bg-foreground px-1 text-[11px] text-background">
-              {day.dayNumber}
-            </span>
-          ) : (
-            day.dayNumber
-          )}
-        </div>
-        <PlanDayAddMenu
-          dateKey={day.dateKey}
-          isCoach={isCoach}
-          canAddNote={canEditDayNotes}
-          athleteId={athleteId}
-          dayNote={note}
-          recoveryWorkout={getRecoveryWorkout(
-            workoutsByDate.get(day.dateKey) ?? [],
-          )}
-          revealOnHover
-        />
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col gap-1">
-        {showEvents && events.length > 0 ? (
-          <SeasonEventChips
-            events={events}
-            editable={isCoach}
-            className="gap-0.5"
-          />
-        ) : null}
-        {filtered.map((workout) => (
-          <CalendarWorkoutCard
-            key={workout.id}
-            workout={workout}
-            isCoach={isCoach}
-          />
-        ))}
-        {showNotes && dayNoteHasVisibleContent(note) ? (
-          <DayNoteSection
-            dateKey={day.dateKey}
-            note={note}
-            canEdit={canEditDayNotes}
-            noteKind={isCoach ? "coach" : "athlete"}
-            athleteId={athleteId}
-            compact
-            hideEmptyAdd
-          />
-        ) : null}
-      </div>
+      {hasContent ? (
+        <>
+          <div className="relative z-10 flex items-start justify-between gap-0.5">
+            {dateHead}
+            {addMenu}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-1">
+            {filtered.map((workout) => (
+              <CalendarWorkoutCard
+                key={workout.id}
+                workout={workout}
+                isCoach={isCoach}
+              />
+            ))}
+            {showEvents && events.length > 0 ? (
+              <SeasonEventChips
+                events={events}
+                variant="chip"
+                editable={isCoach}
+                dateKey={day.dateKey}
+                className="gap-0.5"
+              />
+            ) : null}
+            {showNotes && dayNoteHasVisibleContent(note) ? (
+              <DayNoteSection
+                dateKey={day.dateKey}
+                note={note}
+                canEdit={canEditDayNotes}
+                noteKind={isCoach ? "coach" : "athlete"}
+                athleteId={athleteId}
+                compact
+                hideEmptyAdd
+              />
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="pointer-events-none relative z-10 flex items-start justify-between gap-0.5">
+            {dateHead}
+          </div>
+          {emptyAddMenu}
+        </>
+      )}
     </DayDropSection>
   );
 }

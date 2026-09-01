@@ -28,6 +28,7 @@ export type SeasonRace = {
   preparationWeeks?: number | null
   outcome?: RaceOutcome | null
   resultTime?: string | null
+  resultPlace?: string | null
   resultNotes?: string | null
   stravaActivityUrl?: string | null
   stravaActivityName?: string | null
@@ -125,7 +126,7 @@ export function buildSeasonWeekTicks(rangeStart: Date, rangeEnd: Date): SeasonWe
 export function raceOutcomeSummary(race: SeasonRace): string {
   if (!race.outcome || race.outcome === 'DISMISSED') return '—'
   if (race.outcome === 'FINISHED') {
-    return race.resultTime || RACE_OUTCOME_LABELS.FINISHED
+    return race.resultTime?.trim() || RACE_OUTCOME_LABELS.FINISHED
   }
   return RACE_OUTCOME_LABELS[race.outcome]
 }

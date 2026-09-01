@@ -15,6 +15,8 @@ type WorkoutCardDiagramProps = {
   skipped?: boolean;
   density: DiagramDensity;
   className?: string;
+  /** Override auto tone (e.g. week skipped → muted like mock). */
+  tone?: StructureChartTone;
 };
 
 const CHART_SIZE = {
@@ -36,16 +38,15 @@ export function WorkoutCardDiagram({
   skipped = false,
   density,
   className,
+  tone: toneProp,
 }: WorkoutCardDiagramProps) {
   if (!workoutHasCardDiagram(workout)) {
     return null;
   }
 
-  const tone: StructureChartTone = completed
-    ? "completed"
-    : skipped
-      ? "skipped"
-      : "muted";
+  const tone: StructureChartTone =
+    toneProp ??
+    (completed ? "completed" : skipped ? "skipped" : "muted");
 
   return (
     <WorkoutStructureChart

@@ -17,19 +17,24 @@ import {
   athleteHasConnectedCoach,
   coachCanAccessAthlete,
   athleteOwnedByCoachWhere,
+  requireCoachOwnsAthlete,
 } from '@/lib/session'
 import { toDateKey, todayDateKey } from '@/lib/dates'
 import {
   athleteCanAskCoachAboutWorkout,
   athleteCanFollowUpWithCoachAboutWorkout,
   COACHING_THREAD_MESSAGE_CAP,
+  getAthleteInboxUnreadCount,
+  getCoachInboxUnreadCount,
   getCoachingThreadById,
   mirrorWorkoutResultFromThread,
   toCoachingThreadView,
   trimCoachingMessageBody,
   getWorkoutCoachingThread,
   getRaceCoachingThread,
+  getOrCreateAthleteGeneralChatThread,
 } from '@/lib/coaching-inbox'
+import { getPendingCoachRequestCount } from '@/lib/queries'
 import { parseWorkoutFeeling } from '@/lib/workout-feeling'
 import { sendInboxPushNotifications } from '@/lib/push-notifications'
 
@@ -38,6 +43,7 @@ function revalidateInboxPaths(opts?: { workoutId?: string; raceId?: string; athl
   revalidatePath('/', 'layout')
   revalidatePath('/inbox')
   revalidatePath('/dashboard')
+  revalidatePath('/athletes')
   revalidatePath('/training')
   revalidatePath('/season')
   if (opts?.workoutId) revalidatePath(`/workouts/${opts.workoutId}`)
@@ -71,7 +77,9 @@ async function requireThreadAccess(threadId: string) {
   })
   if (!thread) throw new Error('Thread not found')
 
-  if (isCoachView(session) && isCoach(session)) {
+  // Use workspace (hasCoach + viewMode), not roles[] — roles can lag profiles and would
+  // mark coach-view reads onto athleteLastReadAt, so unread returns after refresh.
+  if (isCoachView(session)) {
     const ok = await coachCanAccessAthlete(session.userId, thread.athleteId)
     if (!ok) throw new Error('Thread not found')
     return { session, thread, role: 'coach' as const }
@@ -118,8 +126,8 @@ async function appendMessage(opts: {
       lastMessageAt: at,
       status: CoachingThreadStatus.OPEN,
       ...(opts.authorRole === CoachingAuthorRole.ATHLETE
-        ? { athleteLastReadAt: at }
-        : { coachLastReadAt: at }),
+        ? { athleteLastReadAt: at, coachLastReadAt: null }
+        : { coachLastReadAt: at, athleteLastReadAt: null }),
     },
   })
 
@@ -191,6 +199,43 @@ export async function askCoachAboutWorkout(formData: FormData) {
   })
 }
 
+export async function coachMessageAboutWorkout(formData: FormData) {
+  const workoutId = formData.get('workoutId') as string
+  const raw = (formData.get('body') as string) ?? ''
+  if (!workoutId) throw new Error('Workout required')
+
+  const session = await requireSession()
+  if (!isCoachView(session)) throw new Error('Coach only')
+
+  const workout = await prisma.workout.findFirst({
+    where: { id: workoutId, athlete: athleteOwnedByCoachWhere(session.userId) },
+    include: { coachingThread: true },
+  })
+  if (!workout) throw new Error('Workout not found')
+
+  let threadId = workout.coachingThread?.id
+  if (!threadId) {
+    const created = await prisma.coachingThread.create({
+      data: {
+        athleteId: workout.athleteId,
+        kind: CoachingThreadKind.ASK,
+        workoutId,
+        status: CoachingThreadStatus.OPEN,
+        coachLastReadAt: new Date(),
+      },
+    })
+    threadId = created.id
+  }
+
+  await appendMessage({
+    threadId,
+    authorRole: CoachingAuthorRole.COACH,
+    body: raw,
+    workoutId,
+    athleteId: workout.athleteId,
+  })
+}
+
 export async function postWorkoutFeedbackMessage(formData: FormData) {
   const workoutId = formData.get('workoutId') as string
   const raw = (formData.get('athleteNotes') as string) ?? (formData.get('body') as string) ?? ''
@@ -254,7 +299,11 @@ export async function postWorkoutFeedbackMessage(formData: FormData) {
         })
         await prisma.coachingThread.update({
           where: { id: thread.id },
-          data: { lastMessageAt: new Date(), athleteLastReadAt: new Date() },
+          data: {
+            lastMessageAt: new Date(),
+            athleteLastReadAt: new Date(),
+            coachLastReadAt: null,
+          },
         })
       } else if (!firstAthlete) {
         await appendMessage({
@@ -317,6 +366,43 @@ export async function askOrCommentOnRace(formData: FormData) {
     threadId = created.id
   }
 
+  const { isRaceReportCardDuplicateMessage } = await import('@/lib/race-feedback-report')
+  const body = trimCoachingMessageBody(raw)
+  const existingMessages = await prisma.coachingMessage.findMany({
+    where: { threadId },
+    orderBy: { createdAt: 'asc' },
+  })
+  const onlyAutoReport =
+    existingMessages.length === 1 &&
+    existingMessages[0]?.authorRole === CoachingAuthorRole.ATHLETE &&
+    isRaceReportCardDuplicateMessage(existingMessages[0].body)
+
+  if (onlyAutoReport && isRaceReportCardDuplicateMessage(body)) {
+    // Refresh unread without stacking another placeholder bubble.
+    const at = new Date()
+    await prisma.coachingMessage.update({
+      where: { id: existingMessages[0].id },
+      data: { body },
+    })
+    await prisma.coachingThread.update({
+      where: { id: threadId },
+      data: {
+        lastMessageAt: at,
+        status: CoachingThreadStatus.OPEN,
+        athleteLastReadAt: at,
+        coachLastReadAt: null,
+      },
+    })
+    await sendInboxPushNotifications({
+      threadId,
+      athleteId,
+      authorRole: CoachingAuthorRole.ATHLETE,
+      body,
+    })
+    revalidateInboxPaths({ raceId, athleteId })
+    return
+  }
+
   await appendMessage({
     threadId,
     authorRole: CoachingAuthorRole.ATHLETE,
@@ -365,18 +451,15 @@ export async function markCoachingThreadUnread(formData: FormData) {
   })
 }
 
-export async function markCoachingThreadRead(formData: FormData) {
+export async function markCoachingThreadRead(formData: FormData): Promise<{ count: number }> {
   const threadId = formData.get('threadId') as string
   if (!threadId) throw new Error('Thread required')
 
-  const { thread, role } = await requireThreadAccess(threadId)
-  const lastMessage = thread.messages[thread.messages.length - 1]
+  const { session, thread, role } = await requireThreadAccess(threadId)
+  // Use lastMessageAt as the sole activity watermark (matches isThreadUnreadForRole).
+  // Pad by 1s so TIMESTAMP(3) truncation / clock skew cannot leave the thread unread.
   const readAt = new Date(
-    Math.max(
-      Date.now(),
-      thread.lastMessageAt.getTime(),
-      lastMessage?.createdAt.getTime() ?? 0,
-    ),
+    Math.max(Date.now(), new Date(thread.lastMessageAt).getTime()) + 1000,
   )
   await prisma.coachingThread.update({
     where: { id: thread.id },
@@ -393,11 +476,21 @@ export async function markCoachingThreadRead(formData: FormData) {
     })
   }
 
-  revalidateInboxPaths({
-    workoutId: thread.workoutId ?? undefined,
-    raceId: thread.raceId ?? undefined,
-    athleteId: thread.athleteId,
-  })
+  // Revalidate cache for the *next* navigation/refresh. Do not call router.refresh()
+  // from the client mark-read effect — that remounted Radix poppers in a loop.
+  revalidatePath('/inbox')
+  revalidatePath('/', 'layout')
+
+  if (role === 'coach') {
+    const [inboxCount, pendingCount] = await Promise.all([
+      getCoachInboxUnreadCount(session.userId),
+      getPendingCoachRequestCount(session.userId),
+    ])
+    return { count: inboxCount + pendingCount }
+  }
+
+  const count = await getAthleteInboxUnreadCount(thread.athleteId)
+  return { count }
 }
 
 export async function getInboxThreadDetail(threadId: string) {
@@ -421,17 +514,19 @@ export async function checkAthleteHasConnectedCoach(): Promise<boolean> {
 
 export async function loadWorkoutCoachingThread(workoutId: string) {
   const session = await requireSession()
-  if (!session.hasAthlete && !(isCoach(session) && isCoachView(session))) {
-    throw new Error('Not allowed')
-  }
 
-  if (isCoachView(session) && isCoach(session)) {
-    const workout = await prisma.workout.findFirst({
+  if (session.hasCoach) {
+    const coachWorkout = await prisma.workout.findFirst({
       where: { id: workoutId, athlete: athleteOwnedByCoachWhere(session.userId) },
       select: { id: true },
     })
-    if (!workout) throw new Error('Workout not found')
-  } else {
+    if (coachWorkout) {
+      const thread = await getWorkoutCoachingThread(workoutId)
+      return thread ? toCoachingThreadView(thread) : null
+    }
+  }
+
+  if (session.hasAthlete) {
     const athleteId = await resolveAthleteId(session)
     if (!athleteId) throw new Error('No athlete profile')
     const workout = await prisma.workout.findFirst({
@@ -439,19 +534,20 @@ export async function loadWorkoutCoachingThread(workoutId: string) {
       select: { id: true },
     })
     if (!workout) throw new Error('Workout not found')
+    const thread = await getWorkoutCoachingThread(workoutId)
+    return thread ? toCoachingThreadView(thread) : null
   }
 
-  const thread = await getWorkoutCoachingThread(workoutId)
-  return thread ? toCoachingThreadView(thread) : null
+  throw new Error('Not allowed')
 }
 
 export async function loadRaceCoachingThread(raceId: string) {
   const session = await requireSession()
-  if (!session.hasAthlete && !(isCoach(session) && isCoachView(session))) {
+  if (!session.hasAthlete && !isCoachView(session)) {
     throw new Error('Not allowed')
   }
 
-  if (isCoachView(session) && isCoach(session)) {
+  if (isCoachView(session)) {
     const race = await prisma.race.findFirst({
       where: { id: raceId, athlete: athleteOwnedByCoachWhere(session.userId) },
       select: { id: true },
@@ -477,4 +573,19 @@ export async function listOwnedAthleteIdsForCoach(coachUserId: string) {
     select: { id: true },
   })
   return athletes.map((a) => a.id)
+}
+
+export async function postCoachGeneralChatMessage(athleteId: string, body: string) {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Coach only')
+
+  await requireCoachOwnsAthlete(session.userId, athleteId)
+
+  const thread = await getOrCreateAthleteGeneralChatThread(athleteId)
+  await appendMessage({
+    threadId: thread.id,
+    authorRole: CoachingAuthorRole.COACH,
+    body,
+    athleteId,
+  })
 }

@@ -4,8 +4,10 @@ export const APPROX_DISTANCE_TAG = 'approx:distance'
 
 export const PRIMARY_METRIC_TAG_PREFIX = 'primaryMetric:'
 export const DURATION_UNIT_TAG_PREFIX = 'durationUnit:'
-/** When set, the non-primary metric is hidden on the plan card (still stored for week totals). */
+/** @deprecated Legacy — secondary hidden by default; prefer omitting {@link SECONDARY_METRIC_ON_TAG}. */
 export const SECONDARY_METRIC_OFF_TAG = 'secondaryMetric:off'
+/** When set, both duration and distance show on the plan card. */
+export const SECONDARY_METRIC_ON_TAG = 'secondaryMetric:on'
 
 export type WorkoutPrimaryMetric = 'duration' | 'distance'
 export type WorkoutDurationUnit = 'min' | 'hours'
@@ -41,7 +43,9 @@ export function primaryMetricFromTags(
 }
 
 export function secondaryMetricVisibleFromTags(tags: string[] | undefined): boolean {
-  return !tags?.includes(SECONDARY_METRIC_OFF_TAG)
+  if (tags?.includes(SECONDARY_METRIC_ON_TAG)) return true
+  if (tags?.includes(SECONDARY_METRIC_OFF_TAG)) return false
+  return false
 }
 
 export function durationUnitFromTags(

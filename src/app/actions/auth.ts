@@ -8,6 +8,12 @@ import { signIn, signOut } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { generateCoachingCode, normalizeCoachingCode } from '@/lib/coaching-code'
 import {
+  clearCoachInviteCookie,
+  coachInvitePath,
+  getCoachInviteCookie,
+  resolveCoachInvite,
+} from '@/lib/coach-invite'
+import {
   requireSession,
   isCoach,
   coachCanAccessAthlete,
@@ -61,11 +67,13 @@ export async function signInWithEmail(formData: FormData) {
     .trim()
     .toLowerCase()
   const password = String(formData.get('password') ?? '')
+  const inviteCode = await getCoachInviteCookie()
+  const redirectTo = inviteCode ? coachInvitePath(inviteCode) : '/dashboard'
   try {
     await signIn('credentials', {
       email,
       password,
-      redirectTo: '/dashboard',
+      redirectTo,
     })
   } catch (err) {
     if (err instanceof AuthError) {
@@ -79,14 +87,20 @@ export async function signInWithGoogle() {
   const cookieStore = await cookies()
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
-  await signIn('google', { redirectTo: '/dashboard' })
+  const inviteCode = await getCoachInviteCookie()
+  await signIn('google', {
+    redirectTo: inviteCode ? coachInvitePath(inviteCode) : '/dashboard',
+  })
 }
 
 export async function signInWithStrava() {
   const cookieStore = await cookies()
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
-  await signIn('strava', { redirectTo: '/dashboard' })
+  const inviteCode = await getCoachInviteCookie()
+  await signIn('strava', {
+    redirectTo: inviteCode ? coachInvitePath(inviteCode) : '/dashboard',
+  })
 }
 
 export async function signOutAction() {
@@ -108,6 +122,10 @@ export async function startTraining() {
         roles: { set: Array.from(new Set([...session.roles, UserRole.ATHLETE])) },
       },
     })
+    const inviteCode = await getCoachInviteCookie()
+    if (inviteCode) {
+      redirect(coachInvitePath(inviteCode))
+    }
     redirect('/dashboard')
   }
 
@@ -128,6 +146,11 @@ export async function startTraining() {
       },
     })
   })
+
+  const inviteCode = await getCoachInviteCookie()
+  if (inviteCode) {
+    redirect(coachInvitePath(inviteCode))
+  }
 
   redirect('/dashboard')
 }
@@ -460,6 +483,81 @@ export async function switchCoach(formData: FormData): Promise<void> {
   revalidatePath('/settings/account')
   revalidatePath('/dashboard')
   revalidatePath('/training')
+}
+
+/**
+ * Athlete accepts a coach-generated invite link.
+ * Coach already invited them, so the link becomes ACCEPTED immediately.
+ */
+export async function acceptCoachInvite(formData: FormData): Promise<void> {
+  const session = await requireSession()
+  if (!session.hasAthlete) throw new Error('Start training before connecting to a coach')
+
+  const codeFromForm = String(formData.get('coachingCode') ?? '')
+  const code = (await getCoachInviteCookie()) ?? codeFromForm
+  const invite = await resolveCoachInvite(code)
+  if (!invite) {
+    await clearCoachInviteCookie()
+    throw new Error('This invite link is no longer valid')
+  }
+  if (invite.coachUserId === session.userId) {
+    await clearCoachInviteCookie()
+    await coachMyself()
+    redirect('/dashboard')
+  }
+
+  const athlete = await prisma.athlete.findUnique({
+    where: { userId: session.userId },
+    select: { id: true, coachId: true },
+  })
+  if (!athlete) throw new Error('Athlete profile not found')
+
+  await prisma.$transaction(async (tx) => {
+    await tx.coachAthleteLink.updateMany({
+      where: {
+        athleteId: athlete.id,
+        status: {
+          in: [CoachAthleteLinkStatus.ACCEPTED, CoachAthleteLinkStatus.PENDING],
+        },
+        NOT: { coachProfileId: invite.coachProfileId },
+      },
+      data: { status: CoachAthleteLinkStatus.REMOVED },
+    })
+
+    await tx.coachAthleteLink.upsert({
+      where: {
+        coachProfileId_athleteId: {
+          coachProfileId: invite.coachProfileId,
+          athleteId: athlete.id,
+        },
+      },
+      create: {
+        coachProfileId: invite.coachProfileId,
+        athleteId: athlete.id,
+        status: CoachAthleteLinkStatus.ACCEPTED,
+      },
+      update: {
+        status: CoachAthleteLinkStatus.ACCEPTED,
+      },
+    })
+
+    await tx.athlete.update({
+      where: { id: athlete.id },
+      data: { coachId: invite.coachUserId },
+    })
+  })
+
+  await clearCoachInviteCookie()
+  revalidatePath('/settings/account')
+  revalidatePath('/dashboard')
+  revalidatePath('/training')
+  revalidatePath('/athletes')
+  redirect('/dashboard')
+}
+
+export async function declineCoachInvite(): Promise<void> {
+  await clearCoachInviteCookie()
+  redirect('/dashboard')
 }
 
 export async function respondCoachRequest(formData: FormData) {

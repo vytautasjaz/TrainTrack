@@ -1,0 +1,400 @@
+/* TRAINTRACK — Dark minimal sidebar (premium atmosphere) */
+
+.tt-mock-grad-sidebar {
+  position: sticky;
+  top: 2rem;
+  width: 292px;
+  flex-shrink: 0;
+  height: calc(100dvh - 2rem);
+  min-height: calc(100dvh - 2rem);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  /* A: dark navy base · B: soft lower-left atmosphere (not a linear wash) */
+  background:
+    radial-gradient(
+      circle at 15% 95%,
+      rgba(235, 75, 70, 0.22) 0%,
+      rgba(110, 75, 170, 0.1) 35%,
+      transparent 68%
+    ),
+    radial-gradient(
+      ellipse 80% 45% at 0% 100%,
+      rgba(110, 75, 170, 0.12) 0%,
+      transparent 55%
+    ),
+    #151827;
+
+  color: rgba(255, 255, 255, 0.9);
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.tt-mock-grad-sidebar[data-collapsed='true'] {
+  width: 72px;
+  padding: 20px 12px;
+}
+
+.tt-mock-grad-sidebar[data-collapsed='true'] .tt-mock-grad-sidebar-logo {
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.tt-mock-grad-sidebar[data-collapsed='true'] .tt-mock-grad-nav {
+  margin-top: 16px;
+}
+
+.tt-mock-grad-sidebar[data-collapsed='true'] .tt-mock-grad-nav-item,
+.tt-mock-grad-sidebar[data-collapsed='true'] .tt-mock-grad-footer-item {
+  justify-content: center;
+  padding: 0;
+}
+
+.tt-mock-grad-badge-dot {
+  position: absolute;
+  right: 8px;
+  top: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #e84b45;
+}
+
+/*
+ * Decorative performance / topographic contour pattern — lower third only.
+ * Fades out before nav; pointer-events none so it never interferes.
+ */
+.tt-mock-grad-sidebar::before {
+  content: '';
+  position: absolute;
+  left: -20%;
+  bottom: -5%;
+  width: 140%;
+  height: 48%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.1;
+  background:
+    repeating-radial-gradient(
+      ellipse 120% 70% at 10% 100%,
+      transparent 0 14px,
+      rgba(255, 255, 255, 0.55) 15px 16px,
+      transparent 17px 32px
+    ),
+    repeating-radial-gradient(
+      ellipse 90% 55% at 5% 110%,
+      transparent 0 22px,
+      rgba(255, 255, 255, 0.4) 23px 24px,
+      transparent 25px 44px
+    );
+  mask-image: linear-gradient(
+    to top,
+    black 0%,
+    rgba(0, 0, 0, 0.55) 40%,
+    transparent 78%
+  );
+  filter: blur(0.3px);
+}
+
+.tt-mock-grad-sidebar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 38%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.08;
+  background: repeating-radial-gradient(
+    ellipse at 0% 100%,
+    transparent 0 18px,
+    rgba(255, 220, 210, 0.5) 19px 20px,
+    transparent 21px 38px
+  );
+  mask-image: linear-gradient(to top, black 0%, transparent 70%);
+}
+
+.tt-mock-grad-sidebar-logo {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.tt-mock-grad-sidebar-logo-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(12, 14, 28, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 20px rgba(110, 75, 170, 0.28),
+    0 4px 14px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  display: grid;
+  place-items: center;
+}
+
+.tt-mock-grad-sidebar-logo-text {
+  font-family: var(--tt-display);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: #ffffff;
+}
+
+.tt-mock-grad-mode-switch {
+  position: relative;
+  z-index: 1;
+  height: 32px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+}
+
+.tt-mock-grad-mode-switch button {
+  flex: 1;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.tt-mock-grad-mode-switch button[data-active='true'] {
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 1px 4px rgba(0, 0, 0, 0.22);
+}
+
+.tt-mock-grad-nav {
+  position: relative;
+  z-index: 1;
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tt-mock-grad-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 52px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    border-color 160ms ease;
+}
+
+.tt-mock-grad-nav-item:hover {
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tt-mock-grad-nav-item:hover svg {
+  color: rgba(255, 255, 255, 0.9);
+  opacity: 1;
+}
+
+.tt-mock-grad-nav-item[data-active='true'] {
+  background: rgba(255, 255, 255, 0.055);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: none;
+}
+
+.tt-mock-grad-nav-item[data-active='true']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: #e84b45;
+  box-shadow:
+    0 0 8px rgba(232, 75, 69, 0.55),
+    0 0 16px rgba(232, 75, 69, 0.25);
+}
+
+.tt-mock-grad-nav-item svg {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.55);
+  opacity: 1;
+}
+
+.tt-mock-grad-nav-item[data-active='true'] svg {
+  color: #ffffff;
+  opacity: 1;
+}
+
+.tt-mock-grad-badge {
+  margin-left: auto;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #e84b45;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tt-mock-grad-footer {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.tt-mock-grad-footer-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 44px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.tt-mock-grad-footer-item:hover {
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tt-mock-grad-footer-item[data-active='true'] {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.tt-mock-grad-footer-item[data-active='true'] svg {
+  color: #fff;
+}
+
+.tt-mock-grad-footer-item svg {
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.55);
+  opacity: 1;
+}
+
+.tt-mock-grad-footer-item:hover svg {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tt-mock-grad-profile {
+  margin-top: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.tt-mock-grad-profile:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.tt-mock-grad-profile-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.tt-mock-grad-profile-name {
+  min-width: 0;
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.tt-mock-grad-profile-role {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.tt-mock-grad-profile-chevron {
+  opacity: 0.45;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.tt-mock-grad-shell {
+  display: flex;
+  min-height: calc(100dvh - 2rem);
+  align-items: stretch;
+}
+
+.tt-mock-grad-main {
+  flex: 1;
+  min-width: 0;
+  padding: 1.5rem 1.75rem 2rem;
+  background: var(--tt-bg);
+}

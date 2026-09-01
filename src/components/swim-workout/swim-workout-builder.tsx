@@ -14,11 +14,11 @@ import {
 import { SuggestableInput } from '@/components/swim-workout/suggestable-input'
 import type { SwimSection, SwimSet } from '@/lib/swim-workout/types'
 import {
+  effectiveRepeatCount,
   isCompleteSwimSet,
-  sectionDistanceMeters,
 } from '@/lib/swim-workout/calculations'
 import { createEmptySet, createSection, newSwimId, normalizeSectionOrders } from '@/lib/swim-workout/defaults'
-import { formatSwimDistance } from '@/lib/swim-workout/format'
+import { formatSwimSectionHeaderStats } from '@/lib/swim-workout/format'
 import {
   SWIM_RECOVERY_SUGGESTIONS,
   SWIM_SECTION_OPTIONS,
@@ -84,7 +84,7 @@ function SwimSetRow({
             onChange={(e) =>
               onChange({ ...set, repeatCount: parseInt(e.target.value, 10) || 0 })
             }
-            placeholder="3"
+            placeholder="1"
             aria-label="Repeat"
             className="w-8 bg-transparent text-center text-[13px] font-semibold text-[#111827] outline-none placeholder:font-normal placeholder:text-muted-foreground/40"
           />
@@ -249,8 +249,8 @@ function SwimSectionCard({
   const [editingTitle, setEditingTitle] = useState(false)
   const [setDragIndex, setSetDragIndex] = useState<number | null>(null)
   const accent = swimSectionAccent(section.title)
-  const distance = sectionDistanceMeters(section)
   const setCount = countSets(section)
+  const headerStats = formatSwimSectionHeaderStats(section, setCount)
   const titleListId = useId()
 
   function updateSet(setIndex: number, next: SwimSet) {
@@ -347,12 +347,7 @@ function SwimSectionCard({
             ))}
           </datalist>
           <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-            {[
-              distance > 0 ? formatSwimDistance(distance) : null,
-              setCount > 0 ? `${setCount} set${setCount === 1 ? '' : 's'}` : null,
-            ]
-              .filter(Boolean)
-              .join('  ·  ') || 'Empty'}
+            {headerStats}
           </p>
         </button>
 
@@ -534,9 +529,9 @@ export function SwimWorkoutBuilder({
       <div className="space-y-1.5">
         {sections.map((section) => {
           const accent = swimSectionAccent(section.title)
-          const distance = sectionDistanceMeters(section)
           const meaningful = section.sets.filter(isMeaningfulSet)
-          if (meaningful.length === 0 && distance <= 0) return null
+          const headerStats = formatSwimSectionHeaderStats(section, meaningful.length)
+          if (meaningful.length === 0 && headerStats === 'Empty') return null
 
           return (
             <div
@@ -552,14 +547,7 @@ export function SwimWorkoutBuilder({
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <p className="text-sm font-semibold text-[#111827]">{section.title}</p>
                     <p className="text-xs tabular-nums text-muted-foreground">
-                      {[
-                        distance > 0 ? formatSwimDistance(distance) : null,
-                        meaningful.length > 0
-                          ? `${meaningful.length} set${meaningful.length === 1 ? '' : 's'}`
-                          : null,
-                      ]
-                        .filter(Boolean)
-                        .join('  ·  ')}
+                      {headerStats}
                     </p>
                   </div>
                   <ul className="mt-2 space-y-1.5">
@@ -572,7 +560,7 @@ export function SwimWorkoutBuilder({
                         <li key={set.id} className="space-y-0.5">
                           <div className="flex min-w-0 items-center gap-x-2 text-[13px] leading-snug">
                             <span className="shrink-0 font-semibold tabular-nums text-[#111827]">
-                              {set.repeatCount} × {set.distanceM} m
+                              {effectiveRepeatCount(set)} × {set.distanceM} m
                             </span>
                             {set.stroke ? (
                               <span className="min-w-0 truncate text-[#6B7280]">{set.stroke}</span>

@@ -11,6 +11,10 @@ import {
   type DayNoteKind,
 } from '@/lib/day-notes'
 import { DayNoteModal } from '@/components/plan/day-note-modal'
+import {
+  WeekAddPlusMark,
+  weekAddPlusButtonClass,
+} from '@/components/plan/week-add-plus'
 import { cn } from '@/lib/utils'
 
 type DayNoteSectionProps = {
@@ -24,6 +28,12 @@ type DayNoteSectionProps = {
   /** Show full note text with wrapping (week table). */
   showFullText?: boolean
   hideEmptyAdd?: boolean
+  /**
+   * `chip` — bordered card (month / default).
+   * `strip` — list agenda flat text.
+   * `cell` — week table: fill parent cell (amber lives on the `<td>`).
+   */
+  variant?: 'chip' | 'strip' | 'cell'
 }
 
 type ModalState = {
@@ -31,34 +41,51 @@ type ModalState = {
   readOnly: boolean
 } | null
 
-function noteTextClass(unavailable: boolean, showFullText: boolean, compact: boolean) {
+function noteTextClass(
+  unavailable: boolean,
+  showFullText: boolean,
+  compact: boolean,
+  strip: boolean,
+  cell: boolean,
+) {
+  const flat = strip || cell
   return cn(
     'min-w-0 leading-snug',
-    compact && !showFullText && 'text-[11px] font-medium',
-    compact && showFullText && 'text-[13px] font-medium',
-    !compact && 'text-sm',
-    showFullText ? 'whitespace-pre-wrap break-words' : 'truncate',
+    // Match event cell body (subheader): same size, weight, ink
+    cell &&
+      'text-xs font-normal leading-snug text-amber-950/80 dark:text-amber-100/80',
+    strip &&
+      'text-xs font-normal tracking-[0.004em] text-amber-950/80 dark:text-amber-100/80',
+    !flat && compact && !showFullText && 'text-[11px] font-medium',
+    !flat && compact && showFullText && 'text-[13px] font-medium',
+    !flat && !compact && 'text-sm',
+    showFullText || flat ? 'whitespace-pre-wrap break-words' : 'truncate',
     unavailable
       ? 'italic text-red-600 dark:text-red-400'
-      : 'text-foreground',
+      : !flat && 'text-amber-950 dark:text-amber-100',
   )
 }
 
-function chipClass(kind: DayNoteKind, showFullText: boolean, interactive: boolean) {
+function chipClass(
+  showFullText: boolean,
+  interactive: boolean,
+  strip: boolean,
+  cell: boolean,
+) {
+  if (strip || cell) {
+    return cn(
+      'relative z-10 w-full text-left text-amber-950 dark:text-amber-100',
+      cell && 'px-0 py-0',
+      interactive && 'cursor-pointer transition hover:opacity-80',
+    )
+  }
   return cn(
     'relative z-10 group w-full rounded-[var(--radius-workout)] border px-2 py-1.5 text-left',
-    'shadow-[0_1px_1px_rgb(0_0_0_/0.05),0_1px_2px_rgb(0_0_0_/0.04)]',
+    'border-amber-200/70 bg-amber-50 shadow-[0_1px_1px_rgb(0_0_0_/0.05),0_1px_2px_rgb(0_0_0_/0.04)]',
+    'dark:border-amber-500/30 dark:bg-amber-500/15',
     showFullText && 'lg:px-2.5 lg:py-2',
-    kind === 'athlete'
-      ? 'border-amber-200/70 bg-yellow-100 dark:border-yellow-500/30 dark:bg-yellow-500/20'
-      : 'border-sky-200/70 bg-sky-50 dark:border-sky-500/30 dark:bg-sky-500/15',
-    interactive && 'cursor-pointer transition',
     interactive &&
-      kind === 'athlete' &&
-      'hover:bg-yellow-200/80 dark:hover:bg-yellow-500/30',
-    interactive &&
-      kind === 'coach' &&
-      'hover:bg-sky-100 dark:hover:bg-sky-500/25',
+      'cursor-pointer transition hover:bg-amber-100 dark:hover:bg-amber-500/25',
   )
 }
 
@@ -69,6 +96,8 @@ function NoteChip({
   isPrivate,
   showFullText,
   compact,
+  strip,
+  cell,
   title,
   onOpen,
 }: {
@@ -78,6 +107,8 @@ function NoteChip({
   isPrivate: boolean
   showFullText: boolean
   compact: boolean
+  strip: boolean
+  cell: boolean
   title?: string
   onOpen: () => void
 }) {
@@ -91,17 +122,47 @@ function NoteChip({
         onOpen()
       }}
       onPointerDown={(e) => e.stopPropagation()}
-      className={chipClass(kind, showFullText, true)}
+      className={chipClass(showFullText, true, strip, cell)}
     >
       <div className="flex min-w-0 items-start gap-1">
         {isPrivate ? (
           <Lock
-            className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground"
+            className={cn(
+              'mt-0.5 h-3 w-3 shrink-0',
+              cell
+                ? 'text-amber-950/70 dark:text-amber-100/70'
+                : 'text-amber-800/60 dark:text-amber-200/70',
+            )}
             strokeWidth={2}
             aria-label="Private"
           />
         ) : null}
-        <p className={noteTextClass(unavailable, showFullText, compact)}>{text}</p>
+        <p
+          className={noteTextClass(
+            unavailable,
+            showFullText,
+            compact,
+            strip,
+            cell,
+          )}
+        >
+          {(strip || cell) && !unavailable ? (
+            <>
+              <span
+                className={
+                  cell
+                    ? 'font-medium text-amber-950 dark:text-amber-100'
+                    : 'font-semibold text-amber-800/90 dark:text-amber-200/90'
+                }
+              >
+                {kind === 'coach' ? 'Coach · ' : 'Athlete · '}
+              </span>
+              <span className="font-normal">{text}</span>
+            </>
+          ) : (
+            text
+          )}
+        </p>
       </div>
     </button>
   )
@@ -116,9 +177,12 @@ export function DayNoteSection({
   compact = false,
   showFullText = false,
   hideEmptyAdd = false,
+  variant = 'chip',
 }: DayNoteSectionProps) {
   const [modal, setModal] = useState<ModalState>(null)
   const hasVisible = dayNoteHasVisibleContent(note)
+  const strip = variant === 'strip'
+  const cell = variant === 'cell'
 
   if (!canEdit && !hasVisible) return null
   if (hideEmptyAdd && !hasVisible) return null
@@ -160,15 +224,26 @@ export function DayNoteSection({
   if (hasVisible) {
     return (
       <>
-        <div className={cn('flex w-full flex-col', compact ? 'gap-1' : 'gap-1.5')}>
+        <div
+          className={cn(
+            'flex w-full flex-col',
+            cell
+              ? 'gap-1.5'
+              : compact || strip
+                ? 'gap-1'
+                : 'gap-1.5',
+          )}
+        >
           {showAthleteChip ? (
             <NoteChip
               kind="athlete"
               text={athleteText || 'Unavailable'}
               unavailable={unavailable && !athleteText}
               isPrivate={athletePrivate}
-              showFullText={showFullText}
+              showFullText={showFullText || cell}
               compact={compact}
+              strip={strip}
+              cell={cell}
               title={
                 canEdit && noteKind === 'athlete'
                   ? dayNoteKindHasContent(note, 'athlete')
@@ -185,8 +260,10 @@ export function DayNoteSection({
               text={coachText}
               unavailable={false}
               isPrivate={coachPrivate}
-              showFullText={showFullText}
+              showFullText={showFullText || cell}
               compact={compact}
+              strip={strip}
+              cell={cell}
               title={
                 canEdit && noteKind === 'coach'
                   ? dayNoteKindHasContent(note, 'coach')
@@ -205,7 +282,7 @@ export function DayNoteSection({
 
   if (!canEdit) return null
 
-  if (compact) {
+  if (compact || cell) {
     return (
       <>
         <button
@@ -215,10 +292,10 @@ export function DayNoteSection({
             e.stopPropagation()
             openAdd()
           }}
-          className="group relative z-10 flex w-full min-h-[4.5rem] items-center justify-center rounded-lg transition-colors hover:bg-muted/20 landscape:max-lg:min-h-0 landscape:max-lg:py-2 lg:min-h-[5rem]"
+          className={cn(weekAddPlusButtonClass.cell, 'absolute inset-0 min-h-0')}
           aria-label={`Add note on ${dateKey}`}
         >
-          <Plus className="h-5 w-5 shrink-0 text-muted-foreground/20 transition-colors group-hover:text-brand/40 landscape:max-lg:h-4 landscape:max-lg:w-4" />
+          <WeekAddPlusMark size="cell" />
         </button>
         {dialog}
       </>

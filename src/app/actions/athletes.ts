@@ -3,20 +3,39 @@
 import { revalidatePath } from 'next/cache'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { AthleteStatus, WorkoutType } from '@prisma/client'
-import { parseDateOnly, endOfWeekDateOnly } from '@/lib/dates'
+import { AthleteStatus, RaceOutcome, WorkoutType } from '@prisma/client'
+import { format } from 'date-fns'
+import { parseDateOnly, endOfWeekDateOnly, todayDateOnly, toDateKey } from '@/lib/dates'
 import { prisma } from '@/lib/prisma'
 import {
   HR_ZONE_FIELDS,
   PACE_ZONE_FIELDS,
+  BIKE_SPEED_ZONE_FIELDS,
+  BIKE_ZONE_ROWS,
   parsePaceMinPerKm,
+  parseBikeSpeedKph,
+  parseSwimCssSecPer100m,
   pickAthletePreferences,
+  formatSwimCssSecPer100m,
   type AthletePreferences,
 } from '@/lib/athlete-preferences'
+import {
+  displayPersonalBestDate,
+  formatPersonalBestValue,
+} from '@/lib/personal-bests'
 import { isConfigurablePlanSport, parsePlanSportRows } from '@/lib/plan-sports'
+import { RACE_OUTCOME_LABELS } from '@/lib/constants'
 import { requireSession, isCoach, requireCoachOwnsAthlete, athleteOwnedByCoachWhere } from '@/lib/session'
+import { daysUntil } from '@/lib/utils'
+import { postCoachGeneralChatMessage } from '@/app/actions/coaching-inbox'
 
 const VALID_STATUSES = new Set<string>(Object.values(AthleteStatus))
+
+function raceResultLabel(outcome: RaceOutcome | null, resultTime: string | null): string | null {
+  if (!outcome || outcome === 'DISMISSED') return null
+  if (outcome === 'FINISHED') return resultTime || RACE_OUTCOME_LABELS.FINISHED
+  return RACE_OUTCOME_LABELS[outcome]
+}
 
 function parseHrValue(raw: FormDataEntryValue | null): number | null {
   if (typeof raw !== 'string' || !raw.trim()) return null
@@ -27,19 +46,77 @@ function parseHrValue(raw: FormDataEntryValue | null): number | null {
 
 function revalidateAthletePaths(athleteId: string) {
   revalidatePath('/dashboard')
+  revalidatePath('/athletes')
   revalidatePath('/training')
   revalidatePath(`/athletes/${athleteId}`)
+  revalidatePath('/settings/preferences')
 }
+
+function splitAthleteName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length <= 1) {
+    return { firstName: parts[0] ?? name, lastName: null as string | null }
+  }
+  return { firstName: parts[0]!, lastName: parts.slice(1).join(' ') }
+}
+
+const athletePreferencesSelect = {
+  paceRecoveryMinPerKm: true,
+  paceEasyMinPerKm: true,
+  paceTempoMinPerKm: true,
+  paceThresholdMinPerKm: true,
+  paceVo2MaxMinPerKm: true,
+  bikeSpeedRecoveryKph: true,
+  bikeSpeedEasyKph: true,
+  bikeSpeedTempoKph: true,
+  bikeSpeedThresholdKph: true,
+  bikeSpeedVo2MaxKph: true,
+  bikeFtpWatts: true,
+  swimCssSecPer100m: true,
+  hrMax: true,
+  hrResting: true,
+  hrZone1Max: true,
+  hrZone2Max: true,
+  hrZone3Max: true,
+  hrZone4Max: true,
+} as const
 
 export async function getAthleteCoachProfile(athleteId: string): Promise<{
   id: string
   name: string
+  firstName: string
+  lastName: string | null
   status: AthleteStatus
+  avatarUrl: string | null
+  trainingSince: string
   preferences: AthletePreferences
   planSportRows: WorkoutType[]
+  stravaProfileUrl: string | null
+  personalBests: Array<{
+    id: string
+    name: string
+    valueLabel: string
+    dateLabel: string
+  }>
+  upcomingRaces: Array<{
+    id: string
+    name: string
+    dateLabel: string
+    daysUntil: number
+    location: string | null
+  }>
+  pastRaces: Array<{
+    id: string
+    name: string
+    dateLabel: string
+    location: string | null
+    resultLabel: string | null
+  }>
 } | null> {
   const session = await requireSession()
   if (!isCoach(session)) throw new Error('Coach only')
+
+  const today = todayDateOnly()
 
   const athlete = await prisma.athlete.findFirst({
     where: { id: athleteId, ...athleteOwnedByCoachWhere(session.userId) },
@@ -47,28 +124,97 @@ export async function getAthleteCoachProfile(athleteId: string): Promise<{
       id: true,
       name: true,
       status: true,
+      avatarUrl: true,
+      createdAt: true,
       planSportRows: true,
-      paceRecoveryMinPerKm: true,
-      paceEasyMinPerKm: true,
-      paceTempoMinPerKm: true,
-      paceThresholdMinPerKm: true,
-      paceVo2MaxMinPerKm: true,
-      hrMax: true,
-      hrResting: true,
-      hrZone1Max: true,
-      hrZone2Max: true,
-      hrZone3Max: true,
-      hrZone4Max: true,
+      ...athletePreferencesSelect,
+      personalBests: {
+        orderBy: { sortOrder: 'asc' },
+        take: 8,
+        select: {
+          id: true,
+          name: true,
+          metric: true,
+          value: true,
+          dateText: true,
+        },
+      },
+      races: {
+        where: { intent: 'PLANNED', date: { gte: today } },
+        orderBy: { date: 'asc' },
+        take: 4,
+        select: {
+          id: true,
+          name: true,
+          date: true,
+          location: true,
+        },
+      },
+      user: {
+        select: {
+          stravaConnection: {
+            select: { stravaAthleteId: true },
+          },
+        },
+      },
     },
   })
   if (!athlete) return null
 
+  const pastRaceRows = await prisma.race.findMany({
+    where: {
+      athleteId: athlete.id,
+      intent: 'PLANNED',
+      date: { lt: today },
+    },
+    orderBy: { date: 'desc' },
+    take: 6,
+    select: {
+      id: true,
+      name: true,
+      date: true,
+      location: true,
+      outcome: true,
+      resultTime: true,
+    },
+  })
+
+  const { firstName, lastName } = splitAthleteName(athlete.name)
+  const stravaAthleteId = athlete.user?.stravaConnection?.stravaAthleteId
+
   return {
     id: athlete.id,
     name: athlete.name,
+    firstName,
+    lastName,
     status: athlete.status,
+    avatarUrl: athlete.avatarUrl,
+    trainingSince: format(athlete.createdAt, 'MMM yyyy'),
     planSportRows: athlete.planSportRows,
     preferences: pickAthletePreferences(athlete),
+    stravaProfileUrl: stravaAthleteId
+      ? `https://www.strava.com/athletes/${stravaAthleteId}`
+      : null,
+    personalBests: athlete.personalBests.map((pb) => ({
+      id: pb.id,
+      name: pb.name,
+      valueLabel: formatPersonalBestValue(pb.value, pb.metric),
+      dateLabel: displayPersonalBestDate(pb.dateText),
+    })),
+    upcomingRaces: athlete.races.map((race) => ({
+      id: race.id,
+      name: race.name,
+      dateLabel: format(parseDateOnly(toDateKey(race.date)), 'MMM d, yyyy'),
+      daysUntil: daysUntil(race.date),
+      location: race.location,
+    })),
+    pastRaces: pastRaceRows.map((race) => ({
+      id: race.id,
+      name: race.name,
+      dateLabel: format(parseDateOnly(toDateKey(race.date)), 'MMM d, yyyy'),
+      location: race.location,
+      resultLabel: raceResultLabel(race.outcome, race.resultTime),
+    })),
   }
 }
 
@@ -144,6 +290,87 @@ export async function updateAthleteProfileByCoach(formData: FormData) {
   }
 
   revalidateAthletePaths(athleteId)
+}
+
+export async function updateAthleteZonesByCoach(formData: FormData) {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Coach only')
+
+  const athleteId = formData.get('athleteId') as string
+  if (!athleteId) throw new Error('Athlete required')
+
+  await requireCoachOwnsAthlete(session.userId, athleteId)
+
+  const data: Record<string, number | null> = {}
+
+  for (const { key, name } of PACE_ZONE_FIELDS) {
+    const raw = formData.get(name)
+    if (typeof raw !== 'string' || !raw.trim()) {
+      data[key] = null
+      continue
+    }
+    const parsed = parsePaceMinPerKm(raw)
+    if (parsed == null) {
+      throw new Error(`Invalid pace for ${name}. Use format like 5:30.`)
+    }
+    data[key] = parsed
+  }
+
+  for (const { key, name } of BIKE_SPEED_ZONE_FIELDS) {
+    const raw = formData.get(name)
+    if (typeof raw !== 'string' || !raw.trim()) {
+      data[key] = null
+      continue
+    }
+    const parsed = parseBikeSpeedKph(raw)
+    if (parsed == null) {
+      throw new Error(`Invalid bike speed for ${name}. Use value like 28.5.`)
+    }
+    data[key] = parsed
+  }
+
+  const ftpRaw = formData.get('bikeFtpWatts')
+  let bikeFtpWatts: number | null = null
+  if (typeof ftpRaw === 'string' && ftpRaw.trim()) {
+    const parsed = parseInt(ftpRaw.trim(), 10)
+    if (!Number.isFinite(parsed) || parsed < 50 || parsed > 600) {
+      throw new Error('FTP must be between 50 and 600 watts.')
+    }
+    bikeFtpWatts = parsed
+  }
+
+  const swimRaw = formData.get('swimCss')
+  let swimCssSecPer100m: number | null = null
+  if (typeof swimRaw === 'string' && swimRaw.trim()) {
+    const parsed = parseSwimCssSecPer100m(swimRaw)
+    if (parsed == null || parsed < 40 || parsed > 300) {
+      throw new Error('CSS must look like 1:35 (per 100m).')
+    }
+    swimCssSecPer100m = parsed
+  }
+
+  for (const { key, name } of HR_ZONE_FIELDS) {
+    data[key] = parseHrValue(formData.get(name))
+  }
+
+  await prisma.athlete.update({
+    where: { id: athleteId },
+    data: { ...data, bikeFtpWatts, swimCssSecPer100m },
+  })
+
+  const coach = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { name: true },
+  })
+  const coachLabel = coach?.name?.trim().split(/\s+/)[0] ?? 'Your coach'
+
+  await postCoachGeneralChatMessage(
+    athleteId,
+    `${coachLabel} updated your training zones. Review them in Settings → Preferences.`,
+  )
+
+  revalidateAthletePaths(athleteId)
+  revalidatePath('/inbox')
 }
 
 export async function updateAthletePlanSportRows(formData: FormData) {

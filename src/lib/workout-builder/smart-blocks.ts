@@ -2,6 +2,13 @@ import type { WorkoutType } from '@prisma/client'
 import type { WorkoutBlock, WorkoutSection } from './types'
 import { createBlock, createSegment, newBlockId } from './utils'
 import { defaultIntensityTargetType, isBikeSport } from './target-helpers'
+import { resolveBlockIntensity } from './structure-chart'
+import {
+  intensityAccentStyles,
+  intensityBandFromValue,
+  INTENSITY_BAND_DISPLAY,
+  type IntensityAccentStyles,
+} from './intensity-colors'
 
 /** Core add-block kinds shown above the divider. */
 export type CoreBlockKind = 'CONTINUOUS' | 'INTERVALS' | 'PROGRESSIVE'
@@ -40,6 +47,13 @@ export const CORE_BLOCK_OPTIONS: SmartBlockOption[] = [
   { kind: 'CONTINUOUS', label: 'Continuous', section: 'mainSet', group: 'core' },
   { kind: 'INTERVALS', label: 'Intervals', section: 'mainSet', group: 'core' },
   { kind: 'PROGRESSIVE', label: 'Progressive', section: 'mainSet', group: 'core' },
+]
+
+/** Always-visible add buttons: bookends + core shapes (not under Custom). */
+export const QUICK_ADD_BLOCK_OPTIONS: SmartBlockOption[] = [
+  { kind: 'WARM_UP', label: 'Warm Up', section: 'warmup', group: 'core' },
+  ...CORE_BLOCK_OPTIONS,
+  { kind: 'COOL_DOWN', label: 'Cool Down', section: 'cooldown', group: 'core' },
 ]
 
 export const PRESET_BLOCK_OPTIONS: SmartBlockOption[] = [
@@ -442,94 +456,33 @@ export type SmartBlockAccent =
   | 'repetition'
   | 'progressive'
 
-export const SMART_BLOCK_ACCENT_STRIPE: Record<SmartBlockAccent, string> = {
-  warmup: 'bg-emerald-500',
-  cooldown: 'bg-sky-500',
-  easy: 'bg-teal-500',
-  tempo: 'bg-amber-500',
-  threshold: 'bg-red-500',
-  vo2: 'bg-fuchsia-600',
-  recovery: 'bg-rose-400',
-  rest: 'bg-neutral-400',
-  notes: 'bg-slate-500',
-  race: 'bg-indigo-500',
-  interval: 'bg-orange-500',
-  repetition: 'bg-violet-500',
-  progressive: 'bg-cyan-600',
+/** Default effort for accent labels (athlete preview when only accent is known). */
+const ACCENT_DEFAULT_INTENSITY: Record<SmartBlockAccent, number> = {
+  rest: 0.14,
+  notes: 0.14,
+  recovery: 0.28,
+  cooldown: 0.34,
+  easy: 0.38,
+  warmup: 0.44,
+  tempo: 0.62,
+  progressive: 0.7,
+  race: 0.7,
+  interval: 0.8,
+  threshold: 0.8,
+  repetition: 0.9,
+  vo2: 0.94,
 }
 
-export type SmartBlockAccentStyles = {
-  stripe: string
-  handle: string
-  grip: string
-}
+export type SmartBlockAccentStyles = IntensityAccentStyles
 
-export const SMART_BLOCK_ACCENT_STYLES: Record<SmartBlockAccent, SmartBlockAccentStyles> = {
-  warmup: {
-    stripe: 'bg-emerald-500',
-    handle: 'bg-emerald-500/12',
-    grip: 'text-emerald-600/45 group-hover/handle:text-emerald-600/70',
-  },
-  cooldown: {
-    stripe: 'bg-sky-500',
-    handle: 'bg-sky-500/12',
-    grip: 'text-sky-600/45 group-hover/handle:text-sky-600/70',
-  },
-  easy: {
-    stripe: 'bg-teal-500',
-    handle: 'bg-teal-500/12',
-    grip: 'text-teal-600/45 group-hover/handle:text-teal-600/70',
-  },
-  tempo: {
-    stripe: 'bg-amber-500',
-    handle: 'bg-amber-500/14',
-    grip: 'text-amber-700/45 group-hover/handle:text-amber-700/70',
-  },
-  threshold: {
-    stripe: 'bg-red-500',
-    handle: 'bg-red-500/12',
-    grip: 'text-red-600/45 group-hover/handle:text-red-600/70',
-  },
-  vo2: {
-    stripe: 'bg-fuchsia-600',
-    handle: 'bg-fuchsia-600/12',
-    grip: 'text-fuchsia-700/45 group-hover/handle:text-fuchsia-700/70',
-  },
-  recovery: {
-    stripe: 'bg-rose-400',
-    handle: 'bg-rose-400/14',
-    grip: 'text-rose-600/45 group-hover/handle:text-rose-600/70',
-  },
-  rest: {
-    stripe: 'bg-neutral-400',
-    handle: 'bg-neutral-500/10',
-    grip: 'text-neutral-500/50 group-hover/handle:text-neutral-600/70',
-  },
-  notes: {
-    stripe: 'bg-slate-500',
-    handle: 'bg-slate-500/10',
-    grip: 'text-slate-600/45 group-hover/handle:text-slate-600/70',
-  },
-  race: {
-    stripe: 'bg-indigo-500',
-    handle: 'bg-indigo-500/12',
-    grip: 'text-indigo-600/45 group-hover/handle:text-indigo-600/70',
-  },
-  interval: {
-    stripe: 'bg-orange-500',
-    handle: 'bg-orange-500/12',
-    grip: 'text-orange-600/45 group-hover/handle:text-orange-600/70',
-  },
-  repetition: {
-    stripe: 'bg-violet-500',
-    handle: 'bg-violet-500/12',
-    grip: 'text-violet-600/45 group-hover/handle:text-violet-600/70',
-  },
-  progressive: {
-    stripe: 'bg-cyan-600',
-    handle: 'bg-cyan-600/12',
-    grip: 'text-cyan-700/45 group-hover/handle:text-cyan-700/70',
-  },
+/** Preview / athlete card colors graded by recognized intensity. */
+export type SmartBlockAccentDisplay = {
+  bar: string
+  border: string
+  surface: string
+  label: string
+  iconWrap: string
+  badge: string
 }
 
 export function inferSmartBlockAccent(
@@ -574,143 +527,60 @@ export function inferSmartBlockAccent(
   }
 }
 
-/** Preview / athlete card colors graded by recognized intensity. */
-export type SmartBlockAccentDisplay = {
-  bar: string
-  border: string
-  surface: string
-  label: string
-  iconWrap: string
-  badge: string
-}
-
-export const SMART_BLOCK_ACCENT_DISPLAY: Record<SmartBlockAccent, SmartBlockAccentDisplay> = {
-  warmup: {
-    bar: 'bg-emerald-500',
-    border: 'border-l-emerald-500',
-    surface: 'bg-emerald-500/[0.08]',
-    label: 'text-emerald-700 dark:text-emerald-400',
-    iconWrap: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
-    badge: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-  },
-  cooldown: {
-    bar: 'bg-sky-500',
-    border: 'border-l-sky-500',
-    surface: 'bg-sky-500/[0.08]',
-    label: 'text-sky-700 dark:text-sky-400',
-    iconWrap: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
-    badge: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
-  },
-  easy: {
-    bar: 'bg-teal-500',
-    border: 'border-l-teal-500',
-    surface: 'bg-teal-500/[0.08]',
-    label: 'text-teal-700 dark:text-teal-400',
-    iconWrap: 'bg-teal-500/15 text-teal-600 dark:text-teal-400',
-    badge: 'bg-teal-500/15 text-teal-700 dark:text-teal-400',
-  },
-  tempo: {
-    bar: 'bg-amber-500',
-    border: 'border-l-amber-500',
-    surface: 'bg-amber-500/[0.10]',
-    label: 'text-amber-800 dark:text-amber-400',
-    iconWrap: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-    badge: 'bg-amber-500/15 text-amber-800 dark:text-amber-400',
-  },
-  threshold: {
-    bar: 'bg-red-500',
-    border: 'border-l-red-500',
-    surface: 'bg-red-500/[0.08]',
-    label: 'text-red-700 dark:text-red-400',
-    iconWrap: 'bg-red-500/15 text-red-600 dark:text-red-400',
-    badge: 'bg-red-500/15 text-red-700 dark:text-red-400',
-  },
-  vo2: {
-    bar: 'bg-fuchsia-600',
-    border: 'border-l-fuchsia-600',
-    surface: 'bg-fuchsia-600/[0.08]',
-    label: 'text-fuchsia-800 dark:text-fuchsia-400',
-    iconWrap: 'bg-fuchsia-600/15 text-fuchsia-700 dark:text-fuchsia-400',
-    badge: 'bg-fuchsia-600/15 text-fuchsia-800 dark:text-fuchsia-400',
-  },
-  recovery: {
-    bar: 'bg-rose-400',
-    border: 'border-l-rose-400',
-    surface: 'bg-rose-400/[0.10]',
-    label: 'text-rose-700 dark:text-rose-400',
-    iconWrap: 'bg-rose-400/15 text-rose-600 dark:text-rose-400',
-    badge: 'bg-rose-400/15 text-rose-700 dark:text-rose-400',
-  },
-  rest: {
-    bar: 'bg-neutral-400',
-    border: 'border-l-neutral-400',
-    surface: 'bg-neutral-500/[0.06]',
-    label: 'text-neutral-600 dark:text-neutral-400',
-    iconWrap: 'bg-neutral-500/10 text-neutral-500',
-    badge: 'bg-neutral-500/10 text-neutral-600',
-  },
-  notes: {
-    bar: 'bg-slate-500',
-    border: 'border-l-slate-500',
-    surface: 'bg-slate-500/[0.08]',
-    label: 'text-slate-700 dark:text-slate-400',
-    iconWrap: 'bg-slate-500/15 text-slate-600 dark:text-slate-400',
-    badge: 'bg-slate-500/15 text-slate-700 dark:text-slate-400',
-  },
-  race: {
-    bar: 'bg-indigo-500',
-    border: 'border-l-indigo-500',
-    surface: 'bg-indigo-500/[0.08]',
-    label: 'text-indigo-700 dark:text-indigo-400',
-    iconWrap: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400',
-    badge: 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-400',
-  },
-  interval: {
-    bar: 'bg-orange-500',
-    border: 'border-l-orange-500',
-    surface: 'bg-orange-500/[0.08]',
-    label: 'text-orange-700 dark:text-orange-400',
-    iconWrap: 'bg-orange-500/15 text-orange-600 dark:text-orange-400',
-    badge: 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
-  },
-  repetition: {
-    bar: 'bg-violet-500',
-    border: 'border-l-violet-500',
-    surface: 'bg-violet-500/[0.08]',
-    label: 'text-violet-700 dark:text-violet-400',
-    iconWrap: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
-    badge: 'bg-violet-500/15 text-violet-700 dark:text-violet-400',
-  },
-  progressive: {
-    bar: 'bg-cyan-600',
-    border: 'border-l-cyan-600',
-    surface: 'bg-cyan-600/[0.08]',
-    label: 'text-cyan-800 dark:text-cyan-400',
-    iconWrap: 'bg-cyan-600/15 text-cyan-700 dark:text-cyan-400',
-    badge: 'bg-cyan-600/15 text-cyan-800 dark:text-cyan-400',
-  },
-}
-
 export function smartBlockAccentDisplay(
   accent: SmartBlockAccent,
 ): SmartBlockAccentDisplay {
-  return SMART_BLOCK_ACCENT_DISPLAY[accent]
+  const band = intensityBandFromValue(ACCENT_DEFAULT_INTENSITY[accent])
+  return INTENSITY_BAND_DISPLAY[band]
 }
 
 export function smartBlockAccentStripeClass(
   block: WorkoutBlock,
   section?: WorkoutSection,
 ): string {
-  const accent = inferSmartBlockAccent(block, section)
-  return SMART_BLOCK_ACCENT_STRIPE[accent]
+  return smartBlockAccentStyles(block, section).stripe
 }
 
 export function smartBlockAccentStyles(
   block: WorkoutBlock,
   section?: WorkoutSection,
 ): SmartBlockAccentStyles {
-  const accent = inferSmartBlockAccent(block, section)
-  return SMART_BLOCK_ACCENT_STYLES[accent]
+  return intensityAccentStyles(resolveBlockIntensity(block, section ?? 'mainSet'))
+}
+
+/** Default effort for quick-add chips (matches created block bands). */
+export function intensityForAddBlockKind(kind: SmartBlockKind): number {
+  switch (kind) {
+    case 'WARM_UP':
+      return 0.44
+    case 'COOL_DOWN':
+      return 0.34
+    case 'CONTINUOUS':
+    case 'EASY_RUN':
+      return 0.4
+    case 'RECOVERY':
+      return 0.28
+    case 'REST':
+    case 'COACH_NOTES':
+      return 0.14
+    case 'PROGRESSIVE':
+      return 0.7
+    case 'TEMPO':
+    case 'FARTLEK':
+      return 0.62
+    case 'INTERVALS':
+    case 'THRESHOLD':
+    case 'TEMPO_INTERVALS':
+    case 'MARATHON_PACE':
+      return 0.8
+    case 'VO2_MAX':
+    case 'RACE_PACE':
+    case 'HILL_REPEATS':
+    case 'STRIDES':
+      return 0.94
+    default:
+      return 0.5
+  }
 }
 
 export function duplicateBlock(block: WorkoutBlock, order: number): WorkoutBlock {

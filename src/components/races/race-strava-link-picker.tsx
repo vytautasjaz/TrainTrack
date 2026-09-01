@@ -33,6 +33,8 @@ type RaceStravaLinkPickerProps = {
   linkedName?: string | null
   onChanged?: () => void
   compact?: boolean
+  /** Icon-only control for dense split rows. */
+  iconOnly?: boolean
 }
 
 export function RaceStravaLinkPicker({
@@ -42,6 +44,7 @@ export function RaceStravaLinkPicker({
   linkedName,
   onChanged,
   compact = false,
+  iconOnly = false,
 }: RaceStravaLinkPickerProps) {
   const router = useRouter()
   const [connected, setConnected] = useState<boolean | null>(null)
@@ -128,24 +131,41 @@ export function RaceStravaLinkPicker({
   if (linkedUrl) {
     return (
       <>
-        <div className={cn('flex flex-wrap items-center gap-2', compact && 'gap-1.5')}>
-          <a
-            href={linkedUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="truncate text-xs font-medium text-[#FC4C02] hover:underline"
-          >
-            {linkedName || 'View on Strava'}
-          </a>
+        <div className={cn('flex flex-wrap items-center gap-2', compact && 'gap-1')}>
+          {iconOnly ? (
+            <a
+              href={linkedUrl}
+              target="_blank"
+              rel="noreferrer"
+              title={linkedName || 'View on Strava'}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-[4px] text-[#FC4C02] transition hover:bg-[#FC4C02]/10"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+            </a>
+          ) : (
+            <a
+              href={linkedUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="truncate text-xs font-medium text-[#FC4C02] hover:underline"
+            >
+              {linkedName || 'View on Strava'}
+            </a>
+          )}
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-7 gap-1 px-2 text-muted-foreground"
+            className={cn(
+              'text-muted-foreground',
+              iconOnly ? 'h-7 w-7 p-0' : 'h-7 gap-1 px-2',
+            )}
             onClick={() => setDetachOpen(true)}
+            aria-label="Detach Strava"
+            title="Detach"
           >
             <Unlink className="h-3 w-3" />
-            Detach
+            {iconOnly ? null : 'Detach'}
           </Button>
         </div>
         <ConfirmDialog
@@ -169,11 +189,16 @@ export function RaceStravaLinkPicker({
         type="button"
         variant="ghost"
         size="sm"
-        className={cn('gap-1.5 text-[#FC4C02] hover:text-[#FC4C02]', compact && 'h-7 px-2')}
+        className={cn(
+          'text-[#FC4C02] hover:text-[#FC4C02]',
+          iconOnly ? 'h-7 w-7 p-0' : cn('gap-1.5', compact && 'h-7 px-2'),
+        )}
         onClick={() => setOpen(true)}
+        aria-label="Link Strava"
+        title="Link Strava"
       >
-        <Link2 className="h-3.5 w-3.5" />
-        Link Strava
+        <Link2 className={iconOnly ? 'h-3.5 w-3.5' : 'h-3.5 w-3.5'} />
+        {iconOnly ? null : 'Link Strava'}
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>

@@ -153,7 +153,7 @@ export function sumSportWeekTotals(
 
 /** Total planned/actual duration across all sports for the week (excludes REST). */
 export function sumWeekDurationMinutes(
-  days: PlanDay[],
+  days: { workouts: PlanDay['workouts'] }[],
   options?: WeekTotalsOptions,
 ): { planned: number; actual: number } {
   let planned = 0

@@ -20,12 +20,15 @@ type EditDefaultPlanSportsButtonProps = {
   athleteId: string
   athleteName: string
   planSportRows: WorkoutType[]
+  /** Quiet toolbar text control (week Filter · Rows group). */
+  quiet?: boolean
 }
 
 export function EditDefaultPlanSportsButton({
   athleteId,
   athleteName,
   planSportRows,
+  quiet = false,
 }: EditDefaultPlanSportsButtonProps) {
   const [open, setOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -48,10 +51,22 @@ export function EditDefaultPlanSportsButton({
 
   return (
     <>
-      <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}>
-        <Settings2 className="h-3.5 w-3.5" />
-        Edit default sports
-      </Button>
+      {quiet ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex shrink-0 items-center gap-0.5 rounded-[4px] px-1.5 py-1 text-xs font-medium text-muted-foreground transition hover:text-foreground"
+          title="Choose which sports always show for this athlete"
+        >
+          <Settings2 className="h-3 w-3 opacity-70" aria-hidden />
+          Defaults
+        </button>
+      ) : (
+        <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(true)}>
+          <Settings2 className="h-3.5 w-3.5" />
+          Edit default sports
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>

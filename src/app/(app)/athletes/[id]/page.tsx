@@ -53,7 +53,7 @@ export default async function AthleteProfilePage({ params }: AthleteProfilePageP
 
       <div className="flex flex-wrap items-center gap-2">
         <AthleteStatusPill athleteId={athlete.id} status={athlete.status} />
-        <BackButton />
+        <BackButton fallbackHref="/athletes" />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

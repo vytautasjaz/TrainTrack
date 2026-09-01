@@ -104,10 +104,8 @@ export function DayNoteModal({
             <div className="space-y-3">
               <div
                 className={cn(
-                  'rounded-lg border px-3 py-2.5 text-sm whitespace-pre-wrap break-words',
-                  isAthleteKind
-                    ? 'border-amber-200/70 bg-yellow-50 dark:border-yellow-500/30 dark:bg-yellow-500/10'
-                    : 'border-sky-200/70 bg-sky-50 dark:border-sky-500/30 dark:bg-sky-500/10',
+                  'rounded-lg border border-amber-200/70 bg-amber-50 px-3 py-2.5 text-sm whitespace-pre-wrap break-words',
+                  'text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100',
                   unavailable && !existingText && 'italic text-red-600 dark:text-red-400',
                 )}
               >

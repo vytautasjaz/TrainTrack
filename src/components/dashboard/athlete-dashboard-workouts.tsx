@@ -1,94 +1,36 @@
 'use client'
 
-import { useState, type CSSProperties } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { ArrowRight } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { PlanWorkoutModal } from '@/components/plan/plan-workout-modal'
-import { WeatherGlyph } from '@/components/weather/weather-glyph'
-import { TrainingListWorkoutRow } from '@/components/training/training-list-workout-row'
-import { TrainingWorkoutCard } from '@/components/training/training-workout-card'
-import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import { getWorkoutCompletionPercent } from '@/lib/workout-card'
-import { buildPlanTableDays } from '@/lib/plan-week'
-import { parseDateOnly, todayDateKey } from '@/lib/dates'
-import { cn } from '@/lib/utils'
+import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
+import { HomePrescriptionWorkoutCard } from '@/components/dashboard/home-prescription-workout-card'
 import {
-  formatWeatherPrecip,
-  type WeatherDaySummary,
-} from '@/lib/weather/places'
+  AthleteWorkoutQuickActions,
+  useOptimisticWorkoutStatus,
+} from '@/components/plan/athlete-workout-quick-actions'
+import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
+import {
+  ListDayWeatherMini,
+} from '@/components/weather/list-day-weather'
+import {
+  athleteHasQuickLogActions,
+  type PlanWorkoutDetail,
+} from '@/lib/plan-workout'
+import { getWorkoutCardSubtitle } from '@/lib/workout-card'
+import { getWorkoutPlanMetrics } from '@/lib/workout-plan-metrics'
+import { buildPlanTableDays } from '@/lib/plan-week'
+import { parseDateOnly } from '@/lib/dates'
+import { cn } from '@/lib/utils'
+import type { WeatherDaySummary } from '@/lib/weather/places'
 
 type AthleteDashboardWorkoutsProps = {
   todayWorkouts: PlanWorkoutDetail[]
   upcomingWorkouts: PlanWorkoutDetail[]
   weatherByDate?: Record<string, WeatherDaySummary>
-  hasWeatherLocation?: boolean
   showWeather?: boolean
-}
-
-function visibleWeatherParts(weather?: WeatherDaySummary | null): Array<{ text: string; glyph: string }> {
-  if (!weather?.slots.length) return []
-  return weather.slots
-    .map((slot) => {
-      const temp = slot.temperatureC != null ? `${slot.temperatureC}°` : ''
-      const precip = formatWeatherPrecip(slot)
-      const text = [slot.label, temp, precip].filter(Boolean).join(' ')
-      return text ? { text, glyph: slot.emoji } : null
-    })
-    .filter((part): part is { text: string; glyph: string } => Boolean(part))
-}
-
-function DashboardWeatherLine({
-  weather,
-  className,
-}: {
-  weather?: WeatherDaySummary | null
-  className?: string
-}) {
-  const parts = visibleWeatherParts(weather)
-  if (parts.length === 0) return null
-  return (
-    <p
-      className={cn(
-        'flex flex-wrap items-center gap-y-0.5 text-[11px] font-medium leading-none tracking-normal text-[#737986]',
-        className,
-      )}
-      title={parts.map((part) => part.text).join('  ·  ')}
-    >
-      {parts.map((part, index) => (
-        <span key={`${part.text}-${index}`} className="inline-flex items-center gap-1.5 whitespace-nowrap">
-          {index > 0 ? (
-            <span className="mx-0.5 self-center text-[#c8c9c6]" aria-hidden>
-              ·
-            </span>
-          ) : null}
-          <WeatherGlyph glyph={part.glyph} detail={part.text} className="h-10 w-10 shrink-0" />
-          <span className="leading-none">{part.text}</span>
-        </span>
-      ))}
-    </p>
-  )
-}
-
-function SectionHeader({
-  title,
-  level = 'section',
-  action,
-}: {
-  title: string
-  level?: 'section' | 'eyebrow'
-  action?: React.ReactNode
-}) {
-  return (
-    <div className="mb-3 flex items-center justify-between gap-3">
-      {level === 'eyebrow' ? (
-        <p className="title-eyebrow">{title}</p>
-      ) : (
-        <h2 className="title-section">{title}</h2>
-      )}
-      {action}
-    </div>
-  )
 }
 
 function workoutsToPlanDays(workouts: PlanWorkoutDetail[]) {
@@ -105,126 +47,166 @@ function workoutsToPlanDays(workouts: PlanWorkoutDetail[]) {
   return buildPlanTableDays(dates, byDate)
 }
 
+function prescriptionLine(workout: PlanWorkoutDetail): string {
+  const subtitle = getWorkoutCardSubtitle(workout)
+  if (subtitle) return subtitle
+  const metrics = getWorkoutPlanMetrics(workout)
+  return [metrics.distance, metrics.duration].filter(Boolean).join(' · ') || '—'
+}
+
+function HomeCalendarDate({
+  date,
+  isToday,
+}: {
+  date: Date
+  isToday?: boolean
+}) {
+  return (
+    <div
+      className="flex w-9 shrink-0 flex-col items-center justify-center text-center leading-none"
+      aria-label={format(date, 'EEEE d MMMM')}
+    >
+      <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink,#111)]">
+        {format(date, 'EEE')}
+      </span>
+      <span
+        className={cn(
+          'mt-0.5 text-[1.1rem] font-semibold tabular-nums leading-none text-[var(--tt-ink,#111)]',
+          isToday && 'text-[var(--tt-red,#da2f36)]',
+        )}
+      >
+        {format(date, 'd')}
+      </span>
+      <span className="mt-0.5 text-[9px] font-medium uppercase tracking-[0.04em] text-[var(--tt-ink-faint,#9a9a9a)]">
+        {format(date, 'MMM')}
+      </span>
+    </div>
+  )
+}
+
+function TodayPrescriptionRow({ workout }: { workout: PlanWorkoutDetail }) {
+  const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout)
+  const showQuickActions = athleteHasQuickLogActions(workout, false)
+  const displayWorkout =
+    status === workout.status ? workout : { ...workout, status }
+
+  return (
+    <div className="group/card relative min-w-0">
+      <WorkoutModalTrigger
+        workout={displayWorkout}
+        isCoach={false}
+        className="block w-full min-w-0 text-left"
+      >
+        <HomePrescriptionWorkoutCard workout={displayWorkout} />
+      </WorkoutModalTrigger>
+      {showQuickActions ? (
+        <div className="absolute right-2.5 top-2.5 z-10 flex items-center gap-1 opacity-80 transition group-hover/card:opacity-100">
+          <AthleteWorkoutQuickActions
+            workout={workout}
+            isCoach={false}
+            size="sm"
+            displayStatus={status}
+            onDisplayStatusChange={setOptimisticStatus}
+          />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 export function AthleteDashboardWorkouts({
   todayWorkouts,
   upcomingWorkouts,
   weatherByDate = {},
-  hasWeatherLocation = false,
   showWeather = true,
 }: AthleteDashboardWorkoutsProps) {
   const upcomingDays = workoutsToPlanDays(upcomingWorkouts)
   const [selected, setSelected] = useState<PlanWorkoutDetail | null>(null)
-  const todayWeather =
-    weatherByDate[todayWorkouts[0]?.dateKey ?? ''] ?? weatherByDate[todayDateKey()]
-  const todayWeatherVisible = visibleWeatherParts(todayWeather).length > 0
 
   return (
-    <div className="tt-dashboard-main-col">
+    <div className="space-y-7">
       <section>
-        <SectionHeader title="Today's workout" />
-        {showWeather ? (
-          todayWeatherVisible ? (
-            <DashboardWeatherLine weather={todayWeather} className="mb-2.5" />
-          ) : hasWeatherLocation ? (
-            <p className="mb-2.5 text-[11px] text-[#737986]">Forecast unavailable right now.</p>
-          ) : (
-            <p className="mb-2.5 text-[11px] text-[#737986]">
-              Set a weather location in{' '}
-              <Link href="/settings/account" className="underline underline-offset-2">
-                Profile
-              </Link>{' '}
-              to see conditions with your workouts.
-            </p>
-          )
-        ) : null}
+        <div className="mb-3">
+          <p className="text-[0.6875rem] font-medium uppercase leading-none tracking-[0.08em] text-[var(--tt-ink,#111)]">
+            Today
+          </p>
+        </div>
         {todayWorkouts.length === 0 ? (
-          <div className="tt-dashboard-card px-4 py-10 text-center">
-            <p className="text-sm text-[#737986]">Rest day — nothing scheduled.</p>
+          <div className="tt-surface-card px-4 py-10 text-center">
+            <p className="text-[13px] text-[var(--tt-ink-soft,#6b6b6b)]">
+              Rest day — nothing scheduled.
+            </p>
           </div>
         ) : (
-          <div className="tt-dashboard-today-list">
-            {todayWorkouts.map((workout) => {
-              const completionPercent = getWorkoutCompletionPercent(workout)
-              return (
-                <div
-                  key={workout.id}
-                  className="tt-dashboard-today"
-                  data-sport={workout.type}
-                  data-completion={
-                    completionPercent != null
-                      ? Math.min(100, completionPercent)
-                      : undefined
-                  }
-                  style={
-                    completionPercent != null
-                      ? ({
-                          '--tt-completion': `${Math.min(100, Math.max(0, completionPercent))}%`,
-                        } as CSSProperties)
-                      : undefined
-                  }
-                >
-                  <TrainingWorkoutCard
-                    workout={workout}
-                    isCoach={false}
-                    appearance="dashboard-today"
-                    className="py-0"
-                  />
-                </div>
-              )
-            })}
+          <div className="space-y-2.5">
+            {todayWorkouts.map((workout) => (
+              <TodayPrescriptionRow key={workout.id} workout={workout} />
+            ))}
           </div>
         )}
       </section>
 
       <section>
-        <SectionHeader title="Upcoming" />
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <p className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink,#111)]">
+            Upcoming
+          </p>
+          <Link
+            href="/training"
+            className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-soft,#6b6b6b)] transition hover:text-[var(--tt-ink,#111)]"
+          >
+            View plan →
+          </Link>
+        </div>
         {upcomingDays.length === 0 ? (
-          <div className="tt-dashboard-card px-4 py-8 text-center">
-            <p className="text-sm text-[#737986]">No upcoming workouts.</p>
+          <div className="tt-surface-card px-4 py-8 text-center">
+            <p className="text-[13px] text-[var(--tt-ink-soft,#6b6b6b)]">
+              No upcoming workouts.
+            </p>
           </div>
         ) : (
-          <div>
-            {upcomingDays.map((day) => (
-              <div key={day.dateKey} className="tt-dashboard-upcoming-day">
-                <div className="mb-2.5">
-                  <p
-                    className={cn(
-                      'title-day',
-                      day.isToday && 'text-[#111111]',
-                    )}
-                  >
-                    {format(day.date, 'EEEE d MMM').toUpperCase()}
-                  </p>
-                  {showWeather ? (
-                    <DashboardWeatherLine
-                      weather={weatherByDate[day.dateKey]}
-                      className="mt-1"
+          <div className="tt-surface-card overflow-hidden divide-y divide-[var(--tt-line,#ebebeb)]">
+            {upcomingDays.flatMap((day) =>
+              day.workouts.map((workout, index) => (
+                <button
+                  key={workout.id}
+                  type="button"
+                  onClick={() => setSelected(workout)}
+                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-[var(--tt-sidebar,#f5f5f5)]/60"
+                >
+                  {index === 0 ? (
+                    <HomeCalendarDate date={day.date} isToday={day.isToday} />
+                  ) : (
+                    <div className="w-9 shrink-0" aria-hidden />
+                  )}
+                  <div className="flex min-w-0 flex-1 items-center gap-3 pl-1">
+                    <WorkoutSportIcon
+                      type={workout.type}
+                      isRace={workout.isRace}
+                      size="xs"
+                      appearance="outline"
                     />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[1rem] font-semibold leading-snug text-[var(--tt-ink,#111)]">
+                        {workout.title}
+                      </p>
+                      <p className="mt-0.5 truncate text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
+                        {prescriptionLine(workout)}
+                      </p>
+                    </div>
+                  </div>
+                  {showWeather && weatherByDate[day.dateKey] && index === 0 ? (
+                    <ListDayWeatherMini weather={weatherByDate[day.dateKey]!} />
                   ) : null}
-                </div>
-                <div className="tt-dashboard-upcoming-stack">
-                  {day.workouts.map((workout) => (
-                    <TrainingListWorkoutRow
-                      key={workout.id}
-                      workout={workout}
-                      isCoach={false}
-                      appearance="dashboard"
-                      onOpen={() => setSelected(workout)}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+                  <ChevronRight
+                    className="h-4 w-4 shrink-0 text-[var(--tt-ink-faint,#9a9a9a)]"
+                    aria-hidden
+                  />
+                </button>
+              )),
+            )}
           </div>
         )}
-
-        <Link
-          href="/training"
-          className="mt-5 flex items-center justify-center gap-2 rounded-[8px] border border-[#e3e4e2] bg-white px-4 py-3 text-sm font-semibold text-[#111111] transition hover:bg-black/[0.02]"
-        >
-          View full schedule
-          <ArrowRight className="h-4 w-4" aria-hidden />
-        </Link>
       </section>
 
       {selected ? (

@@ -18,8 +18,8 @@ export async function POST(request: Request) {
   try {
     const formData = new FormData()
     formData.set('threadId', threadId)
-    await markCoachingThreadRead(formData)
-    return NextResponse.json({ ok: true })
+    const { count } = await markCoachingThreadRead(formData)
+    return NextResponse.json({ ok: true, count })
   } catch (error) {
     if (error instanceof ActionError && error.code === 'UNAUTHORIZED') {
       return jsonUnauthorized()

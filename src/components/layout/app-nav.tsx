@@ -1,18 +1,16 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, FlaskConical, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TrainTrackMark } from '@/components/brand/traintrack-logo'
 import {
   CALENDAR_EXPAND_EVENT,
   type CalendarExpandDetail,
 } from '@/lib/calendar-expand'
-import { Button } from '@/components/ui/button'
-import { ThemeToggleButton } from '@/components/theme-toggle-button'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { SignOutButton } from '@/components/layout/sign-out-button'
 import { ViewModeSwitcher } from '@/components/layout/view-mode-switcher'
@@ -32,8 +30,8 @@ export type SidebarAthleteProfile = {
   avatarUrl: string | null
 }
 
-const SIDEBAR_COLLAPSED_KEY = 'tt-sidebar-collapsed'
-/** Auto-collapse icon-only sidebar below this width (still desktop lg+). */
+const SIDEBAR_COLLAPSED_KEY = 'tt-sidebar-rail-collapsed'
+/** Auto icon-rail below this width (still desktop lg+). Does not overwrite user preference. */
 const SIDEBAR_AUTO_COLLAPSE_MQ = '(max-width: 1279px)'
 
 function isNavActive(pathname: string, href: string) {
@@ -86,50 +84,92 @@ export function AppNav({
   const toolsOpen = pathname === '/tools' || pathname.startsWith('/tools/')
   const settingsOpen = pathname.startsWith('/settings')
   const activeCalculatorTab = searchParams.get('tab') ?? 'running'
-  const [collapsed, setCollapsed] = useState(false)
+  const [prefCollapsed, setPrefCollapsed] = useState(false)
+  const [viewportTight, setViewportTight] = useState(false)
+  const [prefsReady, setPrefsReady] = useState(false)
   /** Month calendar expand forces icon-only sidebar without changing stored preference. */
   const [expandLocked, setExpandLocked] = useState(false)
-  const effectiveCollapsed = expandLocked || collapsed
-  const inboxBadge = useInboxNavBadge(dashboardNotificationCount)
+  const [demoToolsOpen, setDemoToolsOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [navIndicator, setNavIndicator] = useState({
+    top: 0,
+    height: 52,
+    visible: false,
+    ready: false,
+  })
+  const navRef = useRef<HTMLElement | null>(null)
+  const effectiveCollapsed = expandLocked || viewportTight || prefCollapsed
+  const inboxBadge = useInboxNavBadge(dashboardNotificationCount, viewMode)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    setPrefCollapsed(readStoredCollapsed())
+    setPrefsReady(true)
+  }, [])
+
+  useLayoutEffect(() => {
     const mq = window.matchMedia(SIDEBAR_AUTO_COLLAPSE_MQ)
+    function syncViewport() {
+      setViewportTight(mq.matches)
+    }
+    syncViewport()
+    mq.addEventListener('change', syncViewport)
+    return () => mq.removeEventListener('change', syncViewport)
+  }, [])
 
-    function applyForViewport() {
-      if (mq.matches) {
-        setCollapsed(true)
-        if (!expandLocked) syncSidebarCollapsedAttr(true)
+  useLayoutEffect(() => {
+    const navEl = navRef.current
+    if (!navEl) return
+    const nav = navEl
+
+    function measure() {
+      const active = nav.querySelector<HTMLElement>(
+        '.tt-app-sidebar-nav-link[data-active="true"]',
+      )
+      if (!active) {
+        setNavIndicator((prev) => ({ ...prev, visible: false }))
         return
       }
-      const stored = readStoredCollapsed()
-      setCollapsed(stored)
-      if (!expandLocked) syncSidebarCollapsedAttr(stored)
+      // offsetParent is the nav (position: relative); avoid wrappers with position.
+      setNavIndicator({
+        top: active.offsetTop,
+        height: active.offsetHeight,
+        visible: true,
+        ready: true,
+      })
     }
 
-    applyForViewport()
-    mq.addEventListener('change', applyForViewport)
-    return () => mq.removeEventListener('change', applyForViewport)
-  }, [expandLocked])
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(nav)
+    for (const child of nav.querySelectorAll('.tt-app-sidebar-nav-link')) {
+      ro.observe(child)
+    }
+    nav.addEventListener('scroll', measure, { passive: true })
+    return () => {
+      ro.disconnect()
+      nav.removeEventListener('scroll', measure)
+    }
+  }, [pathname, effectiveCollapsed, toolsOpen, mainNav.length, inboxBadge])
 
   useEffect(() => {
     function onCalendarExpand(event: Event) {
       const { expanded } = (event as CustomEvent<CalendarExpandDetail>).detail
       setExpandLocked(expanded)
-      if (expanded) {
-        syncSidebarCollapsedAttr(true)
-      } else {
-        const mq = window.matchMedia(SIDEBAR_AUTO_COLLAPSE_MQ)
-        syncSidebarCollapsedAttr(mq.matches ? true : readStoredCollapsed())
-      }
     }
 
     window.addEventListener(CALENDAR_EXPAND_EVENT, onCalendarExpand)
-    return () => window.removeEventListener(CALENDAR_EXPAND_EVENT, onCalendarExpand)
+    return () => {
+      window.removeEventListener(CALENDAR_EXPAND_EVENT, onCalendarExpand)
+    }
   }, [])
 
+  useEffect(() => {
+    if (!prefsReady) return
+    syncSidebarCollapsedAttr(effectiveCollapsed)
+  }, [effectiveCollapsed, prefsReady])
+
   function setSidebarCollapsed(next: boolean) {
-    setCollapsed(next)
-    if (!expandLocked) syncSidebarCollapsedAttr(next)
+    setPrefCollapsed(next)
     try {
       localStorage.setItem(SIDEBAR_COLLAPSED_KEY, next ? '1' : '0')
     } catch {
@@ -139,44 +179,43 @@ export function AppNav({
 
   return (
     <>
-      {/* Desktop sidebar — light editorial rail */}
+      {/* Desktop sidebar — dark gradient rail matching /design-mockups/shell */}
       <aside
+        data-collapsed={effectiveCollapsed ? 'true' : undefined}
         className={cn(
-          'tt-app-sidebar hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:max-h-dvh lg:shrink-0 lg:flex-col lg:self-start lg:py-6',
-          'lg:transition-[width] lg:duration-[var(--tt-motion-normal)]',
-          effectiveCollapsed ? 'lg:w-[4.5rem] lg:px-2' : 'lg:w-64 lg:px-4',
+          'tt-app-sidebar hidden lg:sticky lg:top-0 lg:flex lg:h-dvh lg:max-h-dvh lg:shrink-0 lg:flex-col lg:self-start',
+          'lg:transition-[width,padding] lg:duration-[var(--tt-motion-normal)]',
+          effectiveCollapsed ? 'lg:w-[4.5rem] lg:px-3 lg:py-5' : 'lg:w-[292px] lg:p-5',
         )}
       >
         <div className="tt-app-sidebar-content">
-          <div className="mb-6 shrink-0 space-y-2.5 px-2">
-            <Link
-              href="/dashboard"
-              className={cn(
-                'flex items-center rounded-lg outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand/40',
-                effectiveCollapsed ? 'justify-center' : 'gap-2.5',
-              )}
-              aria-label="TrainTrack home"
-            >
-              <TrainTrackMark className="h-9 w-9" />
-              {!effectiveCollapsed ? (
-                <span className="traintrack-wordmark">TRAINTRACK</span>
-              ) : null}
-            </Link>
-            {canSwitchView ? (
-              <div className={cn(effectiveCollapsed && 'flex justify-center')}>
-                <ViewModeSwitcher
-                  viewMode={viewMode}
-                  tone="sidebar"
-                  compact={effectiveCollapsed}
-                />
-              </div>
-            ) : !effectiveCollapsed ? (
-              <p className="text-xs text-text-tertiary">
-                {isCoach ? 'Coach' : 'Athlete'}
-              </p>
+          <Link
+            href="/dashboard"
+            className={cn(
+              'tt-app-sidebar-logo outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand/40',
+              effectiveCollapsed && 'justify-center',
+            )}
+            aria-label="TrainTrack home"
+          >
+            <span className="tt-app-sidebar-logo-mark">
+              <TrainTrackMark tone="dark" className="h-6 w-6" />
+            </span>
+            {!effectiveCollapsed ? (
+              <span className="tt-app-sidebar-logo-text">TRAINTRACK</span>
             ) : null}
-          </div>
-          <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto overscroll-contain">
+          </Link>
+
+          <nav ref={navRef} className="tt-app-sidebar-nav">
+            <span
+              className="tt-app-sidebar-nav-indicator"
+              aria-hidden
+              data-ready={navIndicator.ready ? 'true' : undefined}
+              data-visible={navIndicator.visible ? 'true' : undefined}
+              style={{
+                transform: `translateY(${navIndicator.top}px)`,
+                height: navIndicator.height,
+              }}
+            />
             {mainNav.map(({ href, label, icon: Icon }) => {
               const active = isNavActive(pathname, href)
               const showBadge = href === '/inbox' && inboxBadge > 0
@@ -187,48 +226,29 @@ export function AppNav({
                     href={href}
                     title={label}
                     data-active={active ? 'true' : undefined}
-                    className={cn(
-                      'tt-app-sidebar-nav-link flex items-center rounded-[8px] py-2.5 text-sm font-medium transition-colors',
-                      effectiveCollapsed ? 'justify-center px-2' : 'gap-3 px-3',
-                    )}
+                    className="tt-app-sidebar-nav-link"
                   >
-                    <span className="relative shrink-0">
-                      <Icon
-                        className="tt-app-sidebar-nav-icon h-4 w-4"
-                        strokeWidth={1.75}
-                      />
-                      {showBadge && (
-                        <span
-                          className={cn(
-                            'absolute flex items-center justify-center rounded-full bg-accent font-bold text-accent-foreground',
-                            effectiveCollapsed
-                              ? '-right-1.5 -top-1.5 h-2 w-2'
-                              : '-right-1.5 -top-1.5 h-4 min-w-4 px-1 text-[10px]',
-                          )}
-                        >
-                          {!effectiveCollapsed &&
-                            (inboxBadge > 9
-                              ? '9+'
-                              : inboxBadge)}
-                        </span>
-                      )}
-                    </span>
+                    <Icon className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
                     {!effectiveCollapsed && <span className="truncate">{label}</span>}
+                    {showBadge && !effectiveCollapsed ? (
+                      <span className="tt-app-sidebar-badge">
+                        {inboxBadge > 9 ? '9+' : inboxBadge}
+                      </span>
+                    ) : null}
+                    {showBadge && effectiveCollapsed ? (
+                      <span className="tt-app-sidebar-badge-dot" />
+                    ) : null}
                   </Link>
                   {!effectiveCollapsed && isTools && toolsOpen ? (
-                    <div className="mt-1 ml-4 space-y-0.5 border-l border-black/10 pl-3">
+                    <div className="tt-app-sidebar-subnav mt-1 ml-4 space-y-0.5 border-l pl-3">
                       {CALCULATOR_NAV_TABS.map((tab) => {
                         const tabActive = activeCalculatorTab === tab.id
                         return (
                           <Link
                             key={tab.id}
                             href={tab.href}
-                            className={cn(
-                              'block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors',
-                              tabActive
-                                ? 'bg-white/55 text-foreground backdrop-blur-sm'
-                                : 'text-[#667085] hover:bg-black/[0.035] hover:text-foreground',
-                            )}
+                            data-active={tabActive ? 'true' : undefined}
+                            className="tt-app-sidebar-subnav-link block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors"
                           >
                             {tab.label}
                           </Link>
@@ -240,126 +260,178 @@ export function AppNav({
               )
             })}
           </nav>
-          <div className="mt-auto shrink-0 space-y-1 border-t border-black/[0.07] pt-3">
-            {showPreferences && athleteProfile ? (
-              <div>
-                {effectiveCollapsed ? (
-                  <Link
-                    href={SETTINGS_ENTRY_HREF}
-                    title={athleteProfile.name}
-                    className={cn(
-                      'flex justify-center rounded-[10px] py-1.5 transition-colors',
-                      settingsOpen
-                        ? 'bg-white/55 backdrop-blur-sm'
-                        : 'hover:bg-black/[0.035]',
-                    )}
-                  >
-                    <AthleteAvatar
-                      name={athleteProfile.name}
-                      avatarUrl={athleteProfile.avatarUrl}
-                      size="sm"
-                      className="ring-2 ring-black/5"
-                    />
-                  </Link>
-                ) : (
-                  <Link
-                    href={SETTINGS_ENTRY_HREF}
-                    title={athleteProfile.name}
-                    className={cn(
-                      'mb-1 flex items-center gap-3 rounded-[10px] px-3 py-2 transition-colors',
-                      settingsOpen
-                        ? 'bg-white/55 text-foreground backdrop-blur-sm'
-                        : 'text-foreground hover:bg-black/[0.035]',
-                    )}
-                  >
-                    <AthleteAvatar
-                      name={athleteProfile.name}
-                      avatarUrl={athleteProfile.avatarUrl}
-                      size="sm"
-                      className="ring-2 ring-black/5"
-                    />
-                    <p className="min-w-0 truncate text-sm font-semibold">
-                      {athleteProfile.name}
-                    </p>
-                  </Link>
-                )}
-                {!effectiveCollapsed && settingsOpen ? (
-                  <div className="mt-1 ml-4 space-y-0.5 border-l border-black/10 pl-3">
-                    {SETTINGS_SUBNAV.map(({ href, label }) => {
-                      const active = pathname.startsWith(href)
-                      return (
-                        <Link
-                          key={href}
-                          href={href}
-                          className={cn(
-                            'block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors',
-                            active
-                              ? 'bg-white/55 text-foreground backdrop-blur-sm'
-                              : 'text-[#667085] hover:bg-black/[0.035] hover:text-foreground',
-                          )}
-                        >
-                          {label}
-                        </Link>
-                      )
-                    })}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
+
+          <div className="tt-app-sidebar-footer">
             {showConnectCoach ? (
               <Link
                 href={CONNECT_COACH_NAV.href}
                 title={CONNECT_COACH_NAV.label}
-                className={cn(
-                  'flex items-center rounded-[10px] py-2.5 text-sm font-medium transition-colors',
-                  effectiveCollapsed ? 'justify-center px-2' : 'gap-3 px-3',
-                  'text-foreground hover:bg-accent-subtle',
-                )}
+                className="tt-app-sidebar-footer-item"
               >
-                <CONNECT_COACH_NAV.icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+                <CONNECT_COACH_NAV.icon className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
                 {!effectiveCollapsed && CONNECT_COACH_NAV.label}
               </Link>
             ) : null}
-            <ThemeToggleButton
-              showLabel={!effectiveCollapsed}
-              className={cn(
-                'mt-2 rounded-[10px] text-text-tertiary hover:bg-accent-subtle hover:text-foreground',
-                effectiveCollapsed ? 'w-full justify-center px-2' : 'justify-start gap-2',
-              )}
-            />
-            <SignOutButton tone="sidebar" iconOnly={effectiveCollapsed} className="mt-1" />
-            {!effectiveCollapsed && (
-              <div
-                className={cn(
-                  'sidebar-footer text-foreground',
-                  '[&_.text-label]:text-text-tertiary [&_.text-caption]:text-text-tertiary',
-                  '[&_button]:rounded-[8px] [&_button]:bg-primary [&_button]:text-primary-foreground [&_button]:hover:bg-primary/90',
-                  '[&_select]:border [&_select]:border-border [&_select]:bg-[color-mix(in_oklab,var(--color-surface)_75%,transparent)] [&_select]:text-foreground',
-                  '[&_span.inline-flex]:bg-brand-soft [&_span.inline-flex]:text-brand',
+
+            {showPreferences && athleteProfile ? (
+              <>
+                {effectiveCollapsed ? (
+                  <Link
+                    href={SETTINGS_ENTRY_HREF}
+                    title="Settings"
+                    data-active={settingsOpen ? 'true' : undefined}
+                    className="tt-app-sidebar-footer-item"
+                    aria-label="Open settings"
+                  >
+                    <AthleteAvatar
+                      name={athleteProfile.name}
+                      avatarUrl={athleteProfile.avatarUrl}
+                      size="sm"
+                      className="ring-1 ring-white/15"
+                    />
+                  </Link>
+                ) : (
+                  <div
+                    className="tt-app-sidebar-profile"
+                    data-open={profileOpen ? 'true' : undefined}
+                  >
+                    <button
+                      type="button"
+                      className="tt-app-sidebar-profile-main"
+                      aria-expanded={profileOpen}
+                      aria-controls="tt-sidebar-profile-options"
+                      onClick={() => setProfileOpen((open) => !open)}
+                    >
+                      <AthleteAvatar
+                        name={athleteProfile.name}
+                        avatarUrl={athleteProfile.avatarUrl}
+                        size="sm"
+                        className="ring-1 ring-white/15"
+                      />
+                      <div className="min-w-0 flex-1 text-left">
+                        <p className="tt-app-sidebar-profile-name truncate">
+                          {athleteProfile.name}
+                        </p>
+                        <p className="tt-app-sidebar-profile-role capitalize">
+                          {viewMode === 'coach' || isCoach ? 'coach' : 'athlete'}
+                        </p>
+                      </div>
+                      <ChevronDown
+                        className={cn(
+                          'h-4 w-4 shrink-0 text-white/45 transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]',
+                          profileOpen && 'rotate-180 text-white/70',
+                        )}
+                        strokeWidth={1.75}
+                      />
+                    </button>
+
+                    <div
+                      id="tt-sidebar-profile-options"
+                      className="tt-app-sidebar-profile-panel"
+                      data-open={profileOpen ? 'true' : undefined}
+                    >
+                      <div className="tt-app-sidebar-profile-panel-inner">
+                        <div className="tt-app-sidebar-profile-options">
+                          {canSwitchView ? (
+                            <ViewModeSwitcher
+                              viewMode={viewMode}
+                              tone="sidebar"
+                              className="tt-app-sidebar-profile-switch"
+                            />
+                          ) : null}
+                          {SETTINGS_SUBNAV.map(({ href, label, icon: Icon }) => {
+                            const active = pathname.startsWith(href)
+                            return (
+                              <Link
+                                key={href}
+                                href={href}
+                                data-active={active ? 'true' : undefined}
+                                className="tt-app-sidebar-profile-option"
+                              >
+                                <Icon className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
+                                <span>{label}</span>
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 )}
-              >
-                {sidebarFooter}
+              </>
+            ) : canSwitchView && !effectiveCollapsed ? (
+              <div className="tt-app-sidebar-profile tt-app-sidebar-profile--switch-only">
+                <ViewModeSwitcher
+                  viewMode={viewMode}
+                  tone="sidebar"
+                  className="tt-app-sidebar-profile-switch"
+                />
               </div>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
+            ) : showPreferences && !athleteProfile ? (
+              <Link
+                href={SETTINGS_ENTRY_HREF}
+                title="Settings"
+                data-active={settingsOpen ? 'true' : undefined}
+                className="tt-app-sidebar-footer-item"
+              >
+                <Settings className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
+                {!effectiveCollapsed && <span>Settings</span>}
+              </Link>
+            ) : null}
+
+            <SignOutButton
+              tone="sidebar"
+              iconOnly={effectiveCollapsed}
+              className="tt-app-sidebar-footer-item !mt-0"
+            />
+
+            {!effectiveCollapsed && sidebarFooter ? (
+              <div className="mt-1 space-y-1">
+                <button
+                  type="button"
+                  className="tt-app-sidebar-footer-item"
+                  aria-expanded={demoToolsOpen}
+                  onClick={() => setDemoToolsOpen((open) => !open)}
+                >
+                  <FlaskConical className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
+                  <span>Demo accounts</span>
+                </button>
+                {demoToolsOpen ? (
+                  <div
+                    className={cn(
+                      'sidebar-footer rounded-[10px] border border-white/10 bg-black/20 px-2.5 py-2.5 text-white/90',
+                      '[&_.text-label]:text-white/55 [&_.text-caption]:text-white/55',
+                      '[&_button]:rounded-[8px] [&_button]:bg-white/90 [&_button]:text-[#151827] [&_button]:hover:bg-white',
+                      '[&_select]:border [&_select]:border-white/15 [&_select]:bg-white/5 [&_select]:text-white',
+                      '[&_span.inline-flex]:bg-[rgb(232_75_69_/_0.2)] [&_span.inline-flex]:text-[#ff8a8f]',
+                      '[&_.border-border\\/60]:border-transparent [&_.border-t]:border-0 [&_.pt-4]:pt-0',
+                    )}
+                  >
+                    {sidebarFooter}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            <button
+              type="button"
               title={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               aria-label={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               aria-pressed={effectiveCollapsed}
-              className={cn(
-                'mt-2 rounded-[10px] text-text-tertiary hover:bg-accent-subtle hover:text-foreground',
-                effectiveCollapsed ? 'w-full justify-center px-2' : 'w-full justify-start gap-2',
-              )}
-              onClick={() => setSidebarCollapsed(!collapsed)}
+              className="tt-app-sidebar-footer-item"
+              onClick={() => {
+                // Toggle the stored preference from what the user sees. Viewport /
+                // calendar locks can still force icon-rail without writing "collapsed".
+                setSidebarCollapsed(!effectiveCollapsed)
+              }}
             >
               {effectiveCollapsed ? (
-                <ChevronsRight className="h-4 w-4" strokeWidth={1.75} />
+                <ChevronRight className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
               ) : (
-                <ChevronsLeft className="h-4 w-4" strokeWidth={1.75} />
+                <ChevronLeft className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
               )}
-              {!effectiveCollapsed && 'Collapse'}
-            </Button>
+              {!effectiveCollapsed && <span>Collapse</span>}
+            </button>
           </div>
         </div>
       </aside>

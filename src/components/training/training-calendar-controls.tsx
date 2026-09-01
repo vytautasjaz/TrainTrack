@@ -6,6 +6,7 @@ import { HistoryLogToolbar } from '@/components/history/history-log-toolbar'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
 import { useTrainingLibrary } from '@/components/training/training-library-context'
 import { PlanSportFilterControl } from '@/components/training/plan-sport-filter-control'
+import { FeedbackLayerToggle } from '@/components/training/feedback-layer-toggle'
 import { cn } from '@/lib/utils'
 
 type TrainingView = 'week' | 'list' | 'calendar'
@@ -81,7 +82,10 @@ export function TrainingCalendarControls({
       </div>
 
       {showSportFilter ? (
-        <PlanSportFilterControl compactOnMobile />
+        <>
+          <PlanSportFilterControl compactOnMobile />
+          <FeedbackLayerToggle />
+        </>
       ) : null}
 
       {showLibraryToggle && library ? (

@@ -55,7 +55,7 @@ type LogoProps = {
 }
 
 /**
- * Brand mark + TRAINTRACK wordmark (Manrope text, not SVG paths).
+ * Brand mark + TRAINTRACK wordmark (Bebas Neue text, not SVG paths).
  */
 export function TrainTrackLogo({
   tone = 'light',

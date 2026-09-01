@@ -14,6 +14,12 @@ import {
   normalizeIncludePlacement,
 } from '@/lib/workout-builder/include-placement'
 import { updateSegmentUnit, updateSegmentValue } from '@/lib/workout-builder/target-helpers'
+import {
+  DragInsertIndicator,
+  insertIndexFromDragEvent,
+  isMeaningfulInsert,
+  targetIndexFromInsert,
+} from '@/components/ui/drag-insert-indicator'
 import { cn } from '@/lib/utils'
 
 type IncludeItemsEditorProps = {
@@ -178,6 +184,12 @@ export function IncludeItemsEditor({
 }: IncludeItemsEditorProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [insertIndex, setInsertIndex] = useState<number | null>(null)
+
+  function clearDrag() {
+    setDragIndex(null)
+    setInsertIndex(null)
+  }
 
   function updateItem(id: string, patch: Partial<WorkoutIncludeItem>) {
     onChange(items.map((item) => (item.id === id ? { ...item, ...patch } : item)))
@@ -195,15 +207,24 @@ export function IncludeItemsEditor({
     onChange([...items.slice(0, index + 1), copy, ...items.slice(index + 1)])
   }
 
-  function handleDrop(targetIndex: number) {
-    if (dragIndex === null || dragIndex === targetIndex) return
+  function handleDropAt(insertAt: number) {
+    if (dragIndex === null || !isMeaningfulInsert(dragIndex, insertAt)) {
+      clearDrag()
+      return
+    }
     const next = [...items]
     const [moved] = next.splice(dragIndex, 1)
-    if (!moved) return
-    next.splice(targetIndex, 0, moved)
+    if (!moved) {
+      clearDrag()
+      return
+    }
+    next.splice(targetIndexFromInsert(dragIndex, insertAt), 0, moved)
     onChange(next)
-    setDragIndex(null)
+    clearDrag()
   }
+
+  const showInsertAt = (slot: number) =>
+    dragIndex != null && insertIndex === slot && isMeaningfulInsert(dragIndex, slot)
 
   return (
     <div className="min-w-0 space-y-1.5">
@@ -219,6 +240,16 @@ export function IncludeItemsEditor({
             durationMinutes={durationMinutes}
             size="md"
             showCaption
+            onReorderBlocks={(from, to) => {
+              if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) {
+                return
+              }
+              const next = [...items]
+              const [moved] = next.splice(from, 1)
+              if (!moved) return
+              next.splice(to, 0, moved)
+              onChange(next)
+            }}
           />
         </div>
       ) : (
@@ -237,16 +268,25 @@ export function IncludeItemsEditor({
         }
 
         return (
-          <div
-            key={item.id}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => handleDrop(index)}
-            className={cn(
-              'group/block overflow-hidden rounded-[6px] border bg-card transition-colors',
-              expanded ? 'border-[#86D39A]/60 shadow-sm' : 'border-border/60',
-              dragIndex === index && 'opacity-50',
-            )}
-          >
+          <div key={item.id} className="relative">
+            <DragInsertIndicator show={showInsertAt(index)} />
+            <div
+              onDragOver={(e) => {
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'move'
+                const next = insertIndexFromDragEvent(e, index)
+                if (next !== insertIndex) setInsertIndex(next)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                handleDropAt(insertIndexFromDragEvent(e, index))
+              }}
+              className={cn(
+                'group/block overflow-hidden rounded-[6px] border bg-card transition-colors',
+                expanded ? 'border-[#86D39A]/60 shadow-sm' : 'border-border/60',
+                dragIndex === index && 'opacity-50',
+              )}
+            >
             <div className="flex items-stretch">
               <div className="group/handle flex w-8 shrink-0 border-r border-border/40 bg-amber-500/14 sm:w-9">
                 <div className="w-1 shrink-0 bg-amber-500" aria-hidden />
@@ -254,9 +294,11 @@ export function IncludeItemsEditor({
                   draggable
                   onDragStart={(e) => {
                     e.stopPropagation()
+                    e.dataTransfer.effectAllowed = 'move'
+                    e.dataTransfer.setData('text/plain', String(index))
                     setDragIndex(index)
                   }}
-                  onDragEnd={() => setDragIndex(null)}
+                  onDragEnd={clearDrag}
                   onClick={(e) => e.stopPropagation()}
                   className="flex min-w-0 flex-1 cursor-grab touch-none items-center justify-center text-amber-700/45 active:cursor-grabbing group-hover/handle:text-amber-700/70"
                   aria-label="Drag to reorder"
@@ -421,9 +463,16 @@ export function IncludeItemsEditor({
                 </div>
               </div>
             ) : null}
+            </div>
           </div>
         )
       })}
+
+      {items.length > 0 ? (
+        <div className="relative h-0">
+          <DragInsertIndicator show={showInsertAt(items.length)} />
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-2 pt-2">
         {INCLUDE_PRESETS.map((preset) => (

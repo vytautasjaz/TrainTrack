@@ -213,7 +213,10 @@ export function formatTargets(targets?: Target[]): string {
     .join(' · ')
 }
 
-export function formatBlockSummary(block: WorkoutBlock): string {
+export function formatBlockSummary(
+  block: WorkoutBlock,
+  sportType: WorkoutType = SportEnum.RUN,
+): string {
   switch (block.type) {
     case 'CONTINUOUS':
     case 'RECOVERY':
@@ -233,23 +236,45 @@ export function formatBlockSummary(block: WorkoutBlock): string {
       const start = block.startIntensity?.value?.trim() || formatTargets(block.targets) || '—'
       const end = block.endIntensity?.value?.trim() || '—'
       const step = block.stepEvery
-        ? ` · step every ${block.stepEvery.value} ${block.stepEvery.unit}`
+        ? ` · every ${block.stepEvery.value} ${block.stepEvery.unit}`
         : ''
       return `${duration} · ${start} → ${end}${step}`
     }
     case 'INTERVAL': {
       const work = formatSegment(block.work)
-      const recovery = formatIntervalRecoveryLabel(block.recovery, block.targets, SportEnum.RUN)
       const workTarget = block.targets?.[0] ? formatTargets([block.targets[0]]) : ''
-      return `${block.repetitions ?? 1} x ${work}${workTarget ? ` @ ${workTarget}` : ''}${recovery ? ` · ${recovery} recovery` : ''}`
+      const recovery = formatIntervalRecoveryLabel(block.recovery, block.targets, sportType)
+      const parts = [
+        `${block.repetitions ?? 1} × ${work}${workTarget ? ` @ ${workTarget}` : ''}`,
+      ]
+      if (recovery) {
+        const alreadySaysRecovery = /\brecovery\b/i.test(recovery)
+        parts.push(alreadySaysRecovery ? recovery : `${recovery} recovery`)
+      }
+      return parts.join(' · ')
     }
     case 'REPETITION':
-      return `${block.repetitions ?? 1} x ${formatSegment(block.work)}`
+      return `${block.repetitions ?? 1} × ${formatSegment(block.work)}`
     case 'FREE_TEXT':
       return block.text?.trim() || 'Free text'
     default:
       return block.type
   }
+}
+
+/** Builder overview duration cell — derived from structured block data. */
+export function formatBuilderBlockTimeLabel(
+  minutes: number,
+  exact: boolean,
+): string {
+  if (minutes <= 0) return '—'
+  const totalSecs = Math.round(minutes * 60)
+  const mins = Math.floor(totalSecs / 60)
+  const secs = totalSecs % 60
+  if (exact && secs === 0) return `${mins} min`
+  if (secs === 0) return `~${mins} min`
+  const clock = `${mins}:${secs.toString().padStart(2, '0')}`
+  return exact ? clock : `~${clock}`
 }
 
 export function parseStructure(raw: unknown): WorkoutStructure {

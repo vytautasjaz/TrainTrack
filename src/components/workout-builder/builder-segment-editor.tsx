@@ -4,10 +4,17 @@ import type { ReactNode } from 'react'
 import type { WorkoutType } from '@prisma/client'
 import type { Segment, SegmentUnit, Target, TargetType, WorkoutBlock } from '@/lib/workout-builder/types'
 import {
+  PROGRESSIVE_STEP_PRESET_OPTIONS,
+  progressiveStepPresetId,
+  stepEveryFromPreset,
+  type ProgressiveStepPresetId,
+} from '@/lib/workout-builder/progressive'
+import {
   HR_ZONE_PRESETS,
   RPE_PRESETS,
   SEGMENT_UNIT_LABELS,
   intensitySuggestions,
+  isBikeSport,
   primaryTarget,
   simpleTargetTypeLabel,
   simpleTargetTypesForSport,
@@ -22,11 +29,12 @@ import { NumberInput, editableInputDragHandlers } from '@/components/ui/number-i
 import { FillSelect } from '@/components/ui/suffix-select'
 import { VALUE_UNIT_SHELL_CLASS, ValueUnitField } from '@/components/ui/value-unit-field'
 import { SuggestableInput } from '@/components/swim-workout/suggestable-input'
+import { PaceValueInput } from '@/components/workout-builder/pace-value-input'
 import { cn } from '@/lib/utils'
 
 const SEGMENT_UNITS: SegmentUnit[] = ['km', 'm', 'min', 'sec']
 
-const embeddedInputClass = 'px-3 text-sm font-semibold'
+const embeddedInputClass = 'px-2 text-xs font-medium'
 type CustomIntensityOptionValue = 'standingRecovery' | 'walkingRecovery' | 'jogRecovery'
 type IntensityOptionValue = TargetType | CustomIntensityOptionValue
 
@@ -42,9 +50,17 @@ type DurationFieldGroupProps = {
   segment: Segment
   onChange: (segment: Segment) => void
   className?: string
+  label?: string
+  shellClassName?: string
 }
 
-export function DurationFieldGroup({ segment, onChange, className }: DurationFieldGroupProps) {
+export function DurationFieldGroup({
+  segment,
+  onChange,
+  className,
+  label = 'Duration',
+  shellClassName,
+}: DurationFieldGroupProps) {
   const unitOptions = SEGMENT_UNITS.map((unit) => ({
     value: unit,
     label: SEGMENT_UNIT_LABELS[unit],
@@ -53,11 +69,12 @@ export function DurationFieldGroup({ segment, onChange, className }: DurationFie
   return (
     <div className={cn('min-w-0', className)}>
       <ValueUnitField
-        label="Duration"
+        label={label}
         unitValue={segment.unit}
         onUnitChange={(unit) => onChange(updateSegmentUnit(segment, unit as SegmentUnit))}
         unitOptions={unitOptions}
-        unitAriaLabel="Duration unit"
+        unitAriaLabel={`${label} unit`}
+        shellClassName={cn('bg-white', shellClassName)}
       >
         <NumberInput
           value={segment.value}
@@ -65,10 +82,10 @@ export function DurationFieldGroup({ segment, onChange, className }: DurationFie
           min={0}
           inputMode="decimal"
           className={cn(
-            'h-10 w-full rounded-none border-0 bg-transparent shadow-none outline-none focus:ring-0',
+            'h-7 w-full rounded-none border-0 bg-transparent shadow-none outline-none focus:ring-0',
             embeddedInputClass,
           )}
-          aria-label="Duration amount"
+          aria-label={`${label} amount`}
         />
       </ValueUnitField>
     </div>
@@ -86,6 +103,7 @@ type IntensityFieldGroupProps = {
   onChange: (target: Target) => void
   sportType: WorkoutType
   className?: string
+  shellClassName?: string
   fieldLabel?: string
   /** When true (default), only Effort/Pace or Effort/Watts with free-text suggestions. */
   simple?: boolean
@@ -97,6 +115,7 @@ export function IntensityFieldGroup({
   onChange,
   sportType,
   className,
+  shellClassName,
   fieldLabel = 'Intensity',
   simple = true,
   intensityOptions,
@@ -139,6 +158,19 @@ export function IntensityFieldGroup({
 
   function renderValueControl() {
     if (simple) {
+      if (effectiveType === 'pace') {
+        return (
+          <PaceValueInput
+            value={target.value ?? ''}
+            onChange={(value) => onChange({ type: effectiveType, value })}
+            suggestions={intensitySuggestions(effectiveType, sportType)}
+            placeholder={targetPlaceholder(effectiveType, sportType)}
+            aria-label="Intensity value"
+            className="h-7 w-full rounded-none border-0 bg-transparent px-2 text-xs font-medium"
+            unitClassName="pr-1.5 text-[10px]"
+          />
+        )
+      }
       return (
         <SuggestableInput
           value={target.value ?? ''}
@@ -146,7 +178,7 @@ export function IntensityFieldGroup({
           suggestions={intensitySuggestions(effectiveType, sportType)}
           placeholder={targetPlaceholder(effectiveType, sportType)}
           aria-label="Intensity value"
-          className="h-10 w-full rounded-none border-0 bg-transparent px-3 text-sm font-semibold"
+          className="h-7 w-full rounded-none border-0 bg-transparent px-2 text-xs font-medium"
         />
       )
     }
@@ -169,7 +201,7 @@ export function IntensityFieldGroup({
         value={target.value ?? ''}
         onChange={(e) => onChange({ ...target, value: e.target.value })}
         placeholder={targetPlaceholder(target.type, sportType)}
-        className="px-3 text-sm"
+        className="h-7 px-2 text-xs"
         aria-label="Intensity value"
         {...editableInputDragHandlers}
       />
@@ -184,6 +216,7 @@ export function IntensityFieldGroup({
         onUnitChange={(value) => setType(value as IntensityOptionValue)}
         unitOptions={typeOptions}
         unitAriaLabel="Intensity type"
+        shellClassName={cn('bg-white', shellClassName)}
       >
         {renderValueControl()}
       </ValueUnitField>
@@ -251,7 +284,7 @@ export function RepeatsRow({ value, onChange }: RepeatsRowProps) {
           min={1}
           integer
           inputMode="numeric"
-          className="h-10 w-12 rounded-none border-0 bg-transparent px-1 text-center text-base font-bold shadow-none outline-none focus:ring-0"
+          className="h-7 w-10 rounded-none border-0 bg-transparent px-1 text-center text-xs font-semibold shadow-none outline-none focus:ring-0"
           aria-label="Repeat count"
         />
         <div className="flex items-center pr-3 text-xs text-muted-foreground">times</div>
@@ -357,51 +390,113 @@ export function ProgressiveBlockRow({
   const start =
     block.startIntensity ?? primaryTarget({ targets: block.targets }, sportType)
   const end = block.endIntensity ?? { type: start.type, value: '' }
-  const step = block.stepEvery ?? { mode: 'distance' as const, value: 1, unit: 'km' as const }
+  const preset = progressiveStepPresetId(block.stepEvery)
+  const customStep =
+    block.stepEvery ?? { mode: 'distance' as const, value: 1, unit: 'km' as const }
+
+  const intensityOptions: IntensityOption[] = isBikeSport(sportType)
+    ? [
+        { value: 'power', label: 'Watts', targetType: 'power' },
+        { value: 'powerZone', label: '% FTP', targetType: 'powerZone' },
+        { value: 'heartRate', label: 'HR', targetType: 'heartRate' },
+        { value: 'heartRateZone', label: 'Zone', targetType: 'heartRateZone' },
+        { value: 'rpe', label: 'Effort', targetType: 'rpe' },
+      ]
+    : [
+        { value: 'pace', label: 'Pace', targetType: 'pace' },
+        { value: 'heartRate', label: 'HR', targetType: 'heartRate' },
+        { value: 'heartRateZone', label: 'Zone', targetType: 'heartRateZone' },
+        { value: 'rpe', label: 'Effort', targetType: 'rpe' },
+      ]
+
+  function setProgression(id: ProgressiveStepPresetId) {
+    const next = stepEveryFromPreset(id)
+    if (next == null) {
+      onChange({ stepEvery: undefined })
+      return
+    }
+    onChange({ stepEvery: next })
+  }
 
   return (
     <BlockCard className={className}>
-      <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-start sm:gap-4">
-        <span className="w-20 shrink-0 pt-7 text-xs font-semibold text-foreground">Total</span>
-        <DurationFieldGroup
-          segment={segment}
-          onChange={(next) => onChange(durationSegmentToBlock(next))}
-          className="min-w-0 flex-1"
-        />
-      </div>
-      <BlockCardDivider />
-      <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-start sm:gap-4">
-        <span className="w-20 shrink-0 pt-7 text-xs font-semibold text-foreground">Start</span>
-        <IntensityFieldGroup
-          target={start}
-          onChange={(t) => onChange({ startIntensity: t, targets: [t] })}
-          sportType={sportType}
-          fieldLabel="Start"
-          className="min-w-0 flex-1"
-        />
-        <span className="hidden pt-7 text-xs text-muted-foreground sm:inline">→</span>
-        <IntensityFieldGroup
-          target={end}
-          onChange={(t) => onChange({ endIntensity: t })}
-          sportType={sportType}
-          fieldLabel="End"
-          className="min-w-0 flex-1"
-        />
-      </div>
-      <BlockCardDivider />
-      <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-start sm:gap-4">
-        <span className="w-20 shrink-0 pt-7 text-xs font-semibold text-foreground">
-          Step every
-        </span>
-        <DurationFieldGroup
-          segment={step}
-          onChange={(next) =>
-            onChange({
-              stepEvery: { mode: next.mode, value: next.value, unit: next.unit },
-            })
-          }
-          className="min-w-0 flex-1"
-        />
+      <div className="space-y-1.5 px-2.5 py-2">
+        <div className="flex items-center gap-1.5">
+          <span className="w-9 shrink-0 text-[10px] font-medium text-muted-foreground">
+            Total
+          </span>
+          <DurationFieldGroup
+            segment={segment}
+            onChange={(next) => onChange(durationSegmentToBlock(next))}
+            className="min-w-0"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-9 shrink-0 text-[10px] font-medium text-muted-foreground">
+            Start
+          </span>
+          <IntensityFieldGroup
+            target={start}
+            onChange={(t) =>
+              onChange({
+                startIntensity: t,
+                targets: [t],
+                endIntensity:
+                  end.type === t.type ? end : { type: t.type, value: end.value ?? '' },
+              })
+            }
+            sportType={sportType}
+            fieldLabel="Start"
+            intensityOptions={intensityOptions}
+            className="min-w-0 flex-1"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-9 shrink-0 text-[10px] font-medium text-muted-foreground">
+            End
+          </span>
+          <IntensityFieldGroup
+            target={end}
+            onChange={(t) => onChange({ endIntensity: t })}
+            sportType={sportType}
+            fieldLabel="End"
+            intensityOptions={intensityOptions}
+            className="min-w-0 flex-1"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="w-9 shrink-0 text-[10px] font-medium text-muted-foreground">
+            Step
+          </span>
+          <select
+            value={preset}
+            onChange={(e) =>
+              setProgression(e.target.value as ProgressiveStepPresetId)
+            }
+            aria-label="Progression type"
+            className="h-8 rounded-md border border-border bg-card px-1.5 text-xs"
+          >
+            {PROGRESSIVE_STEP_PRESET_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {preset === 'custom' ? (
+            <DurationFieldGroup
+              segment={customStep}
+              onChange={(next) =>
+                onChange({
+                  stepEvery: {
+                    mode: next.mode,
+                    value: next.value,
+                    unit: next.unit,
+                  },
+                })
+              }
+            />
+          ) : null}
+        </div>
       </div>
     </BlockCard>
   )

@@ -1,8 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Clock, Search, Smile } from 'lucide-react'
 import type { EmojiMartData } from '@emoji-mart/data'
 import { cn } from '@/lib/utils'
@@ -67,12 +66,18 @@ type EmojiPickerButtonProps = {
   className?: string
 }
 
+/**
+ * Lightweight emoji picker (no Radix Popper).
+ * Radix DropdownMenu/Popper was remounting with inbox soft-refreshes and hitting
+ * maximum update depth via PopperAnchor callback refs.
+ */
 export function EmojiPickerButton({ onSelect, disabled, className }: EmojiPickerButtonProps) {
   const [open, setOpen] = useState(false)
   const [data, setData] = useState<EmojiMartData | null>(null)
   const [query, setQuery] = useState('')
   const [categoryId, setCategoryId] = useState('people')
   const [recents, setRecents] = useState<string[]>([])
+  const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -93,6 +98,19 @@ export function EmojiPickerButton({ onSelect, disabled, className }: EmojiPicker
     if (!open) {
       setQuery('')
       setCategoryId('people')
+      return
+    }
+    function onPointerDown(e: PointerEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
     }
   }, [open])
 
@@ -101,37 +119,31 @@ export function EmojiPickerButton({ onSelect, disabled, className }: EmojiPicker
     setRecents(next)
     writeRecents(next)
     onSelect(emoji)
+    setOpen(false)
   }
 
   return (
-    <DropdownMenu.Root modal={false} open={open} onOpenChange={setOpen}>
-      <DropdownMenu.Trigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
-          aria-label="Add emoji"
-          title="Add emoji"
-          className={cn(
-            'inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-muted-foreground transition',
-            'hover:bg-muted/60 hover:text-foreground',
-            'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20',
-            'disabled:pointer-events-none disabled:opacity-50',
-            className,
-          )}
-        >
-          <Smile className="h-4 w-4" strokeWidth={1.75} />
-        </button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="start"
-          side="top"
-          sideOffset={6}
-          collisionPadding={8}
-          avoidCollisions={false}
-          className="z-[220] w-[19.5rem] overflow-hidden rounded-[12px] border border-border bg-card shadow-lg"
-          onCloseAutoFocus={(e) => e.preventDefault()}
-        >
+    <div ref={rootRef} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label="Add emoji"
+        title="Add emoji"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          'inline-flex h-8 w-8 items-center justify-center rounded-[8px] text-muted-foreground transition',
+          'hover:bg-muted/60 hover:text-foreground',
+          'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/20',
+          'disabled:pointer-events-none disabled:opacity-50',
+          open && 'bg-muted/60 text-foreground',
+          className,
+        )}
+      >
+        <Smile className="h-4 w-4" strokeWidth={1.75} />
+      </button>
+      {open ? (
+        <div className="absolute bottom-[calc(100%+6px)] left-0 z-[220] w-[19.5rem] overflow-hidden rounded-[12px] border border-border bg-card shadow-lg">
           <EmojiKeyboard
             data={data}
             query={query}
@@ -141,9 +153,9 @@ export function EmojiPickerButton({ onSelect, disabled, className }: EmojiPicker
             recents={recents}
             onPick={pick}
           />
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+        </div>
+      ) : null}
+    </div>
   )
 }
 

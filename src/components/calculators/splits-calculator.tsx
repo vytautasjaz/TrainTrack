@@ -381,6 +381,7 @@ export function SplitsCalculator({ state, onChange }: SplitsCalculatorProps) {
               unitOptions={[...SPLIT_UNIT_OPTIONS]}
               unitAriaLabel="Split unit"
               className="max-w-xs"
+              shellClassName="h-10 min-w-[8.5rem] rounded-md"
             >
               <Input
                 value={splitEveryValue}

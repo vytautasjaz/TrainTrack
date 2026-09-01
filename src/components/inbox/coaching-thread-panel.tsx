@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import { toUserMessage } from '@/lib/action-error'
 import { replyToCoachingThread } from '@/app/actions/coaching-inbox'
 import { COACHING_THREAD_MESSAGE_CAP } from '@/lib/coaching-inbox-shared'
+import { markInboxThreadReadClient } from '@/lib/inbox-mark-read-client'
 import { refreshInboxUnreadBadge } from '@/components/layout/inbox-nav-badge'
 import {
   parseWorkoutFeeling,
@@ -44,6 +45,8 @@ type CoachingThreadPanelProps = {
   role: 'athlete' | 'coach'
   className?: string
   compact?: boolean
+  /** Fill parent height — messages scroll, composer pinned to bottom. */
+  dockComposer?: boolean
   /** Skip marking read on open (Inbox holds unread after “Mark unread”). */
   skipAutoRead?: boolean
   /** Extra control rendered just under the composer (e.g. Mark unread). */
@@ -67,6 +70,7 @@ export function CoachingThreadPanel({
   role,
   className,
   compact = false,
+  dockComposer = false,
   skipAutoRead = false,
   composerFooter,
   onUpdated,
@@ -74,6 +78,7 @@ export function CoachingThreadPanel({
 }: CoachingThreadPanelProps) {
   const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const messagesRef = useRef<HTMLDivElement>(null)
   const [body, setBody] = useState('')
   const [sendError, setSendError] = useState<string | null>(null)
   const [localMessages, setLocalMessages] = useState(thread.messages)
@@ -96,24 +101,19 @@ export function CoachingThreadPanel({
 
   useEffect(() => {
     if (isOptimistic || skipAutoRead) return
-    let cancelled = false
-    void fetch('/api/inbox/mark-read', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ threadId: thread.id }),
+    void markInboxThreadReadClient(thread.id).then((count) => {
+      if (count !== null) onUpdated?.()
     })
-      .then((res) => {
-        if (cancelled || !res.ok) return
-        void refreshInboxUnreadBadge()
-        router.refresh()
-      })
-      .catch(() => {
-        // Ignore network / stale-tab failures; unread can be marked on next open.
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [thread.id, isOptimistic, skipAutoRead, router])
+    // Intentionally omit router from deps — a new router identity after refresh
+    // was re-triggering mark-read → refresh → infinite update depth.
+  }, [thread.id, isOptimistic, skipAutoRead])
+
+  useEffect(() => {
+    if (!dockComposer) return
+    const el = messagesRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  }, [dockComposer, localMessages, thread.id])
 
   function refresh() {
     router.refresh()
@@ -155,9 +155,25 @@ export function CoachingThreadPanel({
   }
 
   return (
-    <div className={cn('min-w-0 max-w-full space-y-3', className)}>
-      <FormError message={sendError} />
-      <div className={cn('min-w-0 space-y-2', compact ? 'max-h-40 overflow-y-auto' : 'max-h-72 overflow-y-auto')}>
+    <div
+      className={cn(
+        'min-w-0 max-w-full',
+        dockComposer ? 'flex h-full min-h-0 flex-col gap-1' : 'space-y-3',
+        className,
+      )}
+    >
+      <div
+        ref={messagesRef}
+        className={cn(
+          'min-w-0',
+          dockComposer
+            ? 'flex min-h-0 flex-1 flex-col justify-end overflow-y-auto overscroll-contain'
+            : compact
+              ? 'max-h-40 overflow-y-auto'
+              : 'max-h-72 overflow-y-auto',
+        )}
+      >
+        <div className={cn('space-y-2', dockComposer && 'pb-1')}>
         {localMessages.map((m) => {
           const mine =
             (role === 'athlete' && m.authorRole === CoachingAuthorRole.ATHLETE) ||
@@ -229,8 +245,11 @@ export function CoachingThreadPanel({
             </div>
           )
         })}
+        </div>
       </div>
 
+      <div className={cn(dockComposer && 'shrink-0 pt-1')}>
+      <FormError message={sendError} />
       {isOptimistic ? (
         <p className="text-xs text-muted-foreground">Sending…</p>
       ) : atCap ? (
@@ -262,6 +281,7 @@ export function CoachingThreadPanel({
       )}
 
       {composerFooter ? <div className="flex justify-end">{composerFooter}</div> : null}
+      </div>
     </div>
   )
 }

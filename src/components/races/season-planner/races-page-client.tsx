@@ -59,6 +59,7 @@ import {
   groupPlannerMonths,
   plannerLabelWidth,
   plannerScrollLeftForWeek,
+  plannerViewportMonths,
   plannerVisibleWeekCount,
   plannerWeekColumnWidth,
   prepWindowForRace,
@@ -76,6 +77,12 @@ import {
   RACE_TYPE_LABELS,
   WORKOUT_TYPE_LABELS,
 } from '@/lib/constants'
+import {
+  DataSortHeader,
+  compareDataSort,
+  nextDataSort,
+  type DataSortState,
+} from '@/components/ui/data-sort-header'
 import { cn } from '@/lib/utils'
 import {
   TABLE_HEADER,
@@ -255,6 +262,7 @@ function SeasonPlannerView({
         months={months}
         labelW={labelW}
         colW={colW}
+        zoom={zoom}
         todayIdx={todayIdx}
         races={visibleRaces}
         priorityFilter={priorityFilter}
@@ -576,6 +584,7 @@ function SeasonPlannerBoard({
   months,
   labelW,
   colW,
+  zoom,
   todayIdx,
   races,
   priorityFilter,
@@ -596,6 +605,7 @@ function SeasonPlannerBoard({
   months: ReturnType<typeof groupPlannerMonths>
   labelW: number
   colW: number
+  zoom: number
   todayIdx: number
   races: SeasonRace[]
   priorityFilter: Record<RacePriority, boolean>
@@ -613,6 +623,7 @@ function SeasonPlannerBoard({
   onEditEvent: (event: SeasonEventData) => void
 }) {
   const gridW = weeks.length * colW
+  const shortMonthLabels = plannerViewportMonths(zoom) >= 12
 
   const visiblePriorityLanes = showPriorityLanes
     ? PLANNER_PRIORITY_LANES.filter((l) => priorityFilter[l.priority])
@@ -635,7 +646,7 @@ function SeasonPlannerBoard({
         <div className={cn('sticky top-0 z-20 flex', TABLE_HEADER)}>
           <div
             className={cn(
-              'sticky left-0 z-30 shrink-0 bg-[#3a3f48] px-1.5 py-1.5 text-[10px] font-semibold sm:px-2',
+              'tt-season-sticky-label sticky left-0 z-30 flex shrink-0 items-center px-1.5 py-1.5 text-[10px] font-semibold sm:px-2',
               TABLE_HEADER_VLINE,
               TABLE_HEADER_CELL_MUTED,
             )}
@@ -648,12 +659,12 @@ function SeasonPlannerBoard({
               <div
                 key={m.key}
                 className={cn(
-                  'border-r border-white/8 px-1 py-1.5 text-center text-[10px] font-semibold',
+                  'flex items-center justify-center border-r border-white/8 px-1 py-1.5 text-center text-[10px] font-semibold',
                   TABLE_HEADER_CELL_STRONG,
                 )}
                 style={{ width: m.weekCount * colW }}
               >
-                <span>{m.label}</span>
+                <span>{shortMonthLabels ? m.label.slice(0, 3) : m.label}</span>
                 <span className="ml-1 text-white/45">{m.year}</span>
               </div>
             ))}
@@ -661,7 +672,7 @@ function SeasonPlannerBoard({
         </div>
 
         {/* Week numbers — light strip; today = orange week badge */}
-        <div className={cn('sticky top-[30px] z-20 flex', TABLE_HEADER_SUB)}>
+        <div className={cn('sticky top-[2.125rem] z-20 flex', TABLE_HEADER_SUB)}>
           <div
             className="sticky left-0 z-10 shrink-0 border-r border-[#ECECEA] bg-[#f4f4f2]"
             style={{ width: labelW }}
@@ -1635,6 +1646,7 @@ function HeaderFilterMenu({
   allSelected,
   noneSelected,
   children,
+  iconOnly = false,
 }: {
   label: string
   active?: boolean
@@ -1643,20 +1655,25 @@ function HeaderFilterMenu({
   allSelected: boolean
   noneSelected: boolean
   children: ReactNode
+  /** When true, only the chevron is shown (pair with DataSortHeader). */
+  iconOnly?: boolean
 }) {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
+          aria-label={iconOnly ? `Filter ${label}` : undefined}
+          title={iconOnly ? `Filter ${label}` : undefined}
           className={cn(
             'inline-flex items-center gap-1 rounded px-0.5 font-semibold uppercase tracking-wide transition',
             'text-text-secondary hover:text-foreground',
             'outline-none focus-visible:ring-1 focus-visible:ring-foreground/30',
             active && 'text-foreground',
+            iconOnly && 'px-0.5',
           )}
         >
-          {label}
+          {iconOnly ? null : label}
           <ChevronDown className="h-3 w-3 opacity-70" aria-hidden />
           {active ? (
             <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
@@ -1761,89 +1778,184 @@ function SeasonRaceTable({
   filters: RaceTableFilters
 }) {
   const isPast = variant === 'past'
+  type SortKey =
+    | 'date'
+    | 'name'
+    | 'status'
+    | 'result'
+    | 'sport'
+    | 'priority'
+    | 'location'
+    | 'goal'
+    | 'weeks'
+    | 'prep'
+  const [sort, setSort] = useState<DataSortState<SortKey> | null>({
+    key: 'date',
+    dir: isPast ? 'desc' : 'asc',
+  })
+
   const statusFilterActive = !filters.showPlanned || !filters.showWatching
   const priorityFilterActive = Object.values(filters.priorityFilter).some((v) => !v)
   const sportFilterActive = Object.values(filters.sportFilter).some((v) => !v)
+
+  const sortedRaces = useMemo(() => {
+    if (!sort) return races
+    const { key, dir } = sort
+    return [...races].sort((a, b) => {
+      const weeksA = weeksUntilRace(a.date, today)
+      const weeksB = weeksUntilRace(b.date, today)
+      const prepA = resolvePreparationWeeks(a.preparationWeeks) ?? 0
+      const prepB = resolvePreparationWeeks(b.preparationWeeks) ?? 0
+      const statusA = a.intent === RaceIntent.WATCHING ? 'watching' : 'planned'
+      const statusB = b.intent === RaceIntent.WATCHING ? 'watching' : 'planned'
+      const sportA = a.sport ? WORKOUT_TYPE_LABELS[a.sport] : ''
+      const sportB = b.sport ? WORKOUT_TYPE_LABELS[b.sport] : ''
+      const resultA = raceOutcomeSummary(a) ?? ''
+      const resultB = raceOutcomeSummary(b) ?? ''
+      const av =
+        key === 'date'
+          ? a.date.getTime()
+          : key === 'name'
+            ? a.name
+            : key === 'status'
+              ? statusA
+              : key === 'result'
+                ? resultA
+                : key === 'sport'
+                  ? sportA
+                  : key === 'priority'
+                    ? a.priority
+                    : key === 'location'
+                      ? a.location ?? ''
+                      : key === 'goal'
+                        ? a.goal ?? ''
+                        : key === 'weeks'
+                          ? weeksA
+                          : prepA
+      const bv =
+        key === 'date'
+          ? b.date.getTime()
+          : key === 'name'
+            ? b.name
+            : key === 'status'
+              ? statusB
+              : key === 'result'
+                ? resultB
+                : key === 'sport'
+                  ? sportB
+                  : key === 'priority'
+                    ? b.priority
+                    : key === 'location'
+                      ? b.location ?? ''
+                      : key === 'goal'
+                        ? b.goal ?? ''
+                        : key === 'weeks'
+                          ? weeksB
+                          : prepB
+      return compareDataSort(av, bv, dir)
+    })
+  }, [races, sort, today])
+
+  const sortHeader = (key: SortKey, label: string) => (
+    <DataSortHeader
+      label={label}
+      active={sort?.key === key}
+      dir={sort?.key === key ? sort.dir : null}
+      onClick={() => setSort((s) => nextDataSort(s, key))}
+    />
+  )
 
   return (
     <div className={cn('overflow-x-auto', DATA_TABLE_SHELL)}>
       <table className={cn(DATA_TABLE, 'min-w-[40rem]')} data-density="comfortable">
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Race</th>
+            <th>{sortHeader('date', 'Date')}</th>
+            <th>{sortHeader('name', 'Race')}</th>
             <th>
-              <HeaderFilterMenu
-                label="Status"
-                active={statusFilterActive}
-                onShowAll={() => filters.onSetStatusAll(true)}
-                onShowNone={() => filters.onSetStatusAll(false)}
-                allSelected={filters.showPlanned && filters.showWatching}
-                noneSelected={!filters.showPlanned && !filters.showWatching}
-              >
-                <HeaderFilterItem
-                  label={RACE_INTENT_LABELS.PLANNED}
-                  checked={filters.showPlanned}
-                  onSelect={filters.onTogglePlanned}
-                />
-                <HeaderFilterItem
-                  label={RACE_INTENT_LABELS.WATCHING}
-                  checked={filters.showWatching}
-                  onSelect={filters.onToggleWatching}
-                />
-              </HeaderFilterMenu>
-            </th>
-            {isPast ? <th>Result</th> : null}
-            <th>
-              <HeaderFilterMenu
-                label="Sport"
-                active={sportFilterActive}
-                onShowAll={() => filters.onSetSportAll(true)}
-                onShowNone={() => filters.onSetSportAll(false)}
-                allSelected={Object.values(filters.sportFilter).every(Boolean)}
-                noneSelected={Object.values(filters.sportFilter).every((v) => !v)}
-              >
-                {PLANNER_SPORTS.map((sport) => (
+              <span className="inline-flex items-center gap-0.5">
+                {sortHeader('status', 'Status')}
+                <HeaderFilterMenu
+                  label="Status"
+                  iconOnly
+                  active={statusFilterActive}
+                  onShowAll={() => filters.onSetStatusAll(true)}
+                  onShowNone={() => filters.onSetStatusAll(false)}
+                  allSelected={filters.showPlanned && filters.showWatching}
+                  noneSelected={!filters.showPlanned && !filters.showWatching}
+                >
                   <HeaderFilterItem
-                    key={sport}
-                    label={PLANNER_SPORT_LABELS[sport]}
-                    checked={filters.sportFilter[sport]}
-                    onSelect={() => filters.onToggleSport(sport)}
+                    label={RACE_INTENT_LABELS.PLANNED}
+                    checked={filters.showPlanned}
+                    onSelect={filters.onTogglePlanned}
                   />
-                ))}
-              </HeaderFilterMenu>
+                  <HeaderFilterItem
+                    label={RACE_INTENT_LABELS.WATCHING}
+                    checked={filters.showWatching}
+                    onSelect={filters.onToggleWatching}
+                  />
+                </HeaderFilterMenu>
+              </span>
+            </th>
+            {isPast ? <th>{sortHeader('result', 'Result')}</th> : null}
+            <th>
+              <span className="inline-flex items-center gap-0.5">
+                {sortHeader('sport', 'Sport')}
+                <HeaderFilterMenu
+                  label="Sport"
+                  iconOnly
+                  active={sportFilterActive}
+                  onShowAll={() => filters.onSetSportAll(true)}
+                  onShowNone={() => filters.onSetSportAll(false)}
+                  allSelected={Object.values(filters.sportFilter).every(Boolean)}
+                  noneSelected={Object.values(filters.sportFilter).every((v) => !v)}
+                >
+                  {PLANNER_SPORTS.map((sport) => (
+                    <HeaderFilterItem
+                      key={sport}
+                      label={PLANNER_SPORT_LABELS[sport]}
+                      checked={filters.sportFilter[sport]}
+                      onSelect={() => filters.onToggleSport(sport)}
+                    />
+                  ))}
+                </HeaderFilterMenu>
+              </span>
             </th>
             <th>
-              <HeaderFilterMenu
-                label="Priority"
-                active={priorityFilterActive}
-                onShowAll={() => filters.onSetPriorityAll(true)}
-                onShowNone={() => filters.onSetPriorityAll(false)}
-                allSelected={Object.values(filters.priorityFilter).every(Boolean)}
-                noneSelected={Object.values(filters.priorityFilter).every((v) => !v)}
-              >
-                {PLANNER_PRIORITY_LANES.map(({ priority }) => (
-                  <HeaderFilterItem
-                    key={priority}
-                    label={priority}
-                    checked={filters.priorityFilter[priority]}
-                    onSelect={() => filters.onTogglePriority(priority)}
-                    dotClass={PLANNER_PRIORITY_DOT[priority]}
-                  />
-                ))}
-              </HeaderFilterMenu>
+              <span className="inline-flex items-center gap-0.5">
+                {sortHeader('priority', 'Priority')}
+                <HeaderFilterMenu
+                  label="Priority"
+                  iconOnly
+                  active={priorityFilterActive}
+                  onShowAll={() => filters.onSetPriorityAll(true)}
+                  onShowNone={() => filters.onSetPriorityAll(false)}
+                  allSelected={Object.values(filters.priorityFilter).every(Boolean)}
+                  noneSelected={Object.values(filters.priorityFilter).every((v) => !v)}
+                >
+                  {PLANNER_PRIORITY_LANES.map(({ priority }) => (
+                    <HeaderFilterItem
+                      key={priority}
+                      label={priority}
+                      checked={filters.priorityFilter[priority]}
+                      onSelect={() => filters.onTogglePriority(priority)}
+                      dotClass={PLANNER_PRIORITY_DOT[priority]}
+                    />
+                  ))}
+                </HeaderFilterMenu>
+              </span>
             </th>
-            <th>Location</th>
-            <th>Goal</th>
-            {!isPast ? <th>Weeks</th> : null}
-            {!isPast ? <th>Prep</th> : null}
+            <th>{sortHeader('location', 'Location')}</th>
+            <th>{sortHeader('goal', 'Goal')}</th>
+            {!isPast ? <th>{sortHeader('weeks', 'Weeks')}</th> : null}
+            {!isPast ? <th>{sortHeader('prep', 'Prep')}</th> : null}
             <th>
               <span className="sr-only">Actions</span>
             </th>
           </tr>
         </thead>
         <tbody>
-          {races.length === 0 ? (
+          {sortedRaces.length === 0 ? (
             <tr>
               <td
                 colSpan={isPast ? 8 : 10}
@@ -1853,7 +1965,7 @@ function SeasonRaceTable({
               </td>
             </tr>
           ) : (
-            races.map((race) => {
+            sortedRaces.map((race) => {
               const weeks = weeksUntilRace(race.date, today)
               const prep = resolvePreparationWeeks(race.preparationWeeks)
               const isWatching = race.intent === RaceIntent.WATCHING

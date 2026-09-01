@@ -33,6 +33,7 @@ export default async function EditTemplatePage({ params }: EditTemplatePageProps
       <PageHeader
         title="Edit template"
         description={template.title}
+        size="compact"
         action={<BackButton fallbackHref={`/workouts/library/${template.type.toLowerCase()}`} />}
       />
 

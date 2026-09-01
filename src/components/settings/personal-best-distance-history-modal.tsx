@@ -11,9 +11,11 @@ import {
 import { Button } from '@/components/ui/button'
 import { Caption } from '@/components/ui/typography'
 import {
-  SortableColumnHeader,
-  useColumnSort,
-} from '@/components/ui/sortable-column-header'
+  DataSortHeader,
+  compareDataSort,
+  nextDataSort,
+  type DataSortState,
+} from '@/components/ui/data-sort-header'
 import {
   buildPersonalBestDistanceHistory,
   type PersonalBestDistanceHistoryEntry,
@@ -37,24 +39,12 @@ type PersonalBestDistanceHistoryModalProps = {
   results: RaceResultRow[]
 }
 
-function compareEntries(
-  a: PersonalBestDistanceHistoryEntry,
-  b: PersonalBestDistanceHistoryEntry,
-  column: SortColumn,
-  direction: 'asc' | 'desc',
-): number {
-  if (column === 'date') {
-    const diff = a.sortDate.localeCompare(b.sortDate)
-    return direction === 'asc' ? diff : -diff
-  }
-
-  const aVal = a.sortValue
-  const bVal = b.sortValue
-  if (aVal == null && bVal == null) return b.sortDate.localeCompare(a.sortDate)
-  if (aVal == null) return 1
-  if (bVal == null) return -1
-  const diff = aVal - bVal
-  return direction === 'asc' ? diff : -diff
+function sortValue(
+  entry: PersonalBestDistanceHistoryEntry,
+  key: SortColumn,
+): string | number {
+  if (key === 'date') return entry.sortDate
+  return entry.sortValue ?? Number.POSITIVE_INFINITY
 }
 
 export function PersonalBestDistanceHistoryModal({
@@ -63,10 +53,9 @@ export function PersonalBestDistanceHistoryModal({
   personalBest,
   results,
 }: PersonalBestDistanceHistoryModalProps) {
-  const { sortColumn, sortDirection, toggleSort, resetSort } = useColumnSort<SortColumn>({
-    initialColumn: 'date',
-    initialDirection: 'desc',
-    defaultDirectionForColumn: (column) => (column === 'date' ? 'desc' : 'asc'),
+  const [sort, setSort] = useState<DataSortState<SortColumn> | null>({
+    key: 'date',
+    dir: 'desc',
   })
   const [page, setPage] = useState(0)
 
@@ -75,11 +64,14 @@ export function PersonalBestDistanceHistoryModal({
     return buildPersonalBestDistanceHistory(results, personalBest)
   }, [personalBest, results])
 
-  const sorted = useMemo(
-    () =>
-      [...entries].sort((a, b) => compareEntries(a, b, sortColumn, sortDirection)),
-    [entries, sortColumn, sortDirection],
-  )
+  const sorted = useMemo(() => {
+    if (!sort) return entries
+    return [...entries].sort((a, b) => {
+      const cmp = compareDataSort(sortValue(a, sort.key), sortValue(b, sort.key), sort.dir)
+      if (cmp !== 0) return cmp
+      return b.sortDate.localeCompare(a.sortDate)
+    })
+  }, [entries, sort])
 
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
@@ -89,7 +81,7 @@ export function PersonalBestDistanceHistoryModal({
 
   function onToggleSort(column: SortColumn) {
     setPage(0)
-    toggleSort(column)
+    setSort((s) => nextDataSort(s, column))
   }
 
   return (
@@ -98,7 +90,7 @@ export function PersonalBestDistanceHistoryModal({
       onOpenChange={(next) => {
         if (!next) {
           setPage(0)
-          resetSort()
+          setSort({ key: 'date', dir: 'desc' })
         }
         onOpenChange(next)
       }}
@@ -120,26 +112,24 @@ export function PersonalBestDistanceHistoryModal({
             </p>
           ) : (
             <div className={DATA_TABLE_SHELL}>
-              <table className={cn(DATA_TABLE, "min-w-full")} data-density="compact">
+              <table className={cn(DATA_TABLE, 'min-w-full')} data-density="compact">
                 <thead>
                   <tr>
-                    <th className="px-3 py-2">
-                      <SortableColumnHeader
+                    <th>
+                      <DataSortHeader
                         label="Date"
-                        active={sortColumn === 'date'}
-                        direction={sortColumn === 'date' ? sortDirection : 'desc'}
+                        active={sort?.key === 'date'}
+                        dir={sort?.key === 'date' ? sort.dir : null}
                         onClick={() => onToggleSort('date')}
                       />
                     </th>
-                    <th className="px-3 py-2 font-semibold uppercase tracking-wide text-muted-foreground">
-                      Event
-                    </th>
-                    <th className="px-3 py-2">
+                    <th>Event</th>
+                    <th className="text-right">
                       <div className="flex justify-end">
-                        <SortableColumnHeader
+                        <DataSortHeader
                           label="Time"
-                          active={sortColumn === 'time'}
-                          direction={sortColumn === 'time' ? sortDirection : 'asc'}
+                          active={sort?.key === 'time'}
+                          dir={sort?.key === 'time' ? sort.dir : null}
                           onClick={() => onToggleSort('time')}
                         />
                       </div>

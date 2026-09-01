@@ -6,11 +6,14 @@ import {
   serializeInboxThread,
   toCoachingThreadView,
   INBOX_LIST_MAX,
+  getOrCreateAthleteGeneralChatThread,
 } from '@/lib/coaching-inbox'
 import { InboxClient } from '@/components/inbox/inbox-client'
 import { getPendingCoachRequests } from '@/lib/queries'
 import { CoachPendingRequests } from '@/components/coach/coach-pending-requests'
 import { isPushConfigured } from '@/lib/push-notifications'
+
+export const dynamic = 'force-dynamic'
 
 function mapThreads(
   threadsRaw: Awaited<ReturnType<typeof listCoachInboxThreads>>,
@@ -65,6 +68,7 @@ export default async function InboxPage() {
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) redirect('/')
 
+  await getOrCreateAthleteGeneralChatThread(athleteId)
   const threadsRaw = await listAthleteInboxThreads(athleteId, { filter: 'all', take: INBOX_LIST_MAX })
 
   return (

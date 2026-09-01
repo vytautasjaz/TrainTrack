@@ -343,7 +343,7 @@ export function TrainingListView({
   const isFixed = variant === "fixed";
   const contentShellClass = isFixed
     ? "mx-auto w-full max-w-lg"
-    : "w-full max-w-3xl";
+    : "w-full max-w-5xl xl:max-w-6xl";
   const dayStackInsetClass = "px-1.5 sm:px-2";
 
   useLayoutEffect(() => {

@@ -40,7 +40,20 @@ export type StravaActivity = {
   elapsed_time: number
   /** True when the athlete marked the activity as a commute on Strava. */
   commute?: boolean
+  average_speed?: number
+  max_speed?: number
+  total_elevation_gain?: number
   average_heartrate?: number
   max_heartrate?: number
+  average_cadence?: number
+  kilojoules?: number
+  calories?: number
+  average_watts?: number
+  weighted_average_watts?: number
   suffer_score?: number
+  map?: {
+    id?: string
+    summary_polyline?: string | null
+    resource_state?: number
+  } | null
 }

@@ -3,13 +3,17 @@ import {
   SessionType,
   WorkoutStatus,
   WorkoutType,
+  CoachingThreadStatus,
+  CoachingAuthorRole,
   type AthleteLogType,
+  type CoachingMessageKind,
+  type RaceOutcome,
   type RacePriority,
   type RaceType,
-  type RaceOutcome,
   type SwimEnvironment,
 } from '@prisma/client'
 import type { RaceDistancesBySport } from '@/lib/race-distance-stats'
+import { threadHasChatConversation } from '@/lib/coaching-inbox-shared'
 import { toDateKey, todayDateKey } from '@/lib/dates'
 import type { WorkoutStructure } from '@/lib/workout-builder/types'
 import { formatPlanBlockSummary } from '@/lib/workout-builder/segment-estimation'
@@ -17,6 +21,7 @@ import { parseStructure } from '@/lib/workout-builder/utils'
 import type { SwimWorkoutStructure } from '@/lib/swim-workout/types'
 import { parseSwimStructure } from '@/lib/swim-workout/parse'
 import { formatSwimStructureLines, formatSwimSetSummary } from '@/lib/swim-workout/format'
+import { isThreadUnreadForRole } from '@/lib/coaching-inbox-shared'
 
 export type PlanWorkoutDetail = {
   id: string
@@ -67,8 +72,30 @@ export type PlanWorkoutDetail = {
     stravaActivityUrl: string | null
     stravaActivityName?: string | null
     stravaActivityDescription?: string | null
+    averageHeartrate?: number | null
+    maxHeartrate?: number | null
+    averageSpeedMps?: number | null
+    maxSpeedMps?: number | null
+    elevationGainM?: number | null
+    sufferScore?: number | null
+    averageCadence?: number | null
+    kilojoules?: number | null
+    calories?: number | null
+    averageWatts?: number | null
+    summaryPolyline?: string | null
     logType: AthleteLogType | null
   } | null
+  /** Active coaching thread on this workout (plan cards). */
+  coachingChat?: PlanWorkoutCoachingChat | null
+}
+
+export type PlanWorkoutCoachingChat = {
+  messageCount: number
+  lastMessageAt: string
+  coachLastReadAt: string | null
+  athleteLastReadAt: string | null
+  status: CoachingThreadStatus
+  lastAuthorRole: CoachingAuthorRole | null
 }
 
 export function toPlanWorkoutDetail(w: {
@@ -107,7 +134,26 @@ export function toPlanWorkoutDetail(w: {
     stravaActivityUrl: string | null
     stravaActivityName?: string | null
     stravaActivityDescription?: string | null
+    averageHeartrate?: number | null
+    maxHeartrate?: number | null
+    averageSpeedMps?: number | null
+    maxSpeedMps?: number | null
+    elevationGainM?: number | null
+    sufferScore?: number | null
+    averageCadence?: number | null
+    kilojoules?: number | null
+    calories?: number | null
+    averageWatts?: number | null
+    summaryPolyline?: string | null
     logType?: AthleteLogType | null
+  } | null
+  coachingThread?: {
+    status: CoachingThreadStatus
+    lastMessageAt: Date
+    coachLastReadAt: Date | null
+    athleteLastReadAt: Date | null
+    _count: { messages: number }
+    messages: Array<{ authorRole: CoachingAuthorRole; kind: CoachingMessageKind }>
   } | null
 }): PlanWorkoutDetail {
   return {
@@ -152,10 +198,79 @@ export function toPlanWorkoutDetail(w: {
           stravaActivityUrl: w.result.stravaActivityUrl ?? null,
           stravaActivityName: w.result.stravaActivityName ?? null,
           stravaActivityDescription: w.result.stravaActivityDescription ?? null,
+          averageHeartrate: w.result.averageHeartrate ?? null,
+          maxHeartrate: w.result.maxHeartrate ?? null,
+          averageSpeedMps: w.result.averageSpeedMps ?? null,
+          maxSpeedMps: w.result.maxSpeedMps ?? null,
+          elevationGainM: w.result.elevationGainM ?? null,
+          sufferScore: w.result.sufferScore ?? null,
+          averageCadence: w.result.averageCadence ?? null,
+          kilojoules: w.result.kilojoules ?? null,
+          calories: w.result.calories ?? null,
+          averageWatts: w.result.averageWatts ?? null,
+          summaryPolyline: w.result.summaryPolyline ?? null,
           logType: w.result.logType ?? null,
         }
       : null,
+    coachingChat: mapCoachingChatFromThread(w.coachingThread),
   }
+}
+
+export function mapCoachingChatFromThread(
+  thread:
+    | {
+        status: CoachingThreadStatus
+        lastMessageAt: Date
+        coachLastReadAt: Date | null
+        athleteLastReadAt: Date | null
+        _count: { messages: number }
+        messages: Array<{ authorRole: CoachingAuthorRole; kind: CoachingMessageKind }>
+      }
+    | null
+    | undefined,
+): PlanWorkoutCoachingChat | null {
+  if (!thread || thread._count.messages === 0) return null
+  if (!threadHasChatConversation(thread.messages)) return null
+  const lastMessage = thread.messages.at(-1) ?? null
+  return {
+    messageCount: thread._count.messages,
+    lastMessageAt: thread.lastMessageAt.toISOString(),
+    coachLastReadAt: thread.coachLastReadAt?.toISOString() ?? null,
+    athleteLastReadAt: thread.athleteLastReadAt?.toISOString() ?? null,
+    status: thread.status,
+    lastAuthorRole: lastMessage?.authorRole ?? null,
+  }
+}
+
+export function workoutCoachingChatNeedsReply(
+  workout: PlanWorkoutDetail,
+  role: 'coach' | 'athlete',
+): boolean {
+  const chat = workout.coachingChat
+  if (!chat?.lastAuthorRole) return false
+  if (role === 'coach') return chat.lastAuthorRole === CoachingAuthorRole.ATHLETE
+  return chat.lastAuthorRole === CoachingAuthorRole.COACH
+}
+
+export function workoutHasCoachingChat(workout: PlanWorkoutDetail): boolean {
+  return (workout.coachingChat?.messageCount ?? 0) > 0
+}
+
+export function workoutCoachingChatUnread(
+  workout: PlanWorkoutDetail,
+  role: 'coach' | 'athlete',
+): boolean {
+  const chat = workout.coachingChat
+  if (!chat) return false
+  return isThreadUnreadForRole(
+    {
+      lastMessageAt: chat.lastMessageAt,
+      coachLastReadAt: chat.coachLastReadAt,
+      athleteLastReadAt: chat.athleteLastReadAt,
+      messages: [{ createdAt: chat.lastMessageAt }],
+    },
+    role,
+  )
 }
 
 /** Strip private coach notes so the athlete never receives them in client props. */

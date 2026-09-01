@@ -1,14 +1,9 @@
 'use client'
 
-import { Frown, Meh, Smile, type LucideIcon } from 'lucide-react'
-import type { CSSProperties } from 'react'
 import { cn } from '@/lib/utils'
 import {
-  WORKOUT_FEELING_DEFAULT,
-  WORKOUT_FEELING_INK,
   WORKOUT_FEELING_MAX,
   WORKOUT_FEELING_MIN,
-  WORKOUT_FEELING_SCALE_GRADIENT,
   WORKOUT_FEELING_SWATCH_CLASS,
   workoutFeelingLabel,
   workoutFeelingTone,
@@ -19,14 +14,8 @@ const VALUES = Array.from(
   (_, i) => i + WORKOUT_FEELING_MIN,
 )
 
-const FACE: Record<ReturnType<typeof workoutFeelingTone>, LucideIcon> = {
-  bad: Frown,
-  ok: Meh,
-  good: Smile,
-}
-
 type WorkoutFeelingPickerProps = {
-  value: number
+  value: number | null
   onChange: (value: number) => void
   disabled?: boolean
 }
@@ -36,9 +25,6 @@ export function WorkoutFeelingPicker({
   onChange,
   disabled = false,
 }: WorkoutFeelingPickerProps) {
-  const current = value || WORKOUT_FEELING_DEFAULT
-  const tone = workoutFeelingTone(current)
-
   return (
     <fieldset className="min-w-0 space-y-1.5" disabled={disabled}>
       <legend className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -46,7 +32,7 @@ export function WorkoutFeelingPicker({
       </legend>
       <div className="grid grid-cols-10 gap-0.5">
         {VALUES.map((n) => {
-          const selected = current === n
+          const selected = value === n
           const stepTone = workoutFeelingTone(n)
           return (
             <button
@@ -67,56 +53,12 @@ export function WorkoutFeelingPicker({
           )
         })}
       </div>
-      <div className="px-0.5">
-        <input
-          type="range"
-          min={WORKOUT_FEELING_MIN}
-          max={WORKOUT_FEELING_MAX}
-          step={1}
-          value={current}
-          disabled={disabled}
-          aria-label="Workout feeling"
-          aria-valuetext={`${current} of 10, ${workoutFeelingLabel(current)}`}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="tt-feeling-slider"
-          style={
-            {
-              '--tt-feeling-track': WORKOUT_FEELING_SCALE_GRADIENT,
-              '--tt-feeling-thumb': WORKOUT_FEELING_INK[tone],
-            } as CSSProperties
-          }
-        />
-      </div>
-      <div className="grid grid-cols-10 gap-0.5">
-        {VALUES.map((n) => {
-          const selected = current === n
-          const stepTone = workoutFeelingTone(n)
-          const Icon = FACE[stepTone]
-          return (
-            <button
-              key={n}
-              type="button"
-              tabIndex={-1}
-              aria-hidden
-              onClick={() => onChange(n)}
-              className={cn(
-                'flex items-center justify-center py-0.5',
-                selected ? 'opacity-100' : 'opacity-70 hover:opacity-100',
-              )}
-            >
-              <Icon
-                className="h-3.5 w-3.5"
-                strokeWidth={selected ? 2.4 : 2}
-                color={WORKOUT_FEELING_INK[stepTone]}
-              />
-            </button>
-          )
-        })}
-      </div>
       <div className="flex items-center justify-between text-[10px] text-muted-foreground">
         <span>Rough</span>
         <span>
-          {current}/10 · {workoutFeelingLabel(current)}
+          {value != null
+            ? `${value}/10 · ${workoutFeelingLabel(value)}`
+            : 'Select a rating'}
         </span>
         <span>Great</span>
       </div>

@@ -9,10 +9,12 @@ import {
 } from '@/components/plan/coach-reschedule-review-actions'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
 import { WorkoutBlock } from '@/components/workout-block'
+import { WeekPlanWorkoutCard } from '@/components/plan/week-plan-workout-card'
+import { useOptimisticWorkoutStatus } from '@/components/plan/athlete-workout-quick-actions'
 import {
-  AthleteWorkoutQuickActions,
-  useOptimisticWorkoutStatus,
-} from '@/components/plan/athlete-workout-quick-actions'
+  WorkoutCardCornerOverlay,
+  workoutCardCornerSpacerClass,
+} from '@/components/plan/workout-card-corner-overlay'
 import { planWorkoutItemShellClass } from '@/components/plan/plan-workout-item-shell'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import {
@@ -32,7 +34,7 @@ type DraggableWorkoutItemProps = {
 
 export function DraggableWorkoutItem({
   workout,
-  isCoach = true,
+  isCoach = false,
   draggable = false,
   tableCell = false,
 }: DraggableWorkoutItemProps) {
@@ -92,35 +94,72 @@ export function DraggableWorkoutItem({
           dnd?.setDragWorkout(null)
         }}
       >
-        <WorkoutBlock
-          workout={workout}
-          density="md"
-          status={status}
-          hideCompletedBadge={showQuickActions}
-          actions={
-            showQuickActions || isCoach ? (
-              <span className="inline-block w-6" aria-hidden />
-            ) : null
-          }
-          footer={
-            showReview ? (
-              <CoachRescheduleReviewActions workout={workout} isCoach={isCoach} />
-            ) : null
-          }
-        />
-      </WorkoutModalTrigger>
-      <div className="absolute right-1.5 top-1.5 z-10 flex items-center gap-1 opacity-80 transition group-hover/card:opacity-100">
-        {isCoach ? <PlanWorkoutActionsMenu workout={workout} compact /> : null}
-        {showQuickActions ? (
-          <AthleteWorkoutQuickActions
+        {tableCell ? (
+          <WeekPlanWorkoutCard
             workout={workout}
-            isCoach={false}
-            size="xs"
-            displayStatus={status}
-            onDisplayStatusChange={setOptimisticStatus}
+            status={status}
+            isCoach={isCoach}
+            hideCompletedBadge={showQuickActions}
+            actions={
+              showQuickActions || isCoach ? (
+                <span
+                  className={workoutCardCornerSpacerClass(workout, {
+                    showQuickActions,
+                    showCoachMenu: isCoach,
+                  })}
+                  aria-hidden
+                />
+              ) : null
+            }
+            footer={
+              showReview ? (
+                <CoachRescheduleReviewActions
+                  workout={workout}
+                  isCoach={isCoach}
+                />
+              ) : null
+            }
           />
-        ) : null}
-      </div>
+        ) : (
+          <WorkoutBlock
+            workout={workout}
+            density="md"
+            status={status}
+            isCoach={isCoach}
+            hideCompletedBadge={showQuickActions}
+            actions={
+              showQuickActions || isCoach ? (
+                <span
+                  className={workoutCardCornerSpacerClass(workout, {
+                    showQuickActions,
+                    showCoachMenu: isCoach,
+                  })}
+                  aria-hidden
+                />
+              ) : null
+            }
+            footer={
+              showReview ? (
+                <CoachRescheduleReviewActions
+                  workout={workout}
+                  isCoach={isCoach}
+                />
+              ) : null
+            }
+          />
+        )}
+      </WorkoutModalTrigger>
+      <WorkoutCardCornerOverlay
+        workout={workout}
+        isCoach={isCoach}
+        showQuickActions={showQuickActions}
+        status={status}
+        onStatusChange={setOptimisticStatus}
+        className="right-1.5 top-1.5"
+        leading={
+          isCoach ? <PlanWorkoutActionsMenu workout={workout} compact /> : undefined
+        }
+      />
     </div>
   )
 }

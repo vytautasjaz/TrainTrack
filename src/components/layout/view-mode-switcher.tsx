@@ -8,7 +8,7 @@ type ViewModeSwitcherProps = {
   viewMode: AppViewMode
   /** Compact for collapsed sidebar icon rail. */
   compact?: boolean
-  /** Sidebar (light editorial) vs light surfaces (mobile menu). */
+  /** Sidebar (dark gradient pill) vs light surfaces (mobile menu). */
   tone?: 'sidebar' | 'light'
   className?: string
 }
@@ -20,6 +20,35 @@ export function ViewModeSwitcher({
   className,
 }: ViewModeSwitcherProps) {
   const isSidebarTone = tone === 'sidebar'
+
+  if (isSidebarTone && !compact) {
+    return (
+      <div
+        className={cn('tt-app-sidebar-mode-switch', className)}
+        role="group"
+        aria-label="Switch between athlete and coach"
+      >
+        {(['athlete', 'coach'] as const).map((mode) => {
+          const active = viewMode === mode
+          const label = mode === 'athlete' ? 'ATHLETE' : 'COACH'
+          return (
+            <form key={mode} action={switchViewMode}>
+              <input type="hidden" name="mode" value={mode} />
+              <button
+                type="submit"
+                disabled={active}
+                title={mode === 'athlete' ? 'Athlete' : 'Coach'}
+                aria-pressed={active}
+                data-active={active ? 'true' : undefined}
+              >
+                {label}
+              </button>
+            </form>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -46,9 +75,11 @@ export function ViewModeSwitcher({
                 'cursor-pointer rounded-sm text-[10px] tracking-wide transition',
                 compact ? 'px-1 py-0.5' : 'px-0.5 py-0.5',
                 active
-                  ? 'cursor-default font-bold text-foreground underline decoration-accent decoration-2 underline-offset-4'
+                  ? isSidebarTone
+                    ? 'cursor-default font-bold text-white underline decoration-brand decoration-2 underline-offset-4'
+                    : 'cursor-default font-bold text-foreground underline decoration-accent decoration-2 underline-offset-4'
                   : isSidebarTone
-                    ? 'font-medium text-text-tertiary hover:text-foreground'
+                    ? 'font-medium text-white/55 hover:text-white'
                     : 'font-medium text-muted-foreground hover:text-foreground',
               )}
             >

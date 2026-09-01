@@ -58,6 +58,7 @@ const DialogContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     overlayClassName?: string;
     hideCloseButton?: boolean;
+    closeButtonClassName?: string;
   }
 >(
   (
@@ -66,6 +67,7 @@ const DialogContent = React.forwardRef<
       children,
       overlayClassName,
       hideCloseButton = false,
+      closeButtonClassName,
       onPointerDownOutside,
       onFocusOutside,
       onInteractOutside,
@@ -97,7 +99,12 @@ const DialogContent = React.forwardRef<
       >
         {children}
         {!hideCloseButton ? (
-          <DialogPrimitive.Close className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground">
+          <DialogPrimitive.Close
+            className={cn(
+              "absolute right-3 top-3 z-10 rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/[0.04] hover:text-foreground",
+              closeButtonClassName,
+            )}
+          >
             <X className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>

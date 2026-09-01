@@ -63,6 +63,7 @@ export default async function EditRacePage({
     <div className="mx-auto max-w-[42rem] space-y-6">
       <PageHeader
         title={isWatching ? 'Edit watchlist race' : 'Edit race'}
+        size="compact"
         action={<BackButton fallbackHref={returnTo} />}
       />
 
@@ -126,6 +127,7 @@ export default async function EditRacePage({
           raceType={race.type}
           outcome={race.outcome}
           resultTime={race.resultTime}
+          resultPlace={race.resultPlace}
           resultNotes={race.resultNotes}
           legs={race.legs}
           allowStravaLink={session.hasAthlete}

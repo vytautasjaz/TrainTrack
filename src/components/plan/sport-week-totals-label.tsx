@@ -24,7 +24,12 @@ export function SportWeekTotalsLabel({ sport, totals, className }: SportWeekTota
   if (!showDistance && !showDuration) return null
 
   return (
-    <div className={cn('flex flex-col gap-0.5 text-muted-foreground lg:gap-1', className)}>
+    <div
+      className={cn(
+        'flex flex-col gap-0.5 font-normal text-muted-foreground lg:gap-1',
+        className,
+      )}
+    >
       {showDistance && (actualDistance || plannedDistance) ? (
         <div className="flex items-center gap-1 text-[9px] leading-none tabular-nums lg:text-[10px]">
           <Route className="h-2.5 w-2.5 shrink-0 opacity-60" strokeWidth={2.25} />
@@ -32,10 +37,14 @@ export function SportWeekTotalsLabel({ sport, totals, className }: SportWeekTota
             <>
               <span className="font-semibold text-foreground">{actualDistance}</span>
               <span className="opacity-50">/</span>
-              <span>{plannedDistance}</span>
+              <span className="font-normal">{plannedDistance}</span>
             </>
           ) : (
-            <span className={actualDistance ? 'font-semibold text-foreground' : undefined}>
+            <span
+              className={
+                actualDistance ? 'font-semibold text-foreground' : 'font-normal'
+              }
+            >
               {actualDistance ?? plannedDistance}
             </span>
           )}
@@ -50,10 +59,14 @@ export function SportWeekTotalsLabel({ sport, totals, className }: SportWeekTota
                 {formatDuration(totals.actualDurationMin)}
               </span>
               <span className="opacity-50">/</span>
-              <span>{formatDuration(totals.durationMin)}</span>
+              <span className="font-normal">{formatDuration(totals.durationMin)}</span>
             </>
           ) : (
-            <span className={hasActualDuration ? 'font-semibold text-foreground' : undefined}>
+            <span
+              className={
+                hasActualDuration ? 'font-semibold text-foreground' : 'font-normal'
+              }
+            >
               {formatDuration(
                 hasActualDuration ? totals.actualDurationMin : totals.durationMin,
               )}
