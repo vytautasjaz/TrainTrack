@@ -6,82 +6,6 @@ import type { Provider } from 'next-auth/providers'
 import bcrypt from 'bcryptjs'
 import { UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { getStravaConfig } from '@/lib/strava/config'
-import { exchangeStravaCode } from '@/lib/strava/client'
-
-function stravaScopes(): string {
-  try {
-    return getStravaConfig().scopes
-  } catch {
-    return process.env.STRAVA_SCOPES || 'read,activity:read_all,profile:read_all'
-  }
-}
-
-const stravaProvider: Provider = {
-  id: 'strava',
-  name: 'Strava',
-  type: 'oauth',
-  authorization: {
-    url: 'https://www.strava.com/oauth/authorize',
-    params: {
-      scope: stravaScopes(),
-      approval_prompt: 'auto',
-      response_type: 'code',
-    },
-  },
-  token: {
-    url: 'https://www.strava.com/oauth/token',
-    async request({
-      params,
-      provider,
-    }: {
-      params: { code?: string }
-      provider: { clientId?: string; clientSecret?: string }
-    }) {
-      const clientId = provider.clientId
-      const clientSecret = provider.clientSecret
-      if (!params.code || !clientId || !clientSecret) {
-        throw new Error('Missing Strava OAuth code or client credentials')
-      }
-      const tokens = await exchangeStravaCode(params.code)
-      return {
-        tokens: {
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token,
-          expires_at: tokens.expires_at,
-          token_type: tokens.token_type,
-          scope: stravaScopes(),
-        },
-      }
-    },
-  },
-  userinfo: {
-    url: 'https://www.strava.com/api/v3/athlete',
-    async request({ tokens }: { tokens: { access_token?: string } }) {
-      const res = await fetch('https://www.strava.com/api/v3/athlete', {
-        headers: { Authorization: `Bearer ${tokens.access_token}` },
-      })
-      if (!res.ok) throw new Error('Failed to fetch Strava athlete profile')
-      return res.json()
-    },
-  },
-  clientId: process.env.STRAVA_CLIENT_ID,
-  clientSecret: process.env.STRAVA_CLIENT_SECRET,
-  profile(profile) {
-    const id = String(profile.id)
-    const name =
-      [profile.firstname, profile.lastname].filter(Boolean).join(' ').trim() ||
-      profile.username ||
-      `Strava ${id}`
-    return {
-      id,
-      name,
-      email: `strava-${id}@users.traintrack.local`,
-      image: profile.profile || profile.profile_medium || null,
-    }
-  },
-  allowDangerousEmailAccountLinking: true,
-}
 
 const providers: Provider[] = [
   Credentials({
@@ -110,7 +34,6 @@ const providers: Provider[] = [
       }
     },
   }),
-  stravaProvider,
 ]
 
 if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
@@ -156,43 +79,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   callbacks: {
-    async signIn({ user, account, profile }) {
-      if (account?.provider === 'strava' && account.access_token && user.id) {
-        const stravaAthleteId = String(account.providerAccountId)
-        const expiresAt = account.expires_at
-          ? new Date(account.expires_at * 1000)
-          : new Date(Date.now() + 6 * 60 * 60 * 1000)
-        await prisma.stravaConnection.upsert({
-          where: { userId: user.id },
-          create: {
-            userId: user.id,
-            stravaAthleteId,
-            accessToken: account.access_token,
-            refreshToken: account.refresh_token ?? '',
-            expiresAt,
-            scope: account.scope ?? getStravaConfig().scopes,
-          },
-          update: {
-            stravaAthleteId,
-            accessToken: account.access_token,
-            refreshToken: account.refresh_token ?? undefined,
-            expiresAt,
-            scope: account.scope ?? undefined,
-          },
-        })
-        if (profile && typeof profile === 'object') {
-          const p = profile as { profile?: string; profile_medium?: string }
-          const image = p.profile || p.profile_medium
-          if (image) {
-            await prisma.user.update({
-              where: { id: user.id },
-              data: { image },
-            })
-          }
-        }
-      }
-      return true
-    },
     async jwt({ token, user }) {
       if (user?.id) {
         token.sub = user.id

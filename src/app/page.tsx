@@ -5,14 +5,12 @@ import { getSession } from '@/lib/session'
 import {
   continueAsDemoUser,
   ensureDemoAccounts,
-  registerWithEmail,
-  signInWithEmail,
   signInWithGoogle,
-  signInWithStrava,
 } from '@/app/actions/auth'
+import { HomeAuthForms } from '@/components/auth/home-auth-forms'
+import { nextAuthErrorMessage } from '@/lib/auth-form-errors'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { TrainTrackAppIcon } from '@/components/brand/traintrack-logo'
 import {
   getCoachInviteCookie,
@@ -22,7 +20,6 @@ import {
 const demoEnabled =
   process.env.NODE_ENV === 'development' || process.env.ALLOW_DEMO_LOGIN === '1'
 const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)
-const stravaEnabled = Boolean(process.env.STRAVA_CLIENT_ID && process.env.STRAVA_CLIENT_SECRET)
 
 function roleLabel(roles: UserRole[]): string {
   if (roles.includes(UserRole.COACH)) return 'Coach'
@@ -36,7 +33,12 @@ export default async function HomePage({
 }: {
   searchParams?: Promise<{ error?: string; invite?: string }>
 }) {
-  const session = await getSession()
+  let session = null
+  try {
+    session = await getSession()
+  } catch {
+    // Misconfigured auth (e.g. missing AUTH_SECRET) must not crash the sign-in page.
+  }
   if (session) {
     if (session.needsOnboarding) redirect('/onboarding')
     redirect('/dashboard')
@@ -117,7 +119,7 @@ export default async function HomePage({
               ? `${invite.coachName} invited you to TrainTrack. Create an account, then you’ll be asked to connect with them.`
               : demoEnabled
                 ? 'Use a demo account for local testing, or sign in with email / OAuth.'
-                : 'One account — Google, Strava, or email. Choose Athlete or Coach after you sign in.'}
+                : 'One account — Google or email. Choose Athlete or Coach after you sign in.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 px-5 pb-5 pt-0">
@@ -129,7 +131,7 @@ export default async function HomePage({
 
           {authError ? (
             <p className="rounded-[6px] border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-xs text-destructive">
-              Sign-in failed. Try again or use another method.
+              {nextAuthErrorMessage(authError)}
             </p>
           ) : null}
 
@@ -186,24 +188,6 @@ export default async function HomePage({
                 Continue with Google
               </Button>
             )}
-            {stravaEnabled ? (
-              <form action={signInWithStrava}>
-                <Button
-                  type="submit"
-                  className="w-full bg-[#FC4C02] text-white hover:bg-[#e44502]"
-                >
-                  Continue with Strava
-                </Button>
-              </form>
-            ) : (
-              <Button
-                type="button"
-                className="w-full bg-[#FC4C02]/50 text-white"
-                disabled
-              >
-                Continue with Strava
-              </Button>
-            )}
           </div>
 
           <div className="relative py-1 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -211,47 +195,10 @@ export default async function HomePage({
             <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
           </div>
 
-          <form action={signInWithEmail} className="space-y-2.5">
-            <Input name="email" type="email" placeholder="Email" required autoComplete="email" />
-            <Input
-              name="password"
-              type="password"
-              placeholder="Password"
-              required
-              autoComplete="current-password"
-            />
-            <Button type="submit" variant="secondary" className="w-full">
-              Sign in
-            </Button>
-          </form>
-
-          <details
-            className="rounded-[6px] border border-border/70 bg-muted/20 px-3 py-2"
-            open={Boolean(invite)}
-          >
-            <summary className="cursor-pointer text-sm font-medium">Create an account</summary>
-            <form action={registerWithEmail} className="mt-3 space-y-2.5">
-              <Input name="name" placeholder="Name" required autoComplete="name" />
-              <Input
-                name="email"
-                type="email"
-                placeholder="Email"
-                required
-                autoComplete="email"
-              />
-              <Input
-                name="password"
-                type="password"
-                placeholder="Password (min 8)"
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-                  <Button type="submit" variant="secondary" className="w-full">
-                    {invite ? 'Create athlete account' : 'Create account'}
-                  </Button>
-            </form>
-          </details>
+          <HomeAuthForms
+            inviteOpen={Boolean(invite)}
+            registerButtonLabel={invite ? 'Create athlete account' : 'Create account'}
+          />
         </CardContent>
       </Card>
     </div>

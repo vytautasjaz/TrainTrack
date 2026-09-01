@@ -1,33 +1,22 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import Link from 'next/link'
 import { Caption, SectionTitle } from '@/components/ui/typography'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { FormError } from '@/components/ui/form-error'
-import {
-  linkGoogleAccount,
-  linkStravaAccount,
-  setPassword,
-  unlinkProvider,
-} from '@/app/actions/auth'
+import { linkGoogleAccount, setPassword, unlinkProvider } from '@/app/actions/auth'
 
 const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)
-const stravaEnabled = Boolean(process.env.STRAVA_CLIENT_ID && process.env.STRAVA_CLIENT_SECRET)
 
 type SignInMethodsSectionProps = {
   hasGoogle: boolean
-  hasStrava: boolean
   hasPassword: boolean
-  showActivitySyncLink?: boolean
 }
 
 export function SignInMethodsSection({
   hasGoogle,
-  hasStrava,
   hasPassword,
-  showActivitySyncLink = false,
 }: SignInMethodsSectionProps) {
   const [passwordPending, startPasswordTransition] = useTransition()
   const [passwordError, setPasswordError] = useState<string | null>(null)
@@ -57,42 +46,6 @@ export function SignInMethodsSection({
               <form action={linkGoogleAccount}>
                 <Button type="submit" variant="outline" size="sm">
                   Link Google
-                </Button>
-              </form>
-            )
-          ) : (
-            <Caption>Not configured</Caption>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-[6px] border border-border/60 px-3 py-2.5">
-          <div>
-            <p className="text-sm font-medium">Strava</p>
-            <Caption>
-              {hasStrava ? 'Linked for sign-in' : 'Not linked'}
-              {showActivitySyncLink ? (
-                <>
-                  {' '}
-                  ·{' '}
-                  <Link href="/settings/preferences#integrations" className="underline">
-                    activity sync
-                  </Link>
-                </>
-              ) : null}
-            </Caption>
-          </div>
-          {stravaEnabled ? (
-            hasStrava ? (
-              <form action={unlinkProvider}>
-                <input type="hidden" name="provider" value="strava" />
-                <Button type="submit" variant="outline" size="sm">
-                  Unlink
-                </Button>
-              </form>
-            ) : (
-              <form action={linkStravaAccount}>
-                <Button type="submit" variant="outline" size="sm">
-                  Link Strava
                 </Button>
               </form>
             )

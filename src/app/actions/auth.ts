@@ -1,7 +1,6 @@
 'use server'
 
 import bcrypt from 'bcryptjs'
-import { AuthError } from 'next-auth'
 import { redirect } from 'next/navigation'
 import { UserRole } from '@prisma/client'
 import { signIn, signOut } from '@/auth'
@@ -22,43 +21,79 @@ import { cookies } from 'next/headers'
 import { CoachAthleteLinkStatus } from '@prisma/client'
 import { safeRedirectPath } from '@/lib/safe-redirect'
 import { revalidatePath } from 'next/cache'
+import {
+  type AuthFormState,
+  INITIAL_AUTH_FORM_STATE,
+  isRedirectError,
+  mapAuthActionError,
+} from '@/lib/auth-form-errors'
 
-export async function registerWithEmail(formData: FormData) {
+export async function registerWithEmail(
+  _prevState: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
   const name = String(formData.get('name') ?? '').trim()
   const email = String(formData.get('email') ?? '')
     .trim()
     .toLowerCase()
   const password = String(formData.get('password') ?? '')
 
-  if (!name || name.length < 2) throw new Error('Name is required')
-  if (!email || !email.includes('@')) throw new Error('Valid email is required')
-  if (password.length < 8) throw new Error('Password must be at least 8 characters')
+  if (!name || name.length < 2) {
+    return { error: 'Name is required.' }
+  }
+  if (!email || !email.includes('@')) {
+    return { error: 'Enter a valid email address.' }
+  }
+  if (password.length < 8) {
+    return { error: 'Password must be at least 8 characters.' }
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } })
-  if (existing) throw new Error('An account with this email already exists')
+  if (existing) {
+    return { error: 'An account with this email already exists. Sign in instead.' }
+  }
 
   const passwordHash = await bcrypt.hash(password, 12)
   const cookieStore = await cookies()
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
 
-  await prisma.user.create({
-    data: {
-      name,
-      email,
-      passwordHash,
-      roles: [],
-    },
-  })
+  try {
+    await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        roles: [],
+      },
+    })
+  } catch (err) {
+    return { error: mapAuthActionError(err, 'Could not create your account.') }
+  }
 
-  await signIn('credentials', {
-    email,
-    password,
-    redirectTo: '/onboarding',
-  })
+  try {
+    await signIn('credentials', {
+      email,
+      password,
+      redirectTo: '/onboarding',
+    })
+  } catch (err) {
+    if (isRedirectError(err)) throw err
+    return {
+      error: mapAuthActionError(
+        err,
+        'Account created, but sign-in failed. Try signing in with your email and password.',
+      ),
+    }
+  }
+
+  return INITIAL_AUTH_FORM_STATE
 }
 
-export async function signInWithEmail(formData: FormData) {
+export async function signInWithEmail(
+  _prevState: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
   const cookieStore = await cookies()
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
@@ -67,6 +102,13 @@ export async function signInWithEmail(formData: FormData) {
     .trim()
     .toLowerCase()
   const password = String(formData.get('password') ?? '')
+  if (!email || !email.includes('@')) {
+    return { error: 'Enter a valid email address.' }
+  }
+  if (!password) {
+    return { error: 'Password is required.' }
+  }
+
   const inviteCode = await getCoachInviteCookie()
   const redirectTo = inviteCode ? coachInvitePath(inviteCode) : '/dashboard'
   try {
@@ -76,11 +118,11 @@ export async function signInWithEmail(formData: FormData) {
       redirectTo,
     })
   } catch (err) {
-    if (err instanceof AuthError) {
-      throw new Error('Invalid email or password')
-    }
-    throw err
+    if (isRedirectError(err)) throw err
+    return { error: mapAuthActionError(err, 'Invalid email or password.') }
   }
+
+  return INITIAL_AUTH_FORM_STATE
 }
 
 export async function signInWithGoogle() {
@@ -89,16 +131,6 @@ export async function signInWithGoogle() {
   cookieStore.delete('tt_athlete')
   const inviteCode = await getCoachInviteCookie()
   await signIn('google', {
-    redirectTo: inviteCode ? coachInvitePath(inviteCode) : '/dashboard',
-  })
-}
-
-export async function signInWithStrava() {
-  const cookieStore = await cookies()
-  cookieStore.delete('tt_user')
-  cookieStore.delete('tt_athlete')
-  const inviteCode = await getCoachInviteCookie()
-  await signIn('strava', {
     redirectTo: inviteCode ? coachInvitePath(inviteCode) : '/dashboard',
   })
 }
@@ -215,10 +247,6 @@ export async function linkGoogleAccount() {
   })
 }
 
-export async function linkStravaAccount() {
-  await signIn('strava', { redirectTo: '/settings/preferences#sign-in' })
-}
-
 export async function setPassword(formData: FormData) {
   const session = await requireSession()
   const password = String(formData.get('password') ?? '')
@@ -235,7 +263,7 @@ export async function setPassword(formData: FormData) {
 export async function unlinkProvider(formData: FormData) {
   const session = await requireSession()
   const provider = String(formData.get('provider') ?? '')
-  if (provider !== 'google' && provider !== 'strava') {
+  if (provider !== 'google') {
     throw new Error('Invalid provider')
   }
 
@@ -254,9 +282,6 @@ export async function unlinkProvider(formData: FormData) {
   await prisma.account.deleteMany({
     where: { userId: session.userId, provider },
   })
-  if (provider === 'strava') {
-    await prisma.stravaConnection.deleteMany({ where: { userId: session.userId } })
-  }
   revalidatePath('/settings/preferences')
   revalidatePath('/settings/account')
 }

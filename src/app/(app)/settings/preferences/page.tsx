@@ -66,7 +66,6 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
 
   const providers = new Set(authUser.accounts.map((a) => a.provider))
   const hasGoogle = providers.has('google')
-  const hasStrava = providers.has('strava')
   const hasPassword = Boolean(authUser.passwordHash)
 
   const params = isAthlete ? await searchParams : {}
@@ -189,12 +188,7 @@ export default async function PreferencesPage({ searchParams }: PageProps) {
           <Caption>Authentication methods and external service integrations.</Caption>
         </div>
 
-        <SignInMethodsSection
-          hasGoogle={hasGoogle}
-          hasStrava={hasStrava}
-          hasPassword={hasPassword}
-          showActivitySyncLink={isAthlete}
-        />
+        <SignInMethodsSection hasGoogle={hasGoogle} hasPassword={hasPassword} />
 
         {isAthlete ? (
           <section id="integrations" className="card-elevated scroll-mt-24 space-y-4 p-5">
