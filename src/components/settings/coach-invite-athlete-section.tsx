@@ -2,16 +2,41 @@
 
 import { Caption, SectionTitle } from '@/components/ui/typography'
 import { CoachInviteLinkPanel } from '@/components/coach/coach-invite-link-panel'
+import { SettingsPanel } from '@/components/settings/settings-section-chrome'
 
 type CoachInviteAthleteSectionProps = {
   coachingCode: string
   coachName: string
+  embedded?: boolean
 }
 
 export function CoachInviteAthleteSection({
   coachingCode,
   coachName,
+  embedded = false,
 }: CoachInviteAthleteSectionProps) {
+  const body = (
+    <>
+      <CoachInviteLinkPanel coachingCode={coachingCode} />
+      <Caption className="mt-3">
+        Athletes can also enter your code manually in Profile. Link invite from{' '}
+        <span className="font-medium text-foreground">{coachName}</span> skips the code step.
+      </Caption>
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <SettingsPanel
+        id="invite-athlete"
+        title="Invite athlete"
+        description="Send a personal link. After they register, they'll be asked to accept you as their coach."
+      >
+        {body}
+      </SettingsPanel>
+    )
+  }
+
   return (
     <section id="invite-athlete" className="card-elevated scroll-mt-24 space-y-4 p-5">
       <div>
@@ -20,15 +45,7 @@ export function CoachInviteAthleteSection({
           Send a personal link. After they register, they’ll be asked to accept you as their coach.
         </Caption>
       </div>
-
-      <div className="rounded-[6px] border border-border/60 bg-muted/20 px-3 py-3">
-        <CoachInviteLinkPanel coachingCode={coachingCode} />
-      </div>
-
-      <Caption>
-        Athletes can also enter your code manually in Profile. Link invite from{' '}
-        <span className="font-medium text-foreground">{coachName}</span> skips the code step.
-      </Caption>
+      {body}
     </section>
   )
 }

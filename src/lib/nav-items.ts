@@ -74,29 +74,33 @@ export function getMainNav(isCoach: boolean): NavItem[] {
   ]
 }
 
-export const PREFERENCES_NAV: NavItem = {
-  href: '/settings/preferences',
-  label: 'Preferences',
+export const SETTINGS_NAV: NavItem = {
+  href: '/settings',
+  label: 'Settings',
   icon: Settings,
 }
 
+/** @deprecated Use SETTINGS_NAV */
+export const PREFERENCES_NAV = SETTINGS_NAV
+
+/** @deprecated Use SETTINGS_NAV */
 export const PROFILE_NAV: NavItem = {
-  href: '/settings/account',
+  href: '/settings#profile',
   label: 'Profile',
   icon: CircleUser,
 }
 
-/** @deprecated Use PROFILE_NAV */
+/** @deprecated Use SETTINGS_NAV */
 export const ACCOUNT_NAV = PROFILE_NAV
 
 /** Nested under athlete name while on /settings/* */
-export const SETTINGS_SUBNAV: NavItem[] = [PROFILE_NAV, PREFERENCES_NAV]
+export const SETTINGS_SUBNAV: NavItem[] = [SETTINGS_NAV]
 
-/** Name/avatar click opens athlete profile (zones, PBs, coach). */
-export const SETTINGS_ENTRY_HREF = PROFILE_NAV.href
+/** Name/avatar click opens settings. */
+export const SETTINGS_ENTRY_HREF = SETTINGS_NAV.href
 
 export const CONNECT_COACH_NAV: NavItem = {
-  href: '/settings/account#connect-coach',
+  href: '/settings#profile',
   label: 'Connect to a coach',
   icon: Users,
 }

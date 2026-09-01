@@ -2644,7 +2644,7 @@ export function SharedWorkoutEditor({
                 size="xs"
                 className="ml-1 h-auto px-0 text-amber-900"
               >
-                <Link href="/settings/preferences">Set defaults</Link>
+                <Link href="/settings#builder">Set defaults</Link>
               </Button>
             </div>
           )}
@@ -2658,7 +2658,7 @@ export function SharedWorkoutEditor({
                 size="xs"
                 className="h-auto px-0 text-amber-900"
               >
-                <Link href="/settings/preferences">Update preferences</Link>
+                <Link href="/settings#builder">Update preferences</Link>
               </Button>
             </div>
           ) : null}

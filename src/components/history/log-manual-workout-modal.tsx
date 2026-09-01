@@ -236,7 +236,7 @@ export function LogManualWorkoutModal({ open, onOpenChange }: LogManualWorkoutMo
                   plan.
                 </p>
                 <Button asChild variant="secondary" size="sm">
-                  <Link href="/settings/preferences">Open preferences</Link>
+                  <Link href="/settings#zones">Open settings</Link>
                 </Button>
               </div>
             ) : (

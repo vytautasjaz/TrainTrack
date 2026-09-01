@@ -240,7 +240,7 @@ export async function skipOnboarding() {
 
 export async function linkGoogleAccount() {
   await signIn('google', {
-    redirectTo: '/settings/preferences#sign-in',
+    redirectTo: '/settings#sign-in',
     scope: 'openid email profile https://www.googleapis.com/auth/calendar.events',
     access_type: 'offline',
     prompt: 'consent',

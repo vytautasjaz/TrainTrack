@@ -1350,6 +1350,84 @@ body {
   box-shadow: var(--tt-shadow);
 }
 
+/* ─── Settings page panels & blocks ───────────────────────────────────── */
+.tt-settings-panel {
+  overflow: hidden;
+  border: 1px solid var(--tt-line, #ebebeb);
+  border-radius: 10px;
+  background: var(--tt-surface, #ffffff);
+  box-shadow: var(--tt-shadow, 0 1px 2px rgb(17 17 17 / 0.04), 0 8px 24px rgb(17 17 17 / 0.04));
+}
+
+.tt-settings-panel-header {
+  border-bottom: 1px solid var(--tt-line, #ebebeb);
+  background: color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 72%, #ffffff);
+  padding: 1rem 1.25rem 0.875rem;
+}
+
+.tt-settings-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.tt-settings-group + .tt-settings-group {
+  margin-top: 1rem;
+  border-top: 1px solid var(--tt-line, #ebebeb);
+  padding-top: 1rem;
+}
+
+.tt-settings-group-heading {
+  margin-bottom: 0.75rem;
+}
+
+.tt-settings-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--tt-ink-faint, #9a9a9a);
+}
+
+.tt-settings-group-description {
+  margin-top: 0.25rem;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--tt-ink-soft, #6b6b6b);
+}
+
+.tt-settings-divider {
+  height: 1px;
+  background: var(--tt-line, #ebebeb);
+}
+
+.tt-settings-panel-body .card-elevated {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tt-settings-page .tt-settings-panel + .tt-settings-panel {
+  margin-top: 0.25rem;
+}
+
+.tt-settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.tt-settings-block .card-elevated {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .tt-home-prescription-card {
   background: var(--tt-surface, #ffffff);
   border: 1px solid var(--tt-line, #ebebeb);

@@ -6,7 +6,8 @@ import { isStravaConfigured } from '@/lib/strava/config'
 import { applyStravaAvatarToAthlete } from '@/lib/strava/avatar'
 export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const preferencesUrl = new URL('/settings/preferences', appUrl)
+  const preferencesUrl = new URL('/settings', appUrl)
+  preferencesUrl.hash = 'integrations'
 
   if (!isStravaConfigured()) {
     preferencesUrl.searchParams.set('error', 'not_configured')

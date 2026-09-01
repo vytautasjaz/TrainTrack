@@ -89,7 +89,7 @@ export function CoachPlanningWarnings({
 
       <p className="text-xs text-muted-foreground">
         Adjust lead time in{' '}
-        <Link href="/settings/preferences" className="underline underline-offset-2 hover:text-foreground">
+        <Link href="/settings#planning" className="underline underline-offset-2 hover:text-foreground">
           Preferences
         </Link>
         .
