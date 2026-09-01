@@ -15,6 +15,16 @@ export {
 
 const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 30 // 30 days
 
+export function coachInviteCookieOptions(maxAge = COOKIE_MAX_AGE_SEC) {
+  return {
+    path: '/',
+    maxAge,
+    sameSite: 'lax' as const,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+  }
+}
+
 export async function resolveCoachInvite(
   rawCode: string | null | undefined,
 ): Promise<CoachInviteInfo | null> {
@@ -49,12 +59,7 @@ export async function setCoachInviteCookie(code: string): Promise<void> {
   const normalized = parseCoachInviteCode(code)
   if (!normalized) return
   const cookieStore = await cookies()
-  cookieStore.set(COACH_INVITE_COOKIE, normalized, {
-    path: '/',
-    maxAge: COOKIE_MAX_AGE_SEC,
-    sameSite: 'lax',
-    httpOnly: true,
-  })
+  cookieStore.set(COACH_INVITE_COOKIE, normalized, coachInviteCookieOptions())
 }
 
 export async function clearCoachInviteCookie(): Promise<void> {

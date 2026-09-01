@@ -17,7 +17,6 @@ import { TrainTrackAppIcon } from '@/components/brand/traintrack-logo'
 import {
   getCoachInviteCookie,
   resolveCoachInvite,
-  setCoachInviteCookie,
 } from '@/lib/coach-invite'
 
 const demoEnabled =
@@ -47,9 +46,6 @@ export default async function HomePage({
   const authError = params.error
 
   const inviteFromQuery = params.invite ? await resolveCoachInvite(params.invite) : null
-  if (inviteFromQuery) {
-    await setCoachInviteCookie(inviteFromQuery.code)
-  }
   const inviteCookieCode = inviteFromQuery?.code ?? (await getCoachInviteCookie())
   const invite = inviteFromQuery ?? (inviteCookieCode ? await resolveCoachInvite(inviteCookieCode) : null)
 

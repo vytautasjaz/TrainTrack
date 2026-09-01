@@ -6,19 +6,15 @@ import { CoachInviteAcceptForm } from '@/components/auth/coach-invite-accept-for
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { TrainTrackAppIcon } from '@/components/brand/traintrack-logo'
-import {
-  parseCoachInviteCode,
-  resolveCoachInvite,
-  setCoachInviteCookie,
-} from '@/lib/coach-invite'
+import { parseCoachInviteCode, resolveCoachInvite } from '@/lib/coach-invite'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 
-type JoinPageProps = {
+type JoinAcceptPageProps = {
   params: Promise<{ code: string }>
 }
 
-export default async function JoinCoachPage({ params }: JoinPageProps) {
+export default async function JoinCoachAcceptPage({ params }: JoinAcceptPageProps) {
   const { code: rawCode } = await params
   const code = parseCoachInviteCode(decodeURIComponent(rawCode))
   const invite = code ? await resolveCoachInvite(code) : null
@@ -40,8 +36,6 @@ export default async function JoinCoachPage({ params }: JoinPageProps) {
       </JoinShell>
     )
   }
-
-  await setCoachInviteCookie(invite.code)
 
   const session = await getSession()
 
