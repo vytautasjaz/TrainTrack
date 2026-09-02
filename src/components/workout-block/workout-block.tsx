@@ -179,8 +179,8 @@ export function WorkoutBlock({
   const SportIcon = workout.isRace ? Flag : WORKOUT_TYPE_ICONS[workout.type]
   const stravaSynced = isStravaSynced(workout)
   const completionPercent =
-    colorMode === 'completion'
-      ? getWorkoutCompletionPercent(workout, status)
+    colorMode === 'completion' && completed && !workout.isRace
+      ? (getWorkoutCompletionPercent(workout, status) ?? 100)
       : null
   const completionStyle =
     completionPercent != null

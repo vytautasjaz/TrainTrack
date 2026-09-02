@@ -33,6 +33,8 @@ type MobileNavMenuProps = {
   viewMode?: AppViewMode
   dashboardNotificationCount?: number
   athleteProfile?: { name: string; avatarUrl: string | null } | null
+  /** Light = default ink; dark = white icon for dark top bars. */
+  tone?: 'light' | 'dark'
 }
 
 export function MobileNavMenu({
@@ -43,6 +45,7 @@ export function MobileNavMenu({
   viewMode = 'athlete',
   dashboardNotificationCount = 0,
   athleteProfile = null,
+  tone = 'light',
 }: MobileNavMenuProps) {
   const [open, setOpen] = useState(false)
   const [expandedHref, setExpandedHref] = useState<string | null>(null)
@@ -60,7 +63,11 @@ export function MobileNavMenu({
         type="button"
         variant="ghost"
         size="sm"
-        className="h-9 w-9 shrink-0 rounded-[6px] p-0 landscape:max-lg:inline-flex lg:hidden"
+        className={cn(
+          'h-9 w-9 shrink-0 rounded-[6px] p-0 landscape:max-lg:inline-flex lg:hidden',
+          tone === 'dark' &&
+            'text-white hover:bg-white/10 hover:text-white',
+        )}
         onClick={() => {
           setOpen(true)
           const current = mainItems.find(

@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { DATA_TABLE, DATA_TABLE_SHELL } from '@/lib/table-styles'
+import { MobileAccordionBody } from '@/components/ui/mobile-accordion-body'
 import { cn } from '@/lib/utils'
 
 export function CoachHomePanelHeader({
@@ -11,25 +12,55 @@ export function CoachHomePanelHeader({
   href,
   linkLabel,
   onLinkClick,
+  collapsible,
+  expanded = true,
+  onToggle,
 }: {
   title: string
   count?: number
   href?: string
   linkLabel?: string
   onLinkClick?: () => void
+  /** Mobile-only accordion: title toggles body visibility. */
+  collapsible?: boolean
+  expanded?: boolean
+  onToggle?: () => void
 }) {
+  const titleRow = (
+    <div className="flex min-w-0 items-baseline gap-2">
+      <h2 className="font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)] md:font-sans md:text-[0.6875rem] md:font-semibold md:tracking-[0.08em]">
+        {title}
+      </h2>
+      {count != null && count > 0 ? (
+        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--tt-red)] px-1.5 text-[11px] font-semibold tabular-nums text-white md:bg-[color-mix(in_srgb,var(--tt-red)_12%,white)] md:text-[var(--tt-red)]">
+          {count}
+        </span>
+      ) : null}
+    </div>
+  )
+
   return (
     <div className="mb-3 flex items-baseline justify-between gap-3">
-      <div className="flex items-baseline gap-2">
-        <h2 className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink)]">
-          {title}
-        </h2>
-        {count != null && count > 0 ? (
-          <span className="rounded-full bg-[color-mix(in_srgb,var(--tt-red)_12%,white)] px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--tt-red)]">
-            {count}
-          </span>
-        ) : null}
-      </div>
+      {collapsible && onToggle ? (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left md:pointer-events-none"
+        >
+          {titleRow}
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 shrink-0 text-[var(--tt-ink-faint)] transition-transform duration-300 md:hidden',
+              expanded && 'rotate-180',
+            )}
+            strokeWidth={1.75}
+            aria-hidden
+          />
+        </button>
+      ) : (
+        titleRow
+      )}
       {onLinkClick && linkLabel ? (
         <button
           type="button"
@@ -47,6 +78,23 @@ export function CoachHomePanelHeader({
         </Link>
       ) : null}
     </div>
+  )
+}
+
+/** Mobile accordion body — animates open/closed; always expanded from md up. */
+export function CoachHomeMobileAccordionBody({
+  expanded,
+  className,
+  children,
+}: {
+  expanded: boolean
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <MobileAccordionBody expanded={expanded} className={className}>
+      {children}
+    </MobileAccordionBody>
   )
 }
 

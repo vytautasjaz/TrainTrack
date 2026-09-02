@@ -11,6 +11,7 @@ import { CoachHomeCoachingRequests } from '@/components/coach/coach-home-coachin
 import type { CoachHomeCoachingRequest } from '@/components/coach/coach-home-coaching-requests'
 import { CoachHomeNeedsAttentionSection } from '@/components/coach/coach-home-needs-attention-section'
 import { CoachHomeEmptyState } from '@/components/coach/coach-home-empty-state'
+import { CoachHomeMobileHero } from '@/components/coach/coach-home-mobile-hero'
 import { CoachHomePlanningCoverage } from '@/components/coach/coach-home-planning-coverage'
 import { CoachHomeRecentActivityTable } from '@/components/coach/coach-home-recent-activity-table'
 import {
@@ -25,6 +26,8 @@ const HANDLED_FLASH_MS = 420
 const EXIT_ANIMATION_MS = 240
 
 type CoachHomeClientProps = {
+  greeting: string
+  coachName: string
   attentionItems: CoachHomeAttentionItem[]
   coachingRequests: CoachHomeCoachingRequest[]
   planningCoverageRows: CoachHomePlanningCoverageRow[]
@@ -37,6 +40,8 @@ type CoachHomeClientProps = {
 }
 
 export function CoachHomeClient({
+  greeting,
+  coachName,
   attentionItems,
   coachingRequests,
   planningCoverageRows,
@@ -179,8 +184,10 @@ export function CoachHomeClient({
 
   if (totalAthletes === 0) {
     return (
-      <div className="space-y-8">
-        <header className="min-w-0">
+      <div className="space-y-4 md:space-y-8">
+        <CoachHomeMobileHero greeting={greeting} name={coachName} />
+      <div className="tt-home-mobile-sheet space-y-4 md:contents md:space-y-0">
+        <header className="hidden min-w-0 md:block">
           <h1 className="font-[family-name:var(--font-display)] text-[2rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
             Home
           </h1>
@@ -192,55 +199,60 @@ export function CoachHomeClient({
 
         <CoachHomeEmptyState coachingCode={coachingCode} />
       </div>
+      </div>
     )
   }
 
   return (
-    <div className="space-y-8">
-      <header className="min-w-0">
-        <h1 className="font-[family-name:var(--font-display)] text-[2rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
-          Home
-        </h1>
-      </header>
+    <div className="space-y-0 md:space-y-8">
+      <CoachHomeMobileHero greeting={greeting} name={coachName} />
 
-      <div className="grid gap-8 xl:grid-cols-[3fr_2fr] xl:items-start">
-        {showNeedsAttention ? (
-          <CoachHomeNeedsAttentionSection
-            className="xl:col-start-1 xl:row-start-1"
-            items={filteredAttention}
-            selectedItemId={selectedAttentionId}
-            handledIds={handledIds}
-            exitingIds={exitingIds}
-            onSelectItem={handleSelectAttentionItem}
-            onDismissItem={scheduleDismiss}
-            onDismissItems={scheduleDismissMany}
+      <div className="tt-home-mobile-sheet space-y-4 md:contents md:space-y-0">
+        <header className="hidden min-w-0 md:block">
+          <h1 className="font-[family-name:var(--font-display)] text-[2rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
+            Home
+          </h1>
+        </header>
+
+        <div className="grid gap-4 md:gap-8 xl:grid-cols-[3fr_2fr] xl:items-start">
+          {showNeedsAttention ? (
+            <CoachHomeNeedsAttentionSection
+              className="order-3 md:order-none xl:col-start-1 xl:row-start-1"
+              items={filteredAttention}
+              selectedItemId={selectedAttentionId}
+              handledIds={handledIds}
+              exitingIds={exitingIds}
+              onSelectItem={handleSelectAttentionItem}
+              onDismissItem={scheduleDismiss}
+              onDismissItems={scheduleDismissMany}
+            />
+          ) : null}
+          <div className="order-1 space-y-4 md:order-none md:space-y-8 xl:col-start-2 xl:row-start-1 xl:row-span-2">
+            <CoachHomeCoachingRequests requests={coachingRequests} />
+            {selectedAttentionItem ? (
+              <CoachHomeAttentionActionPanel
+                item={selectedAttentionItem}
+                onClose={() => setSelectedAttentionId(null)}
+                onDismiss={() => scheduleDismiss(selectedAttentionItem)}
+              />
+            ) : (
+              <CoachHomePlanningCoverage
+                rows={planningCoverageRows}
+                totalAthletes={planningCoverageRows.length}
+                planningLeadDays={planningLeadDays}
+                needsPlanCount={needsPlanCount}
+              />
+            )}
+          </div>
+          <CoachHomeRecentActivityTable
+            className={cn(
+              'order-2 md:order-none xl:col-start-1',
+              showNeedsAttention ? 'xl:row-start-2' : 'xl:row-start-1',
+            )}
+            rows={activityRows}
+            athleteOptions={athleteOptions}
           />
-        ) : null}
-        <div className="space-y-8 xl:col-start-2 xl:row-start-1 xl:row-span-2">
-          <CoachHomeCoachingRequests requests={coachingRequests} />
-          {selectedAttentionItem ? (
-            <CoachHomeAttentionActionPanel
-              item={selectedAttentionItem}
-              onClose={() => setSelectedAttentionId(null)}
-              onDismiss={() => scheduleDismiss(selectedAttentionItem)}
-            />
-          ) : (
-            <CoachHomePlanningCoverage
-              rows={planningCoverageRows}
-              totalAthletes={planningCoverageRows.length}
-              planningLeadDays={planningLeadDays}
-              needsPlanCount={needsPlanCount}
-            />
-          )}
         </div>
-        <CoachHomeRecentActivityTable
-          className={cn(
-            'xl:col-start-1',
-            showNeedsAttention ? 'xl:row-start-2' : 'xl:row-start-1',
-          )}
-          rows={activityRows}
-          athleteOptions={athleteOptions}
-        />
       </div>
     </div>
   )

@@ -470,7 +470,7 @@ function MobileBottomNav({
   return (
     <nav
       data-mobile-bottom-nav
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card shadow-[var(--shadow-nav)] portrait:max-lg:block landscape:max-lg:hidden lg:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-white/30 bg-white/30 shadow-[0_-6px_20px_rgb(0_0_0/0.04)] backdrop-blur-md backdrop-saturate-125 portrait:max-lg:block landscape:max-lg:hidden lg:hidden supports-[backdrop-filter]:bg-white/25"
     >
       {openItem?.children ? (
         <>

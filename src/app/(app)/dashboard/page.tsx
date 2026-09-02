@@ -36,7 +36,13 @@ export default async function DashboardPage() {
 
   if (isCoachView(session)) {
     const coachHome = await getCoachHomeData(session.userId)
-    return <CoachHomePageContent coachHome={coachHome} />
+    return (
+      <CoachHomePageContent
+        coachHome={coachHome}
+        greeting={formatGreeting()}
+        coachName={formatGreetingName(session.name)}
+      />
+    )
   }
 
   const athleteId = await resolveAthleteId(session)
@@ -95,8 +101,8 @@ export default async function DashboardPage() {
   const todayWeather = weatherByDate[todayDateKey()] ?? null
 
   return (
-    <div className="tt-dashboard-page -mx-4 px-4 pb-8 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
-      <div className="tt-dashboard-content">
+    <div className="tt-dashboard-page tt-athlete-home-page -mx-4 px-4 pb-6 sm:-mx-4 sm:px-4 sm:pb-8 lg:-mx-8 lg:px-8">
+      <div className="tt-dashboard-content tt-athlete-home-content">
         <AthleteDashboardHeader
           greeting={formatGreeting()}
           name={formatGreetingName(session.name)}
@@ -106,81 +112,83 @@ export default async function DashboardPage() {
           hasWeatherCoords={hasWeatherCoords}
         />
 
-        {inboxUnread > 0 ? (
-          <section className="mb-6 tt-surface-card px-4 py-3.5 sm:mb-7">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink,#111)]">
-                  Inbox
-                </p>
-                <p className="mt-1 text-[13px] text-[var(--tt-ink-soft,#6b6b6b)]">
-                  You have {inboxUnread} unread coach{' '}
-                  {inboxUnread === 1 ? 'reply' : 'replies'}.
+        <div className="tt-home-mobile-sheet space-y-4 md:contents md:space-y-0">
+          {inboxUnread > 0 ? (
+            <section className="tt-home-mobile-card mb-0 px-4 md:mb-7">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-[family-name:var(--font-display)] text-[1.15rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink,#111)] sm:text-[0.6875rem] sm:font-medium sm:tracking-[0.08em]">
+                    Inbox
+                  </p>
+                  <p className="mt-1 text-[13px] text-[var(--tt-ink-soft,#6b6b6b)]">
+                    You have {inboxUnread} unread coach{' '}
+                    {inboxUnread === 1 ? 'reply' : 'replies'}.
+                  </p>
+                </div>
+                <Button asChild variant="secondary" size="sm">
+                  <Link href="/inbox">Open Inbox</Link>
+                </Button>
+              </div>
+            </section>
+          ) : null}
+
+          <div className="tt-dashboard-grid">
+            <div className="min-w-0 space-y-4 md:space-y-7">
+              {data.pendingRaceFollowUps.length > 0 ? (
+                <AthleteRaceFollowUp
+                  races={data.pendingRaceFollowUps.map((race) => ({
+                    id: race.id,
+                    name: race.name,
+                    date: race.date,
+                    location: race.location,
+                    type: race.type,
+                    goal: race.goal,
+                    stravaActivityUrl: race.stravaActivityUrl,
+                    stravaActivityName: race.stravaActivityName,
+                    legs: 'legs' in race ? race.legs : [],
+                  }))}
+                />
+              ) : null}
+
+              <AthleteDashboardWorkouts
+                todayWorkouts={todayWorkouts}
+                upcomingWorkouts={upcomingWorkouts}
+                weatherByDate={weatherByDate}
+                showWeather={showWeather}
+              />
+
+              <AthleteActivityFeed workouts={activityFeedWorkouts} />
+            </div>
+
+            <aside className="min-w-0">
+              {/* Match Today section title row so races top border lines up with first workout card */}
+              <div className="mb-3 hidden lg:block" aria-hidden>
+                <p className="invisible select-none text-[0.6875rem] font-medium uppercase leading-none tracking-[0.08em]">
+                  Today
                 </p>
               </div>
-              <Button asChild variant="secondary" size="sm">
-                <Link href="/inbox">Open Inbox</Link>
-              </Button>
-            </div>
-          </section>
-        ) : null}
-
-        <div className="tt-dashboard-grid">
-          <div className="min-w-0 space-y-7">
-            {data.pendingRaceFollowUps.length > 0 ? (
-              <AthleteRaceFollowUp
-                races={data.pendingRaceFollowUps.map((race) => ({
-                  id: race.id,
-                  name: race.name,
-                  date: race.date,
-                  location: race.location,
-                  type: race.type,
-                  goal: race.goal,
-                  stravaActivityUrl: race.stravaActivityUrl,
-                  stravaActivityName: race.stravaActivityName,
-                  legs: 'legs' in race ? race.legs : [],
-                }))}
-              />
-            ) : null}
-
-            <AthleteDashboardWorkouts
-              todayWorkouts={todayWorkouts}
-              upcomingWorkouts={upcomingWorkouts}
-              weatherByDate={weatherByDate}
-              showWeather={showWeather}
-            />
-
-            <AthleteActivityFeed workouts={activityFeedWorkouts} />
+              <div className="space-y-3 md:space-y-3">
+                <AthleteNextRacesCard
+                  races={(data.nextRaces ?? []).map((race) => ({
+                    id: race.id,
+                    name: race.name,
+                    date: race.date,
+                    location: race.location,
+                  }))}
+                />
+                <AthleteWeekStatsCard
+                  workouts={weekStatsWorkouts}
+                  anchorWeekStartKey={data.weekStatsAnchorStartKey}
+                  planSportRows={data.planSportRows}
+                  swimCssSecPer100m={data.swimCssSecPer100m}
+                />
+                <AthleteTrainingLoadCard
+                  workouts={weekStatsWorkouts}
+                  anchorWeekStartKey={data.weekStatsAnchorStartKey}
+                />
+              </div>
+            </aside>
           </div>
-
-          <aside className="min-w-0">
-            {/* Match Today section title row so races top border lines up with first workout card */}
-            <div className="mb-3 hidden lg:block" aria-hidden>
-              <p className="invisible select-none text-[0.6875rem] font-medium uppercase leading-none tracking-[0.08em]">
-                Today
-              </p>
-            </div>
-            <div className="space-y-3">
-              <AthleteNextRacesCard
-                races={(data.nextRaces ?? []).map((race) => ({
-                  id: race.id,
-                  name: race.name,
-                  date: race.date,
-                  location: race.location,
-                }))}
-              />
-              <AthleteWeekStatsCard
-                workouts={weekStatsWorkouts}
-                anchorWeekStartKey={data.weekStatsAnchorStartKey}
-                planSportRows={data.planSportRows}
-                swimCssSecPer100m={data.swimCssSecPer100m}
-              />
-              <AthleteTrainingLoadCard
-                workouts={weekStatsWorkouts}
-                anchorWeekStartKey={data.weekStatsAnchorStartKey}
-              />
-            </div>
-          </aside>
         </div>
       </div>
     </div>

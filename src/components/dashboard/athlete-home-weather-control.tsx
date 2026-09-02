@@ -13,6 +13,7 @@ type AthleteHomeWeatherControlProps = {
   locationName: string | null
   hasCoords: boolean
   className?: string
+  tone?: 'light' | 'dark'
 }
 
 export function AthleteHomeWeatherControl({
@@ -20,9 +21,11 @@ export function AthleteHomeWeatherControl({
   locationName,
   hasCoords,
   className,
+  tone = 'light',
 }: AthleteHomeWeatherControlProps) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
+  const dark = tone === 'dark'
 
   function savePlace(place: WeatherPlace) {
     startTransition(async () => {
@@ -46,16 +49,29 @@ export function AthleteHomeWeatherControl({
       {weather ? (
         <ListDayWeatherStrip weather={weather} size="lg" />
       ) : hasCoords ? (
-        <p className="shrink-0 text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
+        <p
+          className={cn(
+            'shrink-0 text-[11px]',
+            dark ? 'text-white/55' : 'text-[var(--tt-ink-faint,#9a9a9a)]',
+          )}
+        >
           Forecast unavailable
         </p>
       ) : (
-        <p className="shrink-0 text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
+        <p
+          className={cn(
+            'shrink-0 text-[11px]',
+            dark ? 'text-white/55' : 'text-[var(--tt-ink-faint,#9a9a9a)]',
+          )}
+        >
           No forecast yet
         </p>
       )}
       <span
-        className="mx-0.5 h-1 w-1 shrink-0 rounded-full bg-[var(--tt-line-strong,#ddd)]"
+        className={cn(
+          'mx-0.5 h-1 w-1 shrink-0 rounded-full',
+          dark ? 'bg-white/30' : 'bg-[var(--tt-line-strong,#ddd)]',
+        )}
         aria-hidden
       />
       <WeekWeatherLocationControl
@@ -68,7 +84,12 @@ export function AthleteHomeWeatherControl({
         }
         onSelect={savePlace}
         align="end"
-        className="shrink-0 text-[12px] text-[var(--tt-ink-soft,#6b6b6b)] decoration-[var(--tt-line-strong,#ddd)] hover:text-[var(--tt-ink,#111)]"
+        className={cn(
+          'shrink-0 text-[12px]',
+          dark
+            ? 'text-white/70 decoration-white/30 hover:text-white'
+            : 'text-[var(--tt-ink-soft,#6b6b6b)] decoration-[var(--tt-line-strong,#ddd)] hover:text-[var(--tt-ink,#111)]',
+        )}
       />
     </div>
   )

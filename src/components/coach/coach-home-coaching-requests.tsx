@@ -8,6 +8,7 @@ import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import {
   CoachHomePanelHeader,
   CoachHomePanelTable,
+  CoachHomeMobileAccordionBody,
 } from '@/components/coach/coach-home-panel'
 import { FormError } from '@/components/ui/form-error'
 import { cn } from '@/lib/utils'
@@ -23,32 +24,46 @@ type CoachHomeCoachingRequestsProps = {
 }
 
 export function CoachHomeCoachingRequests({ requests }: CoachHomeCoachingRequestsProps) {
+  const [mobileOpen, setMobileOpen] = useState(true)
+
   if (requests.length === 0) return null
 
   return (
-    <section className="min-w-0">
-      <CoachHomePanelHeader title="Coaching requests" count={requests.length} />
-      <CoachHomePanelTable tableClassName="table-fixed">
-        <colgroup>
-          <col />
-          <col className="w-[4.5rem]" />
-          <col className="w-[9.5rem]" />
-        </colgroup>
-        <thead>
-          <tr>
-            <th>Athlete</th>
-            <th className="text-right">When</th>
-            <th className="pr-3 text-right">
-              <span className="sr-only">Actions</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {requests.map((request) => (
-            <CoachingRequestRow key={request.id} request={request} />
-          ))}
-        </tbody>
-      </CoachHomePanelTable>
+    <section className="tt-coach-home-mobile-card min-w-0">
+      <div className="px-4 md:px-0">
+        <CoachHomePanelHeader
+          title="Coaching requests"
+          count={requests.length}
+          collapsible
+          expanded={mobileOpen}
+          onToggle={() => setMobileOpen((open) => !open)}
+        />
+      </div>
+      <CoachHomeMobileAccordionBody expanded={mobileOpen}>
+        <div className="px-4 md:px-0">
+          <CoachHomePanelTable tableClassName="table-fixed">
+            <colgroup>
+              <col />
+              <col className="w-[4.5rem]" />
+              <col className="w-[9.5rem]" />
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Athlete</th>
+                <th className="text-right">When</th>
+                <th className="pr-3 text-right">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {requests.map((request) => (
+                <CoachingRequestRow key={request.id} request={request} />
+              ))}
+            </tbody>
+          </CoachHomePanelTable>
+        </div>
+      </CoachHomeMobileAccordionBody>
     </section>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { format } from 'date-fns'
+import { format, isToday, isYesterday } from 'date-fns'
 import { Check, MessageSquare, Minus } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
 import { ActivityRouteMap } from '@/components/plan/activity-route-map'
@@ -14,6 +14,7 @@ import {
   type CoachHomeActivityMetric,
   type CoachHomeWorkoutActivityRow,
 } from '@/lib/coach-home'
+import { parseDateOnly } from '@/lib/dates'
 import { isStravaSynced, workoutHasCoachingChat, athleteCanLeaveWorkoutComment } from '@/lib/plan-workout'
 import { workoutFeelingLabel } from '@/lib/workout-feeling'
 import { cn } from '@/lib/utils'
@@ -146,9 +147,44 @@ function SkippedReason({ notes }: { notes: string | null }) {
 type ActivityFeedWorkoutCardProps = {
   row: CoachHomeWorkoutActivityRow
   isCoach: boolean
+  /** Mobile: show date under the workout title. */
+  showDate?: boolean
 }
 
-export function ActivityFeedWorkoutCard({ row, isCoach }: ActivityFeedWorkoutCardProps) {
+function formatAthleteFeedDateMeta(opts: {
+  dateKey: string
+  activityAt?: string
+  sourceLabel?: string | null
+}): string {
+  const date = parseDateOnly(opts.dateKey)
+  const at = opts.activityAt ? new Date(opts.activityAt) : null
+  const hasClock =
+    at != null &&
+    !Number.isNaN(at.getTime()) &&
+    (at.getHours() !== 0 || at.getMinutes() !== 0 || at.getSeconds() !== 0)
+
+  let line: string
+  if (isToday(date) || isYesterday(date)) {
+    const day = isToday(date) ? 'Today' : 'Yesterday'
+    line = hasClock ? `${day} at ${format(at!, 'HH:mm')}` : day
+  } else if (hasClock) {
+    line = `${format(date, 'EEE · MMM d')} · ${format(at!, 'HH:mm')}`
+  } else {
+    line = format(date, 'EEE · MMM d')
+  }
+
+  const source = opts.sourceLabel?.trim()
+  if (source && source !== '—') {
+    line = `${line} · ${source}`
+  }
+  return line
+}
+
+export function ActivityFeedWorkoutCard({
+  row,
+  isCoach,
+  showDate = false,
+}: ActivityFeedWorkoutCardProps) {
   const skipped = row.status === 'skipped'
   const hasFeedbackNotes = Boolean(row.feedbackNotes?.trim())
   const hasChat = workoutHasCoachingChat(row.workout)
@@ -172,7 +208,7 @@ export function ActivityFeedWorkoutCard({ row, isCoach }: ActivityFeedWorkoutCar
         )}
       >
         <div
-          className="absolute inset-y-0 left-0 w-[3px]"
+          className="absolute inset-y-0 left-0 hidden w-[3px] md:block"
           style={{ background: sportRailColor(row.activityType, skipped) }}
           aria-hidden
         />
@@ -185,6 +221,18 @@ export function ActivityFeedWorkoutCard({ row, isCoach }: ActivityFeedWorkoutCar
                 <p className="truncate text-[15px] font-semibold leading-snug text-[var(--tt-ink)]">
                   {row.activityTitle}
                 </p>
+                {showDate ? (
+                  <time
+                    dateTime={row.dateKey}
+                    className="mt-0.5 block truncate text-[11px] font-normal text-[var(--tt-ink-soft,#6b6b6b)]"
+                  >
+                    {formatAthleteFeedDateMeta({
+                      dateKey: row.dateKey,
+                      activityAt: row.activityAt,
+                      sourceLabel: row.sourceLabel,
+                    })}
+                  </time>
+                ) : null}
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--tt-ink-faint)]">
                     {WORKOUT_TYPE_LABELS[row.activityType]}
@@ -222,11 +270,10 @@ export function ActivityFeedWorkoutCard({ row, isCoach }: ActivityFeedWorkoutCar
               </div>
             </div>
 
-            {canAthleteFeedback ? (
-              <ActivityFeedInlineFeedback row={row} skipped={skipped} />
-            ) : skipped ? (
+            {!canAthleteFeedback && skipped ? (
               <SkippedReason notes={row.feedbackNotes} />
-            ) : hasFeedbackNotes ? (
+            ) : null}
+            {!canAthleteFeedback && !skipped && hasFeedbackNotes ? (
               <p className="flex items-start gap-1.5 text-[12px] leading-snug text-[var(--tt-ink-soft)]">
                 <MessageSquare
                   className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--tt-ink-faint)]"
@@ -235,7 +282,8 @@ export function ActivityFeedWorkoutCard({ row, isCoach }: ActivityFeedWorkoutCar
                 />
                 <span className="line-clamp-3 whitespace-pre-wrap">{row.feedbackNotes}</span>
               </p>
-            ) : row.feedbackFeeling != null ? (
+            ) : null}
+            {!canAthleteFeedback && !skipped && !hasFeedbackNotes && row.feedbackFeeling != null ? (
               <p className="text-[12px] text-[var(--tt-ink-soft)]">
                 Feeling {row.feedbackFeeling}/10 · {workoutFeelingLabel(row.feedbackFeeling)}
               </p>
@@ -274,6 +322,12 @@ export function ActivityFeedWorkoutCard({ row, isCoach }: ActivityFeedWorkoutCar
             ) : null}
           </div>
         </div>
+
+        {canAthleteFeedback ? (
+          <div className="border-t border-[var(--tt-line)] px-4 pb-3.5 pt-3">
+            <ActivityFeedInlineFeedback row={row} skipped={skipped} />
+          </div>
+        ) : null}
       </article>
     </WorkoutModalTrigger>
   )

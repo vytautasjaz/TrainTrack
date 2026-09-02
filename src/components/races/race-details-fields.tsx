@@ -27,6 +27,7 @@ import {
   type RunDistancePreset,
 } from '@/lib/race-form'
 import { raceUsesLegs } from '@/lib/race-legs'
+import { toDateKeyOrEmpty } from '@/lib/dates'
 import { RaceLegsPlanFields } from '@/components/races/race-legs-fields'
 import { PLANNER_PRIORITY_DOT } from '@/lib/season-planner'
 import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
@@ -156,7 +157,7 @@ export function RaceDetailsFields({
     lockedIntent ?? initial?.intent ?? RaceIntent.PLANNED,
   )
   const [name, setName] = useState(initial?.name ?? '')
-  const [date, setDate] = useState(initial?.date ?? '')
+  const [date, setDate] = useState(() => toDateKeyOrEmpty(initial?.date))
   const [location, setLocation] = useState(initial?.location ?? '')
   const [priority, setPriority] = useState<RacePriority>(
     initial?.priority ?? RacePriority.A,

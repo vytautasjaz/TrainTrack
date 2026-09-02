@@ -112,8 +112,8 @@ export function WeekPlanWorkoutCard({
   const titleSize = size === 'l' ? 'text-[0.8125rem]' : 'text-[0.75rem]'
 
   const completionPercent =
-    colorMode === 'completion'
-      ? getWorkoutCompletionPercent(workout, status)
+    colorMode === 'completion' && completed && !workout.isRace
+      ? (getWorkoutCompletionPercent(workout, status) ?? 100)
       : null
   const completionStyle =
     completionPercent != null

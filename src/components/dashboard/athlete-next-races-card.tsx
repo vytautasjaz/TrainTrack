@@ -3,6 +3,10 @@
 import { useCallback, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  HomeMobileSectionHeader,
+  MobileAccordionBody,
+} from '@/components/ui/mobile-accordion-body'
 import { daysUntil } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -12,6 +16,9 @@ export type AthleteNextRaceItem = {
   date: Date | string
   location?: string | null
 }
+
+const SHELL =
+  'overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] px-4 py-3.5 shadow-[var(--tt-shadow)] md:rounded-[10px] md:p-4'
 
 function splitRaceName(name: string): { lead: string; accent: string } {
   const parts = name.trim().split(/\s+/)
@@ -54,6 +61,7 @@ export function AthleteNextRacesCard({
   const [active, setActive] = useState(0)
   const [dragPx, setDragPx] = useState(0)
   const [dragging, setDragging] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(true)
   const drag = useRef<{
     pointerId: number
     startX: number
@@ -126,169 +134,173 @@ export function AthleteNextRacesCard({
 
   if (races.length === 0) {
     return (
-      <section className={cn('tt-surface-card overflow-hidden p-4', className)}>
-        <p className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
-          Upcoming races
-        </p>
-        <p className="mt-3 text-sm text-[var(--tt-ink-soft,#6b6b6b)]">
-          None scheduled
-        </p>
-        <Link
-          href="/season"
-          className="mt-3 inline-block text-[12px] font-medium text-[var(--tt-ink,#111)] underline-offset-2 hover:underline"
-        >
-          Open season →
-        </Link>
+      <section className={cn(SHELL, className)}>
+        <HomeMobileSectionHeader
+          title="Upcoming races"
+          expanded={mobileOpen}
+          onToggle={() => setMobileOpen((open) => !open)}
+        />
+        <MobileAccordionBody expanded={mobileOpen}>
+          <p className="mt-3 text-sm text-[var(--tt-ink-soft,#6b6b6b)]">
+            None scheduled
+          </p>
+          <Link
+            href="/season"
+            className="mt-3 inline-block text-[12px] font-medium text-[var(--tt-ink,#111)] underline-offset-2 hover:underline"
+          >
+            Open season →
+          </Link>
+        </MobileAccordionBody>
       </section>
     )
   }
 
   return (
-    <section className={cn('tt-surface-card overflow-hidden p-4', className)}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink,#111)]">
-            Upcoming races
-          </p>
-          <p className="mt-0.5 text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]">
-            {active + 1} of {races.length}
-          </p>
-        </div>
-        {races.length > 1 ? (
-          <div className="flex shrink-0 items-center gap-0.5">
-            <button
-              type="button"
-              className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
-              aria-label="Previous race"
-              onClick={() => go(-1)}
-              disabled={active <= 0}
-            >
-              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-            <button
-              type="button"
-              className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
-              aria-label="Next race"
-              onClick={() => go(1)}
-              disabled={active >= races.length - 1}
-            >
-              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-          </div>
-        ) : null}
-      </div>
-
-      <div
-        ref={viewportRef}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        className={cn(
-          'relative mt-3 overflow-hidden touch-pan-y',
-          races.length > 1 && 'cursor-grab select-none',
-          dragging && 'cursor-grabbing',
-        )}
-        style={{ touchAction: races.length > 1 ? 'pan-y' : undefined }}
-      >
-        <div
-          className={cn(
-            'flex will-change-transform',
-            dragging
-              ? 'transition-none'
-              : 'transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
-          )}
-          style={{
-            transform: `translate3d(calc(${-active * 100}% + ${dragPx}px), 0, 0)`,
-          }}
-        >
-          {races.map((race, i) => {
-            const days = Math.max(0, daysUntil(new Date(race.date)))
-            const countdown = formatCountdown(days)
-            const { lead, accent } = splitRaceName(race.name)
-            const dateLabel = new Date(race.date).toLocaleDateString(undefined, {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-              timeZone: 'UTC',
-            })
-            const isActive = i === active
-            return (
-              <div
-                key={race.id}
-                className="w-full min-w-full shrink-0"
-                aria-hidden={!isActive}
+    <section className={cn(SHELL, className)}>
+      <HomeMobileSectionHeader
+        title="Upcoming races"
+        expanded={mobileOpen}
+        onToggle={() => setMobileOpen((open) => !open)}
+        subtitle={`${active + 1} of ${races.length}`}
+        trailing={
+          races.length > 1 ? (
+            <>
+              <button
+                type="button"
+                className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
+                aria-label="Previous race"
+                onClick={() => go(-1)}
+                disabled={active <= 0}
               >
+                <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </button>
+              <button
+                type="button"
+                className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
+                aria-label="Next race"
+                onClick={() => go(1)}
+                disabled={active >= races.length - 1}
+              >
+                <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+              </button>
+            </>
+          ) : null
+        }
+      />
+
+      <MobileAccordionBody expanded={mobileOpen}>
+        <div
+          ref={viewportRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={endDrag}
+          onPointerCancel={endDrag}
+          className={cn(
+            'relative mt-3 overflow-hidden touch-pan-y',
+            races.length > 1 && 'cursor-grab select-none',
+            dragging && 'cursor-grabbing',
+          )}
+          style={{ touchAction: races.length > 1 ? 'pan-y' : undefined }}
+        >
+          <div
+            className={cn(
+              'flex will-change-transform',
+              dragging
+                ? 'transition-none'
+                : 'transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]',
+            )}
+            style={{
+              transform: `translate3d(calc(${-active * 100}% + ${dragPx}px), 0, 0)`,
+            }}
+          >
+            {races.map((race, i) => {
+              const days = Math.max(0, daysUntil(new Date(race.date)))
+              const countdown = formatCountdown(days)
+              const { lead, accent } = splitRaceName(race.name)
+              const dateLabel = new Date(race.date).toLocaleDateString(undefined, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                timeZone: 'UTC',
+              })
+              const isActive = i === active
+              return (
                 <div
-                  className={cn(
-                    'flex items-end justify-between gap-3 rounded-[8px] px-0.5 transition-[opacity,transform,box-shadow] duration-200',
-                    dragging && isActive && 'scale-[0.985] shadow-[var(--tt-shadow-lift)]',
-                    dragging && !isActive && 'opacity-70',
-                  )}
+                  key={race.id}
+                  className="w-full min-w-full shrink-0"
+                  aria-hidden={!isActive}
                 >
-                  <div className="min-w-0">
-                    <p
-                      className="text-[1.9rem] uppercase leading-none tracking-[-0.01em]"
-                      style={{ fontFamily: 'var(--font-display)' }}
-                    >
-                      <span className="text-[var(--tt-ink,#111)]">{lead} </span>
-                      {accent ? (
-                        <span className="text-[var(--tt-red,#da2f36)]">{accent}</span>
+                  <div
+                    className={cn(
+                      'flex items-end justify-between gap-3 rounded-[8px] px-0.5 transition-[opacity,transform,box-shadow] duration-200',
+                      dragging && isActive && 'scale-[0.985] shadow-[var(--tt-shadow-lift)]',
+                      dragging && !isActive && 'opacity-70',
+                    )}
+                  >
+                    <div className="min-w-0">
+                      <p
+                        className="text-[1.9rem] uppercase leading-none tracking-[-0.01em]"
+                        style={{ fontFamily: 'var(--font-display)' }}
+                      >
+                        <span className="text-[var(--tt-ink,#111)]">{lead} </span>
+                        {accent ? (
+                          <span className="text-[var(--tt-red,#da2f36)]">{accent}</span>
+                        ) : null}
+                      </p>
+                      <p className="mt-1.5 text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
+                        {dateLabel}
+                      </p>
+                      {race.location ? (
+                        <p className="text-[12px] text-[var(--tt-ink-faint,#9a9a9a)]">
+                          {race.location}
+                        </p>
                       ) : null}
-                    </p>
-                    <p className="mt-1.5 text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
-                      {dateLabel}
-                    </p>
-                    {race.location ? (
-                      <p className="text-[12px] text-[var(--tt-ink-faint,#9a9a9a)]">
-                        {race.location}
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p
+                        className="text-5xl uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)]"
+                        style={{ fontFamily: 'var(--font-display)' }}
+                      >
+                        {countdown.primary}
                       </p>
-                    ) : null}
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p
-                      className="text-5xl uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)]"
-                      style={{ fontFamily: 'var(--font-display)' }}
-                    >
-                      {countdown.primary}
-                    </p>
-                    <p className="mt-1 text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-[var(--tt-red,#da2f36)]">
-                      {countdown.label}
-                    </p>
-                    {countdown.weeks ? (
-                      <p className="mt-0.5 text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]">
-                        {countdown.weeks}
+                      <p className="mt-1 text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-[var(--tt-red,#da2f36)]">
+                        {countdown.label}
                       </p>
-                    ) : null}
+                      {countdown.weeks ? (
+                        <p className="mt-0.5 text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]">
+                          {countdown.weeks}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-            )
-          })}
+              )
+            })}
+          </div>
         </div>
-      </div>
 
-      {races.length > 1 ? (
-        <div className="mt-3 flex items-center justify-center gap-1.5">
-          {races.map((race, i) => (
-            <button
-              key={race.id}
-              type="button"
-              aria-label={`Show ${race.name}`}
-              aria-current={i === active}
-              className="h-1.5 rounded-full transition-all"
-              style={{
-                width: i === active ? '1rem' : '0.35rem',
-                background:
-                  i === active
-                    ? 'var(--tt-red,#da2f36)'
-                    : 'var(--tt-line-strong,#ddd)',
-              }}
-              onClick={() => goTo(i)}
-            />
-          ))}
-        </div>
-      ) : null}
+        {races.length > 1 ? (
+          <div className="mt-3 flex items-center justify-center gap-1.5">
+            {races.map((race, i) => (
+              <button
+                key={race.id}
+                type="button"
+                aria-label={`Show ${race.name}`}
+                aria-current={i === active}
+                className="h-1.5 rounded-full transition-all"
+                style={{
+                  width: i === active ? '1rem' : '0.35rem',
+                  background:
+                    i === active
+                      ? 'var(--tt-red,#da2f36)'
+                      : 'var(--tt-line-strong,#ddd)',
+                }}
+                onClick={() => goTo(i)}
+              />
+            ))}
+          </div>
+        ) : null}
+      </MobileAccordionBody>
     </section>
   )
 }

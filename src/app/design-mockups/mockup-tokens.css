@@ -835,8 +835,8 @@
   width: 3px;
   background: linear-gradient(
     to top,
-    #86d39a 0,
-    #86d39a var(--tt-completion, 100%),
+    var(--tt-good, #1a9f5c) 0,
+    var(--tt-good, #1a9f5c) var(--tt-completion, 100%),
     #d8f0e0 var(--tt-completion, 100%),
     #d8f0e0 100%
   );

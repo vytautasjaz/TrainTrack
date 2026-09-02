@@ -22,7 +22,6 @@ export function TrainTrackMark({
   ...props
 }: MarkProps) {
   const labelled = Boolean(props['aria-label'] || props['aria-labelledby'])
-  const apex = tone === 'dark' ? '#FFFFFF' : '#111111'
   return (
     <svg
       viewBox="0 0 100 100"
@@ -30,12 +29,16 @@ export function TrainTrackMark({
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden={labelled ? undefined : true}
       role={labelled ? 'img' : undefined}
-      className={cn('shrink-0', className)}
+      className={cn(
+        'shrink-0',
+        tone === 'dark' ? 'text-white' : 'text-[#111111]',
+        className,
+      )}
       {...props}
     >
       <path
         d={APEX_D}
-        stroke={apex}
+        stroke="currentColor"
         strokeWidth={APEX_STROKE}
         strokeLinecap="round"
         strokeLinejoin="round"

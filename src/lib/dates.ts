@@ -6,6 +6,41 @@ export function parseDateOnly(dateStr: string): Date {
   return new Date(Date.UTC(y, m - 1, d))
 }
 
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** True when `value` is a calendar YYYY-MM-DD string. */
+export function isDateOnlyKey(value: unknown): value is string {
+  return typeof value === 'string' && DATE_ONLY_RE.test(value.trim())
+}
+
+/**
+ * Require a calendar date from form/API input. Accepts `YYYY-MM-DD` or an ISO
+ * datetime (uses the calendar prefix). Throws a user-facing error if missing/invalid
+ * (avoids Prisma `Invalid Date` on empty hidden date fields).
+ */
+export function requireDateOnly(
+  value: FormDataEntryValue | string | null | undefined,
+  message = 'Pick a race date.',
+): Date {
+  const raw = String(value ?? '').trim()
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (!match) throw new Error(message)
+  const date = parseDateOnly(match[1]!)
+  if (Number.isNaN(date.getTime())) throw new Error(message)
+  return date
+}
+
+/** Normalize form/API date values to YYYY-MM-DD (or empty). */
+export function toDateKeyOrEmpty(value: unknown): string {
+  if (value == null || value === '') return ''
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? '' : toDateKey(value)
+  }
+  const raw = String(value).trim()
+  const match = raw.match(/^(\d{4}-\d{2}-\d{2})/)
+  return match?.[1] ?? ''
+}
+
 /** Today's calendar date as YYYY-MM-DD in local timezone. */
 export function todayDateKey(): string {
   return format(new Date(), 'yyyy-MM-dd')

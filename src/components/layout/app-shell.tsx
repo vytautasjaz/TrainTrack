@@ -1,11 +1,9 @@
 import { Suspense } from 'react'
-import Link from 'next/link'
 import { AppNav } from '@/components/layout/app-nav'
-import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
+import { MobileAppTopBar } from '@/components/layout/mobile-app-top-bar'
 import { ViewModeSwitchProvider } from '@/components/layout/view-mode-switch-context'
 import { CoachAthleteBarGate } from '@/components/coach/coach-athlete-bar-gate'
 import { StravaAutoSync } from '@/components/integrations/strava-auto-sync'
-import { TrainTrackMark } from '@/components/brand/traintrack-logo'
 import {
   getSession,
   getCoachAthletes,
@@ -102,32 +100,16 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         />
       </Suspense>
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] portrait:max-lg:pb-[calc(4.5rem+env(safe-area-inset-bottom))] landscape:max-lg:pb-2 lg:pb-0" data-app-main-column>
-        <div className="sticky top-0 z-40 bg-background/90 backdrop-blur-md" data-app-sticky-chrome>
-          <header className="flex items-center gap-2 border-b border-border/40 px-3 py-2.5 landscape:max-lg:py-1.5 lg:hidden">
-            <Suspense fallback={null}>
-              <MobileNavMenu
-                showPreferences={showPreferences}
-                showConnectCoach={showConnectCoach && !coach}
-                isCoach={coach}
-                canSwitchView={canSwitchView}
-                viewMode={viewMode}
-                dashboardNotificationCount={inboxNotificationCount}
-                athleteProfile={athleteProfile}
-              />
-            </Suspense>
-            <Link
-              href="/dashboard"
-              className="flex min-w-0 items-center gap-2 outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand/40 portrait:max-lg:inline landscape:max-lg:hidden"
-              aria-label="TrainTrack home"
-            >
-              <TrainTrackMark className="h-7 w-7 shrink-0" />
-              <span className="traintrack-wordmark truncate text-[15px]">TRAINTRACK</span>
-            </Link>
-          </header>
-          {athleteBar ? (
-            <div data-coach-athlete-bar>{athleteBar}</div>
-          ) : null}
-        </div>
+        <MobileAppTopBar
+          showPreferences={showPreferences}
+          showConnectCoach={showConnectCoach && !coach}
+          isCoach={coach}
+          canSwitchView={canSwitchView}
+          viewMode={viewMode}
+          dashboardNotificationCount={inboxNotificationCount}
+          athleteProfile={athleteProfile}
+          athleteBar={athleteBar}
+        />
         <main
           data-app-main
           className="w-full min-w-0 max-w-6xl flex-1 px-4 pb-4 pt-3 landscape:max-lg:px-2 lg:max-w-[110rem] lg:px-8 lg:pb-6 lg:pt-0"

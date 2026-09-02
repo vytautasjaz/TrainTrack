@@ -2,10 +2,26 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
-import { parseDateOnly } from '@/lib/dates'
-import { requireSession, resolveAthleteId } from '@/lib/session'
+import { parseDateOnly, toDateKey } from '@/lib/dates'
+import {
+  athleteOwnedByCoachWhere,
+  isCoachView,
+  requireSession,
+  resolveAthleteId,
+} from '@/lib/session'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+const RECENT_EVENTS_TAKE = 25
+
+export type CoachRecentSeasonEvent = {
+  id: string
+  title: string
+  notes: string | null
+  startDate: string
+  endDate: string
+  athleteId: string
+  athleteName: string
+}
 
 async function requireAthleteId() {
   const session = await requireSession()
@@ -53,6 +69,37 @@ function parseEventDateRange(
     return { startDate: endDate, endDate: startDate }
   }
   return { startDate, endDate }
+}
+
+/** Recent season events across the coach roster — for Add event “Reuse from…”. */
+export async function listCoachRecentSeasonEvents(): Promise<CoachRecentSeasonEvent[]> {
+  const session = await requireSession()
+  if (!isCoachView(session)) return []
+
+  const rows = await prisma.seasonEvent.findMany({
+    where: { athlete: athleteOwnedByCoachWhere(session.userId) },
+    orderBy: [{ updatedAt: 'desc' }, { startDate: 'desc' }],
+    take: RECENT_EVENTS_TAKE,
+    select: {
+      id: true,
+      title: true,
+      notes: true,
+      startDate: true,
+      endDate: true,
+      athleteId: true,
+      athlete: { select: { name: true } },
+    },
+  })
+
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    notes: row.notes,
+    startDate: toDateKey(row.startDate),
+    endDate: toDateKey(row.endDate),
+    athleteId: row.athleteId,
+    athleteName: row.athlete.name,
+  }))
 }
 
 export async function createSeasonEvent(formData: FormData) {

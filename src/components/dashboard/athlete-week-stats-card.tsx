@@ -22,9 +22,16 @@ import {
   weekSportProgressPercent,
   weekSportsWithPlannedWork,
 } from '@/lib/week-sport-stats'
+import {
+  HomeMobileSectionHeader,
+  MobileAccordionBody,
+} from '@/components/ui/mobile-accordion-body'
 import { cn } from '@/lib/utils'
 
 const WEEK_NAV_LIMIT = 4
+
+const SHELL =
+  'overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] px-4 py-3.5 shadow-[var(--tt-shadow)] md:rounded-[10px] md:p-4'
 
 type AthleteWeekStatsCardProps = {
   workouts: PlanWorkoutDetail[]
@@ -54,6 +61,7 @@ export function AthleteWeekStatsCard({
   className,
 }: AthleteWeekStatsCardProps) {
   const [weekOffset, setWeekOffset] = useState(0)
+  const [mobileOpen, setMobileOpen] = useState(true)
 
   const selectedWeekStartKey = useMemo(() => {
     const anchor = parseDateOnly(anchorWeekStartKey)
@@ -122,115 +130,110 @@ export function AthleteWeekStatsCard({
           : `Week ${weekNum}`
 
   return (
-    <section
-      className={cn(
-        'tt-surface-card overflow-hidden p-4',
-        className,
-      )}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink,#111)]">
-            {title}
-          </p>
-          <p className="text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]">
-            {rangeLabel}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            type="button"
-            onClick={() => setWeekOffset((o) => Math.max(-WEEK_NAV_LIMIT, o - 1))}
-            disabled={!canPrev}
-            aria-label="Previous week"
-            className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setWeekOffset((o) => Math.min(WEEK_NAV_LIMIT, o + 1))}
-            disabled={!canNext}
-            aria-label="Next week"
-            className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
-          >
-            <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
-        </div>
-      </div>
+    <section className={cn(SHELL, className)}>
+      <HomeMobileSectionHeader
+        title={title}
+        expanded={mobileOpen}
+        onToggle={() => setMobileOpen((open) => !open)}
+        subtitle={rangeLabel}
+        trailing={
+          <>
+            <button
+              type="button"
+              onClick={() => setWeekOffset((o) => Math.max(-WEEK_NAV_LIMIT, o - 1))}
+              disabled={!canPrev}
+              aria-label="Previous week"
+              className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setWeekOffset((o) => Math.min(WEEK_NAV_LIMIT, o + 1))}
+              disabled={!canNext}
+              aria-label="Next week"
+              className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
+            >
+              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+          </>
+        }
+      />
 
-      {sports.length === 0 ? (
-        <p className="mt-3 text-center text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
-          No sports planned
-        </p>
-      ) : (
-        <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3">
-          {sports.map((sport) => {
-            const totals = sumSportWeekTotals(planDays, sport, {
-              swimCssSecPer100m,
-            })
-            const metric = weekSportMetric(sport, totals, allWorkouts)
-            const pct = weekSportProgressPercent(metric.actual, metric.planned)
-            const Icon = WORKOUT_TYPE_ICONS[sport]
+      <MobileAccordionBody expanded={mobileOpen}>
+        {sports.length === 0 ? (
+          <p className="mt-3 text-center text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
+            No sports planned
+          </p>
+        ) : (
+          <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-3">
+            {sports.map((sport) => {
+              const totals = sumSportWeekTotals(planDays, sport, {
+                swimCssSecPer100m,
+              })
+              const metric = weekSportMetric(sport, totals, allWorkouts)
+              const pct = weekSportProgressPercent(metric.actual, metric.planned)
+              const Icon = WORKOUT_TYPE_ICONS[sport]
 
-            return (
-              <div key={sport} className="min-w-0">
-                <div className="flex items-center gap-1">
-                  <Icon
-                    className={cn(
-                      'h-3 w-3 shrink-0',
-                      WEEK_STATS_SPORT_ICON_COLOR[sport],
-                    )}
-                    strokeWidth={1.75}
-                    aria-hidden
-                  />
-                  <p className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
-                    {WORKOUT_TYPE_LABELS[sport]}
+              return (
+                <div key={sport} className="min-w-0">
+                  <div className="flex items-center gap-1">
+                    <Icon
+                      className={cn(
+                        'h-3 w-3 shrink-0',
+                        WEEK_STATS_SPORT_ICON_COLOR[sport],
+                      )}
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                    <p className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
+                      {WORKOUT_TYPE_LABELS[sport]}
+                    </p>
+                  </div>
+                  <p className="mt-0.5 text-[11px] tabular-nums text-[var(--tt-ink,#111)]">
+                    <span className="font-semibold">{metric.actualLabel}</span>
+                    <span className="text-[var(--tt-ink-faint,#9a9a9a)]">
+                      /{metric.plannedLabel}
+                      {metric.unit ? ` ${metric.unit}` : ''}
+                    </span>
                   </p>
+                  <div className="mt-1 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
+                    <div
+                      className={cn(
+                        'h-full rounded-full transition-[width] duration-500 ease-out',
+                        WORKOUT_TYPE_DOT_CLASS[sport],
+                      )}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
                 </div>
-                <p className="mt-0.5 text-[11px] tabular-nums text-[var(--tt-ink,#111)]">
-                  <span className="font-semibold">{metric.actualLabel}</span>
-                  <span className="text-[var(--tt-ink-faint,#9a9a9a)]">
-                    /{metric.plannedLabel}
-                    {metric.unit ? ` ${metric.unit}` : ''}
-                  </span>
-                </p>
-                <div className="mt-1 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
-                  <div
-                    className={cn(
-                      'h-full rounded-full transition-[width] duration-500 ease-out',
-                      WORKOUT_TYPE_DOT_CLASS[sport],
-                    )}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
+              )
+            })}
+          </div>
+        )}
 
-      <div className="mt-3 border-t border-[var(--tt-line,#ebebeb)] pt-2.5">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
-            Overall
-          </p>
-          <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
-            <span className="font-semibold text-[var(--tt-ink,#111)]">
-              {overall.completedLabel}
-            </span>
-            <span>
-              /{overall.plannedLabel} · {overall.pct}%
-            </span>
-          </p>
+        <div className="mt-3 border-t border-[var(--tt-line,#ebebeb)] pt-2.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
+              Overall
+            </p>
+            <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
+              <span className="font-semibold text-[var(--tt-ink,#111)]">
+                {overall.completedLabel}
+              </span>
+              <span>
+                /{overall.plannedLabel} · {overall.pct}%
+              </span>
+            </p>
+          </div>
+          <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
+            <div
+              className="h-full rounded-full bg-[var(--tt-ink-soft,#6b6b6b)] transition-[width] duration-500 ease-out"
+              style={{ width: `${overall.pct}%` }}
+            />
+          </div>
         </div>
-        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
-          <div
-            className="h-full rounded-full bg-[var(--tt-ink-soft,#6b6b6b)] transition-[width] duration-500 ease-out"
-            style={{ width: `${overall.pct}%` }}
-          />
-        </div>
-      </div>
+      </MobileAccordionBody>
     </section>
   )
 }

@@ -156,8 +156,14 @@ export function TrainingListWorkoutRow({
     ),
   )
   const sportRail = sportRailVar(workout.type)
-  // Side rail stays sport-colored in every view mode (incl. Completion / Plain).
-  const rail = sportRail
+  // Completed: green rail fill height = completion %. Otherwise sport accent.
+  const showCompletionRail = completed && !isRace
+  const railTrack = showCompletionRail
+    ? '#d8f0e0'
+    : 'var(--tt-line,#ebebeb)'
+  const railFill = showCompletionRail
+    ? 'var(--tt-good, #1a9f5c)'
+    : sportRail
   const hero = getWorkoutCardHero(workout, status)
   const secondary = listSecondaryMetric(workout, status)
   const showCompletedMetrics =
@@ -264,14 +270,15 @@ export function TrainingListWorkoutRow({
       }}
     >
       <div
-        className="absolute inset-y-0 left-0 w-[3px] bg-[var(--tt-line,#ebebeb)]"
+        className="absolute inset-y-0 left-0 w-[3px]"
+        style={{ background: railTrack }}
         aria-hidden
       >
         <div
           className="absolute bottom-0 left-0 w-full"
           style={{
-            height: completed ? `${pct}%` : '100%',
-            background: rail,
+            height: showCompletionRail ? `${pct}%` : '100%',
+            background: railFill,
           }}
         />
       </div>
@@ -440,7 +447,10 @@ function DashboardListRow({
     getWorkoutCardSubtitle(workout) ??
     metrics.distance ??
     metrics.duration
-  const completionPercent = getWorkoutCompletionPercent(workout, status)
+  const completionPercent =
+    completed && !isRace
+      ? (getWorkoutCompletionPercent(workout, status) ?? 100)
+      : null
   const completionStyle =
     completionPercent != null
       ? ({

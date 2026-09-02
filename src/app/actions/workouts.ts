@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, isCoachView, coachCanAccessAthlete, requireCoachOwnsAthlete } from '@/lib/session'
-import { parseDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
+import { parseDateOnly, requireDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
 import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, CoachAthleteLinkStatus, PlannedMetricSource } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
 import { defaultSportForRaceType } from '@/lib/races'
@@ -769,11 +769,15 @@ export async function createRace(formData: FormData) {
     preparationWeeks = parsed
   }
 
+  const raceDate = requireDateOnly(formData.get('date'))
+  const raceName = String(formData.get('name') ?? '').trim()
+  if (!raceName) throw new Error('Race name is required.')
+
   const created = await prisma.race.create({
     data: {
       athleteId,
-      name: formData.get('name') as string,
-      date: parseDateOnly(formData.get('date') as string),
+      name: raceName,
+      date: raceDate,
       location: (formData.get('location') as string) || undefined,
       type: raceType,
       sport: sportRaw || defaultSportForRaceType(raceType),
@@ -1357,11 +1361,15 @@ export async function updateRace(formData: FormData) {
     preparationWeeks = parsed
   }
 
+  const raceDate = requireDateOnly(formData.get('date'))
+  const raceName = String(formData.get('name') ?? '').trim()
+  if (!raceName) throw new Error('Race name is required.')
+
   const race = await prisma.race.update({
     where: { id: raceId },
     data: {
-      name: formData.get('name') as string,
-      date: parseDateOnly(formData.get('date') as string),
+      name: raceName,
+      date: raceDate,
       location: parseOptionalString(formData.get('location')),
       type: raceType,
       sport: sportRaw || defaultSportForRaceType(raceType),

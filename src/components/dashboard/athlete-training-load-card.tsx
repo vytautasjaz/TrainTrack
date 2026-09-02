@@ -10,6 +10,10 @@ import {
   todayDateKey,
 } from '@/lib/dates'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import {
+  HomeMobileSectionHeader,
+  MobileAccordionBody,
+} from '@/components/ui/mobile-accordion-body'
 import { cn } from '@/lib/utils'
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const
@@ -17,6 +21,9 @@ const CHART_W = 320
 const CHART_H = 72
 const PAD_X = 12
 const PAD_Y = 12
+
+const SHELL =
+  'overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] px-4 py-3.5 shadow-[var(--tt-shadow)] md:rounded-[10px] md:p-4'
 
 type AthleteTrainingLoadCardProps = {
   workouts: PlanWorkoutDetail[]
@@ -117,6 +124,7 @@ export function AthleteTrainingLoadCard({
   className,
 }: AthleteTrainingLoadCardProps) {
   const [offset, setOffset] = useState(0) // -1 last, 0 this, +1 next
+  const [mobileOpen, setMobileOpen] = useState(true)
   const todayKey = todayDateKey()
 
   const weeks = useMemo(() => {
@@ -185,115 +193,115 @@ export function AthleteTrainingLoadCard({
   const points = toPoints(displayDaily, yMax)
 
   return (
-    <section className={cn('tt-surface-card overflow-hidden p-4', className)}>
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink,#111)]">
-            Training load
-          </p>
-          <p className="text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]">
-            {week.label} · {week.range}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-0.5">
-          <button
-            type="button"
-            className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
-            aria-label="Previous week"
-            onClick={() => setOffset((o) => Math.max(-1, o - 1))}
-            disabled={offset <= -1}
-          >
-            <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
-          <button
-            type="button"
-            className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
-            aria-label="Next week"
-            onClick={() => setOffset((o) => Math.min(1, o + 1))}
-            disabled={offset >= 1}
-          >
-            <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-          </button>
-        </div>
-      </div>
+    <section className={cn(SHELL, className)}>
+      <HomeMobileSectionHeader
+        title="Training load"
+        expanded={mobileOpen}
+        onToggle={() => setMobileOpen((open) => !open)}
+        subtitle={`${week.label} · ${week.range}`}
+        trailing={
+          <>
+            <button
+              type="button"
+              className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
+              aria-label="Previous week"
+              onClick={() => setOffset((o) => Math.max(-1, o - 1))}
+              disabled={offset <= -1}
+            >
+              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+            <button
+              type="button"
+              className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
+              aria-label="Next week"
+              onClick={() => setOffset((o) => Math.min(1, o + 1))}
+              disabled={offset >= 1}
+            >
+              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+            </button>
+          </>
+        }
+      />
 
-      <p
-        className="mt-2 text-[1.875rem] uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)] tabular-nums"
-        style={{ fontFamily: 'var(--font-display)' }}
-      >
-        {week.total}{' '}
-        <span className="text-base font-normal normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
-          min{week.planned ? ' plan' : ''}
-        </span>
-      </p>
-      <p
-        className={cn(
-          'mt-1 text-[12px] font-semibold',
-          delta.positive
-            ? 'text-[var(--tt-good,#1a9f5c)]'
-            : 'text-[var(--tt-ink-soft,#6b6b6b)]',
-        )}
-      >
-        {delta.label}
-      </p>
-
-      <div className="mt-4 w-full">
-        <svg
-          viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-          className="block h-auto w-full"
-          style={{ aspectRatio: `${CHART_W} / ${CHART_H}` }}
-          preserveAspectRatio="xMidYMid meet"
-          aria-hidden
+      <MobileAccordionBody expanded={mobileOpen}>
+        <p
+          className="mt-2 text-[1.875rem] uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)] tabular-nums"
+          style={{ fontFamily: 'var(--font-display)' }}
         >
-          <line
-            x1={PAD_X}
-            x2={CHART_W - PAD_X}
-            y1={CHART_H - PAD_Y}
-            y2={CHART_H - PAD_Y}
-            stroke="var(--tt-line, #ebebeb)"
-            strokeWidth="1"
-          />
-          <path
-            d={path}
-            fill="none"
-            stroke={
-              week.planned
-                ? 'var(--tt-ink-faint, #9a9a9a)'
-                : 'var(--tt-good, #1a9f5c)'
-            }
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeDasharray={week.planned ? '6 4' : undefined}
-          />
-          {points.map((p, i) => (
-            <circle
-              key={i}
-              cx={p.x}
-              cy={p.y}
-              r="2.25"
-              fill={
+          {week.total}{' '}
+          <span className="text-base font-normal normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
+            min{week.planned ? ' plan' : ''}
+          </span>
+        </p>
+        <p
+          className={cn(
+            'mt-1 text-[12px] font-semibold',
+            delta.positive
+              ? 'text-[var(--tt-good,#1a9f5c)]'
+              : 'text-[var(--tt-ink-soft,#6b6b6b)]',
+          )}
+        >
+          {delta.label}
+        </p>
+
+        <div className="mt-4 w-full">
+          <svg
+            viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+            className="block h-auto w-full"
+            style={{ aspectRatio: `${CHART_W} / ${CHART_H}` }}
+            preserveAspectRatio="xMidYMid meet"
+            aria-hidden
+          >
+            <line
+              x1={PAD_X}
+              x2={CHART_W - PAD_X}
+              y1={CHART_H - PAD_Y}
+              y2={CHART_H - PAD_Y}
+              stroke="var(--tt-line, #ebebeb)"
+              strokeWidth="1"
+            />
+            <path
+              d={path}
+              fill="none"
+              stroke={
                 week.planned
                   ? 'var(--tt-ink-faint, #9a9a9a)'
                   : 'var(--tt-good, #1a9f5c)'
               }
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeDasharray={week.planned ? '6 4' : undefined}
             />
-          ))}
-        </svg>
-        <div
-          className="mt-1 flex justify-between text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]"
-          style={{
-            paddingLeft: `${(PAD_X / CHART_W) * 100}%`,
-            paddingRight: `${(PAD_X / CHART_W) * 100}%`,
-          }}
-        >
-          {DAYS.map((d, i) => (
-            <span key={`${d}-${i}`} className="w-3 text-center">
-              {d}
-            </span>
-          ))}
+            {points.map((p, i) => (
+              <circle
+                key={i}
+                cx={p.x}
+                cy={p.y}
+                r="2.25"
+                fill={
+                  week.planned
+                    ? 'var(--tt-ink-faint, #9a9a9a)'
+                    : 'var(--tt-good, #1a9f5c)'
+                }
+              />
+            ))}
+          </svg>
+          <div
+            className="mt-1 flex justify-between text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]"
+            style={{
+              paddingLeft: `${(PAD_X / CHART_W) * 100}%`,
+              paddingRight: `${(PAD_X / CHART_W) * 100}%`,
+            }}
+          >
+            {DAYS.map((d, i) => (
+              <span key={`${d}-${i}`} className="w-3 text-center">
+                {d}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      </MobileAccordionBody>
     </section>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
-import { Check } from 'lucide-react'
+import { Check, ChevronDown } from 'lucide-react'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import {
@@ -11,6 +11,7 @@ import {
   CoachHomeMarkHandledButton,
   CoachHomeStatusBadge,
   CoachHomeTablePagination,
+  CoachHomeMobileAccordionBody,
   type CoachHomeBadgeVariant,
 } from '@/components/coach/coach-home-panel'
 import {
@@ -54,6 +55,7 @@ export function CoachHomeNeedsAttentionSection({
   const [pageSize, setPageSize] = useState<PageSizeOption>(5)
   const [page, setPage] = useState(0)
   const [sort, setSort] = useState<DataSortState<CoachHomeAttentionSortKey> | null>(null)
+  const [mobileOpen, setMobileOpen] = useState(true)
 
   const typeOptions = useMemo(() => {
     const counts = new Map<string, number>()
@@ -120,21 +122,36 @@ export function CoachHomeNeedsAttentionSection({
   }
 
   return (
-    <section className={cn('min-w-0', className)}>
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-2">
-          <h2 className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink)]">
-            Needs attention
-          </h2>
-          {items.length > 0 ? (
-            <span className="rounded-full bg-[color-mix(in_srgb,var(--tt-red)_12%,white)] px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-[var(--tt-red)]">
-              {typeFilter === 'all' ? items.length : `${filteredItems.length}/${items.length}`}
-            </span>
-          ) : null}
-        </div>
+    <section className={cn('tt-coach-home-mobile-card min-w-0', className)}>
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3 px-4 md:px-0">
+        <button
+          type="button"
+          onClick={() => setMobileOpen((open) => !open)}
+          aria-expanded={mobileOpen}
+          className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left md:pointer-events-none"
+        >
+          <div className="flex min-w-0 flex-wrap items-baseline gap-2">
+            <h2 className="font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)] md:font-sans md:text-[0.6875rem] md:font-semibold md:tracking-[0.08em]">
+              Needs attention
+            </h2>
+            {items.length > 0 ? (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--tt-red)] px-1.5 text-[11px] font-semibold tabular-nums text-white md:bg-[color-mix(in_srgb,var(--tt-red)_12%,white)] md:text-[var(--tt-red)]">
+                {typeFilter === 'all' ? items.length : `${filteredItems.length}/${items.length}`}
+              </span>
+            ) : null}
+          </div>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 shrink-0 text-[var(--tt-ink-faint)] transition-transform duration-300 md:hidden',
+              mobileOpen && 'rotate-180',
+            )}
+            strokeWidth={1.75}
+            aria-hidden
+          />
+        </button>
 
         {items.length > 0 ? (
-          <div className="flex items-center gap-1.5">
+          <div className="hidden items-center gap-1.5 md:flex">
             <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--tt-ink-faint)]">
               Show
             </span>
@@ -163,6 +180,7 @@ export function CoachHomeNeedsAttentionSection({
         ) : null}
       </div>
 
+      <CoachHomeMobileAccordionBody expanded={mobileOpen}>
       {items.length > 0 ? (
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1">
@@ -285,6 +303,7 @@ export function CoachHomeNeedsAttentionSection({
           ) : null}
         </>
       )}
+      </CoachHomeMobileAccordionBody>
     </section>
   )
 }

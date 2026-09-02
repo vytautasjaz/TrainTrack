@@ -1,12 +1,23 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { format } from 'date-fns'
+import { format, isToday, isYesterday } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { CalendarDays, Check, Flag, MessageSquare, Minus } from 'lucide-react'
+import {
+  CalendarDays,
+  Check,
+  ChevronDown,
+  Flag,
+  ListFilter,
+  MessageSquare,
+  Minus,
+} from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
-import { CoachHomeTablePagination } from '@/components/coach/coach-home-panel'
+import {
+  CoachHomeTablePagination,
+  CoachHomeMobileAccordionBody,
+} from '@/components/coach/coach-home-panel'
 import { ActivityRouteMap } from '@/components/plan/activity-route-map'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import { StravaWordmark } from '@/components/plan/strava-mark'
@@ -17,6 +28,7 @@ import { SelfAddedBadge } from '@/components/plan/self-added-badge'
 import { PriorityBadge } from '@/components/races/priority-badge'
 import { RaceLegsSummary } from '@/components/races/race-legs-fields'
 import { RACE_TYPE_LABELS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
+import { parseDateOnly } from '@/lib/dates'
 import {
   coachHomeRaceResultLabel,
   groupActivityRowsByDay,
@@ -70,6 +82,8 @@ export function CoachHomeRecentActivityTable({
   const [timeRange, setTimeRange] = useState<CoachHomeTimeRange>('last_7d')
   const [pageSize, setPageSize] = useState<PageSizeOption>(20)
   const [page, setPage] = useState(0)
+  const [mobileOpen, setMobileOpen] = useState(true)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
   const timeFilteredRows = useMemo(
     () => filterActivityByTimeRange(rows, timeRange),
@@ -115,6 +129,13 @@ export function CoachHomeRecentActivityTable({
 
   const groups = useMemo(() => groupActivityRowsByDay(visibleRows), [visibleRows])
 
+  const filtersActive =
+    statusFilter !== 'all' ||
+    sportFilter !== 'all' ||
+    athleteFilter !== 'all' ||
+    timeRange !== 'last_7d' ||
+    pageSize !== 20
+
   useEffect(() => {
     setPage(0)
   }, [rows, athleteFilter, timeRange, statusFilter, sportFilter, pageSize])
@@ -138,151 +159,229 @@ export function CoachHomeRecentActivityTable({
     setPage((current) => Math.min(current, pageCount - 1))
   }, [pageCount])
 
+  function resetFilters() {
+    setStatusFilter('all')
+    setSportFilter('all')
+    setAthleteFilter('all')
+    setTimeRange('last_7d')
+    setPageSize(20)
+  }
+
+  const filterControls = (
+    <>
+      <div className="flex flex-wrap gap-1">
+        {STATUS_FILTERS.map((item) => (
+          <ToolbarChip
+            key={item.id}
+            label={item.label}
+            active={statusFilter === item.id}
+            onClick={() => setStatusFilter(item.id)}
+          />
+        ))}
+      </div>
+      {athleteOptions.length > 1 ? (
+        <label className="relative inline-flex items-center">
+          <select
+            value={athleteFilter}
+            onChange={(e) => setAthleteFilter(e.target.value)}
+            aria-label="Filter by athlete"
+            className="max-w-[10rem] appearance-none truncate rounded-full border border-[var(--tt-line)] bg-white py-1 pl-2.5 pr-7 text-[11px] font-semibold text-[var(--tt-ink)] outline-none hover:border-[var(--tt-line-strong,#ddd)]"
+          >
+            <option value="all">All athletes</option>
+            {athleteOptions.map((athlete) => (
+              <option key={athlete.id} value={athlete.id}>
+                {athlete.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <label className="relative inline-flex items-center">
+        <CalendarDays
+          className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-[var(--tt-ink-faint)]"
+          strokeWidth={1.75}
+          aria-hidden
+        />
+        <select
+          value={timeRange}
+          onChange={(e) => setTimeRange(e.target.value as CoachHomeTimeRange)}
+          aria-label="Filter by time range"
+          className="appearance-none rounded-full border border-[var(--tt-line)] bg-white py-1 pl-8 pr-7 text-[11px] font-semibold text-[var(--tt-ink)] outline-none hover:border-[var(--tt-line-strong,#ddd)]"
+        >
+          {TIME_RANGE_OPTIONS.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {sportOptions.length > 1 ? (
+        <label className="relative inline-flex items-center">
+          <select
+            value={sportFilter}
+            onChange={(e) =>
+              setSportFilter(
+                e.target.value === 'all' ? 'all' : (e.target.value as WorkoutType),
+              )
+            }
+            className="appearance-none rounded-full border border-[var(--tt-line)] bg-white py-1 pl-2.5 pr-7 text-[11px] font-semibold text-[var(--tt-ink)] outline-none hover:border-[var(--tt-line-strong,#ddd)]"
+          >
+            <option value="all">All sports</option>
+            {sportOptions.map((option) => (
+              <option key={option.type} value={option.type}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--tt-ink-faint)]">
+          Show
+        </span>
+        <div className="flex gap-0.5 rounded-full border border-[var(--tt-line)] p-0.5">
+          {PAGE_SIZE_OPTIONS.map((option) => {
+            const active = pageSize === option
+            const label = option === 'all' ? 'All' : String(option)
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setPageSize(option)}
+                className={cn(
+                  'rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums transition',
+                  active
+                    ? 'bg-[var(--tt-ink)] text-white'
+                    : 'text-[var(--tt-ink-soft)] hover:text-[var(--tt-ink)]',
+                )}
+              >
+                {label}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </>
+  )
+
   return (
-    <section className={cn('min-w-0 space-y-4', className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <header className="min-w-0">
-          <h2 className="font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
-            Activity feed
-          </h2>
-          <p className="mt-1 text-[13px] text-[var(--tt-ink-faint)]">
+    <section className={cn('tt-coach-home-mobile-card min-w-0 space-y-4', className)}>
+      <div className="flex flex-wrap items-start justify-between gap-3 px-4 md:px-0">
+        <header className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => setMobileOpen((open) => !open)}
+            aria-expanded={mobileOpen}
+            className="flex w-full items-center justify-between gap-2 text-left md:pointer-events-none"
+          >
+            <h2 className="font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
+              Activity feed
+            </h2>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 text-[var(--tt-ink-faint)] transition-transform duration-300 md:hidden',
+                mobileOpen && 'rotate-180',
+              )}
+              strokeWidth={1.75}
+              aria-hidden
+            />
+          </button>
+          <p className="mt-1 hidden text-[13px] text-[var(--tt-ink-faint)] md:block">
             Recent workouts, races, and race reports from your athletes
           </p>
         </header>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1">
-            {STATUS_FILTERS.map((item) => (
-              <ToolbarChip
-                key={item.id}
-                label={item.label}
-                active={statusFilter === item.id}
-                onClick={() => setStatusFilter(item.id)}
-              />
-            ))}
-          </div>
-          {athleteOptions.length > 1 ? (
-            <label className="relative inline-flex items-center">
-              <select
-                value={athleteFilter}
-                onChange={(e) => setAthleteFilter(e.target.value)}
-                aria-label="Filter by athlete"
-                className="max-w-[10rem] appearance-none truncate rounded-full border border-[var(--tt-line)] bg-white py-1 pl-2.5 pr-7 text-[11px] font-semibold text-[var(--tt-ink)] outline-none hover:border-[var(--tt-line-strong,#ddd)]"
-              >
-                <option value="all">All athletes</option>
-                {athleteOptions.map((athlete) => (
-                  <option key={athlete.id} value={athlete.id}>
-                    {athlete.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <label className="relative inline-flex items-center">
-            <CalendarDays
-              className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-[var(--tt-ink-faint)]"
-              strokeWidth={1.75}
-              aria-hidden
-            />
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value as CoachHomeTimeRange)}
-              aria-label="Filter by time range"
-              className="appearance-none rounded-full border border-[var(--tt-line)] bg-white py-1 pl-8 pr-7 text-[11px] font-semibold text-[var(--tt-ink)] outline-none hover:border-[var(--tt-line-strong,#ddd)]"
-            >
-              {TIME_RANGE_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          {sportOptions.length > 1 ? (
-            <label className="relative inline-flex items-center">
-              <select
-                value={sportFilter}
-                onChange={(e) =>
-                  setSportFilter(
-                    e.target.value === 'all' ? 'all' : (e.target.value as WorkoutType),
-                  )
-                }
-                className="appearance-none rounded-full border border-[var(--tt-line)] bg-white py-1 pl-2.5 pr-7 text-[11px] font-semibold text-[var(--tt-ink)] outline-none hover:border-[var(--tt-line-strong,#ddd)]"
-              >
-                <option value="all">All sports</option>
-                {sportOptions.map((option) => (
-                  <option key={option.type} value={option.type}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--tt-ink-faint)]">
-              Show
-            </span>
-            <div className="flex gap-0.5 rounded-full border border-[var(--tt-line)] p-0.5">
-              {PAGE_SIZE_OPTIONS.map((option) => {
-                const active = pageSize === option
-                const label = option === 'all' ? 'All' : String(option)
-                return (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => setPageSize(option)}
-                    className={cn(
-                      'rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums transition',
-                      active
-                        ? 'bg-[var(--tt-ink)] text-white'
-                        : 'text-[var(--tt-ink-soft)] hover:text-[var(--tt-ink)]',
-                    )}
-                  >
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
+        {/* Mobile — filters icon */}
+        <button
+          type="button"
+          onClick={() => setMobileFiltersOpen((open) => !open)}
+          aria-expanded={mobileFiltersOpen}
+          aria-label="Activity filters"
+          className={cn(
+            'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border border-[var(--tt-line)] bg-white text-[var(--tt-ink-soft)] transition md:hidden',
+            'hover:border-[var(--tt-line-strong,#ddd)] hover:text-[var(--tt-ink)]',
+            (mobileFiltersOpen || filtersActive) &&
+              'border-[var(--tt-ink)]/30 text-[var(--tt-ink)]',
+          )}
+        >
+          <ListFilter className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </button>
+
+        {/* Desktop — inline filters */}
+        <div className="hidden flex-wrap items-center gap-2 md:flex">{filterControls}</div>
       </div>
 
-      {filtered.length === 0 ? (
-        <p className="border border-[var(--tt-line)] px-4 py-10 text-center text-[13px] text-[var(--tt-ink-faint)]">
-          No activity matches this filter.
-        </p>
-      ) : (
-        <>
-          <div className="space-y-5">
-            {groups.map((group) => (
-              <div key={group.dateKey} className="space-y-2">
-                <ActivityDayHeading dateKey={group.dateKey} />
-                <ul className="divide-y divide-[var(--tt-line)] overflow-hidden border border-[var(--tt-line)] bg-white">
-                  {group.rows.map((row) => (
-                    <li key={row.id}>
-                      <ActivityFeedCard row={row} />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-
-          {pageSize !== 'all' ? (
-            <CoachHomeTablePagination
-              page={page}
-              pageCount={pageCount}
-              total={filtered.length}
-              pageSize={effectivePageSize}
-              onPrevious={() => setPage((p) => Math.max(0, p - 1))}
-              onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-            />
-          ) : filtered.length > 0 ? (
-            <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint)]">
-              Showing all {filtered.length}
+      {mobileFiltersOpen ? (
+        <div className="mx-4 flex flex-col gap-2.5 border border-[var(--tt-line)] bg-white p-3 md:mx-0 md:hidden">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint)]">
+              Filters
             </p>
-          ) : null}
-        </>
-      )}
+            {filtersActive ? (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="text-[10px] font-semibold text-[var(--tt-ink-soft)] hover:text-[var(--tt-ink)]"
+              >
+                Reset
+              </button>
+            ) : null}
+          </div>
+          {filterControls}
+        </div>
+      ) : null}
+
+      <CoachHomeMobileAccordionBody expanded={mobileOpen} className="space-y-4">
+        {filtered.length === 0 ? (
+          <p className="px-4 py-10 text-center text-[13px] text-[var(--tt-ink-faint)] md:border md:border-[var(--tt-line)] md:px-4">
+            No activity matches this filter.
+          </p>
+        ) : (
+          <>
+            {/* Mobile — cards inside section shell */}
+            <ul className="divide-y divide-[var(--tt-line)] border-t border-[var(--tt-line)] md:hidden">
+              {visibleRows.map((row) => (
+                <li key={row.id}>
+                  <ActivityFeedCard row={row} showDate />
+                </li>
+              ))}
+            </ul>
+
+            {/* Desktop — grouped by day */}
+            <div className="hidden space-y-5 md:block">
+              {groups.map((group) => (
+                <div key={group.dateKey} className="space-y-2">
+                  <ActivityDayHeading dateKey={group.dateKey} />
+                  <ul className="divide-y divide-[var(--tt-line)] overflow-hidden border border-[var(--tt-line)] bg-white">
+                    {group.rows.map((row) => (
+                      <li key={row.id}>
+                        <ActivityFeedCard row={row} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            {pageSize !== 'all' ? (
+              <div className="px-4 md:px-0">
+                <CoachHomeTablePagination
+                  page={page}
+                  pageCount={pageCount}
+                  total={filtered.length}
+                  pageSize={effectivePageSize}
+                  onPrevious={() => setPage((p) => Math.max(0, p - 1))}
+                  onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                />
+              </div>
+            ) : filtered.length > 0 ? (
+              <p className="px-4 text-[11px] tabular-nums text-[var(--tt-ink-faint)] md:px-0">
+                Showing all {filtered.length}
+              </p>
+            ) : null}
+          </>
+        )}
+      </CoachHomeMobileAccordionBody>
     </section>
   )
 }
@@ -295,6 +394,62 @@ function ActivityDayHeading({ dateKey }: { dateKey: string }) {
       <span className="font-semibold text-[var(--tt-ink)]">{format(date, 'EEEE')}</span>
       <span className="font-medium text-[var(--tt-ink-faint)]">{format(date, 'MMMM d')}</span>
     </h3>
+  )
+}
+
+/** Mobile meta under athlete name — e.g. "Today at 20:25 · Zwift". */
+function formatFeedCardAthleteMeta(opts: {
+  dateKey: string
+  activityAt?: string
+  sourceLabel?: string | null
+}): { when: string; source: string | null } {
+  const date = parseDateOnly(opts.dateKey)
+  const at = opts.activityAt ? new Date(opts.activityAt) : null
+  const hasClock =
+    at != null &&
+    !Number.isNaN(at.getTime()) &&
+    (at.getHours() !== 0 || at.getMinutes() !== 0 || at.getSeconds() !== 0)
+
+  let when: string
+  if (isToday(date) || isYesterday(date)) {
+    const day = isToday(date) ? 'Today' : 'Yesterday'
+    when = hasClock ? `${day} at ${format(at!, 'HH:mm')}` : day
+  } else if (hasClock) {
+    when = `${format(date, 'EEE · MMM d')} · ${format(at!, 'HH:mm')}`
+  } else {
+    when = format(date, 'EEE · MMM d')
+  }
+
+  const source = opts.sourceLabel?.trim()
+  return {
+    when,
+    source: source && source !== '—' ? source : null,
+  }
+}
+
+function FeedCardAthleteMeta({
+  dateKey,
+  activityAt,
+  sourceLabel,
+}: {
+  dateKey: string
+  activityAt?: string
+  sourceLabel?: string | null
+}) {
+  const meta = formatFeedCardAthleteMeta({ dateKey, activityAt, sourceLabel })
+  return (
+    <time
+      dateTime={dateKey}
+      className="mt-0.5 block truncate text-[11px] font-normal text-[var(--tt-ink-soft,#6b6b6b)]"
+    >
+      {meta.when}
+      {meta.source ? (
+        <>
+          {' · '}
+          <span className="font-semibold text-[var(--tt-red)]">{meta.source}</span>
+        </>
+      ) : null}
+    </time>
   )
 }
 
@@ -344,14 +499,26 @@ function sportRailColor(type: WorkoutType, skipped: boolean): string {
   }
 }
 
-function ActivityFeedCard({ row }: { row: CoachHomeActivityTableRow }) {
+function ActivityFeedCard({
+  row,
+  showDate = false,
+}: {
+  row: CoachHomeActivityTableRow
+  showDate?: boolean
+}) {
   if (isCoachHomeRaceActivityRow(row)) {
-    return <RaceFeedCard row={row} />
+    return <RaceFeedCard row={row} showDate={showDate} />
   }
-  return <WorkoutFeedCard row={row} />
+  return <WorkoutFeedCard row={row} showDate={showDate} />
 }
 
-function WorkoutFeedCard({ row }: { row: CoachHomeWorkoutActivityRow }) {
+function WorkoutFeedCard({
+  row,
+  showDate = false,
+}: {
+  row: CoachHomeWorkoutActivityRow
+  showDate?: boolean
+}) {
   const skipped = row.status === 'skipped'
   const hasFeedbackNotes = Boolean(row.feedbackNotes?.trim())
   const hasChat = workoutHasCoachingChat(row.workout)
@@ -374,7 +541,7 @@ function WorkoutFeedCard({ row }: { row: CoachHomeWorkoutActivityRow }) {
         )}
       >
         <div
-          className="absolute inset-y-0 left-0 w-[3px]"
+          className="absolute inset-y-0 left-0 hidden w-[3px] md:block"
           style={{ background: sportRailColor(row.activityType, skipped) }}
           aria-hidden
         />
@@ -388,9 +555,18 @@ function WorkoutFeedCard({ row }: { row: CoachHomeWorkoutActivityRow }) {
                 size="sm"
                 className="shrink-0"
               />
-              <p className="truncate text-[13px] font-semibold text-[var(--tt-ink)]">
-                {row.athleteName}
-              </p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-semibold text-[var(--tt-ink)]">
+                  {row.athleteName}
+                </p>
+                {showDate ? (
+                  <FeedCardAthleteMeta
+                    dateKey={row.dateKey}
+                    activityAt={row.activityAt}
+                    sourceLabel={row.sourceLabel}
+                  />
+                ) : null}
+              </div>
             </div>
 
             <div className="flex min-w-0 items-start gap-2">
@@ -420,7 +596,7 @@ function WorkoutFeedCard({ row }: { row: CoachHomeWorkoutActivityRow }) {
                 ) : (
                   <Check className="h-3 w-3" strokeWidth={2} aria-hidden />
                 )}
-                {skipped ? 'Skipped' : 'Completed'}
+                {skipped ? 'Skipped' : stravaSynced ? 'Completed Strava' : 'Completed'}
               </p>
               <div
                 className="flex items-center gap-1"
@@ -430,7 +606,7 @@ function WorkoutFeedCard({ row }: { row: CoachHomeWorkoutActivityRow }) {
                 {hasChat ? (
                   <WorkoutChatIndicator workout={row.workout} role="coach" size="sm" />
                 ) : null}
-                {stravaSynced ? (
+                {stravaSynced && skipped ? (
                   <StravaSyncedIndicator workout={row.workout} variant="wordmark" size="xs" />
                 ) : null}
               </div>
@@ -555,7 +731,13 @@ function FeedMetricCell({ metric }: { metric: { label: string; value: string } }
   )
 }
 
-function RaceFeedCard({ row }: { row: CoachHomeRaceActivityRow }) {
+function RaceFeedCard({
+  row,
+  showDate = false,
+}: {
+  row: CoachHomeRaceActivityRow
+  showDate?: boolean
+}) {
   const router = useRouter()
   const { race } = row
   const resultLabel = coachHomeRaceResultLabel(race)
@@ -592,7 +774,7 @@ function RaceFeedCard({ row }: { row: CoachHomeRaceActivityRow }) {
       className="relative cursor-pointer overflow-hidden bg-white transition hover:bg-[color-mix(in_srgb,var(--tt-sidebar,#f5f5f5)_55%,white)]"
     >
         <div
-          className="absolute inset-y-0 left-0 w-[3px]"
+          className="absolute inset-y-0 left-0 hidden w-[3px] md:block"
           style={{ background: sportRailColor(row.activityType, false) }}
           aria-hidden
         />
@@ -605,11 +787,16 @@ function RaceFeedCard({ row }: { row: CoachHomeRaceActivityRow }) {
               size="sm"
               className="shrink-0"
             />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold text-[var(--tt-ink)]">
                 {row.athleteName}
               </p>
-              {timeLabel ? (
+              {showDate ? (
+                <FeedCardAthleteMeta
+                  dateKey={row.dateKey}
+                  activityAt={row.activityAt}
+                />
+              ) : timeLabel ? (
                 <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint)]">{timeLabel}</p>
               ) : (
                 <p className="text-[11px] text-[var(--tt-ink-faint)]">Race</p>
