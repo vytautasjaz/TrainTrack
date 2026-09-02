@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
-import { getSession, isCoachView, resolveAthleteId } from '@/lib/session'
+import { getSession, isCoachView, resolveAthleteId, getCoachAthletes } from '@/lib/session'
 import {
   getCoachLibraryFolders,
   getCoachLibraryTemplates,
@@ -26,10 +26,11 @@ export default async function WorkoutsPage({ searchParams }: WorkoutsPageProps) 
 
   const { sport: sportSlug } = await searchParams
   const athleteId = await resolveAthleteId(session)
-  const [rawTemplates, folders, preferences] = await Promise.all([
+  const [rawTemplates, folders, preferences, coachAthletes] = await Promise.all([
     getCoachLibraryTemplates(session.userId),
     getCoachLibraryFolders(session.userId),
     loadAthletePreferencesForBuilder(athleteId),
+    getCoachAthletes(session.userId),
   ])
 
   const templates: LibraryBrowserTemplate[] = rawTemplates.map((t) => {
@@ -62,6 +63,13 @@ export default async function WorkoutsPage({ searchParams }: WorkoutsPageProps) 
         folders={folders}
         today={todayDateKey()}
         initialSport={initialSport === 'all' ? 'all' : initialSport}
+        athletes={coachAthletes.map((a) => ({
+          id: a.id,
+          name: a.name,
+          status: a.status,
+          avatarUrl: a.avatarUrl,
+        }))}
+        selectedAthleteId={athleteId ?? coachAthletes[0]?.id ?? ''}
       />
     </Suspense>
   )

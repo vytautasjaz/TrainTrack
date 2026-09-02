@@ -19,3 +19,15 @@ export function parseCoachInviteCode(raw: string | null | undefined): string | n
 export function coachInvitePath(code: string): string {
   return `/join/${encodeURIComponent(normalizeCoachingCode(code))}`
 }
+
+const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 30 // 30 days
+
+export function coachInviteCookieOptions(maxAge = COOKIE_MAX_AGE_SEC) {
+  return {
+    path: '/',
+    maxAge,
+    sameSite: 'lax' as const,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+  }
+}

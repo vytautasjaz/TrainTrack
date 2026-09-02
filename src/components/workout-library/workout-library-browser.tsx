@@ -17,7 +17,7 @@ import {
   Plus,
   Search,
 } from 'lucide-react'
-import type { SessionType, WorkoutType } from '@prisma/client'
+import type { SessionType, WorkoutType, AthleteStatus } from '@prisma/client'
 import { WorkoutType as WT } from '@prisma/client'
 import {
   PageHeader,
@@ -60,6 +60,14 @@ import {
   deleteLibraryFolder,
   moveTemplateToFolder,
 } from '@/app/actions/library-folders'
+import { persistCoachSelectedAthlete } from '@/app/actions/session'
+
+export type LibraryScheduleAthlete = {
+  id: string
+  name: string
+  status: AthleteStatus
+  avatarUrl?: string | null
+}
 
 export type LibraryBrowserTemplate = Omit<
   WorkoutLibraryTemplate,
@@ -155,6 +163,8 @@ type WorkoutLibraryBrowserProps = {
   templates: LibraryBrowserTemplate[]
   today: string
   initialSport?: SportFilter
+  athletes: LibraryScheduleAthlete[]
+  selectedAthleteId: string
 }
 
 export function WorkoutLibraryBrowser({
@@ -162,6 +172,8 @@ export function WorkoutLibraryBrowser({
   templates,
   today,
   initialSport = 'all',
+  athletes,
+  selectedAthleteId,
 }: WorkoutLibraryBrowserProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -343,18 +355,20 @@ export function WorkoutLibraryBrowser({
     setScheduleTarget(t)
   }
 
-  function confirmSchedule(dateKey: string) {
+  function confirmSchedule(dateKey: string, athleteId: string) {
     if (!scheduleTarget) return
     const template = scheduleTarget
     const formData = new FormData()
     formData.set('templateId', template.id)
     formData.set('date', dateKey)
+    formData.set('athleteId', athleteId)
     const action =
       template.type === WT.SWIM
         ? scheduleSwimFromTemplate
         : createWorkoutFromTemplate
     startSchedule(async () => {
       await action(formData)
+      await persistCoachSelectedAthlete(athleteId)
       const label = format(new Date(`${dateKey}T00:00:00Z`), 'EEE d MMM')
       setScheduledFlash({ id: template.id, label })
       setScheduleTarget(null)
@@ -782,6 +796,8 @@ export function WorkoutLibraryBrowser({
           open
           today={today}
           pending={schedulePending}
+          athletes={athletes}
+          selectedAthleteId={selectedAthleteId}
           templateTitle={scheduleTarget.title}
           templateMeta={templateMetrics(scheduleTarget) || null}
           onClose={() => {

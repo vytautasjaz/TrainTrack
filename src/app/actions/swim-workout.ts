@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { Prisma, SessionType, SwimEnvironment, WorkoutType, PlannedMetricSource } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
-import { requireSession, resolveAthleteId, isCoachView } from '@/lib/session'
+import { requireSession, resolveAthleteId, isCoachView, requireCoachOwnsAthlete } from '@/lib/session'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 import { swimWorkoutFormSchema, swimTemplateFormSchema } from '@/lib/swim-workout/schema'
 import { workoutDistanceMeters } from '@/lib/swim-workout/calculations'
@@ -339,7 +339,15 @@ export async function duplicateSwimTemplate(formData: FormData) {
 
 export async function scheduleSwimFromTemplate(formData: FormData) {
   const session = await requireCoach()
-  const athleteId = await resolveAthleteId(session)
+  const formAthleteId = (formData.get('athleteId') as string | null)?.trim() || null
+  let athleteId: string | null = formAthleteId
+
+  if (athleteId) {
+    await requireCoachOwnsAthlete(session.userId, athleteId)
+  } else {
+    athleteId = await resolveAthleteId(session)
+    if (athleteId) await requireCoachOwnsAthlete(session.userId, athleteId)
+  }
   if (!athleteId) throw new Error('No athlete selected')
 
   const templateId = formData.get('templateId') as string

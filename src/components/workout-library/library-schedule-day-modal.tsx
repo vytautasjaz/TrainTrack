@@ -1,13 +1,20 @@
 'use client'
 
 import { useEffect, useId, useMemo, useState, useTransition } from 'react'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
+import type { AthleteStatus } from '@prisma/client'
 import { WorkoutType } from '@prisma/client'
 import { Button } from '@/components/ui/button'
+import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
+import { AthleteStatusPill } from '@/components/coach/athlete-status-pill'
+import { sortAthletesForCycling } from '@/components/coach/coach-athlete-bar'
+import { SELECT_DROPDOWN_CONTENT_CLASS } from '@/components/ui/select-dropdown'
 import {
   getLibraryMonthPlanMarkers,
   type LibraryPlanDayWorkout,
 } from '@/app/actions/library-schedule'
+import { athleteStatusLabel } from '@/lib/athlete-status'
 import { cn } from '@/lib/utils'
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
@@ -72,14 +79,23 @@ function addDays(dateKey: string, delta: number) {
   return toDateKey(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate())
 }
 
+type LibraryScheduleAthlete = {
+  id: string
+  name: string
+  status: AthleteStatus
+  avatarUrl?: string | null
+}
+
 type LibraryScheduleDayModalProps = {
   templateTitle: string
   templateMeta?: string | null
   today: string
   open: boolean
   pending?: boolean
+  athletes: LibraryScheduleAthlete[]
+  selectedAthleteId: string
   onClose: () => void
-  onConfirm: (dateKey: string) => void
+  onConfirm: (dateKey: string, athleteId: string) => void
 }
 
 export function LibraryScheduleDayModal({
@@ -88,6 +104,8 @@ export function LibraryScheduleDayModal({
   today,
   open,
   pending = false,
+  athletes,
+  selectedAthleteId,
   onClose,
   onConfirm,
 }: LibraryScheduleDayModalProps) {
@@ -95,22 +113,28 @@ export function LibraryScheduleDayModal({
   const initial = parseDateKey(today)
   const [cursor, setCursor] = useState({ y: initial.y, m0: initial.m0 })
   const [selected, setSelected] = useState(today)
+  const [athleteId, setAthleteId] = useState(selectedAthleteId)
   const [markers, setMarkers] = useState<LibraryPlanDayWorkout[]>([])
   const [loadPending, startLoad] = useTransition()
+
+  const orderedAthletes = useMemo(() => sortAthletesForCycling(athletes), [athletes])
+  const selectedAthlete =
+    orderedAthletes.find((a) => a.id === athleteId) ?? orderedAthletes[0] ?? null
 
   useEffect(() => {
     if (!open) return
     setSelected(today)
+    setAthleteId(selectedAthleteId)
     const t = parseDateKey(today)
     setCursor({ y: t.y, m0: t.m0 })
-  }, [open, today])
+  }, [open, today, selectedAthleteId])
 
   useEffect(() => {
-    if (!open) return
+    if (!open || !selectedAthlete) return
     startLoad(() => {
-      void getLibraryMonthPlanMarkers(cursor.y, cursor.m0).then(setMarkers)
+      void getLibraryMonthPlanMarkers(cursor.y, cursor.m0, selectedAthlete.id).then(setMarkers)
     })
-  }, [open, cursor.y, cursor.m0])
+  }, [open, cursor.y, cursor.m0, selectedAthlete])
 
   useEffect(() => {
     if (!open) return
@@ -194,6 +218,87 @@ export function LibraryScheduleDayModal({
             <X className="h-4 w-4" />
           </button>
         </div>
+
+        {selectedAthlete ? (
+          <div className="shrink-0 border-b border-[var(--tt-line,#ebebeb)] px-4 py-3">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint,#9a9a9a)]">
+              Scheduling for
+            </p>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <AthleteAvatar
+                name={selectedAthlete.name}
+                avatarUrl={selectedAthlete.avatarUrl}
+                size="sm"
+              />
+              <div className="flex min-w-0 items-center gap-2">
+                <DropdownMenu.Root>
+                  <DropdownMenu.Trigger
+                    disabled={pending || orderedAthletes.length <= 1}
+                    aria-label="Select athlete"
+                    className={cn(
+                      'group inline-flex max-w-full items-center gap-1 rounded-lg text-left outline-none',
+                      'focus-visible:ring-2 focus-visible:ring-brand/30',
+                      'disabled:cursor-default',
+                    )}
+                  >
+                    <span className="truncate text-[13px] font-semibold text-[var(--tt-ink,#111)]">
+                      {selectedAthlete.name}
+                    </span>
+                    {orderedAthletes.length > 1 ? (
+                      <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[var(--tt-ink-faint,#9a9a9a)] transition group-hover:text-[var(--tt-ink,#111)] group-data-[state=open]:rotate-180 group-data-[state=open]:text-[var(--tt-ink,#111)]" />
+                    ) : null}
+                  </DropdownMenu.Trigger>
+
+                  <DropdownMenu.Portal>
+                    <DropdownMenu.Content
+                      align="start"
+                      sideOffset={6}
+                      className={cn(SELECT_DROPDOWN_CONTENT_CLASS, 'min-w-[12rem]')}
+                    >
+                      {orderedAthletes.map((athlete) => {
+                        const active = athlete.id === selectedAthlete.id
+                        return (
+                          <DropdownMenu.Item
+                            key={athlete.id}
+                            onSelect={() => setAthleteId(athlete.id)}
+                            className={cn(
+                              'relative flex cursor-pointer select-none items-center gap-2.5 px-3 py-2 text-sm outline-none',
+                              'data-[highlighted]:bg-foreground/[0.04]',
+                              active && 'font-semibold',
+                            )}
+                          >
+                            <AthleteAvatar
+                              name={athlete.name}
+                              avatarUrl={athlete.avatarUrl}
+                              size="sm"
+                            />
+                            <span className="min-w-0 flex-1 truncate">{athlete.name}</span>
+                            {athlete.status !== 'ACTIVE' ? (
+                              <span className="text-[10px] text-muted-foreground">
+                                {athleteStatusLabel(athlete.status)}
+                              </span>
+                            ) : null}
+                            {active ? (
+                              <Check className="h-3.5 w-3.5 shrink-0 text-brand" />
+                            ) : (
+                              <span className="w-3.5 shrink-0" />
+                            )}
+                          </DropdownMenu.Item>
+                        )
+                      })}
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Portal>
+                </DropdownMenu.Root>
+
+                <AthleteStatusPill
+                  athleteId={selectedAthlete.id}
+                  status={selectedAthlete.status}
+                  size="sm"
+                />
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -362,8 +467,11 @@ export function LibraryScheduleDayModal({
           <Button
             type="button"
             size="sm"
-            disabled={pending}
-            onClick={() => onConfirm(selected)}
+            disabled={pending || !selectedAthlete}
+            onClick={() => {
+              if (!selectedAthlete) return
+              onConfirm(selected, selectedAthlete.id)
+            }}
           >
             {pending ? 'Scheduling…' : `Schedule · ${formatScheduleLabel(selected)}`}
           </Button>

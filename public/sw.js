@@ -1,6 +1,9 @@
-const CACHE_VERSION = 'v2'
+const CACHE_VERSION = 'v3'
 const STATIC_CACHE = `traintrack-static-${CACHE_VERSION}`
 const DYNAMIC_CACHE = `traintrack-dynamic-${CACHE_VERSION}`
+
+/** App routes whose HTML embeds Server Action ids — never cache after deploy. */
+const LIVE_NAV_PATHS = ['/', '/onboarding']
 
 // Resources to pre-cache on install (including offline fallback)
 const PRECACHE_URLS = [
@@ -20,6 +23,12 @@ self.addEventListener('install', (event) => {
       .then((cache) => cache.addAll(PRECACHE_URLS))
       .then(() => self.skipWaiting()),
   )
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
 })
 
 // ─── Activate: purge old caches ─────────────────────────────────────────────
@@ -59,9 +68,21 @@ self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests (analytics, external APIs, etc.)
   if (url.origin !== self.location.origin) return
 
-  // Cache-first strategy for Next.js static assets and icons
+  // Never intercept Next.js build output — cache-first stale JS breaks Server Actions
+  // after deploy (client action ids no longer exist on the server).
+  if (url.pathname.startsWith('/_next/')) return
+
+  // Auth / invite shell pages must always hit the network when online.
   if (
-    url.pathname.startsWith('/_next/static/') ||
+    request.mode === 'navigate' &&
+    (LIVE_NAV_PATHS.includes(url.pathname) || url.pathname.startsWith('/join/'))
+  ) {
+    event.respondWith(liveNavigation(request))
+    return
+  }
+
+  // Cache-first for icons and manifest only (immutable branding assets).
+  if (
     url.pathname.startsWith('/icons/') ||
     url.pathname === '/favicon.svg' ||
     url.pathname === '/manifest.webmanifest'
@@ -88,6 +109,20 @@ async function cacheFirst(request) {
     }
     return response
   } catch {
+    return new Response('Offline', { status: 503 })
+  }
+}
+
+async function liveNavigation(request) {
+  try {
+    return await fetch(request)
+  } catch {
+    const cached = await caches.match(request)
+    if (cached) return cached
+
+    const offline = await caches.match('/offline')
+    if (offline) return offline
+
     return new Response('Offline', { status: 503 })
   }
 }

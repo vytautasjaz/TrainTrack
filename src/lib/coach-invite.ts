@@ -2,28 +2,18 @@ import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import {
   COACH_INVITE_COOKIE,
+  coachInviteCookieOptions,
   parseCoachInviteCode,
   type CoachInviteInfo,
 } from '@/lib/coach-invite-shared'
 
 export {
   COACH_INVITE_COOKIE,
+  coachInviteCookieOptions,
   coachInvitePath,
   parseCoachInviteCode,
   type CoachInviteInfo,
 } from '@/lib/coach-invite-shared'
-
-const COOKIE_MAX_AGE_SEC = 60 * 60 * 24 * 30 // 30 days
-
-export function coachInviteCookieOptions(maxAge = COOKIE_MAX_AGE_SEC) {
-  return {
-    path: '/',
-    maxAge,
-    sameSite: 'lax' as const,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-  }
-}
 
 export async function resolveCoachInvite(
   rawCode: string | null | undefined,

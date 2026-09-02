@@ -361,13 +361,14 @@ export async function getAthleteDashboard(athleteId: string) {
       prisma.workout.findMany({
         where: {
           athleteId,
-          status: WorkoutStatus.COMPLETED,
           date: { lte: today },
+          isRescheduleGhost: false,
           type: { notIn: [WorkoutType.REST, WorkoutType.RECOVERY] },
+          status: { in: [WorkoutStatus.COMPLETED, WorkoutStatus.SKIPPED] },
         },
         include: WORKOUT_PLAN_INCLUDE,
         orderBy: [{ date: 'desc' }, { updatedAt: 'desc' }],
-        take: 3,
+        take: 10,
       }),
       getRacesForRange(athleteId, weekStart, weekEnd),
       getRacesForRange(athleteId, monthStart, monthEnd),

@@ -21,6 +21,19 @@ export async function switchAthlete(formData: FormData) {
   redirect(redirectTo)
 }
 
+/** Update selected athlete cookie without navigation (e.g. library schedule modal). */
+export async function persistCoachSelectedAthlete(athleteId: string) {
+  const session = await requireSession()
+  if (!isCoach(session) || session.viewMode !== 'coach') {
+    throw new Error('Coach only')
+  }
+
+  await requireCoachOwnsAthlete(session.userId, athleteId)
+
+  const cookieStore = await cookies()
+  cookieStore.set('tt_athlete', athleteId, { path: '/' })
+}
+
 export async function switchViewMode(formData: FormData) {
   const session = await requireSession()
   if (!session.hasAthlete || !session.hasCoach) {

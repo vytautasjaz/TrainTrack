@@ -72,10 +72,11 @@ export async function registerWithEmail(
   }
 
   try {
+    const inviteCode = await getCoachInviteCookie()
     await signIn('credentials', {
       email,
       password,
-      redirectTo: '/onboarding',
+      redirectTo: inviteCode ? coachInvitePath(inviteCode) : '/onboarding',
     })
   } catch (err) {
     if (isRedirectError(err)) throw err

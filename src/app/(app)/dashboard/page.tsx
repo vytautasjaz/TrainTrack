@@ -6,6 +6,7 @@ import { getAthleteInboxUnreadCount } from '@/lib/coaching-inbox'
 import { CoachHomePageContent } from '@/components/coach/coach-home-page'
 import { Button } from '@/components/ui/button'
 import { AthleteDashboardWorkouts } from '@/components/dashboard/athlete-dashboard-workouts'
+import { AthleteActivityFeed } from '@/components/dashboard/athlete-activity-feed'
 import { AthleteDashboardHeader } from '@/components/dashboard/athlete-dashboard-header'
 import { AthleteRaceFollowUp } from '@/components/dashboard/athlete-race-follow-up'
 import { AthleteWeekStatsCard } from '@/components/dashboard/athlete-week-stats-card'
@@ -59,6 +60,9 @@ export default async function DashboardPage() {
     redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
   )
   const upcomingWorkouts = data.upcomingWorkouts.map((w) =>
+    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+  )
+  const activityFeedWorkouts = data.recentCompletedWorkouts.map((w) =>
     redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
   )
   let weatherByDate: Record<string, WeatherDaySummary> = {}
@@ -145,6 +149,8 @@ export default async function DashboardPage() {
               weatherByDate={weatherByDate}
               showWeather={showWeather}
             />
+
+            <AthleteActivityFeed workouts={activityFeedWorkouts} />
           </div>
 
           <aside className="min-w-0">

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, isCoachView, coachCanAccessAthlete } from '@/lib/session'
+import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, isCoachView, coachCanAccessAthlete, requireCoachOwnsAthlete } from '@/lib/session'
 import { parseDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
 import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, CoachAthleteLinkStatus, PlannedMetricSource } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
@@ -45,6 +45,25 @@ function parseOptionalString(value: FormDataEntryValue | null) {
 function parseCheckboxFlag(formData: FormData, key: string): boolean {
   const value = formData.get(key)
   return value === 'true' || value === 'on' || value === '1'
+}
+
+async function resolveCoachScheduleAthleteId(
+  session: Awaited<ReturnType<typeof requireSession>>,
+  formData: FormData,
+): Promise<string> {
+  const formAthleteId = (formData.get('athleteId') as string | null)?.trim() || null
+
+  if (isCoach(session) && formAthleteId) {
+    await requireCoachOwnsAthlete(session.userId, formAthleteId)
+    return formAthleteId
+  }
+
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete selected')
+  if (isCoach(session)) {
+    await requireCoachOwnsAthlete(session.userId, athleteId)
+  }
+  return athleteId
 }
 
 async function requireRaceAccess(raceId: string) {
@@ -572,7 +591,7 @@ export async function markWorkoutSkipped(formData: FormData) {
 export async function createWorkoutFromTemplate(formData: FormData) {
   const session = await requireSession()
   if (!isCoach(session)) throw new Error('Coach only')
-  const athleteId = await resolveAthleteId(session)
+  const athleteId = await resolveCoachScheduleAthleteId(session, formData)
   if (!athleteId) throw new Error('No athlete selected')
 
   const templateId = formData.get('templateId') as string

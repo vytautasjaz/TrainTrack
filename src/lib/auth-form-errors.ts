@@ -40,6 +40,10 @@ export function mapAuthActionError(
   error: unknown,
   fallback = 'Something went wrong. Please try again.',
 ): string {
+  if (isStaleServerActionError(error)) {
+    return 'This page is out of date after an update. Refreshing…'
+  }
+
   if (error instanceof AuthError) {
     return nextAuthErrorMessage(error.type)
   }
@@ -53,4 +57,15 @@ export function mapAuthActionError(
   }
 
   return fallback
+}
+
+/** Client/server bundle mismatch after deploy — common with stale service worker caches. */
+export function isStaleServerActionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const message = error.message
+  return (
+    /Server Action .* was not found/i.test(message) ||
+    /Failed to find Server Action/i.test(message) ||
+    error.name === 'UnrecognizedActionError'
+  )
 }
