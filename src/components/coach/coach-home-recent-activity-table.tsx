@@ -265,83 +265,94 @@ export function CoachHomeRecentActivityTable({
   )
 
   return (
-    <section className={cn('tt-coach-home-mobile-card min-w-0 space-y-4', className)}>
-      <div className="flex flex-wrap items-start justify-between gap-3 px-4 md:px-0">
-        <header className="min-w-0 flex-1">
+    <section className={cn('min-w-0 space-y-3 md:space-y-4', className)}>
+      {/* Title + accordion only — its own bubble on mobile */}
+      <div
+        className={cn(
+          'overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] px-4 py-3.5 shadow-[var(--tt-shadow)]',
+          'md:overflow-visible md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none',
+        )}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <header className="min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={() => setMobileOpen((open) => !open)}
+              aria-expanded={mobileOpen}
+              className="flex w-full items-center justify-between gap-2 text-left md:pointer-events-none"
+            >
+              <h2 className="font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
+                Activity feed
+              </h2>
+              <ChevronDown
+                className={cn(
+                  'h-4 w-4 shrink-0 text-[var(--tt-ink-faint)] transition-transform duration-300 md:hidden',
+                  mobileOpen && 'rotate-180',
+                )}
+                strokeWidth={1.75}
+                aria-hidden
+              />
+            </button>
+            <p className="mt-1 hidden text-[13px] text-[var(--tt-ink-faint)] md:block">
+              Recent workouts, races, and race reports from your athletes
+            </p>
+          </header>
+
+          {/* Mobile — filters icon */}
           <button
             type="button"
-            onClick={() => setMobileOpen((open) => !open)}
-            aria-expanded={mobileOpen}
-            className="flex w-full items-center justify-between gap-2 text-left md:pointer-events-none"
+            onClick={() => setMobileFiltersOpen((open) => !open)}
+            aria-expanded={mobileFiltersOpen}
+            aria-label="Activity filters"
+            className={cn(
+              'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border border-[var(--tt-line)] bg-white text-[var(--tt-ink-soft)] transition md:hidden',
+              'hover:border-[var(--tt-line-strong,#ddd)] hover:text-[var(--tt-ink)]',
+              (mobileFiltersOpen || filtersActive) &&
+                'border-[var(--tt-ink)]/30 text-[var(--tt-ink)]',
+            )}
           >
-            <h2 className="font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
-              Activity feed
-            </h2>
-            <ChevronDown
-              className={cn(
-                'h-4 w-4 shrink-0 text-[var(--tt-ink-faint)] transition-transform duration-300 md:hidden',
-                mobileOpen && 'rotate-180',
-              )}
-              strokeWidth={1.75}
-              aria-hidden
-            />
+            <ListFilter className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
-          <p className="mt-1 hidden text-[13px] text-[var(--tt-ink-faint)] md:block">
-            Recent workouts, races, and race reports from your athletes
-          </p>
-        </header>
 
-        {/* Mobile — filters icon */}
-        <button
-          type="button"
-          onClick={() => setMobileFiltersOpen((open) => !open)}
-          aria-expanded={mobileFiltersOpen}
-          aria-label="Activity filters"
-          className={cn(
-            'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] border border-[var(--tt-line)] bg-white text-[var(--tt-ink-soft)] transition md:hidden',
-            'hover:border-[var(--tt-line-strong,#ddd)] hover:text-[var(--tt-ink)]',
-            (mobileFiltersOpen || filtersActive) &&
-              'border-[var(--tt-ink)]/30 text-[var(--tt-ink)]',
-          )}
-        >
-          <ListFilter className="h-3.5 w-3.5" strokeWidth={1.75} />
-        </button>
+          {/* Desktop — inline filters */}
+          <div className="hidden flex-wrap items-center gap-2 md:flex">{filterControls}</div>
+        </div>
 
-        {/* Desktop — inline filters */}
-        <div className="hidden flex-wrap items-center gap-2 md:flex">{filterControls}</div>
+        {mobileFiltersOpen ? (
+          <div className="mt-3 flex flex-col gap-2.5 border-t border-[var(--tt-line)] pt-3 md:hidden">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint)]">
+                Filters
+              </p>
+              {filtersActive ? (
+                <button
+                  type="button"
+                  onClick={resetFilters}
+                  className="text-[10px] font-semibold text-[var(--tt-ink-soft)] hover:text-[var(--tt-ink)]"
+                >
+                  Reset
+                </button>
+              ) : null}
+            </div>
+            {filterControls}
+          </div>
+        ) : null}
       </div>
 
-      {mobileFiltersOpen ? (
-        <div className="mx-4 flex flex-col gap-2.5 border border-[var(--tt-line)] bg-white p-3 md:mx-0 md:hidden">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint)]">
-              Filters
-            </p>
-            {filtersActive ? (
-              <button
-                type="button"
-                onClick={resetFilters}
-                className="text-[10px] font-semibold text-[var(--tt-ink-soft)] hover:text-[var(--tt-ink)]"
-              >
-                Reset
-              </button>
-            ) : null}
-          </div>
-          {filterControls}
-        </div>
-      ) : null}
-
-      <CoachHomeMobileAccordionBody expanded={mobileOpen} className="space-y-4">
+      <CoachHomeMobileAccordionBody expanded={mobileOpen} className="space-y-3 md:space-y-4">
         {filtered.length === 0 ? (
-          <p className="px-4 py-10 text-center text-[13px] text-[var(--tt-ink-faint)] md:border md:border-[var(--tt-line)] md:px-4">
+          <p className="px-1 py-8 text-center text-[13px] text-[var(--tt-ink-faint)] md:border md:border-[var(--tt-line)] md:px-4 md:py-10">
             No activity matches this filter.
           </p>
         ) : (
           <>
-            {/* Mobile — cards inside section shell */}
-            <ul className="divide-y divide-[var(--tt-line)] border-t border-[var(--tt-line)] md:hidden">
+            {/* Mobile — feed items as same-width bubbles under the header */}
+            <ul className="space-y-3 md:hidden">
               {visibleRows.map((row) => (
-                <li key={row.id}>
+                <li
+                  key={row.id}
+                  className="overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] shadow-[var(--tt-shadow)]"
+                >
                   <ActivityFeedCard row={row} showDate />
                 </li>
               ))}
@@ -364,7 +375,7 @@ export function CoachHomeRecentActivityTable({
             </div>
 
             {pageSize !== 'all' ? (
-              <div className="px-4 md:px-0">
+              <div className="md:px-0">
                 <CoachHomeTablePagination
                   page={page}
                   pageCount={pageCount}
@@ -375,7 +386,7 @@ export function CoachHomeRecentActivityTable({
                 />
               </div>
             ) : filtered.length > 0 ? (
-              <p className="px-4 text-[11px] tabular-nums text-[var(--tt-ink-faint)] md:px-0">
+              <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint)]">
                 Showing all {filtered.length}
               </p>
             ) : null}
@@ -546,9 +557,9 @@ function WorkoutFeedCard({
           aria-hidden
         />
 
-        <div className="grid gap-4 py-3.5 pl-4 pr-3.5 md:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.6fr)] md:items-start md:gap-5">
+        <div className="grid gap-2.5 py-3.5 pl-4 pr-3.5 md:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.6fr)] md:items-start md:gap-5">
           <div className="min-w-0 space-y-3">
-            <div className="flex min-w-0 items-center gap-2">
+            <div className="flex min-w-0 items-start gap-2">
               <AthleteAvatar
                 name={row.athleteName}
                 avatarUrl={row.avatarUrl}
@@ -565,6 +576,33 @@ function WorkoutFeedCard({
                     activityAt={row.activityAt}
                     sourceLabel={row.sourceLabel}
                   />
+                ) : null}
+              </div>
+
+              {/* Mobile — status + Strava at top right */}
+              <div
+                className="flex shrink-0 flex-col items-end gap-1.5 md:hidden"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                <p
+                  className={cn(
+                    'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em]',
+                    skipped ? 'text-[var(--tt-red)]' : 'text-[var(--tt-good)]',
+                  )}
+                >
+                  {skipped ? (
+                    <Minus className="h-3 w-3" strokeWidth={2} aria-hidden />
+                  ) : (
+                    <Check className="h-3 w-3" strokeWidth={2} aria-hidden />
+                  )}
+                  {skipped ? 'Skipped' : 'Completed'}
+                </p>
+                {stravaSynced ? (
+                  <StravaSyncedIndicator workout={row.workout} variant="wordmark" size="xs" />
+                ) : null}
+                {hasChat ? (
+                  <WorkoutChatIndicator workout={row.workout} role="coach" size="sm" />
                 ) : null}
               </div>
             </div>
@@ -584,7 +622,8 @@ function WorkoutFeedCard({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Desktop — status row */}
+            <div className="hidden flex-wrap items-center gap-2 md:flex">
               <p
                 className={cn(
                   'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em]',
@@ -596,7 +635,7 @@ function WorkoutFeedCard({
                 ) : (
                   <Check className="h-3 w-3" strokeWidth={2} aria-hidden />
                 )}
-                {skipped ? 'Skipped' : stravaSynced ? 'Completed Strava' : 'Completed'}
+                {skipped ? 'Skipped' : 'Completed'}
               </p>
               <div
                 className="flex items-center gap-1"
@@ -606,7 +645,7 @@ function WorkoutFeedCard({
                 {hasChat ? (
                   <WorkoutChatIndicator workout={row.workout} role="coach" size="sm" />
                 ) : null}
-                {stravaSynced && skipped ? (
+                {stravaSynced ? (
                   <StravaSyncedIndicator workout={row.workout} variant="wordmark" size="xs" />
                 ) : null}
               </div>
@@ -640,7 +679,7 @@ function WorkoutFeedCard({
               />
             ) : null}
             {!skipped ? (
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-5">
+              <div className="grid grid-cols-3 gap-x-3 gap-y-2 lg:grid-cols-5 lg:gap-x-4">
                 {metricSlots.map((metric) => (
                   <FeedMetricCell key={metric.label} metric={metric} />
                 ))}

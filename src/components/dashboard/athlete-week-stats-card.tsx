@@ -24,7 +24,6 @@ import {
 } from '@/lib/week-sport-stats'
 import {
   HomeMobileSectionHeader,
-  MobileAccordionBody,
 } from '@/components/ui/mobile-accordion-body'
 import { cn } from '@/lib/utils'
 
@@ -61,7 +60,6 @@ export function AthleteWeekStatsCard({
   className,
 }: AthleteWeekStatsCardProps) {
   const [weekOffset, setWeekOffset] = useState(0)
-  const [mobileOpen, setMobileOpen] = useState(true)
 
   const selectedWeekStartKey = useMemo(() => {
     const anchor = parseDateOnly(anchorWeekStartKey)
@@ -133,8 +131,7 @@ export function AthleteWeekStatsCard({
     <section className={cn(SHELL, className)}>
       <HomeMobileSectionHeader
         title={title}
-        expanded={mobileOpen}
-        onToggle={() => setMobileOpen((open) => !open)}
+        collapsible={false}
         subtitle={rangeLabel}
         trailing={
           <>
@@ -160,8 +157,7 @@ export function AthleteWeekStatsCard({
         }
       />
 
-      <MobileAccordionBody expanded={mobileOpen}>
-        {sports.length === 0 ? (
+      {sports.length === 0 ? (
           <p className="mt-3 text-center text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
             No sports planned
           </p>
@@ -233,7 +229,6 @@ export function AthleteWeekStatsCard({
             />
           </div>
         </div>
-      </MobileAccordionBody>
     </section>
   )
 }

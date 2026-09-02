@@ -12,7 +12,6 @@ import {
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import {
   HomeMobileSectionHeader,
-  MobileAccordionBody,
 } from '@/components/ui/mobile-accordion-body'
 import { cn } from '@/lib/utils'
 
@@ -124,7 +123,6 @@ export function AthleteTrainingLoadCard({
   className,
 }: AthleteTrainingLoadCardProps) {
   const [offset, setOffset] = useState(0) // -1 last, 0 this, +1 next
-  const [mobileOpen, setMobileOpen] = useState(true)
   const todayKey = todayDateKey()
 
   const weeks = useMemo(() => {
@@ -196,8 +194,7 @@ export function AthleteTrainingLoadCard({
     <section className={cn(SHELL, className)}>
       <HomeMobileSectionHeader
         title="Training load"
-        expanded={mobileOpen}
-        onToggle={() => setMobileOpen((open) => !open)}
+        collapsible={false}
         subtitle={`${week.label} · ${week.range}`}
         trailing={
           <>
@@ -223,8 +220,7 @@ export function AthleteTrainingLoadCard({
         }
       />
 
-      <MobileAccordionBody expanded={mobileOpen}>
-        <p
+      <p
           className="mt-2 text-[1.875rem] uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)] tabular-nums"
           style={{ fontFamily: 'var(--font-display)' }}
         >
@@ -301,7 +297,6 @@ export function AthleteTrainingLoadCard({
             ))}
           </div>
         </div>
-      </MobileAccordionBody>
     </section>
   )
 }

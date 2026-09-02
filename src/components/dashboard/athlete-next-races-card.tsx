@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import {
   HomeMobileSectionHeader,
-  MobileAccordionBody,
 } from '@/components/ui/mobile-accordion-body'
 import { daysUntil } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -61,7 +60,6 @@ export function AthleteNextRacesCard({
   const [active, setActive] = useState(0)
   const [dragPx, setDragPx] = useState(0)
   const [dragging, setDragging] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(true)
   const drag = useRef<{
     pointerId: number
     startX: number
@@ -135,22 +133,16 @@ export function AthleteNextRacesCard({
   if (races.length === 0) {
     return (
       <section className={cn(SHELL, className)}>
-        <HomeMobileSectionHeader
-          title="Upcoming races"
-          expanded={mobileOpen}
-          onToggle={() => setMobileOpen((open) => !open)}
-        />
-        <MobileAccordionBody expanded={mobileOpen}>
-          <p className="mt-3 text-sm text-[var(--tt-ink-soft,#6b6b6b)]">
-            None scheduled
-          </p>
-          <Link
-            href="/season"
-            className="mt-3 inline-block text-[12px] font-medium text-[var(--tt-ink,#111)] underline-offset-2 hover:underline"
-          >
-            Open season →
-          </Link>
-        </MobileAccordionBody>
+        <HomeMobileSectionHeader title="Upcoming races" collapsible={false} />
+        <p className="mt-3 text-sm text-[var(--tt-ink-soft,#6b6b6b)]">
+          None scheduled
+        </p>
+        <Link
+          href="/season"
+          className="mt-3 inline-block text-[12px] font-medium text-[var(--tt-ink,#111)] underline-offset-2 hover:underline"
+        >
+          Open season →
+        </Link>
       </section>
     )
   }
@@ -159,8 +151,7 @@ export function AthleteNextRacesCard({
     <section className={cn(SHELL, className)}>
       <HomeMobileSectionHeader
         title="Upcoming races"
-        expanded={mobileOpen}
-        onToggle={() => setMobileOpen((open) => !open)}
+        collapsible={false}
         subtitle={`${active + 1} of ${races.length}`}
         trailing={
           races.length > 1 ? (
@@ -188,20 +179,19 @@ export function AthleteNextRacesCard({
         }
       />
 
-      <MobileAccordionBody expanded={mobileOpen}>
-        <div
-          ref={viewportRef}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-          className={cn(
-            'relative mt-3 overflow-hidden touch-pan-y',
-            races.length > 1 && 'cursor-grab select-none',
-            dragging && 'cursor-grabbing',
-          )}
-          style={{ touchAction: races.length > 1 ? 'pan-y' : undefined }}
-        >
+      <div
+        ref={viewportRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+        className={cn(
+          'relative mt-3 overflow-hidden touch-pan-y',
+          races.length > 1 && 'cursor-grab select-none',
+          dragging && 'cursor-grabbing',
+        )}
+        style={{ touchAction: races.length > 1 ? 'pan-y' : undefined }}
+      >
           <div
             className={cn(
               'flex will-change-transform',
@@ -300,7 +290,6 @@ export function AthleteNextRacesCard({
             ))}
           </div>
         ) : null}
-      </MobileAccordionBody>
     </section>
   )
 }

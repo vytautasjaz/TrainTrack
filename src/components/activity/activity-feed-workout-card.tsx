@@ -213,11 +213,11 @@ export function ActivityFeedWorkoutCard({
           aria-hidden
         />
 
-        <div className="grid gap-4 py-3.5 pl-4 pr-3.5 md:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.6fr)] md:items-start md:gap-5">
+        <div className="grid gap-2.5 py-3.5 pl-4 pr-3.5 md:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.6fr)] md:items-start md:gap-5">
           <div className="min-w-0 space-y-3">
             <div className="flex min-w-0 items-start gap-2">
               <WorkoutSportIcon type={row.activityType} size="sm" className="mt-0.5 shrink-0" />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="truncate text-[15px] font-semibold leading-snug text-[var(--tt-ink)]">
                   {row.activityTitle}
                 </p>
@@ -240,9 +240,37 @@ export function ActivityFeedWorkoutCard({
                   {selfAdded ? <SelfAddedBadge /> : null}
                 </div>
               </div>
+
+              {/* Mobile — status + Strava at top right */}
+              <div
+                className="flex shrink-0 flex-col items-end gap-1.5 md:hidden"
+                onClick={(event) => event.stopPropagation()}
+                onKeyDown={(event) => event.stopPropagation()}
+              >
+                <p
+                  className={cn(
+                    'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em]',
+                    skipped ? 'text-[var(--tt-red)]' : 'text-[var(--tt-good)]',
+                  )}
+                >
+                  {skipped ? (
+                    <Minus className="h-3 w-3" strokeWidth={2} aria-hidden />
+                  ) : (
+                    <Check className="h-3 w-3" strokeWidth={2} aria-hidden />
+                  )}
+                  {skipped ? 'Skipped' : 'Completed'}
+                </p>
+                {stravaSynced ? (
+                  <StravaSyncedIndicator workout={row.workout} variant="wordmark" size="xs" />
+                ) : null}
+                {hasChat ? (
+                  <WorkoutChatIndicator workout={row.workout} role={isCoach ? 'coach' : 'athlete'} size="sm" />
+                ) : null}
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+            {/* Desktop — status row under title */}
+            <div className="hidden flex-wrap items-center gap-2 md:flex">
               <p
                 className={cn(
                   'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em]',
@@ -269,6 +297,12 @@ export function ActivityFeedWorkoutCard({
                 ) : null}
               </div>
             </div>
+
+            {canAthleteFeedback ? (
+              <div className="hidden md:block">
+                <ActivityFeedInlineFeedback row={row} skipped={skipped} />
+              </div>
+            ) : null}
 
             {!canAthleteFeedback && skipped ? (
               <SkippedReason notes={row.feedbackNotes} />
@@ -309,7 +343,7 @@ export function ActivityFeedWorkoutCard({
               />
             ) : null}
             {!skipped ? (
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-5">
+              <div className="grid grid-cols-3 gap-x-3 gap-y-2 lg:grid-cols-5 lg:gap-x-4">
                 {metricSlots.map((metric) => (
                   <FeedMetricCell key={metric.label} metric={metric} />
                 ))}
@@ -324,7 +358,7 @@ export function ActivityFeedWorkoutCard({
         </div>
 
         {canAthleteFeedback ? (
-          <div className="border-t border-[var(--tt-line)] px-4 pb-3.5 pt-3">
+          <div className="border-t border-[var(--tt-line)] px-4 pb-3.5 pt-3 md:hidden">
             <ActivityFeedInlineFeedback row={row} skipped={skipped} />
           </div>
         ) : null}
