@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { ChevronDown, Menu } from 'lucide-react'
@@ -32,7 +32,6 @@ type MobileNavMenuProps = {
   canSwitchView?: boolean
   viewMode?: AppViewMode
   dashboardNotificationCount?: number
-  menuFooter?: ReactNode
   athleteProfile?: { name: string; avatarUrl: string | null } | null
 }
 
@@ -43,12 +42,10 @@ export function MobileNavMenu({
   canSwitchView = false,
   viewMode = 'athlete',
   dashboardNotificationCount = 0,
-  menuFooter,
   athleteProfile = null,
 }: MobileNavMenuProps) {
   const [open, setOpen] = useState(false)
   const [expandedHref, setExpandedHref] = useState<string | null>(null)
-  const [demoToolsOpen, setDemoToolsOpen] = useState(false)
   const pathname = usePathname()
   const searchParams = useSearchParams()
 
@@ -67,7 +64,10 @@ export function MobileNavMenu({
         onClick={() => {
           setOpen(true)
           const current = mainItems.find(
-            (item) => item.children?.length && pathname.startsWith(item.href),
+            (item) =>
+              item.children?.length &&
+              !item.subnavAlwaysVisible &&
+              pathname.startsWith(item.href),
           )
           setExpandedHref(current?.href ?? null)
         }}
@@ -85,14 +85,19 @@ export function MobileNavMenu({
             <ViewModeSwitcher viewMode={viewMode} tone="light" className="mb-2" />
           ) : null}
           <nav className="flex flex-col gap-0.5">
-            {mainItems.map(({ href, label, icon: Icon, children }) => {
-              const active = pathname.startsWith(href)
+            {mainItems.map(({ href, label, icon: Icon, children, subnavAlwaysVisible }) => {
+              const childActive = children?.some(
+                (child) =>
+                  pathname === child.href || pathname.startsWith(`${child.href}/`),
+              )
+              const active = pathname.startsWith(href) || Boolean(subnavAlwaysVisible && childActive)
               const showBadge = href === '/inbox' && inboxBadge > 0
-              const hasSubmenu = Boolean(children?.length)
-              const expanded = hasSubmenu && expandedHref === href
+              const hasCollapsibleSubmenu = Boolean(children?.length && !subnavAlwaysVisible)
+              const expanded = hasCollapsibleSubmenu && expandedHref === href
+              const showChildren = children && (subnavAlwaysVisible || expanded)
               return (
                 <div key={href}>
-                  {hasSubmenu ? (
+                  {hasCollapsibleSubmenu ? (
                     <button
                       type="button"
                       aria-expanded={expanded}
@@ -142,12 +147,14 @@ export function MobileNavMenu({
                       {label}
                     </Link>
                   )}
-                  {expanded && children ? (
+                  {showChildren ? (
                     <div className="mt-1 ml-4 space-y-0.5 border-l border-border pl-3">
                       {children.map((child) => {
                         const tabActive =
-                          pathname.startsWith(href) &&
-                          child.href.includes(`tab=${activeCalculatorTab}`)
+                          href === '/tools'
+                            ? pathname.startsWith(href) &&
+                              child.href.includes(`tab=${activeCalculatorTab}`)
+                            : pathname === child.href || pathname.startsWith(`${child.href}/`)
                         return (
                           <Link
                             key={child.href}
@@ -233,25 +240,6 @@ export function MobileNavMenu({
             className="mt-2 justify-start gap-2 rounded-[6px]"
           />
           <SignOutButton tone="menu" className="mt-1 rounded-[6px]" />
-          {menuFooter ? (
-            <div className="mt-3 border-t border-border pt-3">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between rounded-[6px] px-3 py-2 text-left text-sm font-medium text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                aria-expanded={demoToolsOpen}
-                onClick={() => setDemoToolsOpen((v) => !v)}
-              >
-                Demo accounts
-                <ChevronDown
-                  className={cn(
-                    'h-4 w-4 transition-transform',
-                    demoToolsOpen && 'rotate-180',
-                  )}
-                />
-              </button>
-              {demoToolsOpen ? <div className="mt-2 px-1">{menuFooter}</div> : null}
-            </div>
-          ) : null}
         </DialogContent>
       </Dialog>
     </>

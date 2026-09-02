@@ -2,6 +2,7 @@ import {
   CalendarRange,
   CircleUser,
   Flag,
+  Home,
   Library,
   LineChart,
   MessageSquare,
@@ -21,6 +22,8 @@ export type NavItem = {
   label: string
   icon: LucideIcon
   children?: NavSubItem[]
+  /** Subnav renders open by default (no extra toggle). */
+  subnavAlwaysVisible?: boolean
 }
 
 export type CalculatorNavTab = {
@@ -44,8 +47,25 @@ const TOOLS_NAV: NavItem = {
   children: CALCULATOR_NAV_TABS.map(({ href, label }) => ({ href, label })),
 }
 
-/** Home is via the app logo → /dashboard; not listed in athlete nav. */
+const COACH_ATHLETE_SUBNAV: NavSubItem[] = [
+  { href: '/training', label: 'Training' },
+  { href: '/season', label: 'Season' },
+  { href: '/progress', label: 'Stats' },
+]
+
+const COACH_ATHLETES_NAV: NavItem = {
+  href: '/athletes',
+  label: 'Athletes',
+  icon: Users,
+  subnavAlwaysVisible: true,
+  children: COACH_ATHLETE_SUBNAV,
+}
+
+const HOME_NAV: NavItem = { href: '/dashboard', label: 'Home', icon: Home }
+
+/** Home is also reachable via the app logo → /dashboard. */
 export const MAIN_NAV: NavItem[] = [
+  HOME_NAV,
   { href: '/training', label: 'Training', icon: CalendarRange },
   { href: '/inbox', label: 'Inbox', icon: MessageSquare },
   { href: '/season', label: 'Season', icon: Flag },
@@ -56,16 +76,15 @@ export const MAIN_NAV: NavItem[] = [
 export function getMainNav(isCoach: boolean): NavItem[] {
   if (isCoach) {
     return [
-      { href: '/athletes', label: 'Athletes', icon: Users },
-      { href: '/training', label: 'Training', icon: CalendarRange },
+      HOME_NAV,
       { href: '/inbox', label: 'Inbox', icon: MessageSquare },
-      { href: '/season', label: 'Season', icon: Flag },
-      { href: '/progress', label: 'Stats', icon: LineChart },
+      COACH_ATHLETES_NAV,
       { href: '/workouts', label: 'Library', icon: Library },
       TOOLS_NAV,
     ]
   }
   return [
+    HOME_NAV,
     { href: '/training', label: 'Training', icon: CalendarRange },
     { href: '/inbox', label: 'Inbox', icon: MessageSquare },
     { href: '/season', label: 'Season', icon: Flag },

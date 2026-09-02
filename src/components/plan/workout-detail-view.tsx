@@ -60,6 +60,10 @@ type WorkoutDetailViewProps = {
   heroTone?: 'dark' | 'light'
   /** Hide ask-coach / thread footer (e.g. roster split already shows chat). */
   hideCoachingThread?: boolean
+  /** Tighter layout for embedded side panels. */
+  compact?: boolean
+  /** Compact with minimal right inset (inbox workout rail). */
+  compactFlush?: boolean
 }
 
 /**
@@ -76,6 +80,8 @@ export function WorkoutDetailView({
   showCloseButton = false,
   heroTone = 'dark',
   hideCoachingThread = false,
+  compact = false,
+  compactFlush = false,
 }: WorkoutDetailViewProps) {
   const currentPath = useCurrentPath()
   const colorMode = useResolvedPlanColorMode()
@@ -129,6 +135,8 @@ export function WorkoutDetailView({
   }
 
   const completionChrome = colorMode === 'completion'
+  const insetX = compact ? (compactFlush ? 'pl-2.5 pr-1' : 'px-2.5') : 'px-5'
+  const insetMX = compact ? (compactFlush ? 'ml-2.5 mr-1' : 'mx-2.5') : 'mx-5'
 
   if (workout.type === WorkoutType.RECOVERY) {
     return (
@@ -255,7 +263,7 @@ export function WorkoutDetailView({
         {headerSlot}
 
         {showCloseButton ? (
-          <div className="absolute right-3 top-3 z-30">
+          <div className={cn('absolute z-30', compact ? (compactFlush ? 'right-1 top-2' : 'right-2 top-2') : 'right-3 top-3')}>
             <button
               type="button"
               onClick={requestClose}
@@ -269,7 +277,7 @@ export function WorkoutDetailView({
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {workout.isRescheduleGhost ? (
-            <div className="mx-5 mt-4 rounded-[8px] border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-900 dark:text-amber-200">
+            <div className={cn(insetMX, 'mt-4 rounded-[8px] border border-dashed border-amber-500/40 bg-amber-500/5 px-3 py-2.5 text-sm text-amber-900 dark:text-amber-200')}>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-medium">Moved off this day</p>
@@ -298,12 +306,14 @@ export function WorkoutDetailView({
             showStatusBadge={completionChrome}
             colorMode={colorMode}
             heroTone={heroTone}
+            compactHero={compact}
+            compactFlush={compactFlush}
             onShare={() => setExportOpen(true)}
             onRescheduleDone={requestClose}
-            onClose={requestClose}
+            onClose={showCloseButton ? undefined : requestClose}
           />
           {isCoach && !workout.isRescheduleGhost ? (
-            <div className="flex justify-end px-5 pb-3">
+            <div className={cn('flex justify-end pb-3', insetX)}>
               <CoachRescheduleReviewActions
                 workout={workout}
                 isCoach={isCoach}
@@ -315,7 +325,7 @@ export function WorkoutDetailView({
             <WorkoutResultFeedbackSummary workout={workout} isCoach={isCoach} />
           ) : null}
           {result?.coachReply ? (
-            <section className="px-5 pb-4 pt-1 text-sm">
+            <section className={cn('pb-4 pt-1 text-sm', insetX)}>
               <CoachReplyBlock reply={result.coachReply} />
             </section>
           ) : null}

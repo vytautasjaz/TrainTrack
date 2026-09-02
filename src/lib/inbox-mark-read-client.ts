@@ -61,6 +61,7 @@ export async function markInboxThreadReadClient(threadId: string): Promise<numbe
   try {
     return await promise
   } catch {
+    void refreshInboxUnreadBadge()
     return null
   } finally {
     inflight.delete(threadId)

@@ -3,14 +3,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { formatDistanceToNow } from 'date-fns'
-import { ChevronLeft } from 'lucide-react'
 import {
   CoachingThreadPanel,
   type CoachingThreadView,
 } from '@/components/inbox/coaching-thread-panel'
-import {
-  WorkoutDetailView,
-} from '@/components/plan/workout-detail-view'
+import { WorkoutDetailSidePanel } from '@/components/plan/workout-detail-side-panel'
 import { Caption } from '@/components/ui/typography'
 import { formatDateKeyCompact } from '@/lib/dates'
 import { type CoachRosterChatThread } from '@/lib/coach-roster'
@@ -131,60 +128,6 @@ function ThreadRailButton({
         </div>
       </div>
     </button>
-  )
-}
-
-function CoachRosterWorkoutDetailPanel({
-  workout,
-  collapsed,
-  onExpand,
-  onCollapse,
-}: {
-  workout: PlanWorkoutDetail
-  collapsed: boolean
-  onExpand: () => void
-  onCollapse: () => void
-}) {
-  if (collapsed) {
-    return (
-      <button
-        type="button"
-        className="tt-coach-roster-detail-rail group flex h-full w-full cursor-pointer flex-col items-center gap-2 border-l border-[var(--tt-line)] bg-[var(--tt-bg,#fafafa)] px-1 py-3 transition hover:bg-white"
-        onClick={(e) => {
-          e.stopPropagation()
-          onExpand()
-        }}
-        aria-label="Show workout detail"
-        title={workout.title}
-      >
-        <ChevronLeft
-          className="h-4 w-4 shrink-0 text-[var(--tt-ink-faint)] transition group-hover:text-[var(--tt-ink)]"
-          strokeWidth={2}
-        />
-        <span
-          className="max-h-[12rem] truncate text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-soft)] [writing-mode:vertical-rl] rotate-180"
-          aria-hidden
-        >
-          {workout.title}
-        </span>
-      </button>
-    )
-  }
-
-  return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-l border-[var(--tt-line)] bg-white">
-      <WorkoutDetailView
-        key={workout.id}
-        workout={workout}
-        isCoach
-        active
-        heroTone="light"
-        showCloseButton
-        hideCoachingThread
-        onClose={onCollapse}
-        className="h-full"
-      />
-    </div>
   )
 }
 
@@ -317,8 +260,9 @@ export function CoachRosterThreadSplit({
                 detailCollapsed ? 'w-9' : 'w-[20rem] sm:w-[22rem]',
               )}
             >
-              <CoachRosterWorkoutDetailPanel
+              <WorkoutDetailSidePanel
                 workout={selected.workoutDetail}
+                isCoach
                 collapsed={detailCollapsed}
                 onExpand={() => setDetailCollapsed(false)}
                 onCollapse={() => setDetailCollapsed(true)}

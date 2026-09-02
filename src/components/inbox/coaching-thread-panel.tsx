@@ -51,6 +51,8 @@ type CoachingThreadPanelProps = {
   skipAutoRead?: boolean
   /** Extra control rendered just under the composer (e.g. Mark unread). */
   composerFooter?: ReactNode
+  /** Pinned-above-messages content that scrolls with the thread (race card, workout context). */
+  scrollPrefix?: ReactNode
   onUpdated?: () => void
   /** Called with message body right after a successful send (for optimistic Inbox updates). */
   onMessageSent?: (body: string) => void
@@ -73,12 +75,14 @@ export function CoachingThreadPanel({
   dockComposer = false,
   skipAutoRead = false,
   composerFooter,
+  scrollPrefix,
   onUpdated,
   onMessageSent,
 }: CoachingThreadPanelProps) {
   const router = useRouter()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesRef = useRef<HTMLDivElement>(null)
+  const scrollStateRef = useRef({ threadId: thread.id, messageCount: thread.messages.length })
   const [body, setBody] = useState('')
   const [sendError, setSendError] = useState<string | null>(null)
   const [localMessages, setLocalMessages] = useState(thread.messages)
@@ -112,8 +116,19 @@ export function CoachingThreadPanel({
     if (!dockComposer) return
     const el = messagesRef.current
     if (!el) return
-    el.scrollTop = el.scrollHeight
-  }, [dockComposer, localMessages, thread.id])
+
+    const prev = scrollStateRef.current
+    const threadChanged = prev.threadId !== thread.id
+    const messageAdded = localMessages.length > prev.messageCount
+
+    if (threadChanged) {
+      el.scrollTop = 0
+    } else if (messageAdded) {
+      el.scrollTop = el.scrollHeight
+    }
+
+    scrollStateRef.current = { threadId: thread.id, messageCount: localMessages.length }
+  }, [dockComposer, localMessages.length, thread.id])
 
   function refresh() {
     router.refresh()
@@ -158,7 +173,7 @@ export function CoachingThreadPanel({
     <div
       className={cn(
         'min-w-0 max-w-full',
-        dockComposer ? 'flex h-full min-h-0 flex-col gap-1' : 'space-y-3',
+        dockComposer ? 'flex min-h-0 flex-1 flex-col overflow-hidden' : 'space-y-3',
         className,
       )}
     >
@@ -167,13 +182,14 @@ export function CoachingThreadPanel({
         className={cn(
           'min-w-0',
           dockComposer
-            ? 'flex min-h-0 flex-1 flex-col justify-end overflow-y-auto overscroll-contain'
+            ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain'
             : compact
               ? 'max-h-40 overflow-y-auto'
               : 'max-h-72 overflow-y-auto',
         )}
       >
-        <div className={cn('space-y-2', dockComposer && 'pb-1')}>
+        {scrollPrefix ? <div className="mb-4 shrink-0">{scrollPrefix}</div> : null}
+        <div className={cn('space-y-2', dockComposer && 'py-1')}>
         {localMessages.map((m) => {
           const mine =
             (role === 'athlete' && m.authorRole === CoachingAuthorRole.ATHLETE) ||
@@ -198,8 +214,8 @@ export function CoachingThreadPanel({
                         ? 'border border-sky-200 bg-sky-50 text-sky-950'
                         : 'border border-sky-200/80 bg-sky-50/80 text-foreground'
                       : mine
-                        ? 'bg-foreground text-background'
-                        : 'bg-muted text-foreground',
+                        ? 'bg-[var(--tt-ink,#111)] text-white shadow-sm'
+                        : 'border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-sidebar,#f5f5f5)] text-[var(--tt-ink,#111)] shadow-sm',
                 )}
               >
                 {isFeedback ? (
@@ -233,8 +249,8 @@ export function CoachingThreadPanel({
                       : isFeedback
                         ? 'text-sky-800/70'
                         : mine
-                          ? 'text-background/70'
-                          : 'text-muted-foreground',
+                          ? 'text-white/70'
+                          : 'text-[var(--tt-ink-faint,#9a9a9a)]',
                   )}
                 >
                   {m.authorRole === CoachingAuthorRole.COACH ? 'Coach' : 'Athlete'}
@@ -248,7 +264,11 @@ export function CoachingThreadPanel({
         </div>
       </div>
 
-      <div className={cn(dockComposer && 'shrink-0 pt-1')}>
+      <div
+        className={cn(
+          dockComposer && 'mt-auto shrink-0 border-t border-[var(--tt-line,#ebebeb)] pt-4',
+        )}
+      >
       <FormError message={sendError} />
       {isOptimistic ? (
         <p className="text-xs text-muted-foreground">Sending…</p>
@@ -262,7 +282,7 @@ export function CoachingThreadPanel({
             ref={textareaRef}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            rows={compact ? 2 : 3}
+            rows={dockComposer ? 2 : compact ? 2 : 3}
             placeholder={role === 'coach' ? 'Reply…' : 'Write a follow-up…'}
             disabled={isPending}
           />
@@ -273,7 +293,12 @@ export function CoachingThreadPanel({
                 setBody((prev) => insertEmojiAtCursor(textareaRef.current, prev, emoji))
               }
             />
-            <Button type="submit" size="sm" variant="secondary" disabled={isPending || !body.trim()}>
+            <Button
+              type="submit"
+              size="sm"
+              variant={dockComposer ? 'default' : 'secondary'}
+              disabled={isPending || !body.trim()}
+            >
               {isPending ? 'Sending…' : 'Send'}
             </Button>
           </div>

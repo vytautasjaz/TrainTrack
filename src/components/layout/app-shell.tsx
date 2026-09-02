@@ -2,8 +2,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { AppNav } from '@/components/layout/app-nav'
 import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
-import { RoleSwitcher } from '@/components/layout/role-switcher'
-import { CoachAthleteBar } from '@/components/coach/coach-athlete-bar'
+import { CoachAthleteBarGate } from '@/components/coach/coach-athlete-bar-gate'
 import { StravaAutoSync } from '@/components/integrations/strava-auto-sync'
 import { TrainTrackMark } from '@/components/brand/traintrack-logo'
 import {
@@ -15,9 +14,6 @@ import {
   athleteHasConnectedCoach,
 } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import {
-  getPendingCoachRequestCount,
-} from '@/lib/queries'
 import {
   getAthleteInboxUnreadCount,
   getCoachInboxUnreadCount,
@@ -47,11 +43,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   if (session && coach) {
-    const [inboxCount, pendingCount] = await Promise.all([
-      getCoachInboxUnreadCount(session.userId),
-      getPendingCoachRequestCount(session.userId),
-    ])
-    inboxNotificationCount = inboxCount + pendingCount
+    inboxNotificationCount = await getCoachInboxUnreadCount(session.userId)
     coachAthletes = await getCoachAthletes(session.userId)
     selectedAthleteId = await resolveAthleteId(session)
     if (session.name) {
@@ -78,14 +70,10 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     athleteProfile = { name: session.name, avatarUrl: null }
   }
 
-  const roleSwitcher = session ? (
-    <RoleSwitcher session={session} layout="sidebar" />
-  ) : null
-
   const athleteBar =
     coach && selectedAthleteId && coachAthletes.length > 0 ? (
       <Suspense fallback={null}>
-        <CoachAthleteBar
+        <CoachAthleteBarGate
           athletes={coachAthletes.map((a) => ({
             id: a.id,
             name: a.name,
@@ -108,7 +96,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           canSwitchView={canSwitchView}
           viewMode={viewMode}
           dashboardNotificationCount={inboxNotificationCount}
-          sidebarFooter={roleSwitcher}
           athleteProfile={athleteProfile}
         />
       </Suspense>
@@ -123,7 +110,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
                 canSwitchView={canSwitchView}
                 viewMode={viewMode}
                 dashboardNotificationCount={inboxNotificationCount}
-                menuFooter={roleSwitcher}
                 athleteProfile={athleteProfile}
               />
             </Suspense>

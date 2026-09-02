@@ -590,6 +590,26 @@ html[data-library-dock='true'] [data-app-main] {
   color: #fff;
 }
 
+.tt-app-sidebar-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.tt-app-sidebar-footer-actions form {
+  flex: 1;
+  min-width: 0;
+}
+
+.tt-app-sidebar-collapse-toggle {
+  flex-shrink: 0;
+  width: auto;
+  min-width: 44px;
+  justify-content: center;
+  padding-inline: 10px;
+}
+
 .tt-app-sidebar-profile {
   margin-top: 8px;
   padding: 8px;
@@ -785,6 +805,14 @@ html[data-library-dock='true'] [data-app-main] {
   justify-content: center;
   padding: 0;
   gap: 0;
+}
+
+.tt-app-sidebar[data-collapsed='true'] .tt-app-sidebar-footer-actions {
+  flex-direction: column;
+}
+
+.tt-app-sidebar[data-collapsed='true'] .tt-app-sidebar-collapse-toggle {
+  width: 100%;
 }
 
 body {
@@ -1426,6 +1454,225 @@ body {
   padding: 0;
   background: transparent;
   box-shadow: none;
+}
+
+/* ─── Inbox two-pane shell ─────────────────────────────────────────────── */
+.tt-inbox-shell {
+  display: grid;
+  height: clamp(28rem, calc(100vh - 11rem), 52rem);
+  min-height: 28rem;
+  overflow: hidden;
+  border: 1px solid var(--tt-line, #ebebeb);
+  border-radius: 10px;
+  background: var(--tt-surface, #ffffff);
+  box-shadow: var(--tt-shadow, 0 1px 2px rgb(17 17 17 / 0.04), 0 8px 24px rgb(17 17 17 / 0.04));
+}
+
+@media (min-width: 1024px) {
+  .tt-inbox-shell {
+    grid-template-columns: minmax(11rem, 2fr) minmax(0, 5fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+}
+
+.tt-inbox-list {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  border-bottom: 1px solid var(--tt-line, #ebebeb);
+  overflow: hidden;
+  background: color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 92%, white);
+}
+
+.tt-inbox-list-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--tt-line, #ebebeb) 90%, transparent);
+}
+
+.tt-inbox-list-header-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tt-ink-faint, #9a9a9a);
+}
+
+.tt-inbox-list-header-count {
+  font-size: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tt-ink-soft, #6b6b6b);
+}
+
+.tt-inbox-list-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.5rem;
+}
+
+.tt-inbox-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.tt-inbox-list-footer {
+  flex-shrink: 0;
+  border-top: 1px solid color-mix(in srgb, var(--tt-line, #ebebeb) 90%, transparent);
+  background: color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 92%, white);
+}
+
+@media (min-width: 1024px) {
+  .tt-inbox-list {
+    border-bottom: 0;
+    border-right: 1px solid var(--tt-line, #ebebeb);
+  }
+}
+
+.tt-inbox-list-row {
+  position: relative;
+  display: block;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  padding: 0.75rem 0.875rem;
+  text-align: left;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.tt-inbox-list-row:hover:not([data-active='true']) {
+  background: color-mix(in srgb, var(--tt-surface, #ffffff) 72%, transparent);
+  border-color: color-mix(in srgb, var(--tt-line, #ebebeb) 65%, transparent);
+}
+
+.tt-inbox-list-row[data-active='true'] {
+  background: var(--tt-surface, #ffffff);
+  border-color: var(--tt-line, #ebebeb);
+  box-shadow:
+    0 1px 2px rgb(17 17 17 / 0.04),
+    0 2px 8px rgb(17 17 17 / 0.03);
+}
+
+.tt-inbox-list-row[data-active='true']::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 0.625rem;
+  bottom: 0.625rem;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: var(--tt-red, #da2f36);
+}
+
+.tt-inbox-list-row[data-unread='true']:not([data-active='true']) {
+  background: color-mix(in srgb, var(--tt-red-soft, rgb(218 47 54 / 0.08)) 70%, transparent);
+  border-color: color-mix(in srgb, var(--tt-red-soft, rgb(218 47 54 / 0.08)) 90%, transparent);
+}
+
+.tt-inbox-detail {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--tt-surface, #ffffff);
+}
+
+.tt-inbox-detail-inner {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 1.25rem;
+}
+
+.tt-inbox-detail-inner:has(.tt-inbox-workout-split) {
+  padding-right: 0;
+  padding-bottom: 0;
+}
+
+.tt-inbox-filter-btn {
+  border-radius: 6px;
+  padding: 0.375rem 0.75rem;
+  font-size: 12px;
+  font-weight: 600;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.tt-inbox-filter-btn[data-active='true'] {
+  border: 1px solid var(--tt-ink, #111);
+  background: var(--tt-ink, #111);
+  color: #fff;
+}
+
+.tt-inbox-filter-btn[data-active='false'] {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--tt-ink-soft, #6b6b6b);
+}
+
+.tt-inbox-filter-btn[data-active='false']:hover {
+  background: var(--tt-sidebar, #f5f5f5);
+  color: var(--tt-ink, #111);
+}
+
+.tt-inbox-unread-badge {
+  display: inline-flex;
+  min-width: 1.125rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--tt-red, #da2f36);
+  padding: 0 0.3rem;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.125rem;
+  color: #fff;
+}
+
+.tt-inbox-workout-split {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 3fr) minmax(12rem, 2fr);
+}
+
+.tt-inbox-workout-split[data-workout-collapsed='true'] {
+  grid-template-columns: minmax(0, 1fr) 2.25rem;
+}
+
+.tt-inbox-workout-split-chat {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--tt-line, #ebebeb);
+}
+
+.tt-inbox-workout-split-workout {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .tt-home-prescription-card {

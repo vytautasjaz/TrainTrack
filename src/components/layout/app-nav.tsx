@@ -1,10 +1,10 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
-import { ChevronDown, ChevronLeft, ChevronRight, FlaskConical, Settings } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { TrainTrackMark } from '@/components/brand/traintrack-logo'
 import {
@@ -17,7 +17,6 @@ import { ViewModeSwitcher } from '@/components/layout/view-mode-switcher'
 import { useInboxNavBadge } from '@/components/layout/inbox-nav-badge'
 import type { AppViewMode } from '@/lib/session'
 import {
-  CALCULATOR_NAV_TABS,
   CONNECT_COACH_NAV,
   getMainNav,
   SETTINGS_ENTRY_HREF,
@@ -66,7 +65,6 @@ export function AppNav({
   canSwitchView = false,
   viewMode = 'athlete',
   dashboardNotificationCount = 0,
-  sidebarFooter,
   athleteProfile = null,
 }: {
   showPreferences?: boolean
@@ -75,7 +73,6 @@ export function AppNav({
   canSwitchView?: boolean
   viewMode?: AppViewMode
   dashboardNotificationCount?: number
-  sidebarFooter?: ReactNode
   athleteProfile?: SidebarAthleteProfile | null
 }) {
   const pathname = usePathname()
@@ -83,13 +80,11 @@ export function AppNav({
   const mainNav = getMainNav(isCoach)
   const toolsOpen = pathname === '/tools' || pathname.startsWith('/tools/')
   const settingsOpen = pathname.startsWith('/settings')
-  const activeCalculatorTab = searchParams.get('tab') ?? 'running'
   const [prefCollapsed, setPrefCollapsed] = useState(false)
   const [viewportTight, setViewportTight] = useState(false)
   const [prefsReady, setPrefsReady] = useState(false)
   /** Month calendar expand forces icon-only sidebar without changing stored preference. */
   const [expandLocked, setExpandLocked] = useState(false)
-  const [demoToolsOpen, setDemoToolsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [navIndicator, setNavIndicator] = useState({
     top: 0,
@@ -122,9 +117,9 @@ export function AppNav({
     const nav = navEl
 
     function measure() {
-      const active = nav.querySelector<HTMLElement>(
-        '.tt-app-sidebar-nav-link[data-active="true"]',
-      )
+      const active =
+        nav.querySelector<HTMLElement>('.tt-app-sidebar-subnav-link[data-active="true"]') ??
+        nav.querySelector<HTMLElement>('.tt-app-sidebar-nav-link[data-active="true"]')
       if (!active) {
         setNavIndicator((prev) => ({ ...prev, visible: false }))
         return
@@ -141,7 +136,9 @@ export function AppNav({
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(nav)
-    for (const child of nav.querySelectorAll('.tt-app-sidebar-nav-link')) {
+    for (const child of nav.querySelectorAll(
+      '.tt-app-sidebar-nav-link, .tt-app-sidebar-subnav-link',
+    )) {
       ro.observe(child)
     }
     nav.addEventListener('scroll', measure, { passive: true })
@@ -216,10 +213,13 @@ export function AppNav({
                 height: navIndicator.height,
               }}
             />
-            {mainNav.map(({ href, label, icon: Icon }) => {
+            {mainNav.map(({ href, label, icon: Icon, children, subnavAlwaysVisible }) => {
               const active = isNavActive(pathname, href)
               const showBadge = href === '/inbox' && inboxBadge > 0
-              const isTools = href === '/tools'
+              const showSubnav =
+                !effectiveCollapsed &&
+                Boolean(children?.length) &&
+                (subnavAlwaysVisible || (href === '/tools' && toolsOpen))
               return (
                 <div key={href}>
                   <Link
@@ -239,18 +239,21 @@ export function AppNav({
                       <span className="tt-app-sidebar-badge-dot" />
                     ) : null}
                   </Link>
-                  {!effectiveCollapsed && isTools && toolsOpen ? (
+                  {showSubnav ? (
                     <div className="tt-app-sidebar-subnav mt-1 ml-4 space-y-0.5 border-l pl-3">
-                      {CALCULATOR_NAV_TABS.map((tab) => {
-                        const tabActive = activeCalculatorTab === tab.id
+                      {children!.map((child) => {
+                        const childActive =
+                          href === '/tools'
+                            ? isSubItemActive(child.href, pathname, searchParams.toString())
+                            : isNavActive(pathname, child.href)
                         return (
                           <Link
-                            key={tab.id}
-                            href={tab.href}
-                            data-active={tabActive ? 'true' : undefined}
+                            key={child.href}
+                            href={child.href}
+                            data-active={childActive ? 'true' : undefined}
                             className="tt-app-sidebar-subnav-link block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors"
                           >
-                            {tab.label}
+                            {child.label}
                           </Link>
                         )
                       })}
@@ -379,59 +382,32 @@ export function AppNav({
               </Link>
             ) : null}
 
-            <SignOutButton
-              tone="sidebar"
-              iconOnly={effectiveCollapsed}
-              className="tt-app-sidebar-footer-item !mt-0"
-            />
+            <div className="tt-app-sidebar-footer-actions">
+              <SignOutButton
+                tone="sidebar"
+                iconOnly={effectiveCollapsed}
+                className="tt-app-sidebar-footer-item !mt-0"
+              />
 
-            {!effectiveCollapsed && sidebarFooter ? (
-              <div className="mt-1 space-y-1">
-                <button
-                  type="button"
-                  className="tt-app-sidebar-footer-item"
-                  aria-expanded={demoToolsOpen}
-                  onClick={() => setDemoToolsOpen((open) => !open)}
-                >
-                  <FlaskConical className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
-                  <span>Demo accounts</span>
-                </button>
-                {demoToolsOpen ? (
-                  <div
-                    className={cn(
-                      'sidebar-footer rounded-[10px] border border-white/10 bg-black/20 px-2.5 py-2.5 text-white/90',
-                      '[&_.text-label]:text-white/55 [&_.text-caption]:text-white/55',
-                      '[&_button]:rounded-[8px] [&_button]:bg-white/90 [&_button]:text-[#151827] [&_button]:hover:bg-white',
-                      '[&_select]:border [&_select]:border-white/15 [&_select]:bg-white/5 [&_select]:text-white',
-                      '[&_span.inline-flex]:bg-[rgb(232_75_69_/_0.2)] [&_span.inline-flex]:text-[#ff8a8f]',
-                      '[&_.border-border\\/60]:border-transparent [&_.border-t]:border-0 [&_.pt-4]:pt-0',
-                    )}
-                  >
-                    {sidebarFooter}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-
-            <button
-              type="button"
-              title={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              aria-label={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              aria-pressed={effectiveCollapsed}
-              className="tt-app-sidebar-footer-item"
-              onClick={() => {
-                // Toggle the stored preference from what the user sees. Viewport /
-                // calendar locks can still force icon-rail without writing "collapsed".
-                setSidebarCollapsed(!effectiveCollapsed)
-              }}
-            >
-              {effectiveCollapsed ? (
-                <ChevronRight className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
-              ) : (
-                <ChevronLeft className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
-              )}
-              {!effectiveCollapsed && <span>Collapse</span>}
-            </button>
+              <button
+                type="button"
+                title={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-label={effectiveCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-pressed={effectiveCollapsed}
+                className="tt-app-sidebar-footer-item tt-app-sidebar-collapse-toggle"
+                onClick={() => {
+                  // Toggle the stored preference from what the user sees. Viewport /
+                  // calendar locks can still force icon-rail without writing "collapsed".
+                  setSidebarCollapsed(!effectiveCollapsed)
+                }}
+              >
+                {effectiveCollapsed ? (
+                  <ChevronRight className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
+                ) : (
+                  <ChevronLeft className="tt-app-sidebar-nav-icon" strokeWidth={1.7} />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -539,10 +515,11 @@ function MobileBottomNav({
       ) : null}
 
       <div className="relative z-10 flex items-stretch justify-around bg-card px-1 pb-[env(safe-area-inset-bottom)] pt-1">
-        {items.map(({ href, label, icon: Icon, children }) => {
-          const active = isNavActive(pathname, href)
+        {items.map(({ href, label, icon: Icon, children, subnavAlwaysVisible }) => {
+          const childActive = children?.some((child) => isNavActive(pathname, child.href))
+          const active = isNavActive(pathname, href) || Boolean(subnavAlwaysVisible && childActive)
           const showBadge = href === '/inbox' && dashboardNotificationCount > 0
-          const hasSubmenu = Boolean(children?.length)
+          const hasSubmenu = Boolean(children?.length && !subnavAlwaysVisible)
           const expanded = openHref === href
           const itemClass = cn(
             'flex min-w-0 flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',

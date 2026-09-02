@@ -1,7 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect, react-hooks/refs */
 'use client'
 
-import Link from 'next/link'
 import {
   useEffect,
   useMemo,
@@ -9,29 +8,29 @@ import {
   useState,
   useSyncExternalStore,
   useTransition,
+  type ReactNode,
 } from 'react'
 import { CoachingAuthorRole, CoachingThreadKind, CoachingThreadStatus, type RacePriority } from '@prisma/client'
 import { Calendar, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RACE_TYPE_LABELS } from '@/lib/constants'
 import {
   CoachingThreadPanel,
   type CoachingThreadView,
 } from '@/components/inbox/coaching-thread-panel'
+import { WorkoutDetailSidePanel } from '@/components/plan/workout-detail-side-panel'
 import { PlanWorkoutDataCard } from '@/components/plan/plan-workout-data-card'
 import { PlanWorkoutModal } from '@/components/plan/plan-workout-modal'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { parseDateOnly } from '@/lib/dates'
-import { getWorkoutCardHero, getWorkoutCardSubtitle } from '@/lib/workout-card'
 import { markCoachingThreadUnread } from '@/app/actions/coaching-inbox'
 import { InboxNotificationsToggle } from '@/components/inbox/inbox-notifications-toggle'
 import { refreshInboxUnreadBadge } from '@/components/layout/inbox-nav-badge'
 import { markInboxThreadReadClient, clearInboxThreadReadClient } from '@/lib/inbox-mark-read-client'
 import {
-  formatInboxRaceResultLabel,
   InboxRaceReportSummary,
   type InboxRaceReportLeg,
 } from '@/components/inbox/inbox-race-report-summary'
@@ -80,13 +79,9 @@ export type InboxThreadListItem = {
   messages: CoachingThreadView['messages']
 }
 
-const FILTERS: { id: InboxFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'unread', label: 'Unread' },
-]
-
 const KINDS: { id: InboxKindFilter; label: string }[] = [
-  { id: 'all', label: 'All types' },
+  { id: 'all', label: 'All' },
+  { id: 'GENERAL', label: 'General chat' },
   { id: 'ASK', label: 'Asks' },
   { id: 'FEEDBACK', label: 'Feedback' },
   { id: 'RACE_REPORT', label: 'Races' },
@@ -115,37 +110,57 @@ function formatSessionDate(dateKey: string) {
   })
 }
 
-function formatHeroUnit(workout: PlanWorkoutDetail): string | null {
-  const hero = getWorkoutCardHero(workout)
-  if (!hero?.value) return null
-  const unit = hero.unit ? ` ${hero.unit}` : ''
-  return `${hero.approximate ? '~' : ''}${hero.value}${unit}`.trim()
+function threadRowTitle(t: InboxThreadListItem, role: 'athlete' | 'coach') {
+  const subject = t.workout?.title ?? t.race?.name ?? 'General chat'
+  const subjectDate = t.workout?.dateKey ?? t.race?.dateKey ?? null
+  if (role === 'coach' && t.athlete) {
+    return {
+      subject,
+      subjectDate,
+      athleteName: t.athlete.name,
+      kind: kindLabel(t.kind),
+    }
+  }
+  return {
+    subject,
+    subjectDate,
+    athleteName: null as string | null,
+    kind: kindLabel(t.kind),
+  }
 }
 
-function threadSessionMeta(t: InboxThreadListItem): {
-  date: string
-  subtitle: string | null
-  unit: string | null
-} | null {
-  if (t.workoutDetail) {
-    return {
-      date: formatSessionDate(t.workoutDetail.dateKey),
-      subtitle: getWorkoutCardSubtitle(t.workoutDetail),
-      unit: formatHeroUnit(t.workoutDetail),
-    }
-  }
-  if (t.workout) {
-    return { date: formatSessionDate(t.workout.dateKey), subtitle: null, unit: null }
-  }
-  if (t.race) {
-    const resultLabel = formatInboxRaceResultLabel(t.race)
-    return {
-      date: formatSessionDate(t.race.dateKey),
-      subtitle: resultLabel,
-      unit: t.race.resultPlace?.trim() ?? null,
-    }
-  }
-  return null
+type InboxParticipant = {
+  name: string
+  avatarUrl: string | null
+}
+
+function threadConversationPartner(
+  role: 'athlete' | 'coach',
+  coach: InboxParticipant,
+  athlete: InboxParticipant,
+): InboxParticipant {
+  return role === 'coach' ? athlete : coach
+}
+
+function InboxFilterButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-active={active ? 'true' : 'false'}
+      className="tt-inbox-filter-btn"
+    >
+      {children}
+    </button>
+  )
 }
 
 function threadMatchesFilters(
@@ -194,36 +209,6 @@ function scrollWithChromeOffset(target: HTMLElement) {
   window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' })
 }
 
-function InboxMiniWorkoutCard({
-  workout,
-  role,
-  onOpen,
-}: {
-  workout: PlanWorkoutDetail
-  role: 'athlete' | 'coach'
-  onOpen: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        onOpen()
-      }}
-      aria-label={`Open workout ${workout.title}`}
-      className="w-[32%] min-w-[6.5rem] max-w-[8.5rem] shrink-0 self-start overflow-hidden rounded-[6px] text-left transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
-    >
-            <PlanWorkoutDataCard
-              workout={workout}
-              density="week"
-              isCoach={role === 'coach'}
-              className="pointer-events-none"
-            />
-    </button>
-  )
-}
-
 function InboxThreadDetail({
   selected,
   role,
@@ -233,6 +218,7 @@ function InboxThreadDetail({
   onOpenWorkout,
   onMessageSent,
   embedded = false,
+  dockComposer = false,
 }: {
   selected: InboxThreadListItem
   role: 'athlete' | 'coach'
@@ -243,122 +229,189 @@ function InboxThreadDetail({
   onMessageSent: (body: string) => void
   /** Mobile accordion sits under the list row — skip repeating that header. */
   embedded?: boolean
+  dockComposer?: boolean
 }) {
-  return (
-    <div className="min-w-0 max-w-full space-y-4">
-      {!embedded && role === 'coach' && selected.athlete ? (
-        <div className="flex items-center gap-2.5">
-          <AthleteAvatar
-            name={selected.athlete.name}
-            avatarUrl={selected.athlete.avatarUrl}
-            size="md"
-          />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{selected.athlete.name}</p>
-            <p className="text-[11px] text-muted-foreground">
-              {kindLabel(selected.kind)}
-              {selected.unread || holdUnreadId === selected.id ? (
-                <>
-                  {' · '}
-                  Unread
-                </>
-              ) : null}
-            </p>
-          </div>
-        </div>
-      ) : null}
+  const [workoutPanelCollapsed, setWorkoutPanelCollapsed] = useState(false)
+  const rowTitle = threadRowTitle(selected, role)
+  const detailTitle = `${rowTitle.kind} · ${rowTitle.subject}`
 
-      {selected.workoutDetail && !embedded ? (
-        <div className="space-y-2">
-          {role !== 'coach' ? (
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {kindLabel(selected.kind)} about this workout
-            </p>
-          ) : null}
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-            <span>{formatSessionDate(selected.workoutDetail.dateKey)}</span>
+  const isWorkoutThread = Boolean(
+    selected.workoutDetail &&
+      !selected.workoutDetail.isRace &&
+      (selected.kind === CoachingThreadKind.ASK || selected.kind === CoachingThreadKind.FEEDBACK),
+  )
+  const showWorkoutSplit = dockComposer && !embedded && isWorkoutThread && selected.workoutDetail
+
+  useEffect(() => {
+    setWorkoutPanelCollapsed(false)
+  }, [selected.id])
+
+  let threadContext: ReactNode = null
+  if (selected.race) {
+    threadContext = (
+      <InboxRaceReportSummary
+        race={selected.race}
+        dateLabel={formatSessionDate(selected.race.dateKey)}
+      />
+    )
+  } else if (!showWorkoutSplit && selected.workoutDetail) {
+    threadContext = (
+      <div className="space-y-2">
+        {role !== 'coach' ? (
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint,#9a9a9a)]">
+            {kindLabel(selected.kind)} about this workout
           </p>
+        ) : null}
+        <p className="flex items-center gap-1.5 text-xs text-[var(--tt-ink-soft,#6b6b6b)]">
+          <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+          <span>{formatSessionDate(selected.workoutDetail.dateKey)}</span>
+        </p>
+        <button
+          type="button"
+          className="w-full min-w-0 max-w-full text-left transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={onOpenWorkout}
+          aria-label={`Open workout ${selected.workoutDetail.title}`}
+        >
+          <PlanWorkoutDataCard
+            workout={selected.workoutDetail}
+            density="list"
+            isCoach={role === 'coach'}
+            className="pointer-events-none max-w-full shadow-sm"
+          />
+        </button>
+        <p className="text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">Tap the card to open the workout</p>
+      </div>
+    )
+  } else if (!embedded && selected.workout) {
+    threadContext = (
+      <div className="rounded-[6px] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-sidebar,#f5f5f5)] px-3 py-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className={WORKOUT_TYPE_COLORS[selected.workout.type]}>
+            {WORKOUT_TYPE_LABELS[selected.workout.type]}
+          </Badge>
+          <h2 className="text-base font-semibold">{selected.workout.title}</h2>
+        </div>
+        <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[var(--tt-ink-soft,#6b6b6b)]">
+          <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+          <span>{formatSessionDate(selected.workout.dateKey)}</span>
+        </p>
+      </div>
+    )
+  }
+
+  const filteredMessages =
+    selected.race
+      ? selected.messages.filter(
+          (m) =>
+            !(
+              m.authorRole === CoachingAuthorRole.ATHLETE &&
+              isRaceReportCardDuplicateMessage(m.body, selected.race)
+            ),
+        )
+      : selected.messages
+
+  const threadPanel = (
+    <CoachingThreadPanel
+      className={cn(
+        showWorkoutSplit ? 'min-h-0 min-w-0 flex-1 overflow-hidden' : dockComposer ? 'mt-4 min-h-0 flex-1 overflow-hidden' : embedded ? 'mt-3' : 'mt-4',
+      )}
+      scrollPrefix={dockComposer && !showWorkoutSplit ? threadContext : undefined}
+      thread={{
+        id: selected.id,
+        status: selected.status,
+        kind: selected.kind,
+        messages: filteredMessages,
+      }}
+      role={role}
+      dockComposer={dockComposer}
+      skipAutoRead={holdUnreadId === selected.id}
+      composerFooter={
+        holdUnreadId !== selected.id ? (
           <button
             type="button"
-            className="w-full min-w-0 max-w-full text-left transition hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={onOpenWorkout}
-            aria-label={`Open workout ${selected.workoutDetail.title}`}
+            disabled={isPendingRead}
+            onClick={() => onMarkUnread(selected.id)}
+            className="text-[11px] font-medium text-[var(--tt-ink-faint,#9a9a9a)] transition hover:text-[var(--tt-ink-soft,#6b6b6b)] disabled:opacity-60"
           >
-            <PlanWorkoutDataCard
-              workout={selected.workoutDetail}
-              density="list"
-              isCoach={role === 'coach'}
-              className="pointer-events-none max-w-full shadow-sm"
-            />
+            Mark as unread
           </button>
-          <p className="text-[11px] text-muted-foreground">Tap the card to open the workout</p>
-        </div>
-      ) : selected.race ? (
-        embedded ? (
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/season">Season plan</Link>
-          </Button>
-        ) : (
-          <InboxRaceReportSummary
-            race={selected.race}
-            dateLabel={formatSessionDate(selected.race.dateKey)}
-          />
-        )
-      ) : selected.workout && !embedded ? (
-        <div className="rounded-[6px] border border-border bg-muted/20 px-3 py-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className={WORKOUT_TYPE_COLORS[selected.workout.type]}>
-              {WORKOUT_TYPE_LABELS[selected.workout.type]}
-            </Badge>
-            <h2 className="text-base font-semibold">{selected.workout.title}</h2>
-          </div>
-          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-            <span>{formatSessionDate(selected.workout.dateKey)}</span>
-          </p>
+        ) : null
+      }
+      onMessageSent={(body) => onMessageSent(body)}
+    />
+  )
+
+  return (
+    <div
+      className={cn(
+        'min-w-0 max-w-full',
+        dockComposer && 'flex min-h-0 flex-1 flex-col overflow-hidden',
+        showWorkoutSplit && '-ml-5 -mb-5 min-h-0 flex-1',
+      )}
+    >
+      {!embedded && !showWorkoutSplit ? (
+        <div className="shrink-0">
+          <p className="text-sm font-semibold text-[var(--tt-ink,#111)]">{detailTitle}</p>
+          {rowTitle.subjectDate ? (
+            <p className="mt-0.5 text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
+              {formatSessionDate(rowTitle.subjectDate)}
+              {rowTitle.athleteName ? ` · ${rowTitle.athleteName}` : ''}
+            </p>
+          ) : rowTitle.athleteName ? (
+            <p className="mt-0.5 text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
+              {rowTitle.athleteName}
+            </p>
+          ) : null}
         </div>
       ) : null}
 
-      <CoachingThreadPanel
-        thread={{
-          id: selected.id,
-          status: selected.status,
-          kind: selected.kind,
-          messages:
-            selected.race && !embedded
-              ? selected.messages.filter(
-                  (m) =>
-                    !(
-                      m.authorRole === CoachingAuthorRole.ATHLETE &&
-                      isRaceReportCardDuplicateMessage(m.body, selected.race)
-                    ),
-                )
-              : selected.messages,
-        }}
-        role={role}
-        skipAutoRead={holdUnreadId === selected.id}
-        composerFooter={
-          holdUnreadId !== selected.id ? (
-            <button
-              type="button"
-              disabled={isPendingRead}
-              onClick={() => onMarkUnread(selected.id)}
-              className="text-[11px] font-medium text-muted-foreground/70 transition hover:text-foreground disabled:opacity-60"
-            >
-              Mark as unread
-            </button>
-          ) : null
-        }
-        onMessageSent={(body) => onMessageSent(body)}
-      />
+      {!dockComposer && threadContext ? (
+        <div className="mt-4 shrink-0">{threadContext}</div>
+      ) : null}
+
+      {showWorkoutSplit ? (
+        <div
+          className="tt-inbox-workout-split"
+          data-workout-collapsed={workoutPanelCollapsed ? 'true' : undefined}
+        >
+          <div className="tt-inbox-workout-split-chat px-4 pb-4 pt-3">
+            <p className="shrink-0 pb-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+              {kindLabel(selected.kind)}
+              {rowTitle.athleteName ? (
+                <span className="font-medium normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
+                  {' · '}
+                  {rowTitle.athleteName}
+                </span>
+              ) : null}
+            </p>
+            {threadPanel}
+          </div>
+          <div className="tt-inbox-workout-split-workout">
+            <WorkoutDetailSidePanel
+              workout={selected.workoutDetail!}
+              isCoach={role === 'coach'}
+              collapsed={workoutPanelCollapsed}
+              flushEdge
+              onExpand={() => setWorkoutPanelCollapsed(false)}
+              onCollapse={() => setWorkoutPanelCollapsed(true)}
+            />
+          </div>
+        </div>
+      ) : (
+        threadPanel
+      )}
     </div>
   )
 }
 
+type InboxAthleteOption = InboxParticipant & { id: string }
+
 type InboxClientProps = {
   role: 'athlete' | 'coach'
   threads: InboxThreadListItem[]
+  coachParticipant: InboxParticipant
+  athleteParticipant?: InboxParticipant
+  coachAthletes?: InboxAthleteOption[]
   pendingRequestsSlot?: React.ReactNode
   pushConfigured?: boolean
 }
@@ -366,6 +419,9 @@ type InboxClientProps = {
 export function InboxClient({
   role,
   threads,
+  coachParticipant,
+  athleteParticipant,
+  coachAthletes = [],
   pendingRequestsSlot,
   pushConfigured = false,
 }: InboxClientProps) {
@@ -399,13 +455,20 @@ export function InboxClient({
   const filtersRef = useRef<HTMLDivElement>(null)
   const listItemRefs = useRef(new Map<string, HTMLDivElement>())
 
-  const athletes = useMemo(() => {
-    const map = new Map<string, { id: string; name: string; avatarUrl: string | null }>()
+  const athleteOptions = useMemo(() => {
+    if (coachAthletes.length > 0) {
+      return [...coachAthletes].sort((a, b) => a.name.localeCompare(b.name))
+    }
+    const map = new Map<string, InboxAthleteOption>()
     for (const t of items) {
       if (t.athlete) map.set(t.athlete.id, t.athlete)
     }
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
-  }, [items])
+  }, [coachAthletes, items])
+
+  useEffect(() => {
+    void refreshInboxUnreadBadge()
+  }, [])
 
   useEffect(() => {
     setItems((prev) => {
@@ -546,6 +609,12 @@ export function InboxClient({
     if (page > pageCount) setPage(pageCount)
   }, [page, pageCount])
 
+  useEffect(() => {
+    if (!selectedId) return
+    if (filtered.some((t) => t.id === selectedId)) return
+    setSelectedId(filtered[0]?.id ?? null)
+  }, [filtered, selectedId])
+
   const selected = selectedId ? (items.find((t) => t.id === selectedId) ?? null) : null
 
   const unreadCount = useMemo(() => items.filter((t) => t.unread).length, [items])
@@ -641,243 +710,183 @@ export function InboxClient({
   }
 
   return (
-    <div className="min-w-0 max-w-full space-y-2.5">
+    <div className="min-w-0 max-w-full space-y-4">
       {pendingRequestsSlot}
 
       <div
         ref={filtersRef}
-        className="flex flex-wrap items-center gap-x-3 gap-y-1.5"
+        className="flex flex-wrap items-center justify-between gap-3"
       >
-        <InboxNotificationsToggle pushConfigured={pushConfigured} />
-        <div className="flex flex-wrap gap-1">
-          {FILTERS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setFilter(f.id)}
-              className={cn(
-                'rounded-[5px] border px-2 py-0.5 text-[11px] font-medium transition',
-                filter === f.id
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'border-border text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {f.label}
-              {f.id === 'unread' && unreadCount > 0 ? ` (${unreadCount})` : ''}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <InboxFilterButton active={filter === 'unread'} onClick={() => setFilter('unread')}>
+            Unread{unreadCount > 0 ? ` (${unreadCount})` : ''}
+          </InboxFilterButton>
+          <InboxFilterButton active={filter === 'all'} onClick={() => setFilter('all')}>
+            All
+          </InboxFilterButton>
+          {role === 'coach' && athleteOptions.length > 0 ? (
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="inbox-athlete-filter" className="sr-only">
+                Filter by athlete
+              </label>
+              <Select
+                id="inbox-athlete-filter"
+                value={athleteFilter}
+                onChange={(e) => setAthleteFilter(e.target.value)}
+                className="h-8 min-w-[9rem] rounded-[6px] border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] px-2 py-0 text-[12px] font-medium text-[var(--tt-ink,#111)]"
+              >
+                <option value="all">All athletes</option>
+                {athleteOptions.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
         </div>
-        <span className="hidden h-3 w-px bg-border sm:block" aria-hidden />
-        <div className="flex flex-wrap gap-1">
-          {KINDS.map((k) => (
-            <button
-              key={k.id}
-              type="button"
-              onClick={() => setKind(k.id)}
-              className={cn(
-                'rounded-[5px] px-1.5 py-0.5 text-[11px] font-medium transition',
-                kind === k.id
-                  ? 'bg-muted text-foreground'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {k.label}
-            </button>
-          ))}
-        </div>
-        {role === 'coach' && athletes.length > 1 ? (
-          <>
-            <span className="hidden h-3 w-px bg-border sm:block" aria-hidden />
-            <div className="flex flex-wrap items-center gap-1">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <InboxNotificationsToggle pushConfigured={pushConfigured} />
+          <div className="flex flex-wrap gap-1">
+            {KINDS.map((k) => (
               <button
+                key={k.id}
                 type="button"
-                onClick={() => setAthleteFilter('all')}
+                onClick={() => setKind(k.id)}
                 className={cn(
-                  'rounded-full border px-2 py-0.5 text-[11px] font-medium transition',
-                  athleteFilter === 'all'
-                    ? 'border-foreground bg-foreground text-background'
-                    : 'border-border text-muted-foreground hover:text-foreground',
+                  'rounded-[5px] px-2 py-0.5 text-[11px] font-medium transition',
+                  kind === k.id
+                    ? 'bg-[var(--tt-sidebar,#f5f5f5)] text-[var(--tt-ink,#111)]'
+                    : 'text-[var(--tt-ink-soft,#6b6b6b)] hover:text-[var(--tt-ink,#111)]',
                 )}
               >
-                All
+                {k.label}
               </button>
-              {athletes.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  title={a.name}
-                  onClick={() => setAthleteFilter(a.id)}
-                  className={cn(
-                    'rounded-full ring-offset-background transition',
-                    athleteFilter === a.id
-                      ? 'ring-2 ring-foreground ring-offset-1'
-                      : 'opacity-70 hover:opacity-100',
-                  )}
-                >
-                  <AthleteAvatar
-                    name={a.name}
-                    avatarUrl={a.avatarUrl}
-                    size="sm"
-                    className="!h-6 !w-6 !text-[9px]"
-                  />
-                </button>
-              ))}
-            </div>
-          </>
-        ) : null}
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <div className="min-w-0 space-y-2">
+      <div className="tt-inbox-shell">
+        <div className="tt-inbox-list">
+          <div className="tt-inbox-list-header">
+            <span className="tt-inbox-list-header-label">Threads</span>
+            <span className="tt-inbox-list-header-count">{filtered.length}</span>
+          </div>
+          <div className="tt-inbox-list-scroll">
           {filtered.length === 0 ? (
-            <p className="rounded-[6px] border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
+            <p className="px-2 py-10 text-center text-sm text-[var(--tt-ink-soft,#6b6b6b)]">
               No conversations here.
             </p>
           ) : (
-            paged.map((t) => {
-              const active = selected?.id === t.id
-              const title = t.workout?.title ?? t.race?.name ?? 'Conversation'
-              const sessionMeta = threadSessionMeta(t)
-              return (
-                <div
-                  key={t.id}
-                  ref={(el) => {
-                    if (el) listItemRefs.current.set(t.id, el)
-                    else listItemRefs.current.delete(t.id)
-                  }}
-                  className={cn(
-                    'relative min-w-0 max-w-full overflow-x-clip rounded-[6px] border bg-card transition',
-                    active
-                      ? 'border-2 border-[color-mix(in_srgb,var(--color-foreground)_56%,var(--color-border))] bg-background shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-foreground)_14%,transparent)]'
-                      : t.unread
-                        ? 'border-[color-mix(in_srgb,var(--color-foreground)_48%,var(--color-border))] shadow-[0_0_0_1px_color-mix(in_srgb,var(--color-foreground)_14%,transparent)] hover:bg-muted/20'
-                        : 'border-border hover:bg-muted/20',
-                  )}
-                >
-                  <div className="flex items-start gap-2 px-3 py-2.5">
+            <div className="tt-inbox-list-items">
+              {paged.map((t) => {
+                const active = selected?.id === t.id
+                const row = threadRowTitle(t, role)
+                const threadAthlete: InboxParticipant = t.athlete
+                  ? { name: t.athlete.name, avatarUrl: t.athlete.avatarUrl }
+                  : athleteParticipant ?? { name: 'Athlete', avatarUrl: null }
+                const conversationPartner = threadConversationPartner(
+                  role,
+                  coachParticipant,
+                  threadAthlete,
+                )
+                return (
+                  <div
+                    key={t.id}
+                    ref={(el) => {
+                      if (el) listItemRefs.current.set(t.id, el)
+                      else listItemRefs.current.delete(t.id)
+                    }}
+                  >
                     <button
                       type="button"
                       onClick={() => selectThread(t.id)}
                       aria-expanded={active}
-                      className="min-w-0 flex-1 text-left"
+                      data-active={active ? 'true' : 'false'}
+                      data-unread={t.unread ? 'true' : 'false'}
+                      className="tt-inbox-list-row"
                     >
-                      <div className="flex items-start gap-2.5">
-                        {role === 'coach' && t.athlete ? (
-                          <AthleteAvatar
-                            name={t.athlete.name}
-                            avatarUrl={t.athlete.avatarUrl}
-                            size="md"
-                            className="mt-0.5"
-                          />
-                        ) : null}
+                      <div className="flex gap-3">
+                        <AthleteAvatar
+                          name={conversationPartner.name}
+                          avatarUrl={conversationPartner.avatarUrl}
+                          size="sm"
+                          className="!h-8 !w-8 shrink-0 !text-[11px] pt-0.5"
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
-                              {role === 'coach' && t.athlete ? (
+                              <div className="flex min-w-0 items-center gap-1.5">
+                                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint,#9a9a9a)]">
+                                  {row.kind}
+                                </span>
                                 <p
                                   className={cn(
-                                    'truncate text-sm text-foreground',
+                                    'min-w-0 truncate text-sm text-[var(--tt-ink,#111)]',
                                     t.unread ? 'font-semibold' : 'font-medium',
                                   )}
                                 >
-                                  {t.athlete.name}
+                                  {row.subject}
                                 </p>
-                              ) : null}
-                              <p
-                                className={cn(
-                                  'truncate text-sm text-foreground',
-                                  t.workoutDetail && 'max-lg:hidden',
-                                )}
-                              >
-                                <span className={t.unread ? 'font-semibold' : 'font-medium'}>{title}</span>
-                                {sessionMeta?.subtitle || sessionMeta?.unit ? (
-                                  <span className="font-normal text-muted-foreground">
-                                    {sessionMeta.subtitle ? ` | ${sessionMeta.subtitle}` : ''}
-                                    {sessionMeta.unit ? ` | ${sessionMeta.unit}` : ''}
-                                  </span>
-                                ) : null}
+                              </div>
+                              <p className="mt-0.5 truncate text-[11px] text-[var(--tt-ink-soft,#6b6b6b)]">
+                                {row.athleteName ? `${row.athleteName} · ` : ''}
+                                {row.subjectDate ? formatSessionDate(row.subjectDate) : 'No date'}
                               </p>
-                              {sessionMeta ? (
-                                <p className="mt-0.5 flex min-w-0 items-center gap-1 truncate text-[11px] text-muted-foreground">
-                                  <Calendar className="h-3 w-3 shrink-0" strokeWidth={2} />
-                                  <span className="truncate">{sessionMeta.date}</span>
-                                </p>
-                              ) : null}
                             </div>
-                            <span
-                              className={cn(
-                                'shrink-0 pt-0.5 text-[10px] text-muted-foreground',
-                                t.workoutDetail && 'max-lg:hidden',
-                              )}
-                            >
-                              {formatWhen(t.lastMessageAt)}
-                            </span>
-                          </div>
-                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                            <Badge className="bg-muted text-[10px] text-muted-foreground">
-                              {kindLabel(t.kind)}
-                            </Badge>
-                            {t.workoutDetail ? (
-                              <span className="text-[10px] text-muted-foreground lg:hidden">
+                            <div className="flex shrink-0 flex-col items-end gap-1">
+                              {t.unread ? <span className="tt-inbox-unread-badge">1</span> : null}
+                              <span className="text-[10px] uppercase tracking-wide text-[var(--tt-ink-faint,#9a9a9a)]">
                                 {formatWhen(t.lastMessageAt)}
                               </span>
-                            ) : null}
+                            </div>
                           </div>
-                          <p
-                            className={cn(
-                              'mt-1 line-clamp-2 text-xs',
-                              t.unread ? 'text-foreground/80' : 'text-muted-foreground',
-                            )}
-                          >
+                          <p className="mt-1 truncate text-xs text-[var(--tt-ink-soft,#6b6b6b)]">
                             {t.preview}
                           </p>
                         </div>
                       </div>
                     </button>
-                    {t.workoutDetail ? (
-                      <InboxMiniWorkoutCard
-                        workout={t.workoutDetail}
-                        role={role}
-                        onOpen={() => setWorkoutModal(t.workoutDetail)}
-                      />
+                    {!t.unread && !active ? (
+                      <button
+                        type="button"
+                        disabled={isPendingRead}
+                        onClick={() => markUnread(t.id)}
+                        aria-label="Mark conversation as unread"
+                        title="Mark as unread"
+                        className="px-4 pb-2 text-left text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint,#9a9a9a)] transition hover:text-[var(--tt-ink-soft,#6b6b6b)] disabled:opacity-60"
+                      >
+                        Mark unread
+                      </button>
+                    ) : null}
+                    {active && selected && !isLg ? (
+                      <div className="flex max-h-[min(60vh,28rem)] min-h-[16rem] flex-col overflow-hidden border-t border-[var(--tt-line,#ebebeb)] px-4 py-3">
+                        <InboxThreadDetail
+                          selected={selected}
+                          role={role}
+                          holdUnreadId={holdUnreadId}
+                          isPendingRead={isPendingRead}
+                          onMarkUnread={markUnread}
+                          onOpenWorkout={() => {
+                            if (selected.workoutDetail) setWorkoutModal(selected.workoutDetail)
+                          }}
+                          onMessageSent={(body) => applyOptimisticSend(selected.id, body)}
+                          embedded
+                          dockComposer
+                        />
+                      </div>
                     ) : null}
                   </div>
-                  {!t.unread && !active ? (
-                    <button
-                      type="button"
-                      disabled={isPendingRead}
-                      onClick={() => markUnread(t.id)}
-                      aria-label="Mark conversation as unread"
-                      title="Mark as unread"
-                      className="px-3 pb-2 text-left text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/40 transition hover:text-muted-foreground/75 disabled:opacity-60"
-                    >
-                      Unread
-                    </button>
-                  ) : null}
-                  {active && selected && !isLg ? (
-                    <div className="min-w-0 border-t border-border p-3">
-                      <InboxThreadDetail
-                        selected={selected}
-                        role={role}
-                        holdUnreadId={holdUnreadId}
-                        isPendingRead={isPendingRead}
-                        onMarkUnread={markUnread}
-                        onOpenWorkout={() => {
-                          if (selected.workoutDetail) setWorkoutModal(selected.workoutDetail)
-                        }}
-                        onMessageSent={(body) => applyOptimisticSend(selected.id, body)}
-                        embedded
-                      />
-                    </div>
-                  ) : null}
-                </div>
-              )
-            })
+                )
+              })}
+            </div>
           )}
+          </div>
           {filtered.length > 0 ? (
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+            <div className="tt-inbox-list-footer flex flex-wrap items-center justify-between gap-2 px-3 py-2">
               <div className="flex items-center gap-1">
-                <span className="pr-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                <span className="pr-1 text-[10px] font-medium uppercase tracking-wide text-[var(--tt-ink-faint,#9a9a9a)]">
                   Show
                 </span>
                 {INBOX_PAGE_SIZES.map((size) => (
@@ -886,17 +895,17 @@ export function InboxClient({
                     type="button"
                     onClick={() => setPageSize(size)}
                     className={cn(
-                      'rounded-[5px] border px-2 py-0.5 text-[11px] font-medium transition',
+                      'rounded-[5px] px-2 py-0.5 text-[11px] font-medium transition',
                       pageSize === size
-                        ? 'border-foreground bg-foreground text-background'
-                        : 'border-border text-muted-foreground hover:text-foreground',
+                        ? 'bg-[var(--tt-ink,#111)] text-white'
+                        : 'text-[var(--tt-ink-soft,#6b6b6b)] hover:text-[var(--tt-ink,#111)]',
                     )}
                   >
                     {size}
                   </button>
                 ))}
               </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-[11px] text-[var(--tt-ink-soft,#6b6b6b)]">
                 <span>
                   {rangeStart}–{rangeEnd} of {filtered.length}
                 </span>
@@ -906,7 +915,7 @@ export function InboxClient({
                       type="button"
                       disabled={safePage <= 1}
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
-                      className="rounded-[5px] p-0.5 text-muted-foreground transition hover:text-foreground disabled:opacity-30"
+                      className="rounded-[5px] p-0.5 transition hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
                       aria-label="Previous page"
                     >
                       <ChevronLeft className="h-4 w-4" />
@@ -918,7 +927,7 @@ export function InboxClient({
                       type="button"
                       disabled={safePage >= pageCount}
                       onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                      className="rounded-[5px] p-0.5 text-muted-foreground transition hover:text-foreground disabled:opacity-30"
+                      className="rounded-[5px] p-0.5 transition hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
                       aria-label="Next page"
                     >
                       <ChevronRight className="h-4 w-4" />
@@ -930,27 +939,30 @@ export function InboxClient({
           ) : null}
         </div>
 
-        <div className="hidden min-w-0 rounded-[6px] border border-border bg-card p-4 lg:block">
-          {!isLg ? null : !selected ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+        <div className="tt-inbox-detail hidden lg:flex">
+          {!selected ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-[var(--tt-ink-soft,#6b6b6b)]">
               <MessageSquare className="h-8 w-8 opacity-40" />
               <p className="text-sm">Select a conversation</p>
             </div>
           ) : (
-            <InboxThreadDetail
-              selected={selected}
-              role={role}
-              holdUnreadId={holdUnreadId}
-              isPendingRead={isPendingRead}
-              onMarkUnread={markUnread}
-              onOpenWorkout={() => {
-                if (selected.workoutDetail) setWorkoutModal(selected.workoutDetail)
-              }}
-              onMessageSent={(body) => {
-                applyOptimisticSend(selected.id, body)
-                void refreshInboxUnreadBadge()
-              }}
-            />
+            <div className="tt-inbox-detail-inner">
+              <InboxThreadDetail
+                selected={selected}
+                role={role}
+                holdUnreadId={holdUnreadId}
+                isPendingRead={isPendingRead}
+                onMarkUnread={markUnread}
+                onOpenWorkout={() => {
+                  if (selected.workoutDetail) setWorkoutModal(selected.workoutDetail)
+                }}
+                onMessageSent={(body) => {
+                  applyOptimisticSend(selected.id, body)
+                  void refreshInboxUnreadBadge()
+                }}
+                dockComposer
+              />
+            </div>
           )}
         </div>
       </div>

@@ -1,12 +1,6 @@
 import { redirect } from 'next/navigation'
-import { UserRole } from '@prisma/client'
-import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
-import {
-  continueAsDemoUser,
-  ensureDemoAccounts,
-  signInWithGoogle,
-} from '@/app/actions/auth'
+import { signInWithGoogle } from '@/app/actions/auth'
 import { HomeAuthForms } from '@/components/auth/home-auth-forms'
 import { nextAuthErrorMessage } from '@/lib/auth-form-errors'
 import { Button } from '@/components/ui/button'
@@ -17,16 +11,7 @@ import {
   resolveCoachInvite,
 } from '@/lib/coach-invite'
 
-const demoEnabled =
-  process.env.NODE_ENV === 'development' || process.env.ALLOW_DEMO_LOGIN === '1'
 const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)
-
-function roleLabel(roles: UserRole[]): string {
-  if (roles.includes(UserRole.COACH)) return 'Coach'
-  if (roles.includes(UserRole.ATHLETE)) return 'Athlete'
-  if (roles.includes(UserRole.ADMIN)) return 'Admin'
-  return 'User'
-}
 
 export default async function HomePage({
   searchParams,
@@ -51,49 +36,6 @@ export default async function HomePage({
   const inviteCookieCode = inviteFromQuery?.code ?? (await getCoachInviteCookie())
   const invite = inviteFromQuery ?? (inviteCookieCode ? await resolveCoachInvite(inviteCookieCode) : null)
 
-  let demoUsers: Array<{
-    id: string
-    name: string
-    roles: UserRole[]
-    athleteProfile: { id: string } | null
-  }> = []
-  let demoDbError = false
-
-  if (demoEnabled) {
-    try {
-      demoUsers = await prisma.user.findMany({
-        where: {
-          OR: [
-            { email: 'coach@traintrack.app' },
-            { email: 'jordan@traintrack.app' },
-            { roles: { has: UserRole.COACH } },
-            { roles: { has: UserRole.ATHLETE } },
-          ],
-        },
-        include: { athleteProfile: { select: { id: true } } },
-        orderBy: { name: 'asc' },
-        take: 8,
-      })
-    } catch {
-      demoUsers = []
-      demoDbError = true
-    }
-  }
-
-  const preferredDemo = demoUsers
-    .filter(
-      (u) =>
-        u.name === 'Coach Alex' ||
-        u.name === 'Jordan Lee' ||
-        u.roles.includes(UserRole.COACH) ||
-        u.roles.includes(UserRole.ATHLETE),
-    )
-    .sort((a, b) => {
-      const rank = (u: (typeof demoUsers)[number]) =>
-        u.name === 'Coach Alex' ? 0 : u.name === 'Jordan Lee' ? 1 : u.roles.includes(UserRole.COACH) ? 2 : 3
-      return rank(a) - rank(b)
-    })
-
   return (
     <div className="app-gradient flex min-h-dvh flex-col items-center justify-center px-5 py-8 sm:px-6">
       <div className="mb-8 w-full max-w-md text-center">
@@ -117,9 +59,7 @@ export default async function HomePage({
           <CardDescription className="text-sm leading-relaxed">
             {invite
               ? `${invite.coachName} invited you to TrainTrack. Create an account, then you’ll be asked to connect with them.`
-              : demoEnabled
-                ? 'Use a demo account for local testing, or sign in with email / OAuth.'
-                : 'One account — Google or email. Choose Athlete or Coach after you sign in.'}
+              : 'One account — Google or email. Choose Athlete or Coach after you sign in.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 px-5 pb-5 pt-0">
@@ -134,47 +74,6 @@ export default async function HomePage({
               {nextAuthErrorMessage(authError)}
             </p>
           ) : null}
-
-          {demoEnabled ? (
-            <div className="space-y-2 rounded-[6px] border border-border bg-muted/25 p-3">
-              <p className="text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                Continue with demo
-              </p>
-              {demoDbError ? (
-                <p className="text-center text-xs leading-relaxed text-destructive">
-                  Database isn’t reachable at localhost:5433. Start it with{' '}
-                  <code className="rounded bg-muted px-1 py-0.5 text-[11px]">npm run db:up</code>, then
-                  refresh.
-                </p>
-              ) : preferredDemo.length > 0 ? (
-                preferredDemo.map((user) => (
-                  <form key={user.id} action={continueAsDemoUser}>
-                    <input type="hidden" name="userId" value={user.id} />
-                    <Button type="submit" className="w-full justify-between">
-                      <span>Continue as {user.name}</span>
-                      <span className="text-xs font-normal opacity-80">{roleLabel(user.roles)}</span>
-                    </Button>
-                  </form>
-                ))
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-center text-xs leading-relaxed text-muted-foreground">
-                    No demo accounts yet. Create Coach Alex and Jordan Lee without wiping your data.
-                  </p>
-                  <form action={ensureDemoAccounts}>
-                    <Button type="submit" variant="secondary" className="w-full">
-                      Create demo accounts
-                    </Button>
-                  </form>
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          <div className="relative py-1 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            <span className="relative z-10 bg-card px-2">or</span>
-            <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
-          </div>
 
           <div className="grid gap-2">
             {googleEnabled ? (

@@ -98,58 +98,6 @@ function rolesWithProfiles(
 
 export async function getSession(): Promise<SessionContext | null> {
   const cookieStore = await cookies()
-  const demoEnabled =
-    process.env.NODE_ENV === 'development' || process.env.ALLOW_DEMO_LOGIN === '1'
-  const demoUserId = demoEnabled ? cookieStore.get('tt_user')?.value : undefined
-
-  // Demo picker / switch overrides Auth.js so you can jump to Coach Alex while testing.
-  if (demoUserId) {
-    const user = await prisma.user.findUnique({
-      where: { id: demoUserId },
-      include: {
-        athleteProfile: { select: { id: true } },
-        coachProfile: { select: { id: true } },
-      },
-    })
-    if (user) {
-      const athleteIdCookie = cookieStore.get('tt_athlete')?.value
-      const hasAthlete = Boolean(user.athleteProfile)
-      const hasCoach = Boolean(user.coachProfile)
-      const roles = rolesWithProfiles(user.roles, hasAthlete, hasCoach)
-      if (roles.length !== user.roles.length) {
-        void prisma.user
-          .update({ where: { id: user.id }, data: { roles } })
-          .catch(() => {})
-      }
-      const viewMode = resolveViewMode(
-        cookieStore.get(VIEW_MODE_COOKIE)?.value,
-        hasAthlete,
-        hasCoach,
-      )
-      let athleteId: string | null = user.athleteProfile?.id ?? null
-      if (viewMode === 'coach' && hasCoach && athleteIdCookie) {
-        const allowed = await coachCanAccessAthlete(user.id, athleteIdCookie)
-        if (allowed) athleteId = athleteIdCookie
-      } else if (viewMode === 'athlete' && hasAthlete) {
-        athleteId = user.athleteProfile?.id ?? null
-      } else if (!hasAthlete && athleteIdCookie && hasCoach) {
-        const allowed = await coachCanAccessAthlete(user.id, athleteIdCookie)
-        if (allowed) athleteId = athleteIdCookie
-      }
-      return {
-        userId: user.id,
-        role: primaryRole(roles, { hasAthlete, hasCoach }),
-        roles,
-        athleteId,
-        name: user.name,
-        hasAthlete,
-        hasCoach,
-        viewMode,
-        onboardingSkipped: Boolean(user.onboardingSkippedAt),
-        needsOnboarding: !hasAthlete && !hasCoach && !user.onboardingSkippedAt,
-      }
-    }
-  }
 
   const session = await auth()
   if (session?.user?.id) {

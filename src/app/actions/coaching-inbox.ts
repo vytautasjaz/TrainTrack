@@ -34,7 +34,6 @@ import {
   getRaceCoachingThread,
   getOrCreateAthleteGeneralChatThread,
 } from '@/lib/coaching-inbox'
-import { getPendingCoachRequestCount } from '@/lib/queries'
 import { parseWorkoutFeeling } from '@/lib/workout-feeling'
 import { sendInboxPushNotifications } from '@/lib/push-notifications'
 
@@ -482,11 +481,8 @@ export async function markCoachingThreadRead(formData: FormData): Promise<{ coun
   revalidatePath('/', 'layout')
 
   if (role === 'coach') {
-    const [inboxCount, pendingCount] = await Promise.all([
-      getCoachInboxUnreadCount(session.userId),
-      getPendingCoachRequestCount(session.userId),
-    ])
-    return { count: inboxCount + pendingCount }
+    const count = await getCoachInboxUnreadCount(session.userId)
+    return { count }
   }
 
   const count = await getAthleteInboxUnreadCount(thread.athleteId)

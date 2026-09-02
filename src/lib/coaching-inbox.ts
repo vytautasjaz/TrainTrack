@@ -248,8 +248,12 @@ export async function getAthleteInboxUnreadCount(athleteId: string): Promise<num
     include: {
       messages: { select: { authorRole: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
     },
+    orderBy: { lastMessageAt: 'desc' },
+    take: INBOX_LIST_MAX,
   })
-  return threads.filter((t) => isThreadUnreadForRole(t, 'athlete')).length
+  return applyListFilters(threads, 'athlete', { filter: 'all' }).filter((t) =>
+    isThreadUnreadForRole(t, 'athlete'),
+  ).length
 }
 
 export async function getCoachInboxUnreadCount(coachUserId: string): Promise<number> {
@@ -260,8 +264,12 @@ export async function getCoachInboxUnreadCount(coachUserId: string): Promise<num
     include: {
       messages: { select: { authorRole: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
     },
+    orderBy: { lastMessageAt: 'desc' },
+    take: INBOX_LIST_MAX,
   })
-  return threads.filter((t) => isThreadUnreadForRole(t, 'coach')).length
+  return applyListFilters(threads, 'coach', { filter: 'all' }).filter((t) =>
+    isThreadUnreadForRole(t, 'coach'),
+  ).length
 }
 
 /** Migrate legacy WorkoutResult notes/replies into FEEDBACK threads (idempotent). */

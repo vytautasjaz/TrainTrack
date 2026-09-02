@@ -9,7 +9,7 @@ export const COACHING_MESSAGE_MAX_LEN = 2000
 export const COACHING_THREAD_MESSAGE_CAP = 20
 
 export type InboxFilter = 'unread' | 'all'
-export type InboxKindFilter = 'all' | 'ASK' | 'FEEDBACK' | 'RACE_REPORT'
+export type InboxKindFilter = 'all' | 'GENERAL' | 'ASK' | 'FEEDBACK' | 'RACE_REPORT'
 
 export const INBOX_PAGE_SIZES = [20, 50, 100] as const
 export type InboxPageSize = (typeof INBOX_PAGE_SIZES)[number]

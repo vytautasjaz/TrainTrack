@@ -261,8 +261,10 @@ function HeroMetricColumn({
 
 function StructureRow({
   block,
+  compactHero = false,
 }: {
   block: PhaseBlockDisplay;
+  compactHero?: boolean;
 }) {
   const subtitle = blockSubtitle(block);
   const durationLabel = block.durationLabel
@@ -272,7 +274,12 @@ function StructureRow({
     : null;
 
   return (
-    <div className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-[var(--tt-sidebar)]/80">
+    <div
+      className={cn(
+        "flex items-start gap-3 py-3.5 transition-colors hover:bg-[var(--tt-sidebar)]/80",
+        compactHero ? "px-2.5" : "px-5",
+      )}
+    >
       <div className="min-w-0 flex-1">
         <p className="truncate text-[14px] font-semibold text-[var(--tt-ink)]">
           {block.title}
@@ -318,6 +325,10 @@ type AthleteWorkoutDetailCardProps = {
   colorMode?: PlanColorMode;
   /** Modal / preview use dark; list side panel stays light. */
   heroTone?: HeroTone;
+  /** Tighter hero padding for embedded side panels (inbox, roster). */
+  compactHero?: boolean;
+  /** Minimal right inset when flush against a panel edge. */
+  compactFlush?: boolean;
   onShare?: () => void;
   onRescheduleDone?: () => void;
   /** Prefer over DialogClose when detail is not inside a Dialog (e.g. list panel). */
@@ -334,6 +345,8 @@ export function AthleteWorkoutDetailCard({
   showStatusBadge = false,
   colorMode = "completion",
   heroTone = "dark",
+  compactHero = false,
+  compactFlush = false,
   onShare,
   onRescheduleDone,
   onClose,
@@ -372,6 +385,8 @@ export function AthleteWorkoutDetailCard({
   const skipped = workout.status === WorkoutStatus.SKIPPED;
   const statusChrome = colorMode === "completion";
   const darkHero = heroTone === "dark";
+  const insetX = compactHero ? (compactFlush ? "pl-2.5 pr-1" : "px-2.5") : "px-5";
+  const insetMX = compactHero ? (compactFlush ? "ml-2.5 mr-1" : "mx-2.5") : "mx-5";
   const accentColor = completed
     ? "var(--tt-good)"
     : statusChrome && skipped
@@ -386,7 +401,8 @@ export function AthleteWorkoutDetailCard({
     ? "w-px shrink-0 self-stretch bg-white/15"
     : "w-px shrink-0 self-stretch bg-[var(--tt-line)]";
   const metricsRowClass = cn(
-    "mt-5 flex min-w-0 items-stretch overflow-hidden",
+    "flex min-w-0 items-stretch overflow-hidden",
+    compactHero ? "mt-3" : "mt-5",
     !darkHero && "border-y border-[var(--tt-line)] py-2.5",
   );
   const iconButtonClass = darkHero
@@ -521,6 +537,7 @@ export function AthleteWorkoutDetailCard({
       <div
         className={cn(
           "tt-workout-hero px-5 pb-5 pt-5",
+          compactHero && (compactFlush ? "pl-2.5 pr-1 pb-2 pt-2" : "px-2.5 pb-2 pt-2"),
           darkHero
             ? "bg-[var(--tt-workout-hero-bg,#151827)] text-white/[0.92]"
             : "bg-white text-[var(--tt-ink)]",
@@ -529,7 +546,9 @@ export function AthleteWorkoutDetailCard({
         <div
           className={cn(
             "relative flex items-start gap-3",
-            statusBadge && (showQuickLog || stravaSynced)
+            compactHero
+              ? "pr-8"
+              : statusBadge && (showQuickLog || stravaSynced)
               ? "pr-[13rem]"
               : showQuickLog || stravaSynced
                 ? "pr-[7.5rem]"
@@ -849,7 +868,7 @@ export function AthleteWorkoutDetailCard({
 
       {/* Intensity graph — keep for planned and completed */}
       {(hasBuilderStructure || hasIncludes) && workout.structure ? (
-        <div className="px-5 pt-6">
+        <div className={cn(compactHero ? "pt-4" : "pt-6", insetX)}>
           <WorkoutStructureChart
             structure={workout.structure}
             durationMinutes={workout.plannedDuration ?? undefined}
@@ -867,7 +886,7 @@ export function AthleteWorkoutDetailCard({
       ) : null}
 
       {hasSwimStructure && workout.swimStructure ? (
-        <section className="space-y-2 px-5 py-4">
+        <section className={cn("space-y-2 py-4", insetX)}>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
             Workout details
           </p>
@@ -881,11 +900,11 @@ export function AthleteWorkoutDetailCard({
         <>
           <div className="divide-y divide-[var(--tt-line)]">
             {structureDisplay.blocks.map((block) => (
-              <StructureRow key={block.id} block={block} />
+              <StructureRow key={block.id} block={block} compactHero={compactHero} />
             ))}
           </div>
           {hasIncludes && workout.structure?.includeItems ? (
-            <section className="mx-5 mb-4 mt-2 rounded-[8px] bg-[var(--tt-sidebar)] px-3 py-2.5">
+            <section className={cn(insetMX, "mb-4 mt-2 rounded-[8px] bg-[var(--tt-sidebar)] px-3 py-2.5")}>
               <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
                 Include
               </p>
@@ -896,7 +915,7 @@ export function AthleteWorkoutDetailCard({
           ) : null}
         </>
       ) : hasIncludes && workout.structure?.includeItems ? (
-        <section className="mx-5 mb-4 space-y-2 rounded-[8px] bg-[var(--tt-sidebar)] px-3 py-2.5">
+        <section className={cn(insetMX, "mb-4 space-y-2 rounded-[8px] bg-[var(--tt-sidebar)] px-3 py-2.5")}>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
             Include
           </p>
@@ -908,7 +927,7 @@ export function AthleteWorkoutDetailCard({
           ) : null}
         </section>
       ) : showDescriptionDetails && fullDescription ? (
-        <section className="space-y-1.5 px-5 pb-4">
+        <section className={cn("space-y-1.5 pb-4", insetX)}>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
             Session plan
           </p>
@@ -919,7 +938,7 @@ export function AthleteWorkoutDetailCard({
       ) : null}
 
       {coachNotes ? (
-        <section className="space-y-1.5 px-5 py-4">
+        <section className={cn("space-y-1.5 py-4", insetX)}>
           <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
             <MessageSquare className="h-3 w-3" strokeWidth={2.25} />
             Coach notes
