@@ -1,11 +1,9 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
-import { signInWithGoogle } from '@/app/actions/auth'
-import { HomeAuthForms } from '@/components/auth/home-auth-forms'
+import { AuthEmailPanel } from '@/components/auth/auth-email-panel'
+import { AuthMarketingAside } from '@/components/auth/auth-marketing-aside'
+import { TrainTrackLogo } from '@/components/brand/traintrack-logo'
 import { nextAuthErrorMessage } from '@/lib/auth-form-errors'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { TrainTrackAppIcon } from '@/components/brand/traintrack-logo'
 import {
   getCoachInviteCookie,
   resolveCoachInvite,
@@ -37,69 +35,31 @@ export default async function HomePage({
   const invite = inviteFromQuery ?? (inviteCookieCode ? await resolveCoachInvite(inviteCookieCode) : null)
 
   return (
-    <div className="app-gradient flex min-h-dvh flex-col items-center justify-center px-5 py-8 sm:px-6">
-      <div className="mb-8 w-full max-w-md text-center">
-        <TrainTrackAppIcon
-          className="mx-auto mb-4 h-14 w-14 sm:mb-5 sm:h-16 sm:w-16"
-          aria-label="TrainTrack"
-        />
-        <h1 className="traintrack-wordmark text-3xl tracking-[0.075em] sm:text-4xl">
-          TRAINTRACK
-        </h1>
-        <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground sm:mt-3">
-          Plan training, log workouts, and track progress — built for coaches and athletes.
-        </p>
+    <div className="auth-page min-h-dvh">
+      <div className="auth-page-pattern absolute inset-0" aria-hidden />
+      <div className="auth-page-grid mx-auto grid min-h-dvh w-full max-w-[1200px] lg:grid-cols-[1.05fr_0.95fr]">
+        <AuthMarketingAside />
+
+        <div className="flex flex-col items-center justify-center px-5 py-8 sm:px-8 lg:px-10 lg:py-12">
+          <div className="mb-6 lg:hidden">
+            <TrainTrackLogo markClassName="h-10 w-10" wordmarkClassName="text-[1.15rem]" />
+          </div>
+          <div className="auth-card w-full max-w-[420px] rounded-[16px] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] p-6 shadow-[0_12px_40px_rgb(17_17_17_/0.06)] sm:p-7">
+            {authError ? (
+              <p className="mb-4 rounded-[8px] border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-xs text-destructive">
+                {nextAuthErrorMessage(authError)}
+              </p>
+            ) : null}
+
+            <AuthEmailPanel
+              initialMode={invite ? 'register' : 'sign-in'}
+              registerButtonLabel={invite ? 'Create athlete account' : 'Create account'}
+              googleEnabled={googleEnabled}
+              inviteCoachName={invite?.coachName ?? null}
+            />
+          </div>
+        </div>
       </div>
-
-      <Card className="w-full max-w-md border border-border">
-        <CardHeader className="space-y-1.5 px-5 pb-4 pt-5 text-center">
-          <CardTitle className="text-lg leading-tight">
-            {invite ? 'Create your athlete account' : 'Sign in'}
-          </CardTitle>
-          <CardDescription className="text-sm leading-relaxed">
-            {invite
-              ? `${invite.coachName} invited you to TrainTrack. Create an account, then you’ll be asked to connect with them.`
-              : 'One account — Google or email. Choose Athlete or Coach after you sign in.'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 px-5 pb-5 pt-0">
-          {invite ? (
-            <p className="rounded-[6px] border border-brand/25 bg-brand-soft/40 px-3 py-2 text-center text-xs leading-relaxed text-foreground">
-              Invite from <span className="font-semibold">{invite.coachName}</span>
-            </p>
-          ) : null}
-
-          {authError ? (
-            <p className="rounded-[6px] border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-xs text-destructive">
-              {nextAuthErrorMessage(authError)}
-            </p>
-          ) : null}
-
-          <div className="grid gap-2">
-            {googleEnabled ? (
-              <form action={signInWithGoogle}>
-                <Button type="submit" variant="outline" className="w-full">
-                  Continue with Google
-                </Button>
-              </form>
-            ) : (
-              <Button type="button" variant="outline" className="w-full" disabled>
-                Continue with Google
-              </Button>
-            )}
-          </div>
-
-          <div className="relative py-1 text-center text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            <span className="relative z-10 bg-card px-2">or email</span>
-            <span className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
-          </div>
-
-          <HomeAuthForms
-            inviteOpen={Boolean(invite)}
-            registerButtonLabel={invite ? 'Create athlete account' : 'Create account'}
-          />
-        </CardContent>
-      </Card>
     </div>
   )
 }

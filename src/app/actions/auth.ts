@@ -28,25 +28,25 @@ import {
   isRedirectError,
   mapAuthActionError,
 } from '@/lib/auth-form-errors'
+import {
+  normalizeAuthEmail,
+  validateRegisterForm,
+  validateSignInForm,
+} from '@/lib/auth-form-validation'
 
 export async function registerWithEmail(
   _prevState: AuthFormState,
   formData: FormData,
 ): Promise<AuthFormState> {
   const name = String(formData.get('name') ?? '').trim()
-  const email = String(formData.get('email') ?? '')
-    .trim()
-    .toLowerCase()
+  const email = normalizeAuthEmail(String(formData.get('email') ?? ''))
   const password = String(formData.get('password') ?? '')
+  const confirmPassword = String(formData.get('confirmPassword') ?? '')
 
-  if (!name || name.length < 2) {
-    return { error: 'Name is required.' }
-  }
-  if (!email || !email.includes('@')) {
-    return { error: 'Enter a valid email address.' }
-  }
-  if (password.length < 8) {
-    return { error: 'Password must be at least 8 characters.' }
+  const fieldErrors = validateRegisterForm({ name, email, password, confirmPassword })
+  if (Object.keys(fieldErrors).length > 0) {
+    const firstError = Object.values(fieldErrors)[0]
+    return { error: firstError ?? 'Fix the highlighted fields.', fieldErrors }
   }
 
   const existing = await prisma.user.findUnique({ where: { email } })
@@ -100,15 +100,12 @@ export async function signInWithEmail(
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
 
-  const email = String(formData.get('email') ?? '')
-    .trim()
-    .toLowerCase()
+  const email = normalizeAuthEmail(String(formData.get('email') ?? ''))
   const password = String(formData.get('password') ?? '')
-  if (!email || !email.includes('@')) {
-    return { error: 'Enter a valid email address.' }
-  }
-  if (!password) {
-    return { error: 'Password is required.' }
+  const fieldErrors = validateSignInForm({ email, password })
+  if (Object.keys(fieldErrors).length > 0) {
+    const firstError = Object.values(fieldErrors)[0]
+    return { error: firstError ?? 'Fix the highlighted fields.', fieldErrors }
   }
 
   const inviteCode = await getCoachInviteCookie()

@@ -1,7 +1,9 @@
 # Redesign — Locked screens & implementation order
 
-Status after mock studio pass (Aug 2026). Mock routes live under `/design-mockups/*`.  
+Status after production pass (Sep 2026). Mock routes live under `/design-mockups/*`.  
 Tokens: `docs/REDESIGN-TOKENS.md`. Briefs: `WEB-DESIGN-BRIEF.md`, `MOBILE-DESIGN-BRIEF.md`.
+
+**Production drift note:** Coach **Home** in app (`/dashboard` coach view) is a **command center** (needs attention, activity feed, planning coverage). The mock **Coach Home · Athletes** roster table lives at `/athletes` — treat both as valid; update mocks when consolidating.
 
 ---
 
@@ -14,17 +16,18 @@ Use this in review: **Locked** = direction approved for production; **Solid** = 
 | Screen | Mock | Status | Notes |
 |--------|------|--------|-------|
 | App shell (gradient sidebar) | `/design-mockups/shell` | Solid | Athlete vs coach nav; Settings in footer |
-| Athlete Home | `/athlete-home`, `-mobile` | Solid | Editorial H1; today stack |
-| Coach Home · Athletes | `/coach-home`, `-mobile` | Solid | Roster + expand Chat / Feedback / **Zones** |
+| Athlete Home | `/athlete-home`, `-mobile` | Solid | Editorial H1; today stack; **activity feed shipped** (see Phase 3) |
+| Coach Home · Athletes | `/coach-home`, `-mobile` | Solid | Roster + expand Chat / Feedback / **Zones** — at `/athletes` |
+| Coach Home · Command center | *(no dedicated mock)* | Solid | `/dashboard` coach: needs attention + activity feed + sidebar (requests / planning) |
 | Training List | `/training-list`, `-mobile` | Solid | Prescription cards |
 | Training Week | `/training-week`, `-mobile` | Solid | Matrix; weekend grey; today = red soft (no side rail) |
 | Training Month | `/training-month` | Solid | Calendar density |
 | Workout cards / detail | `/workout-detail` | Solid | Status + structure |
 | Workout create/edit modal | `/workout-builder` | Solid | Closer to production card editor; fixed width |
-| Inbox | `/inbox` | Solid | Two-pane + workout context |
+| Inbox | `/inbox` | Solid | Three-pane + workout split; **coaching requests in thread list + Requests filter** |
 | Season | `/season` | Solid | Near production planner |
 | Stats (+ Results) | `/stats` | Solid | Trends + PBs + race results |
-| Library | `/library` | Solid | Folders, list default, schedule day picker, structure graph |
+| Library | `/library` | Solid | Folders, list default, schedule day picker, structure graph; **athlete picker in schedule modal** |
 | Settings | `/settings` | Solid | Coach = account only; athlete zones under Athletes |
 | Tools · Calculators | `/tools` | **Locked UI** | Production calculators as-is in mock chrome |
 
@@ -33,11 +36,12 @@ Use this in review: **Locked** = direction approved for production; **Solid** = 
 | Topic | Why open |
 |-------|----------|
 | Empty states pack | Brief asks for empty week / inbox / library / no races — not mocked as a set |
-| Auth / marketing landing | Separate surface |
+| Auth / marketing landing | Separate surface; invite/onboarding flows hardened in prod but landing not redesigned |
 | Full-page deep builder (studio) | Modal is the v1 create/edit path; studio later |
 | Library docked panel polish | Exists on Training Week; drag/drop still mock-only |
 | Coach zone proposals → athlete notification UX | Modeled in Athletes → Zones; product rules need API/product review |
 | Mobile Settings / Library | Desktop-first mocks; mobile variants optional |
+| Coach command center mock | Production `/dashboard` coach layout has no 1:1 mock yet |
 
 ---
 
@@ -45,9 +49,11 @@ Use this in review: **Locked** = direction approved for production; **Solid** = 
 
 1. **Coach Settings ≠ athlete personal settings.** Coach edits own planning/builder prefs only. Athlete zones/weather/plan color stay with the athlete.
 2. **Zone adjustments from coach** live under **Athletes → Zones**, require athlete permission; proposals notify the athlete; no silent overwrite.
-3. **Library folders** are per-sport topic groups; Schedule opens a day picker with existing plan load visible.
+3. **Library folders** are per-sport topic groups; Schedule opens a day picker with existing plan load visible; coach picks **which athlete** to schedule onto.
 4. **Calculators** stay on the current production design; redesign = shell/nav only unless a calc bug is found.
 5. **Week chrome:** weekend = cool light grey; today = brand red soft wash (+ red day head); no today side rail.
+6. **Inbox coaching requests** appear as first-class inbox rows (red **Request** label), filterable via **Requests (n)**; approve/decline in detail pane — not a separate full-width banner.
+7. **Coach invite flow:** `?invite=` persists cookie; after register + Start Training, athlete accepts coach on `/join/.../accept`; session profile flags read from DB (not stale JWT) before accept.
 
 ---
 
@@ -94,6 +100,7 @@ Ship in layers so mockups don’t drift and shared chrome lands once.
    - [x] Folders (schema + CRUD + rail UI)
    - [x] Demo seed `scripts/seed-library-demo.ts` (Vytautas Test samples)
    - [x] Home demo seed `scripts/seed-athlete-home-demo.ts` (Vytautas Test: last/this/next week + 5 races)
+   - [x] Schedule modal: **athlete picker** + persist selected athlete cookie after schedule
 2. Docked library on week (drag later if needed).
    - [x] Dock from calendar edge (float into spare margin / push when tight)
    - [x] Real data + DnD; soft right border when floating
@@ -109,22 +116,32 @@ Ship in layers so mockups don’t drift and shared chrome lands once.
    - [x] Today: unique Home prescription card (Bebas L, prescription + metric/zone, completion rail) — not week card
    - [x] Upcoming: calendar date + sport + title/prescription rows (mock list card)
    - [x] Right rail: next-races carousel, week stats chrome, training load chart (volume stand-in)
+   - [x] **Activity feed** below upcoming: coach-style day groups, sport rail, map/metrics; inline feedback + 1–10 feeling picker on completed/skipped workouts
    - [ ] Real TSS on training load when metric exists
-2. Coach Athletes roster + **Needs attention** stack.
-   - [x] Unify join requests + under-planned + needs-reply into one attention stack (existing queries)
-   - [x] Roster table (or denser list) with attention chips; Open plan
+2. Coach Home command center (`/dashboard` coach view).
+   - [x] **Needs attention** table (filters, mark handled, action panel)
+   - [x] Sidebar: **coaching requests** + planning coverage (or attention action panel when row selected)
+   - [x] **Activity feed** (shared card chrome with coach home table rows); grid layout so feed sits under attention (no gap when attention empty but requests exist)
+   - [x] Athlete + time range filters
+3. Coach Athletes roster (`/athletes`) + **Needs attention** stack (legacy mock path).
+   - [x] Unify join signals into attention stack (existing queries)
+   - [x] Roster table with attention chips; Open plan
    - [x] Row expand Chat / Feedback where prod already supports it
    - [x] Zones expand: **stub or defer to Phase 5** (permission + notify — no silent overwrite)
-3. Attention / underplanned chips tied to real queries (same signals as stack + roster).
+4. Attention / underplanned chips tied to real queries.
    - [x] Roster attention chips from needs-reply, under-planned, low compliance
 
 **Exit:** Athlete and coach land on homes that match mock hierarchy; attention is scannable from one place.
 
-### Phase 4 — Season, Stats, Inbox polish
+### Phase 4 — Season, Stats, Inbox polish · in progress
 
 1. Season shell/tokens pass (structure already production-like).
 2. Stats unification (Results folded as in mock).
-3. Inbox two-pane + workout-attached messages polish.
+3. Inbox polish.
+   - [x] Three-pane layout + thread list/detail + workout-attached split panel
+   - [x] Unread / All / **Requests** filters; coaching requests mixed into thread list with approve/decline detail
+   - [ ] Mock parity pass on mobile accordion + empty states
+   - [ ] Thread list row polish vs `/design-mockups/inbox`
 
 ### Phase 5 — Settings & permissions
 
@@ -137,24 +154,29 @@ Ship in layers so mockups don’t drift and shared chrome lands once.
 - Empty states.
 - Mobile-specific Settings/Library.
 - Full-page builder studio.
-- Auth landing.
+- Auth / marketing landing redesign.
+- Dedicated mock for coach command center home.
+
+**Reliability (shipped, not visual redesign):**
+
+- [x] Coach invite cookie via middleware + join route; register redirect to accept flow
+- [x] `getSession()` reads athlete/coach profiles from DB (fixes post–Start Training invite accept)
+- [x] Service worker v3: don’t cache `/_next/`; live nav for invite shell; PWA auto-update + stale Server Action reload
 
 **Tools:** Phase 0 shell only — do not redesign calculator internals.
 
 ---
 
-## 4. Suggested first production PR
+## 4. Suggested next production PRs
 
-**Title idea:** `redesign: tokens + gradient app shell`
+| Priority | Title idea | Scope |
+|----------|------------|--------|
+| 1 | `redesign: athlete home activity feed polish` | TSS on training load; feed empty state; mock alignment pass |
+| 2 | `redesign: coach command center mock` | Add `/design-mockups/coach-command-center` matching prod `/dashboard` coach |
+| 3 | `redesign: inbox empty states` | No threads / no requests / filter-empty copy + mobile polish |
+| 4 | `redesign: season + stats token pass` | Shell/tokens only; keep data logic |
 
-**Scope:**
-
-- CSS variables from `REDESIGN-TOKENS.md`
-- Font loading
-- Sidebar chrome matching `/design-mockups/shell`
-- Feature-flag or route preview if you want to ship behind a flag
-
-**Out of scope for that PR:** Training week rewrite, Library folders, Settings permission API.
+**Out of scope until Phase 5:** Zone proposal permission API, calculator internals, full-page builder studio.
 
 ---
 
@@ -163,13 +185,16 @@ Ship in layers so mockups don’t drift and shared chrome lands once.
 - Treat `/design-mockups/<screen>` as the visual contract for that phase.
 - If production must diverge, update the mock in the same PR so the studio stays truthful.
 - Calculators: compare to `/tools` and `/design-mockups/tools` — only shell differences expected.
+- **Coach home:** `/design-mockups/coach-home` = roster at `/athletes`; `/dashboard` coach = command center (document or mock separately).
 
 ---
 
-## 6. Review checklist (before Phase 1)
+## 6. Review checklist
 
-- [ ] Confirm week today/weekend treatment
-- [ ] Confirm Library list-default + folders + schedule day picker
+- [x] Confirm week today/weekend treatment
+- [x] Confirm Library list-default + folders + schedule day picker + athlete on schedule
 - [ ] Confirm coach Settings scope + Athletes Zones permission story
-- [ ] Confirm calculators locked (no visual rewrite)
-- [ ] Agree Phase 0 PR owner / flag strategy
+- [x] Confirm calculators locked (no visual rewrite)
+- [x] Phase 0 shell shipped (tokens + sidebar)
+- [ ] Agree coach command center vs roster mock naming in docs/studio
+- [x] Inbox coaching requests: list rows + Requests filter (not orphan banner)

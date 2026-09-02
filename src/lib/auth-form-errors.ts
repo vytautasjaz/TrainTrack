@@ -1,8 +1,12 @@
 import { AuthError } from 'next-auth'
 import { mapPrismaError } from '@/lib/action-error'
+import type { AuthFormField } from '@/lib/auth-form-validation'
+
+export type { AuthFormField } from '@/lib/auth-form-validation'
 
 export type AuthFormState = {
   error?: string | null
+  fieldErrors?: Partial<Record<AuthFormField, string>>
 }
 
 export const INITIAL_AUTH_FORM_STATE: AuthFormState = {}
