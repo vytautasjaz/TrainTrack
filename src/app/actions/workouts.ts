@@ -18,6 +18,7 @@ import { ensureTriathlonLegsForRace } from '@/lib/strava/sync'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 import { safeRedirectPath } from '@/lib/safe-redirect'
+import { generateAthleteClaimToken } from '@/lib/athlete-claim'
 import {
   onRacesCalendarDataChanged,
   onTrainingCalendarDataChanged,
@@ -855,23 +856,34 @@ export async function createAthlete(formData: FormData) {
   })
   if (!coachProfile) throw new Error('Coach profile required — become a coach first')
 
-  await prisma.$transaction(async (tx) => {
-    const athlete = await tx.athlete.create({
-      data: {
-        coachId: session.userId,
-        name,
-      },
-    })
-    await tx.coachAthleteLink.create({
-      data: {
-        coachProfileId: coachProfile.id,
-        athleteId: athlete.id,
-        status: CoachAthleteLinkStatus.ACCEPTED,
-      },
-    })
-  })
+  let created = false
+  for (let attempt = 0; attempt < 5 && !created; attempt++) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const athlete = await tx.athlete.create({
+          data: {
+            coachId: session.userId,
+            name,
+            claimToken: generateAthleteClaimToken(),
+          },
+        })
+        await tx.coachAthleteLink.create({
+          data: {
+            coachProfileId: coachProfile.id,
+            athleteId: athlete.id,
+            status: CoachAthleteLinkStatus.ACCEPTED,
+          },
+        })
+      })
+      created = true
+    } catch {
+      // retry on rare claimToken collision
+    }
+  }
+  if (!created) throw new Error('Could not create athlete')
 
   revalidatePath('/dashboard')
+  revalidatePath('/athletes')
 }
 
 export async function moveWorkout(formData: FormData) {

@@ -156,6 +156,8 @@ Ship in layers so mockups don’t drift and shared chrome lands once.
 - Full-page builder studio.
 - Auth / marketing landing redesign.
 - Dedicated mock for coach command center home.
+- **Admin panel** — `ADMIN` role UI: user list, profile edits, password reset; later billing/subscription ops (see [`docs/TODO.md`](TODO.md)).
+- **Privacy & EU go-live** — cookie consent, privacy/cookie policies, export/delete account (see [`docs/TODO.md`](TODO.md)).
 
 **Reliability (shipped, not visual redesign):**
 

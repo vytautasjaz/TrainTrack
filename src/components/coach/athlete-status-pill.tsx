@@ -40,12 +40,14 @@ export function AthleteStatusPill({
   }
 
   return (
-    <DropdownMenu.Root>
+    <DropdownMenu.Root modal={false}>
       <DropdownMenu.Trigger
         disabled={isPending}
         data-athlete-status-trigger=""
+        data-no-row-expand=""
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         className={cn(
           'inline-flex items-center gap-0.5 rounded-full font-medium transition',
           'outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-foreground/20',
@@ -63,12 +65,19 @@ export function AthleteStatusPill({
         <DropdownMenu.Content
           align="end"
           sideOffset={6}
+          data-no-row-expand=""
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           className="z-[200] min-w-[9rem] overflow-hidden rounded-[6px] border border-border bg-card p-1 shadow-lg"
         >
           {ATHLETE_STATUS_OPTIONS.map(({ value, label }) => (
             <DropdownMenu.Item
               key={value}
-              onSelect={() => setStatus(value)}
+              onSelect={(e) => {
+                e.preventDefault()
+                setStatus(value)
+              }}
+              onClick={(e) => e.stopPropagation()}
               className={cn(
                 'cursor-pointer rounded-[4px] px-2.5 py-1.5 text-sm outline-none',
                 'data-[highlighted]:bg-foreground/[0.04]',

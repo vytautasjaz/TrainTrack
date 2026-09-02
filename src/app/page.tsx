@@ -7,13 +7,14 @@ import { nextAuthErrorMessage } from '@/lib/auth-form-errors'
 import {
   resolveCoachInvite,
 } from '@/lib/coach-invite'
+import { parseAthleteClaimToken, resolveAthleteClaim, getAthleteClaimCookie } from '@/lib/athlete-claim'
 
 const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)
 
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string; invite?: string }>
+  searchParams?: Promise<{ error?: string; invite?: string; claim?: string }>
 }) {
   let session = null
   try {
@@ -29,8 +30,14 @@ export default async function HomePage({
   const params = searchParams ? await searchParams : {}
   const authError = params.error
 
+  if (params.claim && parseAthleteClaimToken(params.claim)) {
+    redirect(`/claim/${encodeURIComponent(parseAthleteClaimToken(params.claim)!)}`)
+  }
+
   const inviteFromQuery = params.invite ? await resolveCoachInvite(params.invite) : null
   const invite = inviteFromQuery
+  const claimToken = await getAthleteClaimCookie()
+  const claim = claimToken ? await resolveAthleteClaim(claimToken) : null
 
   return (
     <div className="auth-page min-h-dvh">
@@ -50,10 +57,14 @@ export default async function HomePage({
             ) : null}
 
             <AuthEmailPanel
-              initialMode={invite ? 'register' : 'sign-in'}
-              registerButtonLabel={invite ? 'Create athlete account' : 'Create account'}
+              initialMode={invite || claim ? 'register' : 'sign-in'}
+              registerButtonLabel={
+                claim ? 'Create account & take over profile' : invite ? 'Create athlete account' : 'Create account'
+              }
               googleEnabled={googleEnabled}
               inviteCoachName={invite?.coachName ?? null}
+              claimCoachName={claim?.coachName ?? null}
+              claimAthleteName={claim?.athleteName ?? null}
             />
           </div>
         </div>

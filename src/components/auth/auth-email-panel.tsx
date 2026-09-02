@@ -44,6 +44,8 @@ type AuthEmailPanelProps = {
   registerButtonLabel: string
   googleEnabled: boolean
   inviteCoachName?: string | null
+  claimCoachName?: string | null
+  claimAthleteName?: string | null
 }
 
 export function AuthEmailPanel({
@@ -51,6 +53,8 @@ export function AuthEmailPanel({
   registerButtonLabel,
   googleEnabled,
   inviteCoachName,
+  claimCoachName,
+  claimAthleteName,
 }: AuthEmailPanelProps) {
   const [mode, setMode] = useState<AuthMode>(initialMode)
   const signInIds = useAuthFieldIds('sign-in')
@@ -125,6 +129,7 @@ export function AuthEmailPanel({
     })
   }
 
+  const hasClaimInvite = Boolean(claimCoachName && claimAthleteName)
   const isRegister = mode === 'register'
   const activeError = isRegister ? registerState.error : signInState.error
   const emailPending = isRegister ? registerPending : signInPending
@@ -164,21 +169,32 @@ export function AuthEmailPanel({
       <div>
         <h2 className="text-xl font-semibold tracking-tight text-[var(--tt-ink,#111)]">
           {isRegister
-            ? inviteCoachName
-              ? 'Create your athlete account'
-              : 'Create your account'
+            ? hasClaimInvite
+              ? 'Take over your training profile'
+              : inviteCoachName
+                ? 'Create your athlete account'
+                : 'Create your account'
             : 'Welcome back'}
         </h2>
         <p className="mt-1 text-[13px] leading-relaxed text-[var(--tt-ink-soft,#6b6b6b)]">
           {isRegister
-            ? inviteCoachName
-              ? `${inviteCoachName} invited you. Register to connect with them.`
-              : 'One account for athlete and coach — pick your path after sign up.'
-            : 'Log in to your TrainTrack account.'}
+            ? hasClaimInvite
+              ? `${claimCoachName} set up a profile for ${claimAthleteName}. Register to link it to your account.`
+              : inviteCoachName
+                ? `${inviteCoachName} invited you. Register to connect with them.`
+                : 'One account for athlete and coach — pick your path after sign up.'
+            : hasClaimInvite
+              ? `Log in to take over ${claimAthleteName}'s training profile from ${claimCoachName}.`
+              : 'Log in to your TrainTrack account.'}
         </p>
       </div>
 
-      {inviteCoachName && isRegister ? (
+      {hasClaimInvite ? (
+        <p className="rounded-[8px] border border-[color-mix(in_srgb,var(--tt-red)_24%,var(--tt-line))] bg-[color-mix(in_srgb,var(--tt-red)_6%,white)] px-3 py-2 text-[12px] leading-relaxed text-[var(--tt-ink,#111)]">
+          Profile from <span className="font-semibold">{claimCoachName}</span> ·{' '}
+          {claimAthleteName}
+        </p>
+      ) : inviteCoachName && isRegister ? (
         <p className="rounded-[8px] border border-[color-mix(in_srgb,var(--tt-red)_24%,var(--tt-line))] bg-[color-mix(in_srgb,var(--tt-red)_6%,white)] px-3 py-2 text-[12px] leading-relaxed text-[var(--tt-ink,#111)]">
           Invite from <span className="font-semibold">{inviteCoachName}</span>
         </p>

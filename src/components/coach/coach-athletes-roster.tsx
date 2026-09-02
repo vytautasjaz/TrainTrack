@@ -7,6 +7,8 @@ import type { AthleteStatus } from '@prisma/client'
 import { createAthlete } from '@/app/actions/workouts'
 import { selectAthleteForTraining } from '@/app/actions/athletes'
 import { CoachInviteLinkPanel } from '@/components/coach/coach-invite-link-panel'
+import { AthleteClaimInviteSection } from '@/components/coach/athlete-claim-invite-section'
+import { DeleteManagedAthleteButton } from '@/components/coach/delete-managed-athlete-button'
 import { CoachRosterThreadSplit } from '@/components/coach/coach-roster-thread-split'
 import { CoachRosterProfilePanel } from '@/components/coach/coach-roster-profile-panel'
 import { CoachRosterFeedbackList } from '@/components/coach/coach-roster-feedback-list'
@@ -188,7 +190,13 @@ function OpenPlanTab({ athleteId }: { athleteId: string }) {
   )
 }
 
-function AthleteExpandPanel({ row }: { row: CoachRosterRow }) {
+function AthleteExpandPanel({
+  row,
+  onDeleted,
+}: {
+  row: CoachRosterRow
+  onDeleted?: () => void
+}) {
   const [tab, setTab] = useState<'chat' | 'feedback' | 'profile'>(() =>
     row.unreadChatCount > 0 ? 'chat' : row.feedback.length > 0 ? 'feedback' : 'chat',
   )
@@ -203,6 +211,16 @@ function AthleteExpandPanel({ row }: { row: CoachRosterRow }) {
 
   return (
     <div className="tt-coach-roster-expand min-w-0 font-sans text-sm">
+      {!row.hasAppAccount ? (
+        <div className="space-y-4 border-b border-[var(--tt-line)] bg-[var(--tt-bg)] px-4 py-4">
+          <AthleteClaimInviteSection athleteId={row.id} athleteName={row.name} compact />
+          <DeleteManagedAthleteButton
+            athleteId={row.id}
+            athleteName={row.name}
+            onDeleted={onDeleted}
+          />
+        </div>
+      ) : null}
       <div
         className="tt-coach-roster-expand-tabs grid grid-cols-4 border-b border-[var(--tt-line)]"
         role="tablist"
@@ -414,13 +432,17 @@ export function CoachAthletesRoster({
       ) : null}
 
       {showAdd ? (
-        <div className="tt-surface-card px-4 py-4">
+        <div className="tt-surface-card space-y-3 px-4 py-4">
           <form action={createAthlete} className="flex flex-wrap gap-2">
             <Input name="name" placeholder="Athlete name" required className="min-w-[12rem] flex-1" />
             <Button type="submit" variant="secondary" size="sm">
               Create
             </Button>
           </form>
+          <p className="text-[12px] leading-relaxed text-[var(--tt-ink-faint)]">
+            After you create them, expand their row to copy a personal invite link so they can take
+            over this profile in the app.
+          </p>
         </div>
       ) : null}
 
@@ -470,8 +492,12 @@ export function CoachAthletesRoster({
                         ? 'tt-coach-roster-expanded-main border-b-0'
                         : 'hover:bg-[var(--tt-bg)]',
                     )}
-                    onClick={() => setExpandedId(open ? null : row.id)}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('[data-no-row-expand]')) return
+                      setExpandedId(open ? null : row.id)
+                    }}
                     onKeyDown={(e) => {
+                      if ((e.target as HTMLElement).closest('[data-no-row-expand]')) return
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
                         setExpandedId(open ? null : row.id)
@@ -494,6 +520,11 @@ export function CoachAthletesRoster({
                           />
                           <div className="min-w-0">
                             <span className="tt-data-cell-primary truncate">{row.name}</span>
+                            {!row.hasAppAccount ? (
+                              <p className="tt-data-cell-secondary text-[var(--tt-ink-faint)]">
+                                No app account
+                              </p>
+                            ) : null}
                             {row.warning ? (
                               <p className="tt-data-cell-secondary truncate font-medium text-[var(--tt-red)]">
                                 {row.warning}
@@ -502,7 +533,12 @@ export function CoachAthletesRoster({
                           </div>
                         </div>
                       </td>
-                      <td className="cursor-default">
+                      <td
+                        className="cursor-default"
+                        data-no-row-expand=""
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                      >
                         <AthleteStatusPill athleteId={row.id} status={row.status} size="sm" />
                       </td>
                       <td className="cursor-pointer">
@@ -546,7 +582,12 @@ export function CoachAthletesRoster({
                   >
                     <td colSpan={colSpan} className="!p-0">
                       <ExpandShell open={open}>
-                        <AthleteExpandPanel row={row} />
+                        <AthleteExpandPanel
+                          row={row}
+                          onDeleted={() => {
+                            if (expandedId === row.id) setExpandedId(null)
+                          }}
+                        />
                       </ExpandShell>
                     </td>
                   </tr>

@@ -99,6 +99,7 @@ export type CoachRosterRow = {
   initials: string
   name: string
   status: AthleteStatus
+  hasAppAccount: boolean
   compliance: number
   completed: number
   planned: number
@@ -203,6 +204,7 @@ export function buildCoachRosterRows(input: {
     name: string
     status: AthleteStatus
     avatarUrl: string | null
+    userId: string | null
     races: Array<{ name: string; date: Date }>
     workouts: WorkoutSlice[]
   }>
@@ -247,6 +249,7 @@ export function buildCoachRosterRows(input: {
       initials: initialsFromName(athlete.name),
       name: athlete.name,
       status: athlete.status,
+      hasAppAccount: Boolean(athlete.userId),
       compliance: wtd.compliance,
       completed: wtd.completed,
       planned: wtd.planned,

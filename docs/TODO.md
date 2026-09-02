@@ -190,6 +190,69 @@ Today Strava OAuth already exists for **linking activities** in Preferences; thi
 
 Theme switching is implemented but currently **disabled** via `THEME_TOGGLE_ENABLED = false` in [`src/components/theme-provider.tsx`](src/components/theme-provider.tsx). UI: [`ThemeToggleButton`](src/components/theme-toggle-button.tsx). Set the flag to `true` (and restore system theme in root layout if desired) to bring Light / Dark back.
 
+### Admin panel & platform administration
+
+**Status:** idea · **high priority** (platform ops)  
+**Related:** `UserRole.ADMIN` in schema ([`prisma/schema.prisma`](../prisma/schema.prisma)); `isAdmin()` in [`src/lib/session.ts`](../src/lib/session.ts) — role exists today but is not self-assigned and has no admin UI
+
+Introduce an **admin** user type and a protected **admin panel** for platform operators (not coach/athlete self-service).
+
+**v1 — user administration**
+
+- Admin-only route(s) / shell (e.g. `/admin`) gated by `ADMIN` role
+- User list: search, filter, paginate (email, name, roles, created, last sign-in if tracked)
+- View / edit user profile fields (name, email, roles where allowed)
+- **Password management:** set or reset password for a user (secure server action; no plaintext storage; optional force reset on next login later)
+- Impersonation **out of scope** for v1 unless explicitly needed — prefer edit/support actions only
+- Audit log **optional** for v1; at minimum log admin password resets server-side
+
+**Later — billing & platform**
+
+- Subscription / payment status per account (when payments ship)
+- Plan tier, trial, cancellation, refunds (provider TBD: Stripe etc.)
+- Feature flags or entitlements tied to plan
+- Usage or quota views if product adds limits
+
+**Open when designing:** who can grant `ADMIN` (DB seed / super-admin only); coach+admin vs admin-only accounts; whether admin can see athlete health/training data or only account metadata; GDPR/support workflow for account deletion.
+
+### Privacy, cookies & EU compliance (go-live)
+
+**Status:** idea · **required before public launch** (EU / EEA users)  
+**Related:** Auth cookies (`tt_user`, session), `tt_athlete`, `tt_view_mode`, coach invite (`tt_coach_invite`), Strava OAuth state cookies, PWA/service worker; Google sign-in if enabled
+
+Before going live with real users in the EU, add **privacy & consent** surfaces and document what the app stores — not only a banner, but settings users can revisit.
+
+**Legal pages (static, linked from footer + signup)**
+
+- Privacy Policy (controller identity, what data, why, retention, subprocessors, contact)
+- Terms of Service / acceptable use
+- Cookie Policy (list cookies: name, purpose, duration, essential vs optional)
+
+**Cookie consent (ePrivacy + GDPR)**
+
+- First-visit **cookie consent** UI: Accept all · Reject non-essential · Customize
+- **Strictly necessary** (no consent required): auth/session, security, coach-invite flow, athlete/view-mode preferences required for app function
+- **Optional** (consent-gated): analytics, marketing, third-party embeds — only load after opt-in; respect choice on subsequent visits (stored preference cookie)
+- Do not block sign-in on “Reject non-essential” if only essential cookies are set pre-consent
+- Re-open preferences from Settings → **Privacy** (or footer “Cookie settings”)
+
+**In-app privacy settings (user-facing)**
+
+- Link to policies; cookie preference center (toggle optional categories)
+- **Export my data** (GDPR Art. 15 / portability) — profile, workouts, races, messages scope TBD
+- **Delete my account** — self-service or request flow; cascade rules (athlete data, coach links, inbox); cooling-off period optional
+- Marketing email opt-in/out if newsletters added later
+
+**Product & engineering checklist**
+
+- Data Processing Agreement template if B2B coaches process athlete data
+- Subprocessor list (hosting, email, Strava, Google, payment provider later)
+- Retention defaults (deleted accounts, logs, backups)
+- Privacy-by-design review: coach–athlete notes visibility rules already in product brief — document in policy
+- DPIA **if** processing health/fitness data at scale (training logs may qualify as health-related in some interpretations — legal review)
+
+**Open when designing:** jurisdiction (LT/EU entity), whether under-16 requires parental consent, analytics provider (Plausible vs GA4 vs none), i18n for legal copy (EN only vs LT).
+
 ---
 
 _Add new items below as they come up._

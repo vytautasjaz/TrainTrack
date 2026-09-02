@@ -505,3 +505,33 @@ export async function selectAthleteForTraining(formData: FormData) {
   cookieStore.set('tt_athlete', athleteId, { path: '/' })
   redirect('/training')
 }
+
+export async function deleteManagedAthlete(formData: FormData) {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Coach only')
+
+  const athleteId = String(formData.get('athleteId') ?? '').trim()
+  if (!athleteId) throw new Error('Athlete required')
+
+  await requireCoachOwnsAthlete(session.userId, athleteId)
+
+  const athlete = await prisma.athlete.findUnique({
+    where: { id: athleteId },
+    select: { userId: true },
+  })
+  if (!athlete) throw new Error('Athlete not found')
+  if (athlete.userId) {
+    throw new Error('Cannot delete an athlete who has linked their app account')
+  }
+
+  await prisma.athlete.delete({ where: { id: athleteId } })
+
+  const cookieStore = await cookies()
+  if (cookieStore.get('tt_athlete')?.value === athleteId) {
+    cookieStore.delete('tt_athlete')
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/athletes')
+  revalidatePath('/training')
+}

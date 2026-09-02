@@ -221,6 +221,11 @@ function attentionThreadHeadline(thread: CoachHomeNeedsReplyThread): string {
   return title
 }
 
+/** Coach home alerts (attention, plan coverage counts) only for actively coached athletes. */
+export function coachHomeAlertsAthleteStatus(status: AthleteStatus): boolean {
+  return status === 'ACTIVE'
+}
+
 export function buildCoachHomeAttentionItems(input: {
   joinRequests: Array<{
     id: string
@@ -237,6 +242,7 @@ export function buildCoachHomeAttentionItems(input: {
   rosterRows: CoachRosterRow[]
 }): CoachHomeAttentionItem[] {
   const items: CoachHomeAttentionItem[] = []
+  const statusByAthleteId = new Map(input.rosterRows.map((row) => [row.id, row.status]))
 
   for (const link of input.joinRequests) {
     items.push({
@@ -260,6 +266,9 @@ export function buildCoachHomeAttentionItems(input: {
   }
 
   for (const thread of input.needsReplyThreads) {
+    if (!coachHomeAlertsAthleteStatus(statusByAthleteId.get(thread.athleteId) ?? 'INACTIVE')) {
+      continue
+    }
     const hasWorkout = isWorkoutAttentionContext(
       thread.contextTitle,
       thread.contextDateKey,
@@ -296,6 +305,9 @@ export function buildCoachHomeAttentionItems(input: {
   }
 
   for (const warning of input.planningWarnings) {
+    if (!coachHomeAlertsAthleteStatus(statusByAthleteId.get(warning.athleteId) ?? 'INACTIVE')) {
+      continue
+    }
     items.push({
       id: `plan-${warning.athleteId}`,
       kind: 'under_planned',
@@ -447,6 +459,7 @@ export function buildCoachHomePlanningCoverageRows(input: {
   planningLeadDays: number
 }): CoachHomePlanningCoverageRow[] {
   const rows = input.rosterRows
+    .filter((row) => coachHomeAlertsAthleteStatus(row.status))
     .map((row) => {
       const lastPlannedKey = row.lastPlannedKey
       const daysAhead = lastPlannedKey

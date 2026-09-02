@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { Check, Flag, MessageSquare, Minus } from 'lucide-react'
+import { CalendarDays, Check, Flag, MessageSquare, Minus } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { CoachHomeTablePagination } from '@/components/coach/coach-home-panel'
@@ -22,9 +22,11 @@ import {
   groupActivityRowsByDay,
   isCoachHomeRaceActivityRow,
   isCoachHomeWorkoutActivityRow,
+  filterActivityByTimeRange,
   type CoachHomeActivityMetric,
   type CoachHomeActivityTableRow,
   type CoachHomeRaceActivityRow,
+  type CoachHomeTimeRange,
   type CoachHomeWorkoutActivityRow,
 } from '@/lib/coach-home'
 import { isStravaSynced, workoutHasCoachingChat } from '@/lib/plan-workout'
@@ -44,32 +46,49 @@ const STATUS_FILTERS: Array<{ id: StatusFilter; label: string }> = [
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 'all'] as const
 type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number]
 
+const TIME_RANGE_OPTIONS: Array<{ id: CoachHomeTimeRange; label: string }> = [
+  { id: 'last_7d', label: 'Last 7 days' },
+  { id: 'this_week', label: 'This week' },
+  { id: 'last_30d', label: 'Last 30 days' },
+  { id: 'all_time', label: 'All time' },
+]
+
 type CoachHomeRecentActivityTableProps = {
   className?: string
   rows: CoachHomeActivityTableRow[]
+  athleteOptions: Array<{ id: string; name: string }>
 }
 
 export function CoachHomeRecentActivityTable({
   className,
   rows,
+  athleteOptions,
 }: CoachHomeRecentActivityTableProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [sportFilter, setSportFilter] = useState<SportFilter>('all')
+  const [athleteFilter, setAthleteFilter] = useState<string>('all')
+  const [timeRange, setTimeRange] = useState<CoachHomeTimeRange>('last_7d')
   const [pageSize, setPageSize] = useState<PageSizeOption>(20)
   const [page, setPage] = useState(0)
 
+  const timeFilteredRows = useMemo(
+    () => filterActivityByTimeRange(rows, timeRange),
+    [rows, timeRange],
+  )
+
   const sportOptions = useMemo(() => {
     const counts = new Map<WorkoutType, number>()
-    for (const row of rows) {
+    for (const row of timeFilteredRows) {
       counts.set(row.activityType, (counts.get(row.activityType) ?? 0) + 1)
     }
     return [...counts.entries()]
       .map(([type, count]) => ({ type, count, label: WORKOUT_TYPE_LABELS[type] }))
       .sort((a, b) => a.label.localeCompare(b.label))
-  }, [rows])
+  }, [timeFilteredRows])
 
   const filtered = useMemo(() => {
-    return rows.filter((row) => {
+    return timeFilteredRows.filter((row) => {
+      if (athleteFilter !== 'all' && row.athleteId !== athleteFilter) return false
       if (statusFilter === 'completed') {
         if (isCoachHomeWorkoutActivityRow(row) && row.status !== 'completed') return false
         if (isCoachHomeRaceActivityRow(row) && row.racePhase !== 'report') return false
@@ -83,7 +102,7 @@ export function CoachHomeRecentActivityTable({
       if (sportFilter !== 'all' && row.activityType !== sportFilter) return false
       return true
     })
-  }, [rows, statusFilter, sportFilter])
+  }, [timeFilteredRows, athleteFilter, statusFilter, sportFilter])
 
   const effectivePageSize = pageSize === 'all' ? Math.max(filtered.length, 1) : pageSize
   const pageCount = Math.max(1, Math.ceil(filtered.length / effectivePageSize))
@@ -98,7 +117,16 @@ export function CoachHomeRecentActivityTable({
 
   useEffect(() => {
     setPage(0)
-  }, [rows, statusFilter, sportFilter, pageSize])
+  }, [rows, athleteFilter, timeRange, statusFilter, sportFilter, pageSize])
+
+  useEffect(() => {
+    if (
+      athleteFilter !== 'all' &&
+      !athleteOptions.some((athlete) => athlete.id === athleteFilter)
+    ) {
+      setAthleteFilter('all')
+    }
+  }, [athleteFilter, athleteOptions])
 
   useEffect(() => {
     if (sportFilter !== 'all' && !sportOptions.some((o) => o.type === sportFilter)) {
@@ -133,6 +161,42 @@ export function CoachHomeRecentActivityTable({
               />
             ))}
           </div>
+          {athleteOptions.length > 1 ? (
+            <label className="relative inline-flex items-center">
+              <select
+                value={athleteFilter}
+                onChange={(e) => setAthleteFilter(e.target.value)}
+                aria-label="Filter by athlete"
+                className="max-w-[10rem] appearance-none truncate rounded-full border border-[var(--tt-line)] bg-white py-1 pl-2.5 pr-7 text-[11px] font-semibold text-[var(--tt-ink)] outline-none hover:border-[var(--tt-line-strong,#ddd)]"
+              >
+                <option value="all">All athletes</option>
+                {athleteOptions.map((athlete) => (
+                  <option key={athlete.id} value={athlete.id}>
+                    {athlete.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          <label className="relative inline-flex items-center">
+            <CalendarDays
+              className="pointer-events-none absolute left-2.5 h-3.5 w-3.5 text-[var(--tt-ink-faint)]"
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value as CoachHomeTimeRange)}
+              aria-label="Filter by time range"
+              className="appearance-none rounded-full border border-[var(--tt-line)] bg-white py-1 pl-8 pr-7 text-[11px] font-semibold text-[var(--tt-ink)] outline-none hover:border-[var(--tt-line-strong,#ddd)]"
+            >
+              {TIME_RANGE_OPTIONS.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
           {sportOptions.length > 1 ? (
             <label className="relative inline-flex items-center">
               <select

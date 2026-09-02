@@ -13,6 +13,7 @@ export function CoachHomePageContent({ coachHome }: { coachHome: CoachHomeData }
     activityTableRows,
     athleteOptions,
     rosterRows,
+    pendingCoach,
   } = coachHome
 
   const totalAthletes = rosterRows.length
@@ -29,6 +30,7 @@ export function CoachHomePageContent({ coachHome }: { coachHome: CoachHomeData }
           activityRows={activityTableRows}
           athleteOptions={athleteOptions}
           totalAthletes={totalAthletes}
+          coachingCode={pendingCoach.coachingCode}
         />
       </div>
     </div>

@@ -34,6 +34,7 @@ export const MOCK_SCREENS = [
   { href: '/design-mockups/athlete-home', label: 'Athlete Home' },
   { href: '/design-mockups/athlete-home-mobile', label: 'Athlete Home · Mobile' },
   { href: '/design-mockups/coach-home', label: 'Coach Home' },
+  { href: '/design-mockups/coach-home-empty', label: 'Coach Home · Empty (no athletes)' },
   { href: '/design-mockups/coach-home-mobile', label: 'Coach Home · Mobile' },
   { href: '/design-mockups/training-list', label: 'Training List' },
   { href: '/design-mockups/training-list-mobile', label: 'Training List · Mobile' },

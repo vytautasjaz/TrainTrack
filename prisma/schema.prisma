@@ -345,6 +345,8 @@ model Athlete {
   name      String
   status    AthleteStatus @default(ACTIVE)
   avatarUrl String?
+  /** Personal invite token for coach-managed athletes to link a User account. */
+  claimToken String? @unique
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 

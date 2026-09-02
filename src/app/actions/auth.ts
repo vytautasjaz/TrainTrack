@@ -12,8 +12,15 @@ import {
   getCoachInviteCookie,
   parseCoachInviteCode,
   resolveCoachInvite,
-  resolveSignInRedirect,
 } from '@/lib/coach-invite'
+import { claimAthleteProfileForUser } from '@/app/actions/athlete-claim'
+import {
+  clearAthleteClaimCookie,
+  getAthleteClaimCookie,
+  resolveAthleteClaim,
+  resolvePostAuthRedirect,
+} from '@/lib/athlete-claim'
+import { athleteClaimPath } from '@/lib/athlete-claim-shared'
 import {
   requireSession,
   isCoach,
@@ -74,11 +81,17 @@ export async function registerWithEmail(
   }
 
   try {
+    const claimToken = await getAthleteClaimCookie()
     const inviteCode = await getCoachInviteCookie()
+    const redirectTo = claimToken
+      ? '/onboarding'
+      : inviteCode
+        ? coachInvitePath(inviteCode)
+        : '/onboarding'
     await signIn('credentials', {
       email,
       password,
-      redirectTo: inviteCode ? coachInvitePath(inviteCode) : '/onboarding',
+      redirectTo,
     })
   } catch (err) {
     if (isRedirectError(err)) throw err
@@ -113,7 +126,7 @@ export async function signInWithEmail(
     await signIn('credentials', {
       email,
       password,
-      redirectTo: await resolveSignInRedirect(email),
+      redirectTo: await resolvePostAuthRedirect(email),
     })
   } catch (err) {
     if (isRedirectError(err)) throw err
@@ -128,7 +141,7 @@ export async function signInWithGoogle() {
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
   await signIn('google', {
-    redirectTo: await resolveSignInRedirect(),
+    redirectTo: await resolvePostAuthRedirect(),
   })
 }
 
@@ -137,6 +150,7 @@ export async function signOutAction() {
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
   await clearCoachInviteCookie()
+  await clearAthleteClaimCookie()
   await signOut({ redirectTo: '/' })
 }
 
@@ -156,7 +170,33 @@ export async function startTraining() {
     if (inviteCode) {
       redirect(coachInvitePath(inviteCode))
     }
+    const claimToken = await getAthleteClaimCookie()
+    if (claimToken) {
+      const claim = await resolveAthleteClaim(claimToken)
+      if (claim && !claim.alreadyClaimed) {
+        redirect(`${athleteClaimPath(claimToken)}/accept`)
+      }
+      await clearAthleteClaimCookie()
+    }
     redirect('/dashboard')
+  }
+
+  const claimToken = await getAthleteClaimCookie()
+  if (claimToken) {
+    const claim = await resolveAthleteClaim(claimToken)
+    if (claim && !claim.alreadyClaimed) {
+      if (claim.coachUserId === session.userId) {
+        await clearAthleteClaimCookie()
+      } else {
+        await claimAthleteProfileForUser(session.userId, claim.athleteId)
+        await clearAthleteClaimCookie()
+        revalidatePath('/dashboard')
+        revalidatePath('/athletes')
+        redirect('/dashboard')
+      }
+    } else {
+      await clearAthleteClaimCookie()
+    }
   }
 
   await prisma.$transaction(async (tx) => {

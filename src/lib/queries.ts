@@ -975,6 +975,7 @@ export async function getCoachHomeData(coachId: string) {
       name: a.name,
       status: a.status,
       avatarUrl: a.avatarUrl,
+      userId: a.userId,
       races: a.races,
       workouts: a.workouts,
     })),
@@ -1034,7 +1035,7 @@ export async function getCoachHomeData(coachId: string) {
     avatarUrl: avatarByAthlete.get(row.athleteId) ?? null,
   }))
 
-  const needsPlanCount = dashboard.planningWarnings.length
+  const needsPlanCount = planningCoverageRows.filter((row) => row.daysUnplanned > 0).length
 
   const activityTableRows = mergeCoachHomeActivityFeed(
     buildCoachHomeActivityTableRows(activityFeed),
