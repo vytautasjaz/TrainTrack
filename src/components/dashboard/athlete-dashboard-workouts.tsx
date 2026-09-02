@@ -172,22 +172,22 @@ export function AthleteDashboardWorkouts({
                   key={workout.id}
                   type="button"
                   onClick={() => setSelected(workout)}
-                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-[var(--tt-sidebar,#f5f5f5)]/60"
+                  className="flex w-full min-w-0 items-center gap-2.5 px-3 py-3 text-left transition hover:bg-[var(--tt-sidebar,#f5f5f5)]/60 sm:gap-3 sm:px-4 sm:py-3.5"
                 >
                   {index === 0 ? (
                     <HomeCalendarDate date={day.date} isToday={day.isToday} />
                   ) : (
                     <div className="w-9 shrink-0" aria-hidden />
                   )}
-                  <div className="flex min-w-0 flex-1 items-center gap-3 pl-1">
+                  <div className="flex min-w-0 flex-1 items-center gap-2 pl-0.5 sm:gap-3 sm:pl-1">
                     <WorkoutSportIcon
                       type={workout.type}
                       isRace={workout.isRace}
                       size="xs"
                       appearance="outline"
                     />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[1rem] font-semibold leading-snug text-[var(--tt-ink,#111)]">
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <p className="truncate text-[0.9375rem] font-semibold leading-snug text-[var(--tt-ink,#111)] sm:text-[1rem]">
                         {workout.title}
                       </p>
                       <p className="mt-0.5 truncate text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
@@ -196,7 +196,10 @@ export function AthleteDashboardWorkouts({
                     </div>
                   </div>
                   {showWeather && weatherByDate[day.dateKey] && index === 0 ? (
-                    <ListDayWeatherMini weather={weatherByDate[day.dateKey]!} />
+                    <ListDayWeatherMini
+                      weather={weatherByDate[day.dateKey]!}
+                      className="hidden sm:flex"
+                    />
                   ) : null}
                   <ChevronRight
                     className="h-4 w-4 shrink-0 text-[var(--tt-ink-faint,#9a9a9a)]"

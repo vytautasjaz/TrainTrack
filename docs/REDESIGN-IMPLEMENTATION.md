@@ -24,8 +24,8 @@ Use this in review: **Locked** = direction approved for production; **Solid** = 
 | Training Month | `/training-month` | Solid | Calendar density |
 | Workout cards / detail | `/workout-detail` | Solid | Status + structure |
 | Workout create/edit modal | `/workout-builder` | Solid | Closer to production card editor; fixed width |
-| Inbox | `/inbox` | Solid | Three-pane + workout split; **coaching requests in thread list + Requests filter** |
-| Season | `/season` | Solid | Near production planner |
+| Inbox | `/inbox` | Solid | Desktop three-pane + workout split; **mobile = list → full-screen thread** (not accordion); requests in list + Requests filter |
+| Season | `/season` | Solid | Near production planner; **Upcoming/Past mobile card list** + stacked section headers |
 | Stats (+ Results) | `/stats` | Solid | Trends + PBs + race results |
 | Library | `/library` | Solid | Folders, list default, schedule day picker, structure graph; **athlete picker in schedule modal** |
 | Settings | `/settings` | Solid | Coach = account only; athlete zones under Athletes |
@@ -53,7 +53,9 @@ Use this in review: **Locked** = direction approved for production; **Solid** = 
 4. **Calculators** stay on the current production design; redesign = shell/nav only unless a calc bug is found.
 5. **Week chrome:** weekend = cool light grey; today = brand red soft wash (+ red day head); no today side rail.
 6. **Inbox coaching requests** appear as first-class inbox rows (red **Request** label), filterable via **Requests (n)**; approve/decline in detail pane — not a separate full-width banner.
-7. **Coach invite flow:** `?invite=` persists cookie; after register + Start Training, athlete accepts coach on `/join/.../accept`; session profile flags read from DB (not stale JWT) before accept.
+7. **Inbox mobile:** phone shows **thread list only**; tap opens **full-screen conversation** with back (desktop keeps side-by-side panes). Do not embed chat as an accordion under list rows.
+8. **Coach invite flow:** `?invite=` persists cookie; after register + Start Training, athlete accepts coach on `/join/.../accept`; session profile flags read from DB (not stale JWT) before accept.
+9. **Managed-athlete claim:** coach-created athletes without app accounts get a `claimToken` invite link (`/claim/[token]`) so the athlete can attach their user account.
 
 ---
 
@@ -122,12 +124,14 @@ Ship in layers so mockups don’t drift and shared chrome lands once.
    - [x] **Needs attention** table (filters, mark handled, action panel)
    - [x] Sidebar: **coaching requests** + planning coverage (or attention action panel when row selected)
    - [x] **Activity feed** (shared card chrome with coach home table rows); grid layout so feed sits under attention (no gap when attention empty but requests exist)
-   - [x] Athlete + time range filters
+   - [x] Athlete + time range filters (in activity feed toolbar; not duplicated in page header)
+   - [x] Empty state when coach has **no athletes** (invite link/code)
 3. Coach Athletes roster (`/athletes`) + **Needs attention** stack (legacy mock path).
    - [x] Unify join signals into attention stack (existing queries)
    - [x] Roster table with attention chips; Open plan
    - [x] Row expand Chat / Feedback where prod already supports it
    - [x] Zones expand: **stub or defer to Phase 5** (permission + notify — no silent overwrite)
+   - [x] Managed athletes: **No app account** + claim invite; delete managed athlete
 4. Attention / underplanned chips tied to real queries.
    - [x] Roster attention chips from needs-reply, under-planned, low compliance
 
@@ -136,12 +140,17 @@ Ship in layers so mockups don’t drift and shared chrome lands once.
 ### Phase 4 — Season, Stats, Inbox polish · in progress
 
 1. Season shell/tokens pass (structure already production-like).
+   - [x] Upcoming/Past **mobile card layout** (desktop table kept); section header stacks on small screens
+   - [ ] Broader Season shell/token pass vs mock (remaining chrome)
 2. Stats unification (Results folded as in mock).
+   - [x] `/progress` Stats unification pass (prior)
 3. Inbox polish.
-   - [x] Three-pane layout + thread list/detail + workout-attached split panel
+   - [x] Three-pane layout + thread list/detail + workout-attached split panel (desktop)
    - [x] Unread / All / **Requests** filters; coaching requests mixed into thread list with approve/decline detail
-   - [ ] Mock parity pass on mobile accordion + empty states
-   - [ ] Thread list row polish vs `/design-mockups/inbox`
+   - [x] **Mobile list → full-screen thread** (back header; no accordion under rows; detail pane not mounted below `lg`)
+   - [x] Thread list chrome: **THREADS** header contrast, hairline separators, compact notifications control on mobile
+   - [ ] Empty states (no threads / no requests / filter-empty copy)
+   - [ ] Optional mock parity pass vs `/design-mockups/inbox` (mock still two-pane desktop-first)
 
 ### Phase 5 — Settings & permissions
 
@@ -175,8 +184,8 @@ Ship in layers so mockups don’t drift and shared chrome lands once.
 |----------|------------|--------|
 | 1 | `redesign: athlete home activity feed polish` | TSS on training load; feed empty state; mock alignment pass |
 | 2 | `redesign: coach command center mock` | Add `/design-mockups/coach-command-center` matching prod `/dashboard` coach |
-| 3 | `redesign: inbox empty states` | No threads / no requests / filter-empty copy + mobile polish |
-| 4 | `redesign: season + stats token pass` | Shell/tokens only; keep data logic |
+| 3 | `redesign: inbox empty states` | No threads / no requests / filter-empty copy; optional mock update for mobile list→thread |
+| 4 | `redesign: season shell token pass` | Remaining Season chrome vs mock; keep data logic |
 
 **Out of scope until Phase 5:** Zone proposal permission API, calculator internals, full-page builder studio.
 
@@ -200,3 +209,4 @@ Ship in layers so mockups don’t drift and shared chrome lands once.
 - [x] Phase 0 shell shipped (tokens + sidebar)
 - [ ] Agree coach command center vs roster mock naming in docs/studio
 - [x] Inbox coaching requests: list rows + Requests filter (not orphan banner)
+- [x] Inbox mobile: list → full-screen thread (not accordion under list)
