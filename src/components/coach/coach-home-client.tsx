@@ -241,6 +241,7 @@ export function CoachHomeClient({
 
       <div className="grid gap-8 xl:grid-cols-[3fr_2fr] xl:items-start">
         <CoachHomeNeedsAttentionSection
+          className="xl:col-start-1 xl:row-start-1"
           items={filteredAttention}
           selectedItemId={selectedAttentionId}
           handledIds={handledIds}
@@ -249,7 +250,7 @@ export function CoachHomeClient({
           onDismissItem={scheduleDismiss}
           onDismissItems={scheduleDismissMany}
         />
-        <div className="space-y-8">
+        <div className="space-y-8 xl:col-start-2 xl:row-start-1 xl:row-span-2">
           <CoachHomeCoachingRequests requests={filteredCoachingRequests} />
           {selectedAttentionItem ? (
             <CoachHomeAttentionActionPanel
@@ -272,9 +273,11 @@ export function CoachHomeClient({
             />
           )}
         </div>
+        <CoachHomeRecentActivityTable
+          className="xl:col-start-1 xl:row-start-2"
+          rows={filteredActivity}
+        />
       </div>
-
-      <CoachHomeRecentActivityTable rows={filteredActivity} />
     </div>
   )
 }

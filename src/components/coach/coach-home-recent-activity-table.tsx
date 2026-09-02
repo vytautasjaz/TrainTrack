@@ -45,10 +45,12 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 'all'] as const
 type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number]
 
 type CoachHomeRecentActivityTableProps = {
+  className?: string
   rows: CoachHomeActivityTableRow[]
 }
 
 export function CoachHomeRecentActivityTable({
+  className,
   rows,
 }: CoachHomeRecentActivityTableProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -109,7 +111,7 @@ export function CoachHomeRecentActivityTable({
   }, [pageCount])
 
   return (
-    <section className="min-w-0 space-y-4 xl:w-3/5">
+    <section className={cn('min-w-0 space-y-4', className)}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <header className="min-w-0">
           <h2 className="font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">

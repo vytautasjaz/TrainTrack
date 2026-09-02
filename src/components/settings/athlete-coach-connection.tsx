@@ -13,6 +13,7 @@ import {
   requestCoachConnection,
   switchCoach,
 } from '@/app/actions/auth'
+import { isRedirectError } from '@/lib/auth-form-errors'
 
 type CoachLink = {
   id: string
@@ -53,6 +54,7 @@ export function AthleteCoachConnection({
         setSwitchOpen(false)
         setLeaveOpen(false)
       } catch (err) {
+        if (isRedirectError(err)) throw err
         setError(err instanceof Error ? err.message : 'Something went wrong.')
       }
     })

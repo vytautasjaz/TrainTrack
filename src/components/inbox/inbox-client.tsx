@@ -34,7 +34,14 @@ import {
   InboxRaceReportSummary,
   type InboxRaceReportLeg,
 } from '@/components/inbox/inbox-race-report-summary'
+import { InboxCoachRequestDetail } from '@/components/inbox/inbox-coach-request-detail'
 import { isRaceReportCardDuplicateMessage } from '@/lib/race-feedback-report'
+import {
+  inboxCoachRequestListId,
+  isInboxCoachRequestListId,
+  parseInboxCoachRequestListId,
+  type InboxCoachRequest,
+} from '@/lib/inbox-coach-requests'
 import {
   INBOX_DEFAULT_PAGE_SIZE,
   INBOX_PAGE_SIZES,
@@ -163,6 +170,33 @@ function InboxFilterButton({
   )
 }
 
+type InboxListEntry =
+  | { type: 'thread'; thread: InboxThreadListItem; sortAt: string }
+  | { type: 'request'; request: InboxCoachRequest; sortAt: string }
+
+function inboxListEntryId(entry: InboxListEntry): string {
+  return entry.type === 'thread'
+    ? entry.thread.id
+    : inboxCoachRequestListId(entry.request.id)
+}
+
+function filterCoachRequests(
+  requests: InboxCoachRequest[],
+  opts: { filter: InboxFilter; kind: InboxKindFilter; role: 'athlete' | 'coach'; athleteFilter: string },
+): InboxCoachRequest[] {
+  if (opts.role !== 'coach') return []
+  if (opts.filter !== 'all' && opts.filter !== 'unread' && opts.filter !== 'requests') {
+    return []
+  }
+  if (opts.filter !== 'requests' && opts.kind !== 'all') return []
+
+  let list = requests
+  if (opts.athleteFilter !== 'all') {
+    list = list.filter((request) => request.athlete.id === opts.athleteFilter)
+  }
+  return list
+}
+
 function threadMatchesFilters(
   t: InboxThreadListItem,
   opts: {
@@ -173,6 +207,7 @@ function threadMatchesFilters(
     unreadSessionIds?: Set<string> | null
   },
 ) {
+  if (opts.filter === 'requests') return false
   if (opts.kind !== 'all' && t.kind !== opts.kind) return false
   if (opts.role === 'coach' && opts.athleteFilter !== 'all' && t.athlete?.id !== opts.athleteFilter) {
     return false
@@ -412,7 +447,8 @@ type InboxClientProps = {
   coachParticipant: InboxParticipant
   athleteParticipant?: InboxParticipant
   coachAthletes?: InboxAthleteOption[]
-  pendingRequestsSlot?: React.ReactNode
+  coachingRequests?: InboxCoachRequest[]
+  coachingCode?: string | null
   pushConfigured?: boolean
 }
 
@@ -422,7 +458,8 @@ export function InboxClient({
   coachParticipant,
   athleteParticipant,
   coachAthletes = [],
-  pendingRequestsSlot,
+  coachingRequests = [],
+  coachingCode = null,
   pushConfigured = false,
 }: InboxClientProps) {
   const [filter, setFilter] = useState<InboxFilter>(INITIAL_FILTER)
@@ -442,9 +479,22 @@ export function InboxClient({
     openedReadIds.current.add(first.id)
     return threads.map((t) => (t.id === first.id ? { ...t, unread: false } : t))
   })
-  const [selectedId, setSelectedId] = useState<string | null>(
-    () => [...openedReadIds.current][0] ?? null,
-  )
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    const firstThread = threads.find((t) =>
+      threadMatchesFilters(t, {
+        filter: INITIAL_FILTER,
+        kind: INITIAL_KIND,
+        role,
+        athleteFilter: 'all',
+      }),
+    )
+    if (firstThread) return firstThread.id
+    const firstRequest = coachingRequests[0]
+    if (firstRequest && role === 'coach') {
+      return inboxCoachRequestListId(firstRequest.id)
+    }
+    return null
+  })
   const [workoutModal, setWorkoutModal] = useState<PlanWorkoutDetail | null>(null)
   const [holdUnreadId, setHoldUnreadId] = useState<string | null>(null)
   const [isPendingRead, startReadTransition] = useTransition()
@@ -566,15 +616,37 @@ export function InboxClient({
     void markInboxThreadReadClient(selectedId)
   }, [selectedId, holdUnreadId])
 
-  const filtered = useMemo(() => {
-    const list = items.filter((t) =>
-      threadMatchesFilters(t, { filter, kind, role, athleteFilter, unreadSessionIds }),
-    )
+  const filteredRequests = useMemo(
+    () =>
+      filterCoachRequests(coachingRequests, { filter, kind, role, athleteFilter }),
+    [coachingRequests, filter, kind, role, athleteFilter],
+  )
 
-    return [...list].sort(
-      (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
+  const filtered = useMemo(() => {
+    const threadList =
+      filter === 'requests'
+        ? []
+        : items.filter((t) =>
+            threadMatchesFilters(t, { filter, kind, role, athleteFilter, unreadSessionIds }),
+          )
+
+    const entries: InboxListEntry[] = [
+      ...threadList.map((thread) => ({
+        type: 'thread' as const,
+        thread,
+        sortAt: thread.lastMessageAt,
+      })),
+      ...filteredRequests.map((request) => ({
+        type: 'request' as const,
+        request,
+        sortAt: request.createdAt,
+      })),
+    ]
+
+    return entries.sort(
+      (a, b) => new Date(b.sortAt).getTime() - new Date(a.sortAt).getTime(),
     )
-  }, [items, filter, kind, role, athleteFilter, unreadSessionIds])
+  }, [items, filter, kind, role, athleteFilter, unreadSessionIds, filteredRequests])
 
   useEffect(() => {
     if (filter !== 'unread') {
@@ -603,7 +675,7 @@ export function InboxClient({
 
   useEffect(() => {
     setPage(1)
-  }, [filter, kind, athleteFilter, pageSize])
+  }, [filter, kind, athleteFilter, pageSize, coachingRequests.length])
 
   useEffect(() => {
     if (page > pageCount) setPage(pageCount)
@@ -611,13 +683,40 @@ export function InboxClient({
 
   useEffect(() => {
     if (!selectedId) return
-    if (filtered.some((t) => t.id === selectedId)) return
-    setSelectedId(filtered[0]?.id ?? null)
+    if (filtered.some((entry) => inboxListEntryId(entry) === selectedId)) return
+    setSelectedId(filtered[0] ? inboxListEntryId(filtered[0]) : null)
   }, [filtered, selectedId])
 
-  const selected = selectedId ? (items.find((t) => t.id === selectedId) ?? null) : null
+  const selectedRequest = useMemo(() => {
+    if (!selectedId || !isInboxCoachRequestListId(selectedId)) return null
+    const linkId = parseInboxCoachRequestListId(selectedId)
+    if (!linkId) return null
+    return coachingRequests.find((request) => request.id === linkId) ?? null
+  }, [selectedId, coachingRequests])
+
+  const selected =
+    selectedRequest || !selectedId
+      ? null
+      : (items.find((t) => t.id === selectedId) ?? null)
 
   const unreadCount = useMemo(() => items.filter((t) => t.unread).length, [items])
+  const pendingRequestCount = useMemo(() => {
+    if (role !== 'coach') return 0
+    if (athleteFilter === 'all') return coachingRequests.length
+    return coachingRequests.filter((request) => request.athlete.id === athleteFilter).length
+  }, [coachingRequests, athleteFilter, role])
+
+  function selectEntry(entryId: string) {
+    if (isInboxCoachRequestListId(entryId)) {
+      if (!isLg && selectedId === entryId) {
+        setSelectedId(null)
+        return
+      }
+      setSelectedId(entryId)
+      return
+    }
+    selectThread(entryId)
+  }
 
   function selectThread(threadId: string) {
     if (!isLg && selectedId === threadId) {
@@ -711,8 +810,6 @@ export function InboxClient({
 
   return (
     <div className="min-w-0 max-w-full space-y-4">
-      {pendingRequestsSlot}
-
       <div
         ref={filtersRef}
         className="flex flex-wrap items-center justify-between gap-3"
@@ -724,6 +821,14 @@ export function InboxClient({
           <InboxFilterButton active={filter === 'all'} onClick={() => setFilter('all')}>
             All
           </InboxFilterButton>
+          {role === 'coach' && pendingRequestCount > 0 ? (
+            <InboxFilterButton
+              active={filter === 'requests'}
+              onClick={() => setFilter('requests')}
+            >
+              Requests ({pendingRequestCount})
+            </InboxFilterButton>
+          ) : null}
           {role === 'coach' && athleteOptions.length > 0 ? (
             <div className="flex items-center gap-1.5">
               <label htmlFor="inbox-athlete-filter" className="sr-only">
@@ -776,12 +881,82 @@ export function InboxClient({
           <div className="tt-inbox-list-scroll">
           {filtered.length === 0 ? (
             <p className="px-2 py-10 text-center text-sm text-[var(--tt-ink-soft,#6b6b6b)]">
-              No conversations here.
+              {filter === 'requests' ? 'No pending requests.' : 'No conversations here.'}
             </p>
           ) : (
             <div className="tt-inbox-list-items">
-              {paged.map((t) => {
-                const active = selected?.id === t.id
+              {paged.map((entry) => {
+                const entryId = inboxListEntryId(entry)
+                const active = selectedId === entryId
+
+                if (entry.type === 'request') {
+                  const request = entry.request
+                  return (
+                    <div
+                      key={entryId}
+                      ref={(el) => {
+                        if (el) listItemRefs.current.set(entryId, el)
+                        else listItemRefs.current.delete(entryId)
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => selectEntry(entryId)}
+                        aria-expanded={active}
+                        data-active={active ? 'true' : 'false'}
+                        data-unread="true"
+                        data-inbox-request="true"
+                        className="tt-inbox-list-row"
+                      >
+                        <div className="flex gap-3">
+                          <AthleteAvatar
+                            name={request.athlete.name}
+                            avatarUrl={request.athlete.avatarUrl}
+                            size="sm"
+                            className="!h-8 !w-8 shrink-0 !text-[11px] pt-0.5"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex min-w-0 items-center gap-1.5">
+                                  <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-red,#da2f36)]">
+                                    Request
+                                  </span>
+                                  <p className="min-w-0 truncate text-sm font-semibold text-[var(--tt-ink,#111)]">
+                                    {request.athlete.name}
+                                  </p>
+                                </div>
+                                <p className="mt-0.5 truncate text-[11px] text-[var(--tt-ink-soft,#6b6b6b)]">
+                                  Wants to connect as your athlete
+                                </p>
+                              </div>
+                              <div className="flex shrink-0 flex-col items-end gap-1">
+                                <span className="tt-inbox-unread-badge">1</span>
+                                <span className="text-[10px] uppercase tracking-wide text-[var(--tt-ink-faint,#9a9a9a)]">
+                                  {formatWhen(request.createdAt)}
+                                </span>
+                              </div>
+                            </div>
+                            <p className="mt-1 truncate text-xs text-[var(--tt-ink-soft,#6b6b6b)]">
+                              Approve or decline this coaching request
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                      {active && selectedRequest && !isLg ? (
+                        <div className="flex max-h-[min(60vh,28rem)] min-h-[16rem] flex-col overflow-hidden border-t border-[var(--tt-line,#ebebeb)] px-4 py-3">
+                          <InboxCoachRequestDetail
+                            request={selectedRequest}
+                            coachingCode={coachingCode}
+                            embedded
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  )
+                }
+
+                const t = entry.thread
                 const row = threadRowTitle(t, role)
                 const threadAthlete: InboxParticipant = t.athlete
                   ? { name: t.athlete.name, avatarUrl: t.athlete.avatarUrl }
@@ -793,15 +968,15 @@ export function InboxClient({
                 )
                 return (
                   <div
-                    key={t.id}
+                    key={entryId}
                     ref={(el) => {
-                      if (el) listItemRefs.current.set(t.id, el)
-                      else listItemRefs.current.delete(t.id)
+                      if (el) listItemRefs.current.set(entryId, el)
+                      else listItemRefs.current.delete(entryId)
                     }}
                   >
                     <button
                       type="button"
-                      onClick={() => selectThread(t.id)}
+                      onClick={() => selectEntry(entryId)}
                       aria-expanded={active}
                       data-active={active ? 'true' : 'false'}
                       data-unread={t.unread ? 'true' : 'false'}
@@ -940,28 +1115,35 @@ export function InboxClient({
         </div>
 
         <div className="tt-inbox-detail hidden lg:flex">
-          {!selected ? (
+          {!selected && !selectedRequest ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 text-[var(--tt-ink-soft,#6b6b6b)]">
               <MessageSquare className="h-8 w-8 opacity-40" />
               <p className="text-sm">Select a conversation</p>
             </div>
           ) : (
             <div className="tt-inbox-detail-inner">
-              <InboxThreadDetail
-                selected={selected}
-                role={role}
-                holdUnreadId={holdUnreadId}
-                isPendingRead={isPendingRead}
-                onMarkUnread={markUnread}
-                onOpenWorkout={() => {
-                  if (selected.workoutDetail) setWorkoutModal(selected.workoutDetail)
-                }}
-                onMessageSent={(body) => {
-                  applyOptimisticSend(selected.id, body)
-                  void refreshInboxUnreadBadge()
-                }}
-                dockComposer
-              />
+              {selectedRequest ? (
+                <InboxCoachRequestDetail
+                  request={selectedRequest}
+                  coachingCode={coachingCode}
+                />
+              ) : selected ? (
+                <InboxThreadDetail
+                  selected={selected}
+                  role={role}
+                  holdUnreadId={holdUnreadId}
+                  isPendingRead={isPendingRead}
+                  onMarkUnread={markUnread}
+                  onOpenWorkout={() => {
+                    if (selected.workoutDetail) setWorkoutModal(selected.workoutDetail)
+                  }}
+                  onMessageSent={(body) => {
+                    applyOptimisticSend(selected.id, body)
+                    void refreshInboxUnreadBadge()
+                  }}
+                  dockComposer
+                />
+              ) : null}
             </div>
           )}
         </div>

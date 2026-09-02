@@ -12,7 +12,6 @@ import {
 } from '@/lib/coaching-inbox'
 import { InboxClient } from '@/components/inbox/inbox-client'
 import { getPendingCoachRequests } from '@/lib/queries'
-import { CoachPendingRequests } from '@/components/coach/coach-pending-requests'
 import { isPushConfigured } from '@/lib/push-notifications'
 import {
   PageHeader,
@@ -126,17 +125,16 @@ export default async function InboxPage() {
               name: a.name,
               avatarUrl: a.avatarUrl ?? null,
             }))}
-            pendingRequestsSlot={
-              pendingCoach.coachingCode && pendingCoach.requests.length > 0 ? (
-                <CoachPendingRequests
-                  coachingCode={pendingCoach.coachingCode}
-                  requests={pendingCoach.requests.map((link) => ({
-                    id: link.id,
-                    athlete: link.athlete,
-                  }))}
-                />
-              ) : null
-            }
+            coachingCode={pendingCoach.coachingCode}
+            coachingRequests={pendingCoach.requests.map((link) => ({
+              id: link.id,
+              createdAt: link.createdAt.toISOString(),
+              athlete: {
+                id: link.athlete.id,
+                name: link.athlete.name,
+                avatarUrl: link.athlete.avatarUrl,
+              },
+            }))}
           />
         </div>
       </div>

@@ -10,6 +10,7 @@ import {
   clearCoachInviteCookie,
   coachInvitePath,
   getCoachInviteCookie,
+  parseCoachInviteCode,
   resolveCoachInvite,
 } from '@/lib/coach-invite'
 import {
@@ -517,10 +518,10 @@ export async function switchCoach(formData: FormData): Promise<void> {
  */
 export async function acceptCoachInvite(formData: FormData): Promise<void> {
   const session = await requireSession()
-  if (!session.hasAthlete) throw new Error('Start training before connecting to a coach')
 
   const codeFromForm = String(formData.get('coachingCode') ?? '')
-  const code = (await getCoachInviteCookie()) ?? codeFromForm
+  const code =
+    parseCoachInviteCode(codeFromForm) ?? (await getCoachInviteCookie())
   const invite = await resolveCoachInvite(code)
   if (!invite) {
     await clearCoachInviteCookie()
@@ -536,7 +537,9 @@ export async function acceptCoachInvite(formData: FormData): Promise<void> {
     where: { userId: session.userId },
     select: { id: true, coachId: true },
   })
-  if (!athlete) throw new Error('Athlete profile not found')
+  if (!athlete) {
+    throw new Error('Start training before connecting to a coach')
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.coachAthleteLink.updateMany({

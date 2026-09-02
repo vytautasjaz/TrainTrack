@@ -1,4 +1,9 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { isRedirectError, mapAuthActionError } from '@/lib/auth-form-errors'
 
 type CoachInviteAcceptFormProps = {
   coachingCode: string
@@ -13,19 +18,58 @@ export function CoachInviteAcceptForm({
   acceptAction,
   declineAction,
 }: CoachInviteAcceptFormProps) {
+  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function acceptInvite() {
+    setError(null)
+    const formData = new FormData()
+    formData.set('coachingCode', coachingCode)
+
+    startTransition(async () => {
+      try {
+        await acceptAction(formData)
+        router.refresh()
+      } catch (err) {
+        if (isRedirectError(err)) throw err
+        setError(mapAuthActionError(err))
+      }
+    })
+  }
+
+  function declineInvite() {
+    setError(null)
+    startTransition(async () => {
+      try {
+        await declineAction()
+        router.refresh()
+      } catch (err) {
+        if (isRedirectError(err)) throw err
+        setError(mapAuthActionError(err))
+      }
+    })
+  }
+
   return (
     <div className="space-y-3">
-      <form action={acceptAction}>
-        <input type="hidden" name="coachingCode" value={coachingCode} />
-        <Button type="submit" className="w-full">
-          Accept — train with {coachName}
-        </Button>
-      </form>
-      <form action={declineAction}>
-        <Button type="submit" variant="outline" className="w-full">
-          Not now
-        </Button>
-      </form>
+      {error ? (
+        <p className="rounded-[6px] border border-destructive/30 bg-destructive/5 px-3 py-2 text-center text-xs text-destructive">
+          {error}
+        </p>
+      ) : null}
+      <Button type="button" className="w-full" disabled={isPending} onClick={acceptInvite}>
+        {isPending ? 'Connecting…' : `Accept — train with ${coachName}`}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        disabled={isPending}
+        onClick={declineInvite}
+      >
+        Not now
+      </Button>
     </div>
   )
 }

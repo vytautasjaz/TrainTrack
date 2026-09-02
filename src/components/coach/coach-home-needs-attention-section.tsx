@@ -30,6 +30,7 @@ const PAGE_SIZE_OPTIONS = [5, 10, 20, 'all'] as const
 type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number]
 
 type CoachHomeNeedsAttentionSectionProps = {
+  className?: string
   items: CoachHomeAttentionItem[]
   selectedItemId: string | null
   handledIds: Set<string>
@@ -40,6 +41,7 @@ type CoachHomeNeedsAttentionSectionProps = {
 }
 
 export function CoachHomeNeedsAttentionSection({
+  className,
   items,
   selectedItemId,
   handledIds,
@@ -118,7 +120,7 @@ export function CoachHomeNeedsAttentionSection({
   }
 
   return (
-    <section className="min-w-0">
+    <section className={cn('min-w-0', className)}>
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-baseline gap-2">
           <h2 className="text-[0.6875rem] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink)]">

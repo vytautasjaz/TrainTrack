@@ -102,29 +102,34 @@ export async function getSession(): Promise<SessionContext | null> {
   const session = await auth()
   if (session?.user?.id) {
     const athleteIdCookie = cookieStore.get('tt_athlete')?.value ?? null
-    const hasAthlete = session.user.hasAthlete
-    const hasCoach = session.user.hasCoach
-    const roles = rolesWithProfiles(session.user.roles ?? [], hasAthlete, hasCoach)
-    if (roles.length !== (session.user.roles ?? []).length) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        roles: true,
+        name: true,
+        onboardingSkippedAt: true,
+        athleteProfile: { select: { id: true } },
+        coachProfile: { select: { id: true } },
+      },
+    })
+    if (!dbUser) return null
+
+    const hasAthlete = Boolean(dbUser.athleteProfile)
+    const hasCoach = Boolean(dbUser.coachProfile)
+    const roles = rolesWithProfiles(dbUser.roles ?? [], hasAthlete, hasCoach)
+    if (roles.length !== (dbUser.roles ?? []).length) {
       void prisma.user
         .update({ where: { id: session.user.id }, data: { roles } })
         .catch(() => {})
     }
-    const onboardingSkipped = session.user.onboardingSkipped
+    const onboardingSkipped = Boolean(dbUser.onboardingSkippedAt)
     const viewMode = resolveViewMode(
       cookieStore.get(VIEW_MODE_COOKIE)?.value,
       hasAthlete,
       hasCoach,
     )
 
-    let athleteId: string | null = null
-    if (hasAthlete) {
-      const profile = await prisma.athlete.findUnique({
-        where: { userId: session.user.id },
-        select: { id: true },
-      })
-      athleteId = profile?.id ?? null
-    }
+    let athleteId: string | null = dbUser.athleteProfile?.id ?? null
     if (viewMode === 'coach' && hasCoach && athleteIdCookie) {
       const allowed = await coachCanAccessAthlete(session.user.id, athleteIdCookie)
       if (allowed) athleteId = athleteIdCookie
@@ -140,7 +145,7 @@ export async function getSession(): Promise<SessionContext | null> {
       role: primaryRole(roles, { hasAthlete, hasCoach }),
       roles,
       athleteId,
-      name: session.user.name ?? 'User',
+      name: dbUser.name ?? session.user.name ?? 'User',
       hasAthlete,
       hasCoach,
       viewMode,
