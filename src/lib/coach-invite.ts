@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import {
   COACH_INVITE_COOKIE,
   coachInviteCookieOptions,
+  coachInvitePath,
   parseCoachInviteCode,
   type CoachInviteInfo,
 } from '@/lib/coach-invite-shared'
@@ -54,5 +55,39 @@ export async function setCoachInviteCookie(code: string): Promise<void> {
 
 export async function clearCoachInviteCookie(): Promise<void> {
   const cookieStore = await cookies()
-  cookieStore.delete(COACH_INVITE_COOKIE)
+  cookieStore.delete({ name: COACH_INVITE_COOKIE, path: '/' })
+}
+
+/** Drop stale invite cookies and avoid sending coaches to their own athlete invite flow. */
+export async function resolveSignInRedirect(
+  email?: string | null,
+  userId?: string | null,
+): Promise<string> {
+  const inviteCode = await getCoachInviteCookie()
+  if (!inviteCode) return '/dashboard'
+
+  const invite = await resolveCoachInvite(inviteCode)
+  if (!invite) {
+    await clearCoachInviteCookie()
+    return '/dashboard'
+  }
+
+  if (userId && userId === invite.coachUserId) {
+    await clearCoachInviteCookie()
+    return '/dashboard'
+  }
+
+  const normalizedEmail = email?.trim().toLowerCase()
+  if (normalizedEmail) {
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    })
+    if (user?.id === invite.coachUserId) {
+      await clearCoachInviteCookie()
+      return '/dashboard'
+    }
+  }
+
+  return coachInvitePath(inviteCode)
 }

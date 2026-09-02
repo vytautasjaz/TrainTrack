@@ -26,6 +26,7 @@ import {
   createManualRaceResult,
   deleteRaceResult,
 } from '@/app/actions/race-results'
+import { PersonalBestUpdateModal } from '@/components/races/personal-best-update-modal'
 import {
   RACE_FORM_SPORTS,
   RUN_DISTANCE_OPTIONS,
@@ -40,6 +41,7 @@ import {
   type RaceResultRow,
 } from '@/lib/race-results'
 import { RACE_OUTCOME_LABELS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
+import type { PersonalBestSuggestion } from '@/lib/personal-bests'
 import { cn } from '@/lib/utils'
 import {
   DataSortHeader,
@@ -48,6 +50,7 @@ import {
   type DataSortState,
 } from '@/components/ui/data-sort-header'
 import {
+  DATA_CELL_META,
   DATA_CELL_PRIMARY,
   DATA_CELL_SECONDARY,
   DATA_EMPTY,
@@ -257,27 +260,18 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
         ) : (
           <div className="overflow-x-auto">
             <table
-              className={cn(DATA_TABLE, 'min-w-[36rem] table-fixed')}
+              className={cn(DATA_TABLE, 'w-full min-w-[48rem]')}
               data-density="comfortable"
             >
-              <colgroup>
-                <col className="w-auto" />
-                <col className="w-[6.75rem]" />
-                <col className="w-[5.5rem]" />
-                <col className="w-[5.25rem]" />
-                <col className="w-[7.5rem]" />
-                <col className="w-[4.25rem]" />
-                <col className="w-10" />
-              </colgroup>
               <thead>
                 <tr>
-                  <th>{sortHeader('race', 'Race')}</th>
-                  <th>{sortHeader('date', 'Date')}</th>
-                  <th>{sortHeader('sport', 'Sport')}</th>
-                  <th>{sortHeader('distance', 'Distance')}</th>
-                  <th>{sortHeader('result', 'Result')}</th>
-                  <th>{sortHeader('source', 'Source')}</th>
-                  <th>
+                  <th className="min-w-[10rem]">{sortHeader('race', 'Race')}</th>
+                  <th className="w-[6.5rem]">{sortHeader('date', 'Date')}</th>
+                  <th className="w-[5.75rem]">{sortHeader('sport', 'Sport')}</th>
+                  <th className="w-[6rem]">{sortHeader('distance', 'Distance')}</th>
+                  <th className="min-w-[9.5rem]">{sortHeader('result', 'Result')}</th>
+                  <th className="w-[4.75rem]">{sortHeader('source', 'Source')}</th>
+                  <th className="w-10">
                     <span className="sr-only">Actions</span>
                   </th>
                 </tr>
@@ -321,16 +315,16 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
                           ) : null}
                         </div>
                       </td>
-                      <td className={cn(DATA_NUM, DATA_CELL_SECONDARY)}>
+                      <td className={cn(DATA_NUM, DATA_CELL_META)}>
                         {row.date}
                       </td>
-                      <td className={DATA_CELL_SECONDARY}>
+                      <td className={DATA_CELL_META}>
                         {WORKOUT_TYPE_LABELS[row.sport]}
                       </td>
-                      <td className={cn(DATA_NUM, DATA_CELL_PRIMARY)}>
+                      <td className={cn(DATA_NUM, DATA_CELL_META)}>
                         {raceResultDistanceLabel(row)}
                       </td>
-                      <td className="px-3 py-3 align-middle">
+                      <td>
                         <div className="min-w-0 space-y-2">
                           {!isFinished ? (
                             <p className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -402,10 +396,10 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
                           ) : null}
                         </div>
                       </td>
-                      <td className="px-2 py-3 align-middle text-xs text-muted-foreground">
+                      <td className={DATA_CELL_META}>
                         {row.resultsLogOnly ? 'Manual' : 'Season'}
                       </td>
-                      <td className="px-1 py-3 align-middle">
+                      <td>
                         {row.resultsLogOnly ? (
                           <Button
                             type="button"
@@ -482,6 +476,8 @@ function LogPastResultDialog({
   const [outcome, setOutcome] = useState<RaceOutcome>(RaceOutcome.FINISHED)
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+  const [pbSuggestion, setPbSuggestion] = useState<PersonalBestSuggestion | null>(null)
+  const [pbOpen, setPbOpen] = useState(false)
 
   const distanceChoices =
     sportId === 'RUN'
@@ -513,11 +509,15 @@ function LogPastResultDialog({
     formData.set('outcome', outcome)
     startTransition(async () => {
       try {
-        await createManualRaceResult(formData)
+        const result = await createManualRaceResult(formData)
         onOpenChange(false)
         setSportId('RUN')
         setDistance('TEN_K')
         setOutcome(RaceOutcome.FINISHED)
+        if (result.pbSuggestion) {
+          setPbSuggestion(result.pbSuggestion)
+          setPbOpen(true)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not save result.')
       }
@@ -525,8 +525,9 @@ function LogPastResultDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Log past race result</DialogTitle>
           <DialogDescription>
@@ -674,5 +675,12 @@ function LogPastResultDialog({
         </form>
       </DialogContent>
     </Dialog>
+
+      <PersonalBestUpdateModal
+        suggestion={pbSuggestion}
+        open={pbOpen}
+        onOpenChange={setPbOpen}
+      />
+    </>
   )
 }

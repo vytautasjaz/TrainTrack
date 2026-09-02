@@ -382,7 +382,7 @@ export function isPersonalBestImprovement(
   metric: PersonalBestMetric,
 ): boolean {
   if (!Number.isFinite(proposed) || proposed < 0) return false
-  if (previous == null || !Number.isFinite(previous) || previous < 0) return true
+  if (previous == null || !Number.isFinite(previous) || previous <= 0) return true
   // Lower time is better; higher weight/reps/watts is better.
   if (metric === PersonalBestMetric.TIME) return proposed < previous
   return proposed > previous

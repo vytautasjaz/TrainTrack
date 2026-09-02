@@ -927,7 +927,7 @@ export function AthleteWorkoutDetailCard({
           ) : null}
         </section>
       ) : showDescriptionDetails && fullDescription ? (
-        <section className={cn("space-y-1.5 pb-4", insetX)}>
+        <section className={cn("space-y-1.5 pb-4 pt-4 sm:pt-5", insetX)}>
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
             Session plan
           </p>

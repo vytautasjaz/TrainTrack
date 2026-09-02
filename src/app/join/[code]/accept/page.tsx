@@ -6,7 +6,7 @@ import { CoachInviteAcceptForm } from '@/components/auth/coach-invite-accept-for
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { TrainTrackAppIcon } from '@/components/brand/traintrack-logo'
-import { parseCoachInviteCode, resolveCoachInvite } from '@/lib/coach-invite'
+import { parseCoachInviteCode, clearCoachInviteCookie, resolveCoachInvite } from '@/lib/coach-invite'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 
@@ -71,6 +71,7 @@ export default async function JoinCoachAcceptPage({ params }: JoinAcceptPageProp
   }
 
   if (invite.coachUserId === session.userId) {
+    await clearCoachInviteCookie()
     redirect('/dashboard')
   }
 

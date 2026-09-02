@@ -1298,7 +1298,8 @@ export function getWeekDays(anchor: Date) {
 export async function getProgressStats(athleteId: string) {
   const today = todayDateOnly()
   const monthEnd = endOfMonthDateOnly(today)
-  const rangeStart = startOfWeekDateOnly(addDateOnlyDays(today, -7 * 7))
+  const currentYear = today.getUTCFullYear()
+  const rangeStart = new Date(Date.UTC(currentYear - 2, 0, 1))
 
   const [workouts, races] = await Promise.all([
     prisma.workout.findMany({
@@ -1315,6 +1316,7 @@ export async function getProgressStats(athleteId: string) {
     status: w.status,
     selfLogged: w.selfLogged,
     plannedDistance: w.plannedDistance,
+    plannedDistanceMeters: w.plannedDistanceMeters,
     plannedDuration: w.plannedDuration,
     result: w.result
       ? {

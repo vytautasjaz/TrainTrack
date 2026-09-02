@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -27,19 +27,15 @@ export function PersonalBestUpdateModal({
   onOpenChange,
   onSaved,
 }: PersonalBestUpdateModalProps) {
-  const [time, setTime] = useState(suggestion?.proposedValueLabel ?? '')
+  const [time, setTime] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
-  const suggestionKey = suggestion
-    ? `${suggestion.raceId}:${suggestion.proposedValueLabel}`
-    : ''
-  const [lastKey, setLastKey] = useState(suggestionKey)
-  if (suggestion && suggestionKey !== lastKey) {
-    setLastKey(suggestionKey)
+  useEffect(() => {
+    if (!suggestion) return
     setTime(suggestion.proposedValueLabel)
     setError(null)
-  }
+  }, [suggestion])
 
   if (!suggestion) return null
 
@@ -72,7 +68,11 @@ export function PersonalBestUpdateModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New {suggestion.name} personal best?</DialogTitle>
+          <DialogTitle>
+            {suggestion.previousValueLabel
+              ? `Update your ${suggestion.name} personal best?`
+              : `New ${suggestion.name} personal best?`}
+          </DialogTitle>
           <DialogDescription>
             {suggestion.previousValueLabel
               ? `Previous PB was ${suggestion.previousValueLabel}${

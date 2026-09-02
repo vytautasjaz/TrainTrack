@@ -20,6 +20,7 @@ import {
 import { defaultSportForRaceType } from '@/lib/races'
 import { raceUsesLegs, triathlonLegsCreateData } from '@/lib/race-legs'
 import { RACE_RESULT_OUTCOMES, serializeRaceResult, type RaceResultRow } from '@/lib/race-results'
+import type { PersonalBestSuggestion } from '@/lib/personal-bests'
 import {
   requireSession,
   resolveAthleteId,
@@ -83,7 +84,9 @@ function parseSportId(raw: string): RaceFormSportId {
 }
 
 /** Manually log a past race result into the athlete's results database. */
-export async function createManualRaceResult(formData: FormData): Promise<void> {
+export async function createManualRaceResult(formData: FormData): Promise<{
+  pbSuggestion: PersonalBestSuggestion | null
+}> {
   const athleteId = await requireResultsAthleteId()
 
   const name = String(formData.get('name') ?? '').trim()
@@ -159,7 +162,7 @@ export async function createManualRaceResult(formData: FormData): Promise<void> 
       ? String(formData.get('runTime') ?? '').trim() || null
       : null
 
-  await prisma.race.create({
+  const race = await prisma.race.create({
     data: {
       athleteId,
       name,
@@ -194,8 +197,17 @@ export async function createManualRaceResult(formData: FormData): Promise<void> 
   })
 
   revalidatePath('/results')
+  revalidatePath('/progress')
   revalidatePath('/season')
   revalidatePath('/dashboard')
+
+  if (outcome !== RaceOutcome.FINISHED) {
+    return { pbSuggestion: null }
+  }
+
+  const { evaluatePersonalBestSuggestionForRace } = await import('@/app/actions/personal-bests')
+  const pbSuggestion = await evaluatePersonalBestSuggestionForRace(race.id)
+  return { pbSuggestion }
 }
 
 export async function deleteRaceResult(raceId: string): Promise<void> {
@@ -223,5 +235,6 @@ export async function deleteRaceResult(raceId: string): Promise<void> {
 
   await prisma.race.delete({ where: { id: race.id } })
   revalidatePath('/results')
+  revalidatePath('/progress')
   revalidatePath('/season')
 }

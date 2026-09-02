@@ -12,6 +12,7 @@ import {
   getCoachInviteCookie,
   parseCoachInviteCode,
   resolveCoachInvite,
+  resolveSignInRedirect,
 } from '@/lib/coach-invite'
 import {
   requireSession,
@@ -108,13 +109,11 @@ export async function signInWithEmail(
     return { error: firstError ?? 'Fix the highlighted fields.', fieldErrors }
   }
 
-  const inviteCode = await getCoachInviteCookie()
-  const redirectTo = inviteCode ? coachInvitePath(inviteCode) : '/dashboard'
   try {
     await signIn('credentials', {
       email,
       password,
-      redirectTo,
+      redirectTo: await resolveSignInRedirect(email),
     })
   } catch (err) {
     if (isRedirectError(err)) throw err
@@ -128,9 +127,8 @@ export async function signInWithGoogle() {
   const cookieStore = await cookies()
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
-  const inviteCode = await getCoachInviteCookie()
   await signIn('google', {
-    redirectTo: inviteCode ? coachInvitePath(inviteCode) : '/dashboard',
+    redirectTo: await resolveSignInRedirect(),
   })
 }
 
@@ -138,6 +136,7 @@ export async function signOutAction() {
   const cookieStore = await cookies()
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
+  await clearCoachInviteCookie()
   await signOut({ redirectTo: '/' })
 }
 

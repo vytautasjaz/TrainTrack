@@ -5,7 +5,6 @@ import { AuthMarketingAside } from '@/components/auth/auth-marketing-aside'
 import { TrainTrackLogo } from '@/components/brand/traintrack-logo'
 import { nextAuthErrorMessage } from '@/lib/auth-form-errors'
 import {
-  getCoachInviteCookie,
   resolveCoachInvite,
 } from '@/lib/coach-invite'
 
@@ -31,8 +30,7 @@ export default async function HomePage({
   const authError = params.error
 
   const inviteFromQuery = params.invite ? await resolveCoachInvite(params.invite) : null
-  const inviteCookieCode = inviteFromQuery?.code ?? (await getCoachInviteCookie())
-  const invite = inviteFromQuery ?? (inviteCookieCode ? await resolveCoachInvite(inviteCookieCode) : null)
+  const invite = inviteFromQuery
 
   return (
     <div className="auth-page min-h-dvh">
