@@ -106,7 +106,7 @@ export default async function InboxPage() {
     return (
       <div className="tt-dashboard-page -mx-4 px-4 pb-8 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
         <div className="tt-dashboard-content min-w-0 max-w-full space-y-5">
-          <PageHeader>
+          <PageHeader className="tt-inbox-page-header">
             <div className="min-w-0">
               <PageHeaderEyebrow>Messages</PageHeaderEyebrow>
               <PageHeaderTitle className="mt-1">Inbox.</PageHeaderTitle>
@@ -154,7 +154,7 @@ export default async function InboxPage() {
   return (
     <div className="tt-dashboard-page -mx-4 px-4 pb-8 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
       <div className="tt-dashboard-content min-w-0 max-w-full space-y-5">
-        <PageHeader>
+        <PageHeader className="tt-inbox-page-header">
           <div className="min-w-0">
             <PageHeaderEyebrow>Messages</PageHeaderEyebrow>
             <PageHeaderTitle className="mt-1">Inbox.</PageHeaderTitle>

@@ -10,9 +10,12 @@ import {
   unregisterWebPushSubscription,
 } from '@/app/actions/push-notifications'
 import { toUserMessage } from '@/lib/action-error'
+import { cn } from '@/lib/utils'
 
 type InboxNotificationsToggleProps = {
   pushConfigured: boolean
+  /** Icon-only control for tight mobile toolbars. */
+  compact?: boolean
 }
 
 function base64UrlToUint8Array(base64UrlString: string) {
@@ -24,7 +27,10 @@ function base64UrlToUint8Array(base64UrlString: string) {
   return output
 }
 
-export function InboxNotificationsToggle({ pushConfigured }: InboxNotificationsToggleProps) {
+export function InboxNotificationsToggle({
+  pushConfigured,
+  compact = false,
+}: InboxNotificationsToggleProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [permission, setPermission] = useState<NotificationPermission>('default')
@@ -92,41 +98,45 @@ export function InboxNotificationsToggle({ pushConfigured }: InboxNotificationsT
     setHasSubscription(false)
   }
 
+  const label = isPending
+    ? hasSubscription
+      ? 'Disabling…'
+      : 'Enabling…'
+    : hasSubscription
+      ? 'Inbox notifications on'
+      : 'Enable inbox notifications'
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className={cn('flex flex-col gap-2', compact && 'min-w-0')}>
       <div className="flex items-center gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={Boolean(disabledReason) || isPending}
-        title={disabledReason ?? undefined}
-        onClick={() => {
-          setError(null)
-          startTransition(async () => {
-            try {
-              if (hasSubscription) await disableNotifications()
-              else await enableNotifications()
-            } catch (err) {
-              setError(toUserMessage(err, 'Could not update notifications'))
-            }
-          })
-        }}
-      >
-        {hasSubscription ? <BellOff className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
-        {isPending
-          ? hasSubscription
-            ? 'Disabling…'
-            : 'Enabling…'
-          : hasSubscription
-            ? 'Inbox notifications on'
-            : 'Enable inbox notifications'}
-      </Button>
-      {permission === 'denied' ? (
-        <span className="text-[11px] text-muted-foreground">
-          Browser notifications blocked — enable in browser settings.
-        </span>
-      ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={Boolean(disabledReason) || isPending}
+          title={disabledReason ?? label}
+          aria-label={label}
+          className={cn(compact && 'h-8 w-8 shrink-0 px-0')}
+          onClick={() => {
+            setError(null)
+            startTransition(async () => {
+              try {
+                if (hasSubscription) await disableNotifications()
+                else await enableNotifications()
+              } catch (err) {
+                setError(toUserMessage(err, 'Could not update notifications'))
+              }
+            })
+          }}
+        >
+          {hasSubscription ? <BellOff className="h-3.5 w-3.5" /> : <Bell className="h-3.5 w-3.5" />}
+          {compact ? null : label}
+        </Button>
+        {!compact && permission === 'denied' ? (
+          <span className="text-[11px] text-muted-foreground">
+            Browser notifications blocked — enable in browser settings.
+          </span>
+        ) : null}
       </div>
       <FormError message={error} />
     </div>
