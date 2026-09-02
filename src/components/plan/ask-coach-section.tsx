@@ -656,25 +656,46 @@ export function CoachWorkoutChatPanel({
   )
 }
 
-/** Coach-side workout modal thread — shown when a conversation already exists. */
+/** Coach-side workout modal thread — always available (start or continue chat). */
 export function CoachWorkoutThreadSection({ workout }: { workout: PlanWorkoutDetail }) {
   const expectedChat = workoutHasCoachingChat(workout)
   const { thread, ready, setThread } = useWorkoutCoachingThread(workout.id)
+  const [expanded, setExpanded] = useState(() => expectedChat)
 
-  if (!expectedChat && ready && (!thread || !threadHasChatConversation(thread.messages))) {
-    return null
-  }
+  useEffect(() => {
+    if (expectedChat || (ready && thread && threadHasChatConversation(thread.messages))) {
+      setExpanded(true)
+    }
+  }, [expectedChat, ready, thread])
 
-  if (!expectedChat && !ready) return null
+  const hasConversation =
+    expectedChat || (ready && Boolean(thread && threadHasChatConversation(thread.messages)))
+  const chatHint = !ready
+    ? 'Loading…'
+    : hasConversation
+      ? `${thread?.messages.length ?? 0} message${(thread?.messages.length ?? 0) === 1 ? '' : 's'}`
+      : 'Ask about pacing, swaps, reminders…'
 
   return (
-    <div className="shrink-0 border-t border-border/40 px-4 pb-4 pt-3">
-      <CoachWorkoutChatPanel
-        workoutId={workout.id}
-        thread={thread}
-        fetchDone={ready}
-        onThreadChange={setThread}
+    <div className="shrink-0 border-t border-border/40 px-3 pb-3 pt-1">
+      <FooterCell
+        icon={<MessageSquare className="h-4 w-4" strokeWidth={2} />}
+        title="Message athlete"
+        hint={chatHint}
+        expanded={expanded}
+        onClick={() => setExpanded((open) => !open)}
+        className="w-full px-2"
       />
+      {expanded ? (
+        <div className="mt-1 border-t border-border/30 px-2 pt-3">
+          <CoachWorkoutChatPanel
+            workoutId={workout.id}
+            thread={thread}
+            fetchDone={ready}
+            onThreadChange={setThread}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }

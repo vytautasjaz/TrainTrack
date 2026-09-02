@@ -1,8 +1,11 @@
 'use client'
 
+import { useTransition } from 'react'
+import { Loader2 } from 'lucide-react'
 import { switchViewMode } from '@/app/actions/session'
 import type { AppViewMode } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { useViewModeSwitch } from '@/components/layout/view-mode-switch-context'
 
 type ViewModeSwitcherProps = {
   viewMode: AppViewMode
@@ -11,6 +14,23 @@ type ViewModeSwitcherProps = {
   /** Sidebar (dark gradient pill) vs light surfaces (mobile menu). */
   tone?: 'sidebar' | 'light'
   className?: string
+  /** Called right before a switch starts (e.g. close mobile menu). */
+  onSwitchStart?: () => void
+}
+
+const MODES = ['athlete', 'coach'] as const satisfies readonly AppViewMode[]
+
+function selectedMode(
+  viewMode: AppViewMode,
+  isPending: boolean,
+  targetMode: AppViewMode | null,
+): AppViewMode {
+  if (isPending && targetMode) return targetMode
+  return viewMode
+}
+
+function modeLabel(mode: AppViewMode) {
+  return mode === 'coach' ? 'Coach' : 'Athlete'
 }
 
 export function ViewModeSwitcher({
@@ -18,32 +38,61 @@ export function ViewModeSwitcher({
   compact = false,
   tone = 'sidebar',
   className,
+  onSwitchStart,
 }: ViewModeSwitcherProps) {
+  const ctx = useViewModeSwitch()
+  const [localPending, startLocalTransition] = useTransition()
+  const isPending = ctx?.isPending ?? localPending
+  const targetMode = ctx?.targetMode ?? null
   const isSidebarTone = tone === 'sidebar'
+  const thumbAt = selectedMode(viewMode, isPending, targetMode)
+
+  function handleSwitch(mode: AppViewMode) {
+    if (mode === viewMode || isPending) return
+    onSwitchStart?.()
+    if (ctx) {
+      ctx.switchTo(mode, viewMode)
+      return
+    }
+    const formData = new FormData()
+    formData.set('mode', mode)
+    startLocalTransition(async () => {
+      await switchViewMode(formData)
+    })
+  }
 
   if (isSidebarTone && !compact) {
     return (
       <div
-        className={cn('tt-app-sidebar-mode-switch', className)}
+        className={cn(
+          'tt-app-sidebar-mode-switch tt-app-sidebar-mode-switch--animated',
+          isPending && 'tt-app-sidebar-mode-switch--pending',
+          className,
+        )}
         role="group"
         aria-label="Switch between athlete and coach"
+        aria-busy={isPending}
       >
-        {(['athlete', 'coach'] as const).map((mode) => {
-          const active = viewMode === mode
+        <span
+          className="tt-app-sidebar-mode-switch-thumb"
+          data-position={thumbAt}
+          aria-hidden
+        />
+        {MODES.map((mode) => {
+          const selected = thumbAt === mode
           const label = mode === 'athlete' ? 'ATHLETE' : 'COACH'
           return (
-            <form key={mode} action={switchViewMode}>
-              <input type="hidden" name="mode" value={mode} />
-              <button
-                type="submit"
-                disabled={active}
-                title={mode === 'athlete' ? 'Athlete' : 'Coach'}
-                aria-pressed={active}
-                data-active={active ? 'true' : undefined}
-              >
-                {label}
-              </button>
-            </form>
+            <button
+              key={mode}
+              type="button"
+              disabled={isPending}
+              title={mode === 'athlete' ? 'Athlete' : 'Coach'}
+              aria-pressed={selected}
+              data-selected={selected ? 'true' : undefined}
+              onClick={() => handleSwitch(mode)}
+            >
+              {label}
+            </button>
           )
         })}
       </div>
@@ -51,43 +100,61 @@ export function ViewModeSwitcher({
   }
 
   return (
-    <div
-      className={cn(
-        'flex items-center gap-2',
-        compact && 'flex-col gap-1',
-        className,
-      )}
-      role="group"
-      aria-label="Switch between athlete and coach"
-    >
-      {(['athlete', 'coach'] as const).map((mode) => {
-        const active = viewMode === mode
-        const label = mode === 'athlete' ? 'Athlete' : 'Coach'
-        return (
-          <form key={mode} action={switchViewMode}>
-            <input type="hidden" name="mode" value={mode} />
+    <div className={cn('tt-view-mode-switch-inline-wrap', className)}>
+      <div
+        className={cn(
+          'tt-view-mode-switch-inline',
+          compact && 'tt-view-mode-switch-inline--compact',
+          isSidebarTone && 'tt-view-mode-switch-inline--sidebar',
+          isPending && 'tt-view-mode-switch-inline--pending',
+        )}
+        role="group"
+        aria-label="Switch between athlete and coach"
+        aria-busy={isPending}
+      >
+        {!compact ? (
+          <span
+            className="tt-view-mode-switch-inline-thumb"
+            data-position={thumbAt}
+            aria-hidden
+          />
+        ) : null}
+        {MODES.map((mode) => {
+          const selected = thumbAt === mode
+          const label = mode === 'athlete' ? 'Athlete' : 'Coach'
+          return (
             <button
-              type="submit"
-              disabled={active}
+              key={mode}
+              type="button"
+              disabled={isPending}
               title={label}
-              aria-pressed={active}
+              aria-pressed={selected}
+              data-selected={selected ? 'true' : undefined}
+              onClick={() => handleSwitch(mode)}
               className={cn(
-                'cursor-pointer rounded-sm text-[10px] tracking-wide transition',
-                compact ? 'px-1 py-0.5' : 'px-0.5 py-0.5',
-                active
+                'relative z-[1] cursor-pointer rounded-sm text-[10px] tracking-wide transition-colors',
+                compact ? 'px-1 py-0.5' : 'px-2 py-0.5',
+                selected
                   ? isSidebarTone
-                    ? 'cursor-default font-bold text-white underline decoration-brand decoration-2 underline-offset-4'
-                    : 'cursor-default font-bold text-foreground underline decoration-accent decoration-2 underline-offset-4'
+                    ? 'font-bold text-white'
+                    : 'font-bold text-foreground'
                   : isSidebarTone
                     ? 'font-medium text-white/55 hover:text-white'
                     : 'font-medium text-muted-foreground hover:text-foreground',
+                isPending && 'cursor-wait',
               )}
             >
               {compact ? (mode === 'athlete' ? 'A' : 'C') : label}
             </button>
-          </form>
-        )
-      })}
+          )
+        })}
+      </div>
+      {isPending && targetMode && !isSidebarTone ? (
+        <p className="tt-view-mode-switch-inline-status" role="status" aria-live="polite">
+          <Loader2 className="tt-view-mode-switch-status-spinner" aria-hidden />
+          Switching to {modeLabel(targetMode)}…
+        </p>
+      ) : null}
     </div>
   )
 }

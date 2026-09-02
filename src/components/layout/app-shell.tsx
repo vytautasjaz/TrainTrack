@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { AppNav } from '@/components/layout/app-nav'
 import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
+import { ViewModeSwitchProvider } from '@/components/layout/view-mode-switch-context'
 import { CoachAthleteBarGate } from '@/components/coach/coach-athlete-bar-gate'
 import { StravaAutoSync } from '@/components/integrations/strava-auto-sync'
 import { TrainTrackMark } from '@/components/brand/traintrack-logo'
@@ -86,7 +87,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     ) : null
 
   return (
-    <div className="app-gradient flex min-h-dvh">
+    <ViewModeSwitchProvider>
+      <div className="app-gradient flex min-h-dvh">
       {session?.hasAthlete ? <StravaAutoSync /> : null}
       <Suspense fallback={null}>
         <AppNav
@@ -133,6 +135,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
-    </div>
+      </div>
+    </ViewModeSwitchProvider>
   )
 }

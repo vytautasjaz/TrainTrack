@@ -62,8 +62,6 @@ export function CoachHomePlanningCoverage({
       <CoachHomePanelHeader
         title="Plan coverage"
         count={needsPlanCount > 0 ? needsPlanCount : undefined}
-        href="/training"
-        linkLabel="Open training →"
       />
 
       {rows.length === 0 ? (

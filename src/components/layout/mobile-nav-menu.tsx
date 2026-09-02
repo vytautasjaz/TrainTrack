@@ -82,7 +82,12 @@ export function MobileNavMenu({
             <DialogTitle>Menu</DialogTitle>
           </DialogHeader>
           {canSwitchView ? (
-            <ViewModeSwitcher viewMode={viewMode} tone="light" className="mb-2" />
+            <ViewModeSwitcher
+              viewMode={viewMode}
+              tone="light"
+              className="mb-2"
+              onSwitchStart={() => setOpen(false)}
+            />
           ) : null}
           <nav className="flex flex-col gap-0.5">
             {mainItems.map(({ href, label, icon: Icon, children, subnavAlwaysVisible }) => {
