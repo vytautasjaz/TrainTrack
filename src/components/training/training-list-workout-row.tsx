@@ -251,30 +251,16 @@ export function TrainingListWorkoutRow({
       }}
       className={cn(
         'group/card relative flex w-full cursor-pointer flex-col overflow-hidden text-left transition',
-        'pl-[calc(0.875rem+3px)]',   // 3px rail + px-3.5
         !last && 'border-b border-[var(--tt-line,#ebebeb)]',
-        completionChrome &&
-          completed &&
-          !selected &&
-          'bg-[color-mix(in_srgb,var(--tt-good,#1a9f5c)_8%,var(--color-card,#fff))]',
+        completionChrome && completed && !selected &&
+          'bg-[color-mix(in_srgb,var(--tt-good,#1a9f5c)_6%,var(--color-card,#fff))]',
         skipped && 'opacity-60',
         workout.isRescheduleGhost && 'tt-list-workout-row-ghost',
         canDrag && 'cursor-grab active:cursor-grabbing',
         dragging && 'opacity-40',
+        selected && 'bg-[color-mix(in_srgb,var(--tt-ink,#111)_4%,var(--color-card,#fff))]',
       )}
-      style={
-        {
-          ...(rowBackground ? { background: rowBackground } : null),
-          ...(selected
-            ? {
-                boxShadow:
-                  colorMode === 'sport'
-                    ? `inset 0 0 0 1.5px color-mix(in srgb, ${sportRail} 42%, white)`
-                    : 'inset 0 0 0 1.5px var(--tt-line-strong, #ddd)',
-              }
-            : null),
-        } as CSSProperties
-      }
+      style={rowBackground ? { background: rowBackground } as CSSProperties : undefined}
       aria-current={selected ? 'true' : undefined}
       data-ghost={workout.isRescheduleGhost ? 'true' : undefined}
       title={
@@ -301,7 +287,7 @@ export function TrainingListWorkoutRow({
         dnd?.setDragWorkout(null)
       }}
     >
-      {/* 3px sport/completion rail */}
+      {/* 3px sport/completion rail — left edge */}
       <div
         className="absolute inset-y-0 left-0 w-[3px]"
         style={{ background: railTrack }}
@@ -309,23 +295,20 @@ export function TrainingListWorkoutRow({
       >
         <div
           className="absolute bottom-0 left-0 w-full"
-          style={{
-            height: showCompletionRail ? `${pct}%` : '100%',
-            background: railFill,
-          }}
+          style={{ height: showCompletionRail ? `${pct}%` : '100%', background: railFill }}
         />
       </div>
 
       {/* Main row body */}
       <div
         className={cn(
-          'flex w-full items-center gap-3 py-3 pr-3.5',
+          'flex w-full items-center gap-3 py-3.5 pl-[calc(0.75rem+3px)] pr-3.5',
           workout.isRescheduleGhost && showReview && 'tt-list-workout-row-ghost-body',
         )}
       >
         {/* Sport icon */}
         <SportIcon
-          className="h-[18px] w-[18px] shrink-0"
+          className="h-[17px] w-[17px] shrink-0"
           strokeWidth={2}
           style={{ color: iconColor }}
           aria-hidden
@@ -333,10 +316,10 @@ export function TrainingListWorkoutRow({
 
         {/* WORKOUT / TITLE column — flex-1 */}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
             <p
               className={cn(
-                'truncate text-[14px] font-semibold leading-snug text-[var(--tt-ink,#111)]',
+                'truncate text-[13.5px] font-semibold leading-snug text-[var(--tt-ink,#111)]',
                 completionChrome && completed && 'text-[var(--tt-good,#1a9f5c)]',
                 skipped && 'text-[var(--tt-ink-faint,#9a9a9a)]',
               )}
@@ -345,14 +328,21 @@ export function TrainingListWorkoutRow({
             </p>
             {workout.selfLogged ? <SelfAddedBadge /> : null}
             {showReview ? null : <RescheduleBadge workout={workout} />}
+            {workoutHasCoachingChat(workout) && !showQuickActions ? (
+              <WorkoutChatIndicator
+                workout={workout}
+                role={isCoach ? 'coach' : 'athlete'}
+                size="sm"
+                className="translate-y-0.5"
+              />
+            ) : null}
           </div>
-          {/* Sub-line: session kind */}
           <p className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-soft,#6b6b6b)]">
             {details}
           </p>
         </div>
 
-        {/* DETAILS column (zone / effort / prescription) — hidden on xs, visible sm+ */}
+        {/* DETAILS column (prescription / zone) — hidden xs, visible sm+ */}
         <div className="hidden w-[5.5rem] shrink-0 sm:block">
           {prescription ? (
             <p className="truncate text-right text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
@@ -367,9 +357,7 @@ export function TrainingListWorkoutRow({
             <p
               className={cn(
                 'truncate text-[12px] font-semibold tabular-nums',
-                completed
-                  ? 'text-[var(--tt-good,#1a9f5c)]'
-                  : 'text-[var(--tt-ink,#111)]',
+                completed ? 'text-[var(--tt-good,#1a9f5c)]' : 'text-[var(--tt-ink,#111)]',
               )}
             >
               {distDur}
@@ -403,9 +391,9 @@ export function TrainingListWorkoutRow({
         </div>
       </div>
 
-      {/* Chat indicator row (when shown separately) */}
-      {workoutHasCoachingChat(workout) ? (
-        <div className="pb-2.5 pr-3.5">
+      {/* Chat indicator when paired with quick-actions */}
+      {workoutHasCoachingChat(workout) && showQuickActions ? (
+        <div className="pb-2.5 pl-[calc(0.75rem+3px)] pr-3.5">
           <WorkoutChatIndicator
             workout={workout}
             role={isCoach ? 'coach' : 'athlete'}
@@ -420,7 +408,7 @@ export function TrainingListWorkoutRow({
         isCoach={isCoach}
         listView
         onOpenWorkout={onOpen}
-        className="-ml-[3px] -mr-0 mb-0 border-t border-[var(--tt-line,#ebebeb)] px-3.5 pb-3 pl-[calc(0.875rem+3px)] pt-2.5"
+        className="border-t border-[var(--tt-line,#ebebeb)] pl-[calc(0.75rem+3px)] pr-3.5 pb-3 pt-2.5"
       />
 
       {showReview ? (

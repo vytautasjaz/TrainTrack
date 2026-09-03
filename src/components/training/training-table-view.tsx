@@ -464,162 +464,193 @@ export function TrainingTableView({
             ) : null}
           </div>
 
-          {/* Column headers — desktop only, sticky below any loading banner */}
-          <div className="hidden w-full border-b border-[var(--tt-line,#ebebeb)] bg-background/95 py-2 pl-[calc(0.875rem+3px)] pr-3.5 lg:flex lg:items-center lg:gap-3" aria-hidden>
-            <div className="h-[18px] w-[18px] shrink-0" />
-            <p className="flex-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Workout / Event</p>
-            <p className="hidden w-[5.5rem] shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)] sm:block">Details</p>
-            <p className="w-[5.5rem] shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Duration / Dist</p>
-            <p className="w-10 shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Status</p>
+          {/* Column headers — sticky */}
+          <div className="sticky top-0 z-10 flex w-full items-center border-b border-[var(--tt-line,#ebebeb)] bg-background/98 backdrop-blur-[2px]">
+            <div className="w-[4.5rem] shrink-0 border-r border-[var(--tt-line,#ebebeb)] px-3 py-2.5 sm:w-[5.5rem]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Day</p>
+            </div>
+            <div className="flex min-w-0 flex-1 items-center gap-0 pl-4 pr-3">
+              <p className="flex-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Workout / Event</p>
+              <p className="hidden w-[5.5rem] shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)] sm:block">Details</p>
+              <p className="w-[5.5rem] shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Dur / Dist</p>
+              <p className="w-10 shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Status</p>
+            </div>
           </div>
 
-          <div className="w-full space-y-7 pb-2">
+          {/* Flat table — one shared border, days inline */}
+          <div className="w-full pb-2">
             <div ref={topSentinelRef} className="h-px w-full" aria-hidden />
 
             {displayDays.length === 0 ? (
-              <p className="rounded-[10px] border border-dashed border-[var(--tt-line,#ebebeb)] bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
+              <p className="mt-4 rounded-[10px] border border-dashed border-[var(--tt-line,#ebebeb)] bg-muted/20 px-4 py-10 text-center text-sm text-muted-foreground">
                 No workouts from today onward yet. Scroll down for later days, or
                 pull up for earlier ones.
               </p>
             ) : (
-              displayDays.map((day) => (
-                <DayDropSection
-                  key={day.dateKey}
-                  id={`${DAY_SECTION_ID}-${day.dateKey}`}
-                  dateKey={day.dateKey}
-                  enabled={isCoach}
-                  className={cn(
-                    'scroll-mt-14 space-y-2.5',
-                    day.isToday && 'scroll-mt-16',
-                  )}
-                >
-                  {day.isToday ? (
-                    <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-                      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand,#da2f36)]">
-                        Today
-                      </span>
-                      <span className="text-[11px] font-medium text-[var(--tt-ink-soft,#6b6b6b)]">
-                        {format(day.date, 'd MMM')}
-                      </span>
-                      <div
-                        className="h-px min-w-[1.5rem] flex-1 bg-[var(--tt-line-strong,#ddd)]"
-                        aria-hidden
-                      />
-                      {day.weather ? (
-                        <ListDayWeatherStrip
-                          weather={day.weather}
-                          className="shrink-0 justify-end text-right"
-                        />
-                      ) : null}
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--tt-ink-soft,#6b6b6b)]">
-                          {format(day.date, 'EEE')}
-                        </span>
-                        <span className="text-[11px] font-medium text-[var(--tt-ink-faint,#9a9a9a)]">
-                          {format(day.date, 'd MMM')}
-                        </span>
-                      </div>
-                      {day.weather ? (
-                        <ListDayWeatherMini
-                          weather={day.weather}
-                          className="ml-auto"
-                        />
-                      ) : null}
-                    </div>
-                  )}
+              <div className="overflow-hidden rounded-[10px] border border-[var(--tt-line,#ebebeb)] bg-white shadow-[0_1px_2px_rgb(0_0_0_/0.04),0_2px_8px_rgb(0_0_0_/0.04)]">
+                {displayDays.map((day, dayIdx) => {
+                  const hasContent =
+                    day.workouts.length > 0 ||
+                    (showNotes && dayNoteHasVisibleContent(day.dayNote)) ||
+                    (showEvents && (day.seasonEvents?.length ?? 0) > 0)
+                  const isFirst = dayIdx === 0
 
-                  <div
-                    className={cn(
-                      'overflow-hidden rounded-[10px] border border-[var(--tt-line,#ebebeb)] bg-white',
-                      'shadow-[0_1px_2px_rgb(0_0_0_/0.03),0_2px_8px_rgb(0_0_0_/0.03)]',
-                      /* Today = soft wash (not a red left rail — that fights completed green rails). */
-                      day.isToday &&
-                        'bg-[var(--tt-today-wash,rgb(218_47_54/0.035))]',
-                    )}
-                  >
-                    {day.workouts.length === 0 &&
-                    !(showNotes && dayNoteHasVisibleContent(day.dayNote)) &&
-                    !(showEvents && (day.seasonEvents?.length ?? 0) > 0) ? (
-                      <div className="px-3.5 py-5 text-center text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
-                        {isCoach ? 'Drop workout here' : 'Rest / empty'}
-                      </div>
-                    ) : null}
+                  // All rows for this day (workouts + events + notes)
+                  const totalRows =
+                    day.workouts.length +
+                    (showEvents && (day.seasonEvents?.length ?? 0) > 0 ? 1 : 0) +
+                    (showNotes && dayNoteHasVisibleContent(day.dayNote) ? 1 : 0) +
+                    (!hasContent ? 1 : 0)
 
-                    {day.workouts.map((workout, i) => (
-                      <TrainingListWorkoutRow
-                        key={workout.id}
-                        workout={workout}
-                        isCoach={isCoach}
-                        last={
-                          i === day.workouts.length - 1 &&
-                          !(
-                            showNotes &&
-                            dayNoteHasVisibleContent(day.dayNote)
-                          ) &&
-                          !(
-                            showEvents &&
-                            (day.seasonEvents?.length ?? 0) > 0
-                          )
-                        }
-                        selected={
-                          showDesktopPanel && panelWorkout?.id === workout.id
-                        }
-                        onOpen={() => setSelected(workout)}
-                      />
-                    ))}
-
-                    {showEvents && (day.seasonEvents?.length ?? 0) > 0 ? (
+                  return (
+                    <DayDropSection
+                      key={day.dateKey}
+                      id={`${DAY_SECTION_ID}-${day.dateKey}`}
+                      dateKey={day.dateKey}
+                      enabled={isCoach}
+                      className={cn(
+                        'scroll-mt-14',
+                        day.isToday && 'scroll-mt-16',
+                      )}
+                    >
                       <div
                         className={cn(
-                          'bg-amber-50/90 px-3.5 py-3.5 pl-4',
-                          day.workouts.length > 0 &&
-                            'border-t border-amber-200/80',
+                          'flex',
+                          !isFirst && 'border-t border-[var(--tt-line,#ebebeb)]',
+                          day.isToday && 'bg-[var(--tt-today-wash,rgb(218_47_54/0.025))]',
                         )}
                       >
-                        <SeasonEventChips
-                          events={day.seasonEvents ?? []}
-                          variant="strip"
-                          editable={isCoach}
-                          dateKey={day.dateKey}
-                        />
-                      </div>
-                    ) : null}
+                        {/* DAY column */}
+                        <div
+                          className={cn(
+                            'flex w-[4.5rem] shrink-0 flex-col items-start justify-start border-r border-[var(--tt-line,#ebebeb)] px-3 sm:w-[5.5rem]',
+                            totalRows > 1 ? 'pt-3.5' : 'py-3.5',
+                          )}
+                        >
+                          {day.isToday ? (
+                            <>
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand,#da2f36)]">
+                                Today
+                              </span>
+                              <span className="mt-0.5 text-[13px] font-bold leading-none text-[var(--tt-ink,#111)]">
+                                {format(day.date, 'd')}
+                              </span>
+                              <span className="text-[10px] font-medium uppercase text-[var(--tt-ink-soft,#6b6b6b)]">
+                                {format(day.date, 'MMM')}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span
+                                className={cn(
+                                  'text-[10px] font-semibold uppercase tracking-[0.08em]',
+                                  day.date < new Date(new Date().setHours(0,0,0,0))
+                                    ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
+                                    : 'text-[var(--tt-ink-soft,#6b6b6b)]',
+                                )}
+                              >
+                                {format(day.date, 'EEE')}
+                              </span>
+                              <span
+                                className={cn(
+                                  'mt-0.5 text-[13px] font-bold leading-none',
+                                  day.date < new Date(new Date().setHours(0,0,0,0))
+                                    ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
+                                    : 'text-[var(--tt-ink,#111)]',
+                                )}
+                              >
+                                {format(day.date, 'd')}
+                              </span>
+                              <span
+                                className={cn(
+                                  'text-[10px] font-medium uppercase',
+                                  day.date < new Date(new Date().setHours(0,0,0,0))
+                                    ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
+                                    : 'text-[var(--tt-ink-soft,#6b6b6b)]',
+                                )}
+                              >
+                                {format(day.date, 'MMM')}
+                              </span>
+                            </>
+                          )}
+                          {day.weather ? (
+                            <div className="mt-1.5">
+                              <ListDayWeatherMini weather={day.weather} />
+                            </div>
+                          ) : null}
+                        </div>
 
-                    {showNotes && dayNoteHasVisibleContent(day.dayNote) ? (
-                      <div
-                        className={cn(
-                          'px-3.5 py-3.5 pl-4',
-                          (day.workouts.length > 0 ||
-                            (showEvents &&
-                              (day.seasonEvents?.length ?? 0) > 0)) &&
-                            'border-t border-amber-200/80 bg-amber-50/90',
-                          day.workouts.length === 0 &&
-                            !(
-                              showEvents &&
-                              (day.seasonEvents?.length ?? 0) > 0
-                            ) &&
-                            'bg-amber-50/90',
-                        )}
-                      >
-                        <DayNoteSection
-                          dateKey={day.dateKey}
-                          note={day.dayNote}
-                          canEdit={canEditDayNotes}
-                          noteKind={isCoach ? 'coach' : 'athlete'}
-                          athleteId={athleteId}
-                          compact
-                          showFullText
-                          hideEmptyAdd
-                          variant="strip"
-                        />
+                        {/* CONTENT column */}
+                        <div className="min-w-0 flex-1">
+                          {/* Empty day */}
+                          {!hasContent ? (
+                            <div className="flex items-center py-3.5 pl-4 pr-3.5 text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
+                              {isCoach ? 'Drop workout here' : 'Rest / empty'}
+                            </div>
+                          ) : null}
+
+                          {/* Workout rows */}
+                          {day.workouts.map((workout, i) => (
+                            <TrainingListWorkoutRow
+                              key={workout.id}
+                              workout={workout}
+                              isCoach={isCoach}
+                              last={
+                                i === day.workouts.length - 1 &&
+                                !(showNotes && dayNoteHasVisibleContent(day.dayNote)) &&
+                                !(showEvents && (day.seasonEvents?.length ?? 0) > 0)
+                              }
+                              selected={showDesktopPanel && panelWorkout?.id === workout.id}
+                              onOpen={() => setSelected(workout)}
+                            />
+                          ))}
+
+                          {/* Events strip */}
+                          {showEvents && (day.seasonEvents?.length ?? 0) > 0 ? (
+                            <div
+                              className={cn(
+                                'bg-amber-50/90 px-4 py-3',
+                                (day.workouts.length > 0) && 'border-t border-amber-200/60',
+                              )}
+                            >
+                              <SeasonEventChips
+                                events={day.seasonEvents ?? []}
+                                variant="strip"
+                                editable={isCoach}
+                                dateKey={day.dateKey}
+                              />
+                            </div>
+                          ) : null}
+
+                          {/* Notes strip */}
+                          {showNotes && dayNoteHasVisibleContent(day.dayNote) ? (
+                            <div
+                              className={cn(
+                                'px-4 py-3',
+                                (day.workouts.length > 0 || (showEvents && (day.seasonEvents?.length ?? 0) > 0))
+                                  ? 'border-t border-amber-200/60 bg-amber-50/90'
+                                  : 'bg-amber-50/90',
+                              )}
+                            >
+                              <DayNoteSection
+                                dateKey={day.dateKey}
+                                note={day.dayNote}
+                                canEdit={canEditDayNotes}
+                                noteKind={isCoach ? 'coach' : 'athlete'}
+                                athleteId={athleteId}
+                                compact
+                                showFullText
+                                hideEmptyAdd
+                                variant="strip"
+                              />
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
-                    ) : null}
-                  </div>
-                </DayDropSection>
-              ))
+                    </DayDropSection>
+                  )
+                })}
+              </div>
             )}
 
             <div ref={bottomSentinelRef} className="h-px w-full" aria-hidden />
