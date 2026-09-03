@@ -1,6 +1,6 @@
 'use client'
 
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ChevronDown,
   ChevronRight,
@@ -180,6 +180,8 @@ type InboxMobileListProps = {
   entries: InboxMobileListEntry[]
   kind: InboxKindFilter
   onKindChange: (kind: InboxKindFilter) => void
+  /** Which kind tabs have at least one unread thread. */
+  kindUnread?: Record<InboxKindFilter, boolean>
   filter: InboxFilter
   onFilterChange: (filter: InboxFilter) => void
   athleteFilter: string
@@ -190,6 +192,8 @@ type InboxMobileListProps = {
   coachParticipant: InboxParticipant
   athleteParticipant?: InboxParticipant
   onSelectEntry: (id: string) => void
+  /** When set (Chat + one athlete), show this panel instead of the thread list. */
+  directChat?: ReactNode
 }
 
 export function InboxMobileList({
@@ -197,6 +201,7 @@ export function InboxMobileList({
   entries,
   kind,
   onKindChange,
+  kindUnread,
   filter,
   onFilterChange,
   athleteFilter,
@@ -207,6 +212,7 @@ export function InboxMobileList({
   coachParticipant,
   athleteParticipant,
   onSelectEntry,
+  directChat,
 }: InboxMobileListProps) {
   const [openBuckets, setOpenBuckets] = useState<Record<TimeBucketId, boolean>>({
     today: true,
@@ -273,7 +279,10 @@ export function InboxMobileList({
   )
 
   return (
-    <div className="tt-inbox-mobile lg:hidden">
+    <div
+      className="tt-inbox-mobile lg:hidden"
+      data-direct-chat={directChat ? 'true' : undefined}
+    >
       <div className="tt-inbox-mobile-toolbar">
         <div className="relative shrink-0">
           <button
@@ -369,17 +378,27 @@ export function InboxMobileList({
         {KIND_TABS.map((tab) => {
           const Icon = tab.icon
           const active = kind === tab.id
+          const hasUnread = Boolean(kindUnread?.[tab.id])
           return (
             <button
               key={tab.id}
               type="button"
               role="tab"
               aria-selected={active}
+              aria-label={
+                hasUnread ? `${tab.label}, unread messages` : tab.label
+              }
               className="tt-inbox-mobile-kind-tab"
               data-active={active ? 'true' : 'false'}
+              data-unread={hasUnread ? 'true' : 'false'}
               onClick={() => onKindChange(tab.id)}
             >
-              <Icon className="h-4 w-4" strokeWidth={active ? 2.25 : 2} />
+              <span className="tt-inbox-mobile-kind-icon">
+                <Icon className="h-4 w-4" strokeWidth={active ? 2.25 : 2} />
+                {hasUnread ? (
+                  <span className="tt-inbox-mobile-kind-unread-bubble" aria-hidden />
+                ) : null}
+              </span>
               <span>{tab.label}</span>
             </button>
           )
@@ -395,7 +414,9 @@ export function InboxMobileList({
         />
       </div>
 
-      {entries.length === 0 ? (
+      {directChat ? (
+        <div className="tt-inbox-mobile-direct-chat">{directChat}</div>
+      ) : entries.length === 0 ? (
         <p className="px-1 py-12 text-center text-sm text-[var(--tt-ink-soft,#6b6b6b)]">
           {filter === 'requests' ? 'No pending requests.' : 'No conversations here.'}
         </p>

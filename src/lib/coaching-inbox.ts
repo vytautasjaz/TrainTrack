@@ -196,12 +196,8 @@ function applyListFilters<
   if (filter === 'unread') {
     list = list.filter((t) => isThreadUnreadForRole(t, role))
   }
-  list = list.filter(
-    (t) =>
-      t.kind !== CoachingThreadKind.GENERAL ||
-      t.messages.length > 0 ||
-      role === 'athlete',
-  )
+  // Empty general chats stay available for Chat-tab / athlete deep-link;
+  // the Inbox UI hides them from All unless they have messages.
   return list
 }
 
@@ -228,6 +224,7 @@ export async function listCoachInboxThreads(coachUserId: string, opts: ListOpts 
   for (const a of athletes) {
     await ensureLegacyWorkoutFeedbackMigrated(a.id)
   }
+  await ensureGeneralChatThreads(athletes.map((a) => a.id))
 
   const threads = await prisma.coachingThread.findMany({
     where: { athlete: athleteWhere },

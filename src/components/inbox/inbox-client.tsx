@@ -12,6 +12,13 @@ import {
 } from 'react'
 import { CoachingAuthorRole, CoachingThreadKind, CoachingThreadStatus, type RacePriority } from '@prisma/client'
 import { Calendar, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react'
+import {
+  PageHeader,
+  PageHeaderDescription,
+  PageHeaderEyebrow,
+  PageHeaderTitle,
+} from '@/components/ui/page-header'
+import { InboxComposeGeneralChatButton } from '@/components/inbox/inbox-compose-general-chat-button'
 import { InboxMobileList } from '@/components/inbox/inbox-mobile-list'
 import { Badge } from '@/components/ui/badge'
 import { Select } from '@/components/ui/select'
@@ -211,6 +218,15 @@ function threadMatchesFilters(
   if (opts.filter === 'requests') return false
   if (opts.kind !== 'all' && t.kind !== opts.kind) return false
   if (opts.role === 'coach' && opts.athleteFilter !== 'all' && t.athlete?.id !== opts.athleteFilter) {
+    return false
+  }
+  // Coach: hide empty general chats from lists; still available via Chat + specific athlete.
+  if (
+    opts.role === 'coach' &&
+    t.kind === CoachingThreadKind.GENERAL &&
+    t.messageCount === 0 &&
+    (opts.kind !== 'GENERAL' || opts.athleteFilter === 'all')
+  ) {
     return false
   }
   if (opts.filter === 'unread') {
@@ -477,6 +493,8 @@ export function InboxClient({
   const [kind, setKind] = useState<InboxKindFilter>(INITIAL_KIND)
   const [athleteFilter, setAthleteFilter] = useState<string>('all')
   const openedReadIds = useRef(new Set<string>())
+  /** Keep compose-opened threads selected even if hidden by current filters. */
+  const holdSelectedOutsideFilterRef = useRef(false)
   const [items, setItems] = useState(threads)
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     const firstThread = threads.find((t) =>
@@ -624,10 +642,19 @@ export function InboxClient({
   useEffect(() => {
     if (isLg || !mobileDetailOpen) {
       document.documentElement.removeAttribute('data-inbox-mobile-detail')
-      document.documentElement.style.removeProperty('--tt-inbox-thread-top')
       return
     }
     document.documentElement.setAttribute('data-inbox-mobile-detail', 'true')
+    return () => {
+      document.documentElement.removeAttribute('data-inbox-mobile-detail')
+    }
+  }, [isLg, mobileDetailOpen])
+
+  useEffect(() => {
+    if (isLg) {
+      document.documentElement.style.removeProperty('--tt-inbox-thread-top')
+      return
+    }
 
     function syncThreadTop() {
       const chrome = document.querySelector<HTMLElement>('[data-app-sticky-chrome]')
@@ -639,12 +666,11 @@ export function InboxClient({
     window.addEventListener('resize', syncThreadTop)
     window.visualViewport?.addEventListener('resize', syncThreadTop)
     return () => {
-      document.documentElement.removeAttribute('data-inbox-mobile-detail')
       document.documentElement.style.removeProperty('--tt-inbox-thread-top')
       window.removeEventListener('resize', syncThreadTop)
       window.visualViewport?.removeEventListener('resize', syncThreadTop)
     }
-  }, [isLg, mobileDetailOpen])
+  }, [isLg])
 
   useEffect(() => {
     if (isLg) setMobileDetailOpen(false)
@@ -712,16 +738,31 @@ export function InboxClient({
   }, [filter, kind, athleteFilter, pageSize, coachingRequests.length])
 
   useEffect(() => {
+    holdSelectedOutsideFilterRef.current = false
+  }, [filter, kind, athleteFilter])
+
+  useEffect(() => {
     if (page > pageCount) setPage(pageCount)
   }, [page, pageCount])
 
   useEffect(() => {
     if (!selectedId) return
-    if (filtered.some((entry) => inboxListEntryId(entry) === selectedId)) return
+    if (filtered.some((entry) => inboxListEntryId(entry) === selectedId)) {
+      holdSelectedOutsideFilterRef.current = false
+      return
+    }
+    if (
+      holdSelectedOutsideFilterRef.current &&
+      !isInboxCoachRequestListId(selectedId) &&
+      items.some((t) => t.id === selectedId)
+    ) {
+      return
+    }
+    holdSelectedOutsideFilterRef.current = false
     const nextId = filtered[0] ? inboxListEntryId(filtered[0]) : null
     setSelectedId(nextId)
     if (!nextId) setMobileDetailOpen(false)
-  }, [filtered, selectedId])
+  }, [filtered, selectedId, items])
 
   const selectedRequest = useMemo(() => {
     if (!selectedId || !isInboxCoachRequestListId(selectedId)) return null
@@ -742,36 +783,55 @@ export function InboxClient({
     return coachingRequests.filter((request) => request.athlete.id === athleteFilter).length
   }, [coachingRequests, athleteFilter, role])
 
-  const showMobileDetail =
-    !isLg && mobileDetailOpen && Boolean(selected || selectedRequest)
-
-  const mobileDetailTitle = selectedRequest
-    ? `Request · ${selectedRequest.athlete.name}`
-    : selected
-      ? (() => {
-          const row = threadRowTitle(selected, role)
-          return `${row.kind} · ${row.subject}`
-        })()
-      : 'Conversation'
-
-  function closeMobileDetail() {
-    setMobileDetailOpen(false)
-  }
-
-  function selectEntry(entryId: string) {
-    if (isInboxCoachRequestListId(entryId)) {
-      setSelectedId(entryId)
-      if (!isLg) setMobileDetailOpen(true)
-      return
+  /** Unread dots on All / Chat / Asks / … — scoped to current athlete filter. */
+  const kindUnread = useMemo(() => {
+    const flags: Record<InboxKindFilter, boolean> = {
+      all: false,
+      GENERAL: false,
+      ASK: false,
+      FEEDBACK: false,
+      RACE_REPORT: false,
     }
-    selectThread(entryId)
-  }
+    for (const t of items) {
+      if (!t.unread) continue
+      if (role === 'coach' && athleteFilter !== 'all' && t.athlete?.id !== athleteFilter) {
+        continue
+      }
+      if (
+        role === 'coach' &&
+        t.kind === CoachingThreadKind.GENERAL &&
+        t.messageCount === 0
+      ) {
+        continue
+      }
+      flags.all = true
+      if (t.kind === CoachingThreadKind.GENERAL) flags.GENERAL = true
+      else if (t.kind === CoachingThreadKind.ASK) flags.ASK = true
+      else if (t.kind === CoachingThreadKind.FEEDBACK) flags.FEEDBACK = true
+      else if (t.kind === CoachingThreadKind.RACE_REPORT) flags.RACE_REPORT = true
+    }
+    return flags
+  }, [items, role, athleteFilter])
 
-  function selectThread(threadId: string) {
+  /** Coach: Chat tab + one athlete → open that athlete's general chat under the filters. */
+  const directGeneralThread = useMemo(() => {
+    if (role !== 'coach' || kind !== 'GENERAL' || athleteFilter === 'all') return null
+    return (
+      items.find(
+        (t) =>
+          t.kind === CoachingThreadKind.GENERAL && t.athlete?.id === athleteFilter,
+      ) ?? null
+    )
+  }, [role, kind, athleteFilter, items])
+
+  const showDirectGeneralChat = Boolean(directGeneralThread)
+
+  function selectThread(threadId: string, opts?: { openMobile?: boolean }) {
+    const openMobile = opts?.openMobile ?? true
     setHoldUnreadId(null)
     openedReadIds.current.add(threadId)
     setSelectedId(threadId)
-    if (!isLg) setMobileDetailOpen(true)
+    if (!isLg && openMobile) setMobileDetailOpen(true)
     if (filter === 'unread') {
       setUnreadSessionIds((prev) => {
         const next = new Set(prev ?? [])
@@ -789,6 +849,87 @@ export function InboxClient({
       return changed ? next : prev
     })
   }
+
+  function closeMobileDetail() {
+    setMobileDetailOpen(false)
+  }
+
+  function selectEntry(entryId: string) {
+    holdSelectedOutsideFilterRef.current = false
+    if (isInboxCoachRequestListId(entryId)) {
+      setSelectedId(entryId)
+      if (!isLg) setMobileDetailOpen(true)
+      return
+    }
+    selectThread(entryId)
+  }
+
+  function openGeneralChatForAthlete(athleteId: string) {
+    const thread = items.find(
+      (t) =>
+        t.kind === CoachingThreadKind.GENERAL && t.athlete?.id === athleteId,
+    )
+    if (!thread) return
+    holdSelectedOutsideFilterRef.current = true
+    selectThread(thread.id)
+  }
+
+  useEffect(() => {
+    if (isLg || !showDirectGeneralChat) {
+      document.documentElement.removeAttribute('data-inbox-direct-chat')
+      document.documentElement.style.removeProperty('--tt-inbox-direct-chat-top')
+      return
+    }
+    document.documentElement.setAttribute('data-inbox-direct-chat', 'true')
+    document.documentElement.removeAttribute('data-inbox-mobile-detail')
+    setMobileDetailOpen(false)
+
+    function syncDirectChatTop() {
+      const el = document.querySelector<HTMLElement>('.tt-inbox-mobile-direct-chat')
+      if (!el) return
+      const top = Math.round(el.getBoundingClientRect().top)
+      document.documentElement.style.setProperty('--tt-inbox-direct-chat-top', `${top}px`)
+    }
+
+    syncDirectChatTop()
+    const raf = window.requestAnimationFrame(syncDirectChatTop)
+    const el = document.querySelector<HTMLElement>('.tt-inbox-mobile-direct-chat')
+    const ro = el ? new ResizeObserver(syncDirectChatTop) : null
+    if (el && ro) ro.observe(el)
+    window.addEventListener('resize', syncDirectChatTop)
+    window.visualViewport?.addEventListener('resize', syncDirectChatTop)
+    return () => {
+      window.cancelAnimationFrame(raf)
+      ro?.disconnect()
+      document.documentElement.removeAttribute('data-inbox-direct-chat')
+      document.documentElement.style.removeProperty('--tt-inbox-direct-chat-top')
+      window.removeEventListener('resize', syncDirectChatTop)
+      window.visualViewport?.removeEventListener('resize', syncDirectChatTop)
+    }
+  }, [isLg, showDirectGeneralChat, athleteFilter, kind])
+
+  useEffect(() => {
+    if (!directGeneralThread) return
+    setMobileDetailOpen(false)
+    if (selectedId === directGeneralThread.id) return
+    selectThread(directGeneralThread.id, { openMobile: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [directGeneralThread?.id])
+
+  const showMobileDetail =
+    !isLg &&
+    !showDirectGeneralChat &&
+    mobileDetailOpen &&
+    Boolean(selected || selectedRequest)
+
+  const mobileDetailTitle = selectedRequest
+    ? `Request · ${selectedRequest.athlete.name}`
+    : selected
+      ? (() => {
+          const row = threadRowTitle(selected, role)
+          return `${row.kind} · ${row.subject}`
+        })()
+      : 'Conversation'
 
   function applyOptimisticSend(threadId: string, body: string) {
     const now = new Date().toISOString()
@@ -849,6 +990,29 @@ export function InboxClient({
 
   return (
     <div className="min-w-0 max-w-full space-y-4">
+      <PageHeader className="tt-inbox-page-header">
+        <div className="flex w-full min-w-0 items-start justify-between gap-3">
+          <div className="min-w-0">
+            <PageHeaderEyebrow className="hidden lg:block">Messages</PageHeaderEyebrow>
+            <PageHeaderTitle className="tt-inbox-page-title">
+              Inbox<span className="tt-inbox-title-dot">.</span>
+            </PageHeaderTitle>
+            <PageHeaderDescription className="hidden max-w-lg lg:block">
+              {role === 'coach'
+                ? 'Workout asks, feedback, and race threads with your athletes.'
+                : 'Ask your coach about workouts, share feedback, and follow up on races.'}
+            </PageHeaderDescription>
+          </div>
+          {role === 'coach' ? (
+            <InboxComposeGeneralChatButton
+              athletes={athleteOptions}
+              className="mt-0.5 shrink-0 lg:mt-1"
+              onSelectAthlete={openGeneralChatForAthlete}
+            />
+          ) : null}
+        </div>
+      </PageHeader>
+
       {showMobileDetail ? (
         <div className="tt-inbox-shell tt-inbox-shell--mobile-thread lg:hidden">
           <div className="tt-inbox-mobile-thread">
@@ -919,6 +1083,7 @@ export function InboxClient({
             entries={filtered}
             kind={kind}
             onKindChange={setKind}
+            kindUnread={kindUnread}
             filter={filter}
             onFilterChange={setFilter}
             athleteFilter={athleteFilter}
@@ -929,6 +1094,33 @@ export function InboxClient({
             coachParticipant={coachParticipant}
             athleteParticipant={athleteParticipant}
             onSelectEntry={selectEntry}
+            directChat={
+              showDirectGeneralChat && directGeneralThread ? (
+                <InboxThreadDetail
+                  selected={directGeneralThread}
+                  role={role}
+                  holdUnreadId={holdUnreadId}
+                  isPendingRead={isPendingRead}
+                  onMarkUnread={markUnread}
+                  onOpenWorkout={() => {
+                    if (directGeneralThread.workoutDetail) {
+                      setWorkoutModal(directGeneralThread.workoutDetail)
+                    }
+                  }}
+                  onMessageSent={(body) => {
+                    applyOptimisticSend(directGeneralThread.id, body)
+                    void refreshInboxUnreadBadge()
+                  }}
+                  dockComposer
+                  allowWorkoutSplit={false}
+                  hideTitle
+                />
+              ) : showDirectGeneralChat ? (
+                <p className="px-1 py-10 text-center text-sm text-[var(--tt-ink-soft,#6b6b6b)]">
+                  No general chat for this athlete yet.
+                </p>
+              ) : undefined
+            }
           />
 
           <div
@@ -993,7 +1185,13 @@ export function InboxClient({
             </div>
           </div>
 
-          <div className="tt-inbox-shell">
+          <div
+            className={cn(
+              'tt-inbox-shell',
+              showDirectGeneralChat && 'tt-inbox-shell--direct-chat',
+            )}
+          >
+            {!showDirectGeneralChat ? (
             <div className="tt-inbox-list">
               <div className="tt-inbox-list-header">
                 <span className="tt-inbox-list-header-label">Threads</span>
@@ -1197,13 +1395,18 @@ export function InboxClient({
                 </div>
               ) : null}
             </div>
+            ) : null}
 
             {isLg ? (
               <div className="tt-inbox-detail flex">
                 {!selected && !selectedRequest ? (
                   <div className="flex flex-1 flex-col items-center justify-center gap-2 text-[var(--tt-ink-soft,#6b6b6b)]">
                     <MessageSquare className="h-8 w-8 opacity-40" />
-                    <p className="text-sm">Select a conversation</p>
+                    <p className="text-sm">
+                      {showDirectGeneralChat
+                        ? 'No general chat for this athlete yet.'
+                        : 'Select a conversation'}
+                    </p>
                   </div>
                 ) : (
                   <div className="tt-inbox-detail-inner">

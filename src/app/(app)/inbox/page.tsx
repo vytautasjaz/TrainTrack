@@ -13,12 +13,6 @@ import {
 import { InboxClient } from '@/components/inbox/inbox-client'
 import { getPendingCoachRequests } from '@/lib/queries'
 import { isPushConfigured } from '@/lib/push-notifications'
-import {
-  PageHeader,
-  PageHeaderDescription,
-  PageHeaderEyebrow,
-  PageHeaderTitle,
-} from '@/components/ui/page-header'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,17 +100,6 @@ export default async function InboxPage() {
     return (
       <div className="tt-dashboard-page -mx-4 px-4 pb-8 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
         <div className="tt-dashboard-content min-w-0 max-w-full space-y-5">
-          <PageHeader className="tt-inbox-page-header">
-            <div className="min-w-0">
-              <PageHeaderEyebrow className="hidden lg:block">Messages</PageHeaderEyebrow>
-              <PageHeaderTitle className="tt-inbox-page-title">
-                Inbox<span className="tt-inbox-title-dot">.</span>
-              </PageHeaderTitle>
-              <PageHeaderDescription className="hidden max-w-lg lg:block">
-                Workout asks, feedback, and race threads with your athletes.
-              </PageHeaderDescription>
-            </div>
-          </PageHeader>
           <InboxClient
             role="coach"
             threads={mapThreads(threadsRaw, 'coach')}
@@ -156,17 +139,6 @@ export default async function InboxPage() {
   return (
     <div className="tt-dashboard-page -mx-4 px-4 pb-8 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
       <div className="tt-dashboard-content min-w-0 max-w-full space-y-5">
-        <PageHeader className="tt-inbox-page-header">
-          <div className="min-w-0">
-            <PageHeaderEyebrow className="hidden lg:block">Messages</PageHeaderEyebrow>
-            <PageHeaderTitle className="tt-inbox-page-title">
-              Inbox<span className="tt-inbox-title-dot">.</span>
-            </PageHeaderTitle>
-            <PageHeaderDescription className="hidden max-w-lg lg:block">
-              Ask your coach about workouts, share feedback, and follow up on races.
-            </PageHeaderDescription>
-          </div>
-        </PageHeader>
         <InboxClient
           role="athlete"
           threads={mapThreads(threadsRaw, 'athlete')}

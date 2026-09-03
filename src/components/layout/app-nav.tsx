@@ -2,6 +2,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { ChevronDown, ChevronLeft, ChevronRight, Settings } from 'lucide-react'
@@ -452,7 +453,12 @@ function MobileBottomNav({
   dashboardNotificationCount: number
 }) {
   const [openHref, setOpenHref] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
   const openItem = items.find((item) => item.href === openHref && item.children?.length)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     setOpenHref(null)
@@ -467,10 +473,10 @@ function MobileBottomNav({
     return () => window.removeEventListener('keydown', onKey)
   }, [openHref])
 
-  return (
+  const nav = (
     <nav
       data-mobile-bottom-nav
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-white/30 bg-white/30 shadow-[0_-6px_20px_rgb(0_0_0/0.04)] backdrop-blur-md backdrop-saturate-125 portrait:max-lg:block landscape:max-lg:hidden lg:hidden supports-[backdrop-filter]:bg-white/25"
+      className="tt-mobile-bottom-nav portrait:max-lg:block landscape:max-lg:hidden lg:hidden"
     >
       {openItem?.children ? (
         <>
@@ -514,7 +520,7 @@ function MobileBottomNav({
         </>
       ) : null}
 
-      <div className="relative z-10 flex items-stretch justify-around bg-card px-1 pb-[env(safe-area-inset-bottom)] pt-1">
+      <div className="relative z-10 flex items-stretch justify-around bg-card/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur-md supports-[backdrop-filter]:bg-card/80">
         {items.map(({ href, label, icon: Icon, children, subnavAlwaysVisible }) => {
           const childActive = children?.some((child) => isNavActive(pathname, child.href))
           const active = isNavActive(pathname, href) || Boolean(subnavAlwaysVisible && childActive)
@@ -565,4 +571,7 @@ function MobileBottomNav({
       </div>
     </nav>
   )
+
+  if (!mounted) return null
+  return createPortal(nav, document.body)
 }
