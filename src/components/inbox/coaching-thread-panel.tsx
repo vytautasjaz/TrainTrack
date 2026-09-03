@@ -266,7 +266,8 @@ export function CoachingThreadPanel({
 
       <div
         className={cn(
-          dockComposer && 'mt-auto shrink-0 border-t border-[var(--tt-line,#ebebeb)] pt-4',
+          dockComposer &&
+            'tt-inbox-thread-composer mt-auto shrink-0 border-t border-[var(--tt-line,#ebebeb)] pt-4',
         )}
       >
       <FormError message={sendError} />

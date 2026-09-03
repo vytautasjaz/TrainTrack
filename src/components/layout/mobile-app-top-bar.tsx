@@ -1,11 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 import { Suspense } from 'react'
 import { TrainTrackMark } from '@/components/brand/traintrack-logo'
 import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
-import { cn } from '@/lib/utils'
 import type { AppViewMode } from '@/lib/session'
 
 type MobileAppTopBarProps = {
@@ -19,7 +17,7 @@ type MobileAppTopBarProps = {
   athleteBar: React.ReactNode
 }
 
-/** Sticky phone chrome; dark on coach Home to match the greeting hero. */
+/** Sticky phone chrome — dark brand bar on all mobile screens. */
 export function MobileAppTopBar({
   showPreferences,
   showConnectCoach,
@@ -30,41 +28,20 @@ export function MobileAppTopBar({
   athleteProfile,
   athleteBar,
 }: MobileAppTopBarProps) {
-  const pathname = usePathname()
-  const darkHome = pathname === '/dashboard'
-
   return (
     <div
-      className={cn(
-        'sticky top-0 z-40',
-        darkHome
-          ? 'bg-[var(--tt-home-hero-bg,#151827)]'
-          : 'bg-background/90 backdrop-blur-md',
-      )}
+      className="sticky top-0 z-40 bg-[var(--tt-home-hero-bg,#151827)]"
       data-app-sticky-chrome
-      data-home-topbar={darkHome ? 'dark' : undefined}
+      data-mobile-topbar="dark"
     >
-      <header
-        className={cn(
-          'flex items-center gap-2 px-3 py-2.5 landscape:max-lg:py-1.5 lg:hidden',
-          darkHome ? 'text-white' : 'border-b border-border/40',
-        )}
-      >
+      <header className="flex items-center gap-2 px-3 py-2.5 text-white landscape:max-lg:py-1.5 lg:hidden">
         <Link
           href="/dashboard"
-          className="inline-flex min-w-0 items-center gap-2 whitespace-nowrap outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-brand/40 landscape:max-lg:hidden"
+          className="inline-flex min-w-0 items-center gap-2 whitespace-nowrap outline-none transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-white/30 landscape:max-lg:hidden"
           aria-label="TrainTrack home"
         >
-          <TrainTrackMark
-            tone={darkHome ? 'dark' : 'light'}
-            className="h-7 w-7 shrink-0"
-          />
-          <span
-            className={cn(
-              'traintrack-wordmark truncate text-[15px]',
-              darkHome && 'text-white',
-            )}
-          >
+          <TrainTrackMark tone="dark" className="h-7 w-7 shrink-0" />
+          <span className="traintrack-wordmark truncate text-[15px] text-white">
             TRAINTRACK
           </span>
         </Link>
@@ -78,7 +55,7 @@ export function MobileAppTopBar({
               viewMode={viewMode}
               dashboardNotificationCount={dashboardNotificationCount}
               athleteProfile={athleteProfile}
-              tone={darkHome ? 'dark' : 'light'}
+              tone="dark"
             />
           </div>
         </Suspense>

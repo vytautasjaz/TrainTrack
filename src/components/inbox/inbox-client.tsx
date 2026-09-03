@@ -12,6 +12,7 @@ import {
 } from 'react'
 import { CoachingAuthorRole, CoachingThreadKind, CoachingThreadStatus, type RacePriority } from '@prisma/client'
 import { Calendar, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react'
+import { InboxMobileList } from '@/components/inbox/inbox-mobile-list'
 import { Badge } from '@/components/ui/badge'
 import { Select } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
@@ -352,7 +353,13 @@ function InboxThreadDetail({
   const threadPanel = (
     <CoachingThreadPanel
       className={cn(
-        showWorkoutSplit ? 'min-h-0 min-w-0 flex-1 overflow-hidden' : dockComposer ? 'mt-4 min-h-0 flex-1 overflow-hidden' : embedded ? 'mt-3' : 'mt-4',
+        showWorkoutSplit
+          ? 'min-h-0 min-w-0 flex-1 overflow-hidden'
+          : dockComposer
+            ? cn('min-h-0 flex-1 overflow-hidden', !hideTitle && 'mt-4')
+            : embedded
+              ? 'mt-3'
+              : 'mt-4',
       )}
       scrollPrefix={dockComposer && !showWorkoutSplit ? threadContext : undefined}
       thread={{
@@ -617,11 +624,25 @@ export function InboxClient({
   useEffect(() => {
     if (isLg || !mobileDetailOpen) {
       document.documentElement.removeAttribute('data-inbox-mobile-detail')
+      document.documentElement.style.removeProperty('--tt-inbox-thread-top')
       return
     }
     document.documentElement.setAttribute('data-inbox-mobile-detail', 'true')
+
+    function syncThreadTop() {
+      const chrome = document.querySelector<HTMLElement>('[data-app-sticky-chrome]')
+      const top = chrome ? Math.round(chrome.getBoundingClientRect().bottom) : 52
+      document.documentElement.style.setProperty('--tt-inbox-thread-top', `${top}px`)
+    }
+
+    syncThreadTop()
+    window.addEventListener('resize', syncThreadTop)
+    window.visualViewport?.addEventListener('resize', syncThreadTop)
     return () => {
       document.documentElement.removeAttribute('data-inbox-mobile-detail')
+      document.documentElement.style.removeProperty('--tt-inbox-thread-top')
+      window.removeEventListener('resize', syncThreadTop)
+      window.visualViewport?.removeEventListener('resize', syncThreadTop)
     }
   }, [isLg, mobileDetailOpen])
 
@@ -893,9 +914,26 @@ export function InboxClient({
         </div>
       ) : (
         <>
+          <InboxMobileList
+            role={role}
+            entries={filtered}
+            kind={kind}
+            onKindChange={setKind}
+            filter={filter}
+            onFilterChange={setFilter}
+            athleteFilter={athleteFilter}
+            onAthleteFilterChange={setAthleteFilter}
+            athleteOptions={athleteOptions}
+            pendingRequestCount={pendingRequestCount}
+            pushConfigured={pushConfigured}
+            coachParticipant={coachParticipant}
+            athleteParticipant={athleteParticipant}
+            onSelectEntry={selectEntry}
+          />
+
           <div
             ref={filtersRef}
-            className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+            className="hidden flex-col gap-3 lg:flex lg:flex-row lg:flex-wrap lg:items-center lg:justify-between"
           >
             <div className="tt-inbox-filters-scroll">
               <InboxFilterButton active={filter === 'unread'} onClick={() => setFilter('unread')}>
@@ -932,14 +970,9 @@ export function InboxClient({
                   </Select>
                 </div>
               ) : null}
-              <div className="sm:hidden">
-                <InboxNotificationsToggle pushConfigured={pushConfigured} compact />
-              </div>
             </div>
-            <div className="flex min-w-0 flex-col gap-2 sm:items-end">
-              <div className="hidden sm:block">
-                <InboxNotificationsToggle pushConfigured={pushConfigured} />
-              </div>
+            <div className="flex min-w-0 flex-col gap-2 lg:items-end">
+              <InboxNotificationsToggle pushConfigured={pushConfigured} />
               <div className="tt-inbox-filters-scroll">
                 {KINDS.map((k) => (
                   <button

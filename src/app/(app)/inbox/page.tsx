@@ -108,9 +108,11 @@ export default async function InboxPage() {
         <div className="tt-dashboard-content min-w-0 max-w-full space-y-5">
           <PageHeader className="tt-inbox-page-header">
             <div className="min-w-0">
-              <PageHeaderEyebrow>Messages</PageHeaderEyebrow>
-              <PageHeaderTitle className="mt-1">Inbox.</PageHeaderTitle>
-              <PageHeaderDescription className="max-w-lg">
+              <PageHeaderEyebrow className="hidden lg:block">Messages</PageHeaderEyebrow>
+              <PageHeaderTitle className="tt-inbox-page-title">
+                Inbox<span className="tt-inbox-title-dot">.</span>
+              </PageHeaderTitle>
+              <PageHeaderDescription className="hidden max-w-lg lg:block">
                 Workout asks, feedback, and race threads with your athletes.
               </PageHeaderDescription>
             </div>
@@ -156,9 +158,11 @@ export default async function InboxPage() {
       <div className="tt-dashboard-content min-w-0 max-w-full space-y-5">
         <PageHeader className="tt-inbox-page-header">
           <div className="min-w-0">
-            <PageHeaderEyebrow>Messages</PageHeaderEyebrow>
-            <PageHeaderTitle className="mt-1">Inbox.</PageHeaderTitle>
-            <PageHeaderDescription className="max-w-lg">
+            <PageHeaderEyebrow className="hidden lg:block">Messages</PageHeaderEyebrow>
+            <PageHeaderTitle className="tt-inbox-page-title">
+              Inbox<span className="tt-inbox-title-dot">.</span>
+            </PageHeaderTitle>
+            <PageHeaderDescription className="hidden max-w-lg lg:block">
               Ask your coach about workouts, share feedback, and follow up on races.
             </PageHeaderDescription>
           </div>

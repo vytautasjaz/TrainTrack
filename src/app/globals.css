@@ -1179,13 +1179,13 @@ body {
     padding-block-end: 0;
   }
 
-  [data-app-main-column]:has([data-home-topbar='dark']) > [data-app-main],
   [data-app-main-column]:has([data-home-hero]) > [data-app-main] {
     padding-top: 0;
   }
 }
 
-/* Keep dark top bar + hero seamless (no hairline gap) */
+/* Dark mobile top bar — no light hairline over home hero */
+[data-app-main-column]:has([data-mobile-topbar='dark']) > [data-app-sticky-chrome],
 [data-app-main-column]:has([data-home-topbar='dark']) > [data-app-sticky-chrome] {
   border-bottom: none;
   box-shadow: none;
@@ -1926,14 +1926,45 @@ body {
 }
 
 @media (max-width: 1023px) {
-  .tt-inbox-shell {
-    height: clamp(22rem, calc(100dvh - 14rem), 40rem);
-    min-height: 22rem;
+  /* List lives in page scroll via .tt-inbox-mobile — hide the desktop shell. */
+  .tt-inbox-shell:not(.tt-inbox-shell--mobile-thread) {
+    display: none;
   }
 
+  /*
+   * Thread detail: fill the visible gap between sticky top chrome and bottom nav.
+   * Composer stays docked — no page scroll needed to reach Send / Mark unread.
+   */
   .tt-inbox-shell--mobile-thread {
-    height: clamp(28rem, calc(100dvh - 7.5rem), 100dvh);
-    min-height: 28rem;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--tt-inbox-thread-top, 3.25rem);
+    bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+    z-index: 30;
+    height: auto;
+    min-height: 0;
+    margin: 0;
+    overflow: hidden;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    box-shadow: none;
+  }
+
+  html[data-inbox-mobile-detail='true'],
+  html[data-inbox-mobile-detail='true'] body {
+    overflow: hidden;
+  }
+
+  html[data-inbox-mobile-detail='true'] [data-app-main] {
+    overflow: hidden;
+  }
+}
+
+@media (orientation: landscape) and (max-width: 1023px) {
+  .tt-inbox-shell--mobile-thread {
+    bottom: 0.5rem;
   }
 }
 
@@ -1987,11 +2018,27 @@ body {
   flex: 1;
   flex-direction: column;
   overflow: hidden;
-  padding: 0.875rem 1rem 1rem;
+  padding: 0.65rem 0.875rem 0.75rem;
 }
 
-html[data-inbox-mobile-detail='true'] .tt-inbox-page-header {
-  display: none;
+html[data-inbox-mobile-detail='true'] .tt-inbox-thread-composer {
+  padding-top: 0.65rem;
+}
+
+@media (max-width: 1023px) {
+  .tt-inbox-page-header {
+    padding-top: 0.15rem;
+  }
+
+  .tt-inbox-page-header .tt-inbox-page-title {
+    margin-top: 0;
+    font-size: 2rem; /* 32px */
+    line-height: 1;
+  }
+}
+
+.tt-inbox-title-dot {
+  color: var(--tt-red, #da2f36);
 }
 
 html[data-inbox-mobile-detail='true'] .tt-dashboard-content {
@@ -2001,6 +2048,354 @@ html[data-inbox-mobile-detail='true'] .tt-dashboard-content {
 html[data-inbox-mobile-detail='true'] .tt-dashboard-content > .space-y-4,
 html[data-inbox-mobile-detail='true'] .tt-dashboard-content > [class*='space-y'] {
   margin-top: 0;
+}
+
+/* ─── Mobile inbox list (page scroll, time groups) ─────────────────────── */
+.tt-inbox-mobile {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.tt-inbox-mobile-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tt-inbox-mobile-status-pill {
+  display: inline-flex;
+  height: 2.25rem;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  border: 1px solid var(--tt-ink, #111);
+  background: var(--tt-ink, #111);
+  padding: 0 0.75rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.tt-inbox-mobile-athlete-select {
+  height: 2.25rem;
+  width: 100%;
+  min-width: 0;
+  border-radius: 999px;
+  border: 1px solid var(--tt-line, #ebebeb);
+  background: var(--tt-surface, #fff);
+  padding: 0 0.85rem;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tt-ink, #111);
+}
+
+.tt-inbox-mobile-icon-btn {
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: var(--tt-ink-soft, #6b6b6b);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.tt-inbox-mobile-icon-btn:hover {
+  background: var(--tt-sidebar, #f5f5f5);
+  color: var(--tt-ink, #111);
+}
+
+.tt-inbox-mobile-kind-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.15rem;
+  border-bottom: 1px solid var(--tt-line, #ebebeb);
+}
+
+.tt-inbox-mobile-kind-tab {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.45rem 0.15rem 0.55rem;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--tt-ink-faint, #9a9a9a);
+  transition: color 180ms ease;
+}
+
+.tt-inbox-mobile-kind-tab[data-active='true'] {
+  color: var(--tt-red, #da2f36);
+}
+
+.tt-inbox-mobile-kind-indicator {
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  z-index: 2;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--tt-red, #da2f36);
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 120ms ease;
+  will-change: transform, width;
+}
+
+.tt-inbox-mobile-kind-indicator[data-ready='true'] {
+  opacity: 1;
+}
+
+.tt-inbox-mobile-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.tt-inbox-mobile-group-header {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.1rem 0.35rem;
+  text-align: left;
+}
+
+.tt-inbox-mobile-group-title {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tt-ink-soft, #6b6b6b);
+}
+
+.tt-inbox-mobile-group-aside {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+
+.tt-inbox-mobile-group-date {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--tt-ink-faint, #9a9a9a);
+}
+
+.tt-inbox-mobile-group-chevron {
+  flex-shrink: 0;
+  color: var(--tt-ink-faint, #9a9a9a);
+  transform-origin: center;
+  transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/*
+ * Inbox list is shown up to lg, but shared accordion CSS force-opens from md.
+ * Keep collapse animation active for the entire mobile inbox breakpoint.
+ */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .tt-inbox-mobile .tt-mobile-accordion {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .tt-inbox-mobile .tt-mobile-accordion[data-open='true'] {
+    grid-template-rows: 1fr;
+  }
+
+  .tt-inbox-mobile .tt-mobile-accordion-inner {
+    overflow: hidden;
+  }
+
+  .tt-inbox-mobile .tt-mobile-accordion-content {
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+
+  .tt-inbox-mobile .tt-mobile-accordion[data-open='true'] .tt-mobile-accordion-content {
+    opacity: 1;
+    transition-delay: 40ms;
+  }
+}
+
+.tt-inbox-mobile-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.tt-inbox-mobile-row {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 0.65rem;
+  border-top: 1px solid var(--tt-line, #ebebeb);
+  padding: 0.7rem 0.2rem 0.7rem 0.45rem;
+  text-align: left;
+  background: transparent;
+}
+
+.tt-inbox-mobile-row:last-child {
+  border-bottom: 1px solid var(--tt-line, #ebebeb);
+}
+
+/* Unread: cool wash + thin red rail + dark status dot (matches mobile mock). */
+.tt-inbox-mobile-row[data-unread='true'] {
+  background: color-mix(in srgb, var(--tt-sport-swim, #1e9bde) 5%, #ffffff);
+}
+
+.tt-inbox-mobile-row[data-unread='true']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  background: var(--tt-red, #da2f36);
+}
+
+.tt-inbox-mobile-row-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.tt-inbox-mobile-row-body {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.tt-inbox-mobile-row-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.tt-inbox-mobile-title {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 0.35rem;
+  overflow: hidden;
+  line-height: 1.25;
+}
+
+.tt-inbox-mobile-kind {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.tt-inbox-mobile-subject {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--tt-ink, #111);
+}
+
+.tt-inbox-mobile-row[data-unread='true'] .tt-inbox-mobile-subject {
+  font-weight: 700;
+}
+
+.tt-inbox-mobile-when {
+  flex-shrink: 0;
+  padding-top: 0.05rem;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--tt-ink-faint, #9a9a9a);
+}
+
+.tt-inbox-mobile-row[data-unread='true'] .tt-inbox-mobile-when {
+  font-weight: 600;
+  color: var(--tt-ink-soft, #6b6b6b);
+}
+
+.tt-inbox-mobile-status {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: flex-end;
+  align-self: stretch;
+  gap: 0.15rem;
+  padding-bottom: 0.05rem;
+}
+
+.tt-inbox-mobile-unread-dot {
+  display: inline-block;
+  height: 0.4rem;
+  width: 0.4rem;
+  margin-bottom: 0.15rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tt-ink, #111) 78%, var(--tt-sport-swim, #1e9bde) 22%);
+}
+
+.tt-inbox-mobile-row-chevron {
+  color: var(--tt-ink-faint, #9a9a9a);
+}
+
+.tt-inbox-mobile-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--tt-ink-soft, #6b6b6b);
+}
+
+.tt-inbox-mobile-meta-name {
+  color: color-mix(in srgb, var(--tt-ink, #111) 38%, var(--tt-ink-soft, #6b6b6b) 62%);
+}
+
+.tt-inbox-mobile-meta-date,
+.tt-inbox-mobile-meta-sep {
+  color: var(--tt-ink-faint, #9a9a9a);
+}
+
+.tt-inbox-mobile-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.3;
+  color: color-mix(in srgb, var(--tt-ink-soft, #6b6b6b) 70%, var(--tt-ink, #111) 30%);
+}
+
+.tt-inbox-mobile-row[data-unread='true'] .tt-inbox-mobile-preview {
+  color: color-mix(in srgb, var(--tt-ink, #111) 48%, var(--tt-ink-soft, #6b6b6b) 52%);
 }
 
 .tt-inbox-list {
