@@ -1,10 +1,7 @@
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
 import { getSession, resolveAthleteId, isCoachView} from '@/lib/session'
 import { getAthleteDashboard, getCoachHomeData } from '@/lib/queries'
-import { getAthleteInboxUnreadCount } from '@/lib/coaching-inbox'
 import { CoachHomePageContent } from '@/components/coach/coach-home-page'
-import { Button } from '@/components/ui/button'
 import { AthleteDashboardWorkouts } from '@/components/dashboard/athlete-dashboard-workouts'
 import { AthleteActivityFeed } from '@/components/dashboard/athlete-activity-feed'
 import { AthleteDashboardHeader } from '@/components/dashboard/athlete-dashboard-header'
@@ -49,7 +46,6 @@ export default async function DashboardPage() {
   if (!athleteId) redirect('/')
 
   const data = await getAthleteDashboard(athleteId)
-  const inboxUnread = await getAthleteInboxUnreadCount(athleteId)
   const weekStatsWorkouts = data.weekStatsWindowWorkouts.map((w) =>
     redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
   )
@@ -113,25 +109,6 @@ export default async function DashboardPage() {
         />
 
         <div className="tt-home-mobile-sheet space-y-4 md:contents md:space-y-0">
-          {inboxUnread > 0 ? (
-            <section className="tt-home-mobile-card mb-0 px-4 md:mb-7">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="font-[family-name:var(--font-display)] text-[1.15rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink,#111)] sm:text-[0.6875rem] sm:font-medium sm:tracking-[0.08em]">
-                    Inbox
-                  </p>
-                  <p className="mt-1 text-[13px] text-[var(--tt-ink-soft,#6b6b6b)]">
-                    You have {inboxUnread} unread coach{' '}
-                    {inboxUnread === 1 ? 'reply' : 'replies'}.
-                  </p>
-                </div>
-                <Button asChild variant="secondary" size="sm">
-                  <Link href="/inbox">Open Inbox</Link>
-                </Button>
-              </div>
-            </section>
-          ) : null}
-
           <div className="tt-dashboard-grid">
             <div className="min-w-0 space-y-4 md:space-y-7">
               {data.pendingRaceFollowUps.length > 0 ? (

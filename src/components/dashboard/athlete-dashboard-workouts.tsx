@@ -162,30 +162,26 @@ export function AthleteDashboardWorkouts({
 }: AthleteDashboardWorkoutsProps) {
   const upcomingDays = workoutsToPlanDays(upcomingWorkouts)
   const [selected, setSelected] = useState<PlanWorkoutDetail | null>(null)
-  const [todayOpen, setTodayOpen] = useState(true)
   const [upcomingOpen, setUpcomingOpen] = useState(true)
 
   return (
     <div className="space-y-4 md:space-y-7">
-      <section className="tt-home-mobile-card">
-        <SectionTitleButton
-          title="Today"
-          expanded={todayOpen}
-          onToggle={() => setTodayOpen((open) => !open)}
-        />
-        <MobileAccordionBody expanded={todayOpen} className="px-4 md:px-0">
+      {/* Today: title + cards only — no shared bubble / accordion shell */}
+      <section className="space-y-3">
+        <h2 className="px-4 font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)] md:px-0">
+          Today
+        </h2>
+        <div className="space-y-2.5">
           {todayWorkouts.length === 0 ? (
             <p className="px-1 py-8 text-center text-[13px] text-[var(--tt-ink-soft,#6b6b6b)] md:rounded-[10px] md:border md:border-[var(--tt-line,#ebebeb)] md:px-4 md:py-10">
               Rest day — nothing scheduled.
             </p>
           ) : (
-            <div className="space-y-2.5">
-              {todayWorkouts.map((workout) => (
-                <TodayPrescriptionRow key={workout.id} workout={workout} />
-              ))}
-            </div>
+            todayWorkouts.map((workout) => (
+              <TodayPrescriptionRow key={workout.id} workout={workout} />
+            ))
           )}
-        </MobileAccordionBody>
+        </div>
       </section>
 
       <section className="tt-home-mobile-card">

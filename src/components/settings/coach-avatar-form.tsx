@@ -6,36 +6,27 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormMessage } from '@/components/ui/form-field'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
-import {
-  clearAthleteAvatar,
-  syncAvatarFromStrava,
-  uploadAthleteAvatar,
-} from '@/app/actions/preferences'
+import { clearCoachAvatar, uploadCoachAvatar } from '@/app/actions/preferences'
 
-type AthleteAvatarFormProps = {
+type CoachAvatarFormProps = {
   name: string
   avatarUrl?: string | null
-  stravaConnected?: boolean
 }
 
-export function AthleteAvatarForm({
-  name,
-  avatarUrl,
-  stravaConnected = false,
-}: AthleteAvatarFormProps) {
+export function CoachAvatarForm({ name, avatarUrl }: CoachAvatarFormProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
-  function run(action: () => Promise<void>, successMessage = true) {
+  function run(action: () => Promise<void>) {
     setError(null)
     setSaved(false)
     startTransition(async () => {
       try {
         await action()
-        if (successMessage) setSaved(true)
+        setSaved(true)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not update photo.')
       }
@@ -47,7 +38,7 @@ export function AthleteAvatarForm({
     setSaved(false)
     startTransition(async () => {
       try {
-        await clearAthleteAvatar()
+        await clearCoachAvatar()
         setConfirmOpen(false)
         setSaved(true)
       } catch (err) {
@@ -62,7 +53,7 @@ export function AthleteAvatarForm({
     if (!file) return
     const formData = new FormData()
     formData.set('avatar', file)
-    run(() => uploadAthleteAvatar(formData))
+    run(() => uploadCoachAvatar(formData))
     e.target.value = ''
   }
 
@@ -72,7 +63,7 @@ export function AthleteAvatarForm({
         <AthleteAvatar name={name} avatarUrl={avatarUrl} size="lg" />
         <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Shown next to your name for your coach. Separate from your coach photo if you have both roles.
+            Shown to your athletes in Inbox and coaching. Separate from your athlete photo.
           </p>
           <div className="flex flex-wrap gap-2">
             <input
@@ -92,17 +83,6 @@ export function AthleteAvatarForm({
               <Camera className="h-3.5 w-3.5" />
               {isPending ? 'Saving…' : 'Upload photo'}
             </Button>
-            {stravaConnected ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isPending}
-                onClick={() => run(() => syncAvatarFromStrava())}
-              >
-                Use Strava photo
-              </Button>
-            ) : null}
             {avatarUrl ? (
               <Button
                 type="button"
@@ -126,7 +106,7 @@ export function AthleteAvatarForm({
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
         title="Remove photo?"
-        description="Your profile photo will be cleared."
+        description="Your coach profile photo will be cleared."
         confirmLabel="Remove"
         pending={isPending}
         onConfirm={handleClear}

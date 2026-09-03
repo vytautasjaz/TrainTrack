@@ -3,12 +3,13 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type ProgressState = 'idle' | 'loading' | 'finishing'
 
-const SHOW_DELAY_MS = 140
-const FINISH_MS = 220
+const SHOW_DELAY_MS = 120
+const FINISH_MS = 280
 
 function NavigationProgressInner() {
   const pathname = usePathname()
@@ -97,25 +98,36 @@ function NavigationProgressInner() {
 
   if (state === 'idle') return null
 
+  const busy = state === 'loading'
+
   return (
-    <div
-      className="pointer-events-none fixed inset-x-0 top-0 z-[100] h-[2px] overflow-hidden"
-      role="progressbar"
-      aria-hidden={state !== 'loading'}
-      aria-valuetext={state === 'loading' ? 'Loading' : undefined}
-    >
+    <>
       <div
         className={cn(
-          'h-full bg-foreground/55',
-          state === 'loading' && 'navigation-progress-bar',
-          state === 'finishing' && 'w-full opacity-0 transition-opacity duration-200',
+          'tt-route-progress',
+          state === 'finishing' && 'tt-route-progress--finishing',
         )}
+        role="progressbar"
+        aria-hidden={!busy}
+        aria-busy={busy}
+        aria-label={busy ? 'Loading page' : undefined}
       />
-    </div>
+      {busy ? (
+        <div
+          className="tt-route-progress-status"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <Loader2 className="tt-view-mode-switch-status-spinner" aria-hidden />
+          <span>Loading…</span>
+        </div>
+      ) : null}
+    </>
   )
 }
 
-/** Thin top progress bar during in-app navigations. */
+/** Same route-progress chrome used for athlete ↔ coach switch, during menu navigations. */
 export function NavigationProgress() {
   return (
     <Suspense fallback={null}>

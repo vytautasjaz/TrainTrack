@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
-import { AppNav } from '@/components/layout/app-nav'
+import { AppNav, AppMobileBottomNav } from '@/components/layout/app-nav'
+import { DocumentChromeCleanup } from '@/components/layout/document-chrome-cleanup'
 import { MobileAppTopBar } from '@/components/layout/mobile-app-top-bar'
 import { ViewModeSwitchProvider } from '@/components/layout/view-mode-switch-context'
 import { CoachAthleteBarGate } from '@/components/coach/coach-athlete-bar-gate'
@@ -45,7 +46,20 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
     inboxNotificationCount = await getCoachInboxUnreadCount(session.userId)
     coachAthletes = await getCoachAthletes(session.userId)
     selectedAthleteId = await resolveAthleteId(session)
-    if (session.name) {
+    const coachUser = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: {
+        name: true,
+        image: true,
+        coachProfile: { select: { avatarUrl: true } },
+      },
+    })
+    if (coachUser) {
+      athleteProfile = {
+        name: coachUser.name,
+        avatarUrl: coachUser.coachProfile?.avatarUrl ?? coachUser.image ?? null,
+      }
+    } else if (session.name) {
       athleteProfile = { name: session.name, avatarUrl: null }
     }
   } else if (session?.hasAthlete) {
@@ -89,6 +103,9 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       <div className="app-gradient flex min-h-dvh">
       {session?.hasAthlete ? <StravaAutoSync /> : null}
       <Suspense fallback={null}>
+        <DocumentChromeCleanup />
+      </Suspense>
+      <Suspense fallback={null}>
         <AppNav
           showPreferences={showPreferences}
           showConnectCoach={showConnectCoach && !coach}
@@ -97,6 +114,13 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           viewMode={viewMode}
           dashboardNotificationCount={inboxNotificationCount}
           athleteProfile={athleteProfile}
+        />
+      </Suspense>
+      <Suspense fallback={null}>
+        <AppMobileBottomNav
+          isCoach={coach}
+          dashboardNotificationCount={inboxNotificationCount}
+          viewMode={viewMode}
         />
       </Suspense>
       <div className="flex min-h-dvh min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] portrait:max-lg:pb-[calc(4.5rem+env(safe-area-inset-bottom))] landscape:max-lg:pb-2 lg:pb-0" data-app-main-column>
@@ -112,7 +136,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         />
         <main
           data-app-main
-          className="w-full min-w-0 max-w-6xl flex-1 px-4 pb-4 pt-3 landscape:max-lg:px-2 lg:max-w-[110rem] lg:px-8 lg:pb-6 lg:pt-0"
+          className="w-full min-w-0 max-w-6xl flex-1 px-4 pb-4 pt-0 landscape:max-lg:px-2 lg:max-w-[110rem] lg:px-8 lg:pb-6"
         >
           {children}
         </main>

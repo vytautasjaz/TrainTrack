@@ -9,11 +9,9 @@ import {
   MessageCircle,
   MessageSquareText,
   Paperclip,
-  SlidersHorizontal,
 } from 'lucide-react'
 import { CoachingThreadKind } from '@prisma/client'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
-import { InboxNotificationsToggle } from '@/components/inbox/inbox-notifications-toggle'
 import { MobileAccordionBody } from '@/components/ui/mobile-accordion-body'
 import { Select } from '@/components/ui/select'
 import { parseDateOnly } from '@/lib/dates'
@@ -59,12 +57,6 @@ const KIND_TABS: {
   { id: 'ASK', label: 'Asks', icon: Paperclip },
   { id: 'FEEDBACK', label: 'Feedback', icon: MessageSquareText },
   { id: 'RACE_REPORT', label: 'Races', icon: Flag },
-]
-
-const STATUS_OPTIONS: { id: InboxFilter; label: string; coachOnly?: boolean }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'unread', label: 'Unread' },
-  { id: 'requests', label: 'Requests', coachOnly: true },
 ]
 
 function kindTone(kind: CoachingThreadKind | 'REQUEST'): string {
@@ -183,12 +175,9 @@ type InboxMobileListProps = {
   /** Which kind tabs have at least one unread thread. */
   kindUnread?: Record<InboxKindFilter, boolean>
   filter: InboxFilter
-  onFilterChange: (filter: InboxFilter) => void
   athleteFilter: string
   onAthleteFilterChange: (id: string) => void
   athleteOptions: InboxAthleteOption[]
-  pendingRequestCount: number
-  pushConfigured: boolean
   coachParticipant: InboxParticipant
   athleteParticipant?: InboxParticipant
   onSelectEntry: (id: string) => void
@@ -203,12 +192,9 @@ export function InboxMobileList({
   onKindChange,
   kindUnread,
   filter,
-  onFilterChange,
   athleteFilter,
   onAthleteFilterChange,
   athleteOptions,
-  pendingRequestCount,
-  pushConfigured,
   coachParticipant,
   athleteParticipant,
   onSelectEntry,
@@ -220,7 +206,6 @@ export function InboxMobileList({
     last_week: true,
     older: true,
   })
-  const [statusMenuOpen, setStatusMenuOpen] = useState(false)
   const kindTabsRef = useRef<HTMLDivElement>(null)
   const [indicator, setIndicator] = useState({ left: 0, width: 0, ready: false })
 
@@ -270,73 +255,15 @@ export function InboxMobileList({
       .filter((g) => g.items.length > 0)
   }, [entries])
 
-  const statusLabel =
-    STATUS_OPTIONS.find((o) => o.id === filter)?.label ??
-    (filter === 'requests' ? 'Requests' : 'All')
-
-  const statusChoices = STATUS_OPTIONS.filter(
-    (o) => !o.coachOnly || (role === 'coach' && pendingRequestCount > 0),
-  )
+  const showAthleteFilter = role === 'coach' && athleteOptions.length > 0
 
   return (
     <div
       className="tt-inbox-mobile lg:hidden"
       data-direct-chat={directChat ? 'true' : undefined}
     >
-      <div className="tt-inbox-mobile-toolbar">
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            className="tt-inbox-mobile-status-pill"
-            aria-expanded={statusMenuOpen}
-            aria-haspopup="listbox"
-            onClick={() => setStatusMenuOpen((v) => !v)}
-          >
-            {statusLabel}
-            <ChevronDown className="h-3.5 w-3.5 opacity-70" strokeWidth={2.25} />
-          </button>
-          {statusMenuOpen ? (
-            <>
-              <button
-                type="button"
-                className="fixed inset-0 z-20 cursor-default"
-                aria-label="Close filter menu"
-                onClick={() => setStatusMenuOpen(false)}
-              />
-              <ul
-                role="listbox"
-                className="absolute left-0 top-[calc(100%+0.35rem)] z-30 min-w-[8.5rem] overflow-hidden rounded-[8px] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] py-1 shadow-[var(--tt-shadow)]"
-              >
-                {statusChoices.map((opt) => (
-                  <li key={opt.id}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={filter === opt.id}
-                      className={cn(
-                        'flex w-full items-center px-3 py-2 text-left text-[13px] font-medium',
-                        filter === opt.id
-                          ? 'bg-[var(--tt-sidebar,#f5f5f5)] text-[var(--tt-ink,#111)]'
-                          : 'text-[var(--tt-ink-soft,#6b6b6b)]',
-                      )}
-                      onClick={() => {
-                        onFilterChange(opt.id)
-                        setStatusMenuOpen(false)
-                      }}
-                    >
-                      {opt.label}
-                      {opt.id === 'requests' && pendingRequestCount > 0
-                        ? ` (${pendingRequestCount})`
-                        : null}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : null}
-        </div>
-
-        {role === 'coach' && athleteOptions.length > 0 ? (
+      {showAthleteFilter ? (
+        <div className="tt-inbox-mobile-toolbar">
           <label className="min-w-0 flex-1">
             <span className="sr-only">Filter by athlete</span>
             <Select
@@ -352,22 +279,8 @@ export function InboxMobileList({
               ))}
             </Select>
           </label>
-        ) : (
-          <div className="min-w-0 flex-1" />
-        )}
-
-        <div className="flex shrink-0 items-center gap-1">
-          <InboxNotificationsToggle pushConfigured={pushConfigured} compact />
-          <button
-            type="button"
-            className="tt-inbox-mobile-icon-btn"
-            aria-label="Open status filters"
-            onClick={() => setStatusMenuOpen((v) => !v)}
-          >
-            <SlidersHorizontal className="h-4 w-4" strokeWidth={2} />
-          </button>
         </div>
-      </div>
+      ) : null}
 
       <div
         ref={kindTabsRef}

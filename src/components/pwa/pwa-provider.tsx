@@ -86,7 +86,12 @@ export function PwaProvider() {
   useEffect(() => {
     if ('serviceWorker' in navigator) {
       if (process.env.NODE_ENV === 'development' || isLocalDevHost()) {
-        void unregisterLocalServiceWorkers()
+        // Keep SW if the user enabled push (needed for local notification testing).
+        void (async () => {
+          const reg = await navigator.serviceWorker.getRegistration('/sw.js')
+          const sub = await reg?.pushManager.getSubscription()
+          if (!sub) await unregisterLocalServiceWorkers()
+        })()
       } else {
         let reloadedForUpdate = false
         navigator.serviceWorker.addEventListener('controllerchange', () => {

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Caption } from '@/components/ui/typography'
 import { AccountProfileSection } from '@/components/settings/account-profile-section'
 import { CoachInviteAthleteSection } from '@/components/settings/coach-invite-athlete-section'
+import { NotificationPrefsForm } from '@/components/settings/notification-prefs-form'
 import { PlanViewModePreferenceForm } from '@/components/settings/plan-view-mode-preference-form'
 import { SettingsShell } from '@/components/settings/settings-shell'
 import {
@@ -15,6 +16,7 @@ import { SignInMethodsSection } from '@/components/settings/sign-in-methods-sect
 import { TrainingZonesTabs } from '@/components/settings/training-zones-tabs'
 import { WeatherLocationForm } from '@/components/settings/weather-location-form'
 import { SettingsPanel } from '@/components/settings/settings-section-chrome'
+import { InboxNotificationsToggle } from '@/components/inbox/inbox-notifications-toggle'
 import { getAthletePreferences } from '@/app/actions/preferences'
 import { getCalendarFeedSummaries } from '@/app/actions/preferences'
 import { respondCoachRequest } from '@/app/actions/auth'
@@ -29,6 +31,7 @@ import {
 import { parseWorkoutBuilderPrefs } from '@/lib/workout-builder/workout-builder-prefs'
 import { parseWorkoutTypePrefs } from '@/lib/workout-builder/workout-type-prefs'
 import { prisma } from '@/lib/prisma'
+import { isPushConfigured } from '@/lib/push-notifications'
 
 const ERROR_MESSAGES: Record<string, string> = {
   access_denied: 'Strava authorization was cancelled.',
@@ -49,6 +52,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
   const nav = settingsNavForRole(coachView)
   const isAthlete = session.hasAthlete && Boolean(session.athleteId)
   const athleteId = await resolveAthleteId(session)
+  const pushConfigured = await isPushConfigured()
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: session.userId },
@@ -56,6 +60,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
       id: true,
       email: true,
       name: true,
+      image: true,
       roles: true,
       passwordHash: true,
       accounts: { select: { provider: true } },
@@ -64,6 +69,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
       coachProfile: {
         select: {
           coachingCode: true,
+          avatarUrl: true,
           links: {
             where: { status: CoachAthleteLinkStatus.PENDING },
             include: {
@@ -101,7 +107,12 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
   const hasCoach =
     Boolean(user.coachProfile) || session.hasCoach || isCoach(session)
-  const displayName = user.athleteProfile?.name ?? user.name
+  const displayName = coachView
+    ? user.name
+    : (user.athleteProfile?.name ?? user.name)
+  const profileAvatarUrl = coachView
+    ? (user.coachProfile?.avatarUrl ?? user.image ?? null)
+    : (user.athleteProfile?.avatarUrl ?? null)
 
   const providers = new Set(user.accounts.map((a) => a.provider))
   const hasGoogle = providers.has('google')
@@ -214,7 +225,8 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                   hasAthlete={session.hasAthlete}
                   hasCoach={hasCoach}
                   coachingCode={user.coachProfile?.coachingCode}
-                  avatarUrl={user.athleteProfile?.avatarUrl}
+                  avatarUrl={profileAvatarUrl}
+                  profileRole={coachView ? 'coach' : 'athlete'}
                   stravaConnected={stravaConnected}
                   coachLinks={user.athleteProfile?.coachLinks ?? []}
                   currentUserId={user.id}
@@ -224,6 +236,29 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             ),
             'sign-in': (
               <SignInMethodsSection embedded hasGoogle={hasGoogle} hasPassword={hasPassword} />
+            ),
+            notifications: (
+              <>
+                <SettingsPanel
+                  id="notifications-device"
+                  title="Device alerts"
+                  description="Browser / PWA push for new inbox messages. Best on an installed home-screen app (HTTPS)."
+                >
+                  <InboxNotificationsToggle pushConfigured={pushConfigured} />
+                  {!pushConfigured ? (
+                    <Caption className="mt-2">
+                      Push is not configured on this server (missing VAPID keys).
+                    </Caption>
+                  ) : null}
+                </SettingsPanel>
+                <SettingsPanel
+                  id="notifications-types"
+                  title="What to notify"
+                  description="Turn off categories you do not want pushed. Unread badges in the app are unchanged."
+                >
+                  <NotificationPrefsForm />
+                </SettingsPanel>
+              </>
             ),
             zones:
               athletePreferences && !coachView ? (

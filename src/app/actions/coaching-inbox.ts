@@ -139,6 +139,7 @@ async function appendMessage(opts: {
     athleteId: opts.athleteId,
     authorRole: opts.authorRole,
     body,
+    messageId: message.id,
   })
 
   revalidateInboxPaths({

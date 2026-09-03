@@ -1,24 +1,34 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { Pencil, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FormField, FormMessage } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { updateAthleteName } from '@/app/actions/preferences'
+import { updateAthleteName, updateCoachName } from '@/app/actions/preferences'
 
 type AthleteNameFormProps = {
   name: string
   /** Inline: show name + Edit; expand to save form when editing. */
   mode?: 'form' | 'inline'
+  /** Which profile name to update. Default athlete. */
+  profile?: 'athlete' | 'coach'
 }
 
-export function AthleteNameForm({ name, mode = 'form' }: AthleteNameFormProps) {
+export function AthleteNameForm({
+  name,
+  mode = 'form',
+  profile = 'athlete',
+}: AthleteNameFormProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [editing, setEditing] = useState(false)
   const [displayName, setDisplayName] = useState(name)
+
+  useEffect(() => {
+    setDisplayName(name)
+  }, [name])
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -28,7 +38,11 @@ export function AthleteNameForm({ name, mode = 'form' }: AthleteNameFormProps) {
     const next = ((formData.get('name') as string) ?? '').trim()
     startTransition(async () => {
       try {
-        await updateAthleteName(formData)
+        if (profile === 'coach') {
+          await updateCoachName(formData)
+        } else {
+          await updateAthleteName(formData)
+        }
         setDisplayName(next || displayName)
         setSaved(true)
         if (mode === 'inline') setEditing(false)

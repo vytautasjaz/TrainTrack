@@ -412,14 +412,30 @@ export function AppNav({
           </div>
         </div>
       </aside>
-
-      <MobileBottomNav
-        items={mainNav}
-        pathname={pathname}
-        query={searchParams.toString()}
-        dashboardNotificationCount={inboxBadge}
-      />
     </>
+  )
+}
+
+/** Bottom tab bar — rendered outside AppNav Suspense so it stays visible during route transitions. */
+export function AppMobileBottomNav({
+  isCoach = false,
+  dashboardNotificationCount = 0,
+  viewMode = 'athlete',
+}: {
+  isCoach?: boolean
+  dashboardNotificationCount?: number
+  viewMode?: AppViewMode
+}) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const inboxBadge = useInboxNavBadge(dashboardNotificationCount, viewMode)
+  return (
+    <MobileBottomNav
+      items={getMainNav(isCoach)}
+      pathname={pathname}
+      query={searchParams.toString()}
+      dashboardNotificationCount={inboxBadge}
+    />
   )
 }
 

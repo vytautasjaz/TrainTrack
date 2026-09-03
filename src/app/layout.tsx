@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Bebas_Neue, Inter } from 'next/font/google'
 import { PwaProvider } from '@/components/pwa/pwa-provider-lazy'
+import { InboxPushBridge } from '@/components/inbox/inbox-push-bridge'
 import { ThemeProvider } from '@/components/theme-provider'
 import { NavigationProgress } from '@/components/ui/navigation-progress'
 import './globals.css'
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
           <NavigationProgress />
           {children}
+          <InboxPushBridge />
           <PwaProvider />
         </ThemeProvider>
       </body>

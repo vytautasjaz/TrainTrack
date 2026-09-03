@@ -19,6 +19,7 @@ import {
   PageHeaderTitle,
 } from '@/components/ui/page-header'
 import { InboxComposeGeneralChatButton } from '@/components/inbox/inbox-compose-general-chat-button'
+import { InboxMobileHeaderActions } from '@/components/inbox/inbox-mobile-header-actions'
 import { InboxMobileList } from '@/components/inbox/inbox-mobile-list'
 import { Badge } from '@/components/ui/badge'
 import { Select } from '@/components/ui/select'
@@ -477,6 +478,36 @@ type InboxClientProps = {
   coachingRequests?: InboxCoachRequest[]
   coachingCode?: string | null
   pushConfigured?: boolean
+  /** Deep-link from `/inbox?thread=` (notification click / home attention). */
+  initialThreadId?: string | null
+}
+
+function resolveInitialSelectedId(opts: {
+  threads: InboxThreadListItem[]
+  coachingRequests: InboxCoachRequest[]
+  role: 'athlete' | 'coach'
+  initialThreadId?: string | null
+}) {
+  if (
+    opts.initialThreadId &&
+    opts.threads.some((t) => t.id === opts.initialThreadId)
+  ) {
+    return opts.initialThreadId
+  }
+  const firstThread = opts.threads.find((t) =>
+    threadMatchesFilters(t, {
+      filter: INITIAL_FILTER,
+      kind: INITIAL_KIND,
+      role: opts.role,
+      athleteFilter: 'all',
+    }),
+  )
+  if (firstThread) return firstThread.id
+  const firstRequest = opts.coachingRequests[0]
+  if (firstRequest && opts.role === 'coach') {
+    return inboxCoachRequestListId(firstRequest.id)
+  }
+  return null
 }
 
 export function InboxClient({
@@ -488,6 +519,7 @@ export function InboxClient({
   coachingRequests = [],
   coachingCode = null,
   pushConfigured = false,
+  initialThreadId = null,
 }: InboxClientProps) {
   const [filter, setFilter] = useState<InboxFilter>(INITIAL_FILTER)
   const [kind, setKind] = useState<InboxKindFilter>(INITIAL_KIND)
@@ -495,24 +527,16 @@ export function InboxClient({
   const openedReadIds = useRef(new Set<string>())
   /** Keep compose-opened threads selected even if hidden by current filters. */
   const holdSelectedOutsideFilterRef = useRef(false)
+  const deepLinkAppliedRef = useRef<string | null>(
+    initialThreadId && threads.some((t) => t.id === initialThreadId) ? initialThreadId : null,
+  )
   const [items, setItems] = useState(threads)
-  const [selectedId, setSelectedId] = useState<string | null>(() => {
-    const firstThread = threads.find((t) =>
-      threadMatchesFilters(t, {
-        filter: INITIAL_FILTER,
-        kind: INITIAL_KIND,
-        role,
-        athleteFilter: 'all',
-      }),
-    )
-    if (firstThread) return firstThread.id
-    const firstRequest = coachingRequests[0]
-    if (firstRequest && role === 'coach') {
-      return inboxCoachRequestListId(firstRequest.id)
-    }
-    return null
-  })
-  const [mobileDetailOpen, setMobileDetailOpen] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(() =>
+    resolveInitialSelectedId({ threads, coachingRequests, role, initialThreadId }),
+  )
+  const [mobileDetailOpen, setMobileDetailOpen] = useState(() =>
+    Boolean(initialThreadId && threads.some((t) => t.id === initialThreadId)),
+  )
   const [workoutModal, setWorkoutModal] = useState<PlanWorkoutDetail | null>(null)
   const [holdUnreadId, setHoldUnreadId] = useState<string | null>(null)
   const [isPendingRead, startReadTransition] = useTransition()
@@ -536,6 +560,29 @@ export function InboxClient({
   useEffect(() => {
     void refreshInboxUnreadBadge()
   }, [])
+
+  // Notification / attention deep-link: `/inbox?thread=<id>`
+  useEffect(() => {
+    const raw = initialThreadId
+    if (!raw || !/^[a-zA-Z0-9_-]+$/.test(raw)) return
+    if (deepLinkAppliedRef.current === raw) return
+    if (!items.some((t) => t.id === raw)) return
+    deepLinkAppliedRef.current = raw
+    holdSelectedOutsideFilterRef.current = true
+    setHoldUnreadId(null)
+    openedReadIds.current.add(raw)
+    setSelectedId(raw)
+    if (!isLg) setMobileDetailOpen(true)
+    setItems((prev) => {
+      let changed = false
+      const next = prev.map((t) => {
+        if (t.id !== raw || !t.unread) return t
+        changed = true
+        return { ...t, unread: false }
+      })
+      return changed ? next : prev
+    })
+  }, [initialThreadId, items, isLg])
 
   useEffect(() => {
     setItems((prev) => {
@@ -991,7 +1038,7 @@ export function InboxClient({
   return (
     <div className="min-w-0 max-w-full space-y-4">
       <PageHeader className="tt-inbox-page-header">
-        <div className="flex w-full min-w-0 items-start justify-between gap-3">
+        <div className="flex w-full min-w-0 items-center justify-between gap-3">
           <div className="min-w-0">
             <PageHeaderEyebrow className="hidden lg:block">Messages</PageHeaderEyebrow>
             <PageHeaderTitle className="tt-inbox-page-title">
@@ -1003,10 +1050,28 @@ export function InboxClient({
                 : 'Ask your coach about workouts, share feedback, and follow up on races.'}
             </PageHeaderDescription>
           </div>
+          {!showMobileDetail ? (
+            <InboxMobileHeaderActions
+              role={role}
+              filter={filter}
+              onFilterChange={setFilter}
+              pendingRequestCount={pendingRequestCount}
+              pushConfigured={pushConfigured}
+              className="lg:hidden"
+              trailing={
+                role === 'coach' ? (
+                  <InboxComposeGeneralChatButton
+                    athletes={athleteOptions}
+                    onSelectAthlete={openGeneralChatForAthlete}
+                  />
+                ) : null
+              }
+            />
+          ) : null}
           {role === 'coach' ? (
             <InboxComposeGeneralChatButton
               athletes={athleteOptions}
-              className="mt-0.5 shrink-0 lg:mt-1"
+              className="mt-0.5 hidden shrink-0 lg:mt-1 lg:inline-flex"
               onSelectAthlete={openGeneralChatForAthlete}
             />
           ) : null}
@@ -1085,12 +1150,9 @@ export function InboxClient({
             onKindChange={setKind}
             kindUnread={kindUnread}
             filter={filter}
-            onFilterChange={setFilter}
             athleteFilter={athleteFilter}
             onAthleteFilterChange={setAthleteFilter}
             athleteOptions={athleteOptions}
-            pendingRequestCount={pendingRequestCount}
-            pushConfigured={pushConfigured}
             coachParticipant={coachParticipant}
             athleteParticipant={athleteParticipant}
             onSelectEntry={selectEntry}

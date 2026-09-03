@@ -7,6 +7,7 @@ export type SettingsSectionId =
   | 'integrations'
   | 'planning'
   | 'builder'
+  | 'notifications'
 
 export type SettingsNavItem = {
   id: SettingsSectionId
@@ -16,6 +17,7 @@ export type SettingsNavItem = {
 export const ATHLETE_SETTINGS_NAV: SettingsNavItem[] = [
   { id: 'profile', label: 'Profile' },
   { id: 'sign-in', label: 'Sign-in' },
+  { id: 'notifications', label: 'Notifications' },
   { id: 'zones', label: 'Training zones' },
   { id: 'weather', label: 'Weather' },
   { id: 'plan', label: 'Plan display' },
@@ -26,6 +28,7 @@ export const ATHLETE_SETTINGS_NAV: SettingsNavItem[] = [
 export const COACH_SETTINGS_NAV: SettingsNavItem[] = [
   { id: 'profile', label: 'Profile' },
   { id: 'sign-in', label: 'Sign-in' },
+  { id: 'notifications', label: 'Notifications' },
   { id: 'planning', label: 'Planning' },
   { id: 'builder', label: 'Builder prefs' },
   { id: 'integrations', label: 'Integrations' },
@@ -44,6 +47,7 @@ const LEGACY_HASH_MAP: Record<string, SettingsSectionId> = {
   integrations: 'integrations',
   planning: 'planning',
   builder: 'builder',
+  notifications: 'notifications',
 }
 
 export function settingsNavForRole(isCoachView: boolean): SettingsNavItem[] {

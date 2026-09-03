@@ -233,6 +233,30 @@ export async function updateAthleteShowWeather(formData: FormData) {
 
 export async function updateAthleteName(formData: FormData) {
   const session = await requireSession()
+  if (!session.hasAthlete) {
+    throw new Error('Only athletes can update this display name.')
+  }
+  const name = ((formData.get('name') as string) ?? '').trim()
+  if (!name) throw new Error('Name is required.')
+  if (name.length > 120) throw new Error('Name is too long.')
+
+  // Own athlete profile only — never the coach-selected athlete cookie.
+  await prisma.athlete.update({
+    where: { userId: session.userId },
+    data: { name },
+  })
+
+  revalidatePath('/settings')
+  revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
+  revalidatePath('/dashboard')
+}
+
+export async function updateCoachName(formData: FormData) {
+  const session = await requireSession()
+  if (!isCoach(session)) {
+    throw new Error('Only coaches can update this display name.')
+  }
   const name = ((formData.get('name') as string) ?? '').trim()
   if (!name) throw new Error('Name is required.')
   if (name.length > 120) throw new Error('Name is too long.')
@@ -242,31 +266,20 @@ export async function updateAthleteName(formData: FormData) {
     data: { name },
   })
 
-  if (session.hasAthlete && session.athleteId) {
-    await prisma.athlete.update({
-      where: { id: session.athleteId },
-      data: { name },
-    })
-  }
-
+  revalidatePath('/settings')
   revalidatePath('/settings/preferences')
   revalidatePath('/settings/account')
   revalidatePath('/dashboard')
+  revalidatePath('/inbox')
 }
 
 const AVATAR_MAX_BYTES = 2 * 1024 * 1024
 const AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 
-export async function uploadAthleteAvatar(formData: FormData) {
-  const session = await requireSession()
-  if (!session.hasAthlete || !session.athleteId) {
-    throw new Error('Only athletes can upload a profile photo.')
-  }
-
-  const file = formData.get('avatar')
-  if (!(file instanceof File) || file.size === 0) {
-    throw new Error('Choose an image to upload.')
-  }
+async function writeAvatarFile(
+  file: File,
+  basename: string,
+): Promise<string> {
   if (!AVATAR_TYPES.has(file.type)) {
     throw new Error('Use a JPEG, PNG, WebP, or GIF image.')
   }
@@ -287,32 +300,89 @@ export async function uploadAthleteAvatar(formData: FormData) {
 
   const dir = path.join(process.cwd(), 'public', 'uploads', 'avatars')
   await mkdir(dir, { recursive: true })
-  const filename = `${session.athleteId}.${ext}`
+  const filename = `${basename}.${ext}`
   const buffer = Buffer.from(await file.arrayBuffer())
   await writeFile(path.join(dir, filename), buffer)
+  return `/uploads/avatars/${filename}?v=${Date.now()}`
+}
 
-  const avatarUrl = `/uploads/avatars/${filename}?v=${Date.now()}`
+export async function uploadAthleteAvatar(formData: FormData) {
+  const session = await requireSession()
+  if (!session.hasAthlete) {
+    throw new Error('Only athletes can upload a profile photo.')
+  }
+
+  const own = await prisma.athlete.findUnique({
+    where: { userId: session.userId },
+    select: { id: true },
+  })
+  if (!own) throw new Error('Only athletes can upload a profile photo.')
+
+  const file = formData.get('avatar')
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error('Choose an image to upload.')
+  }
+
+  const avatarUrl = await writeAvatarFile(file, own.id)
   await prisma.athlete.update({
-    where: { id: session.athleteId },
+    where: { id: own.id },
     data: { avatarUrl },
   })
 
+  revalidatePath('/settings')
   revalidatePath('/settings/preferences')
   revalidatePath('/settings/account')
   revalidatePath('/dashboard')
   revalidatePath('/training')
 }
 
+export async function uploadCoachAvatar(formData: FormData) {
+  const session = await requireSession()
+  if (!isCoach(session)) {
+    throw new Error('Only coaches can upload a coach photo.')
+  }
+
+  const coachProfile = await prisma.coachProfile.findUnique({
+    where: { userId: session.userId },
+    select: { id: true },
+  })
+  if (!coachProfile) throw new Error('Only coaches can upload a coach photo.')
+
+  const file = formData.get('avatar')
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error('Choose an image to upload.')
+  }
+
+  const avatarUrl = await writeAvatarFile(file, `coach-${coachProfile.id}`)
+  await prisma.coachProfile.update({
+    where: { id: coachProfile.id },
+    data: { avatarUrl },
+  })
+
+  revalidatePath('/settings')
+  revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
+  revalidatePath('/dashboard')
+  revalidatePath('/inbox')
+}
+
 export async function syncAvatarFromStrava() {
   const session = await requireSession()
-  if (!session.hasAthlete || !session.athleteId) {
+  if (!session.hasAthlete) {
     throw new Error('Only athletes can sync a Strava photo.')
   }
 
+  const own = await prisma.athlete.findUnique({
+    where: { userId: session.userId },
+    select: { id: true },
+  })
+  if (!own) throw new Error('Only athletes can sync a Strava photo.')
+
   const { syncStravaAvatarForUser } = await import('@/lib/strava/avatar')
-  const url = await syncStravaAvatarForUser(session.userId, session.athleteId)
+  const url = await syncStravaAvatarForUser(session.userId, own.id)
   if (!url) throw new Error('No Strava profile photo found.')
 
+  revalidatePath('/settings')
   revalidatePath('/settings/preferences')
   revalidatePath('/settings/account')
   revalidatePath('/dashboard')
@@ -321,19 +391,38 @@ export async function syncAvatarFromStrava() {
 
 export async function clearAthleteAvatar() {
   const session = await requireSession()
-  if (!session.hasAthlete || !session.athleteId) {
+  if (!session.hasAthlete) {
     throw new Error('Only athletes can clear a profile photo.')
   }
 
   await prisma.athlete.update({
-    where: { id: session.athleteId },
+    where: { userId: session.userId },
     data: { avatarUrl: null },
   })
 
+  revalidatePath('/settings')
   revalidatePath('/settings/preferences')
   revalidatePath('/settings/account')
   revalidatePath('/dashboard')
   revalidatePath('/training')
+}
+
+export async function clearCoachAvatar() {
+  const session = await requireSession()
+  if (!isCoach(session)) {
+    throw new Error('Only coaches can clear a coach photo.')
+  }
+
+  await prisma.coachProfile.update({
+    where: { userId: session.userId },
+    data: { avatarUrl: null },
+  })
+
+  revalidatePath('/settings')
+  revalidatePath('/settings/preferences')
+  revalidatePath('/settings/account')
+  revalidatePath('/dashboard')
+  revalidatePath('/inbox')
 }
 
 export async function updateCoachPlanningLeadDays(formData: FormData) {

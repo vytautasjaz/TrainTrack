@@ -16,14 +16,27 @@ import { isPushConfigured } from '@/lib/push-notifications'
 
 export const dynamic = 'force-dynamic'
 
+type InboxPageProps = {
+  searchParams: Promise<{ thread?: string }>
+}
+
+function parseThreadParam(raw?: string) {
+  if (!raw || !/^[a-zA-Z0-9_-]+$/.test(raw)) return null
+  return raw
+}
+
 async function getCoachParticipant(coachUserId: string) {
   const user = await prisma.user.findUnique({
     where: { id: coachUserId },
-    select: { name: true, image: true },
+    select: {
+      name: true,
+      image: true,
+      coachProfile: { select: { avatarUrl: true } },
+    },
   })
   return {
     name: user?.name ?? 'Coach',
-    avatarUrl: user?.image ?? null,
+    avatarUrl: user?.coachProfile?.avatarUrl ?? user?.image ?? null,
   }
 }
 
@@ -39,7 +52,10 @@ async function getAthleteInboxParticipants(athleteId: string) {
         take: 1,
         select: {
           coachProfile: {
-            select: { user: { select: { name: true, image: true } } },
+            select: {
+              avatarUrl: true,
+              user: { select: { name: true, image: true } },
+            },
           },
         },
       },
@@ -47,18 +63,28 @@ async function getAthleteInboxParticipants(athleteId: string) {
   })
   if (!athlete) return null
 
-  const linkedCoach = athlete.coachLinks[0]?.coachProfile.user
-  let coach = linkedCoach
-    ? { name: linkedCoach.name, avatarUrl: linkedCoach.image }
+  const linked = athlete.coachLinks[0]?.coachProfile
+  let coach = linked
+    ? {
+        name: linked.user.name,
+        avatarUrl: linked.avatarUrl ?? linked.user.image,
+      }
     : null
 
   if (!coach && athlete.coachId) {
     const legacyCoach = await prisma.user.findUnique({
       where: { id: athlete.coachId },
-      select: { name: true, image: true },
+      select: {
+        name: true,
+        image: true,
+        coachProfile: { select: { avatarUrl: true } },
+      },
     })
     if (legacyCoach) {
-      coach = { name: legacyCoach.name, avatarUrl: legacyCoach.image }
+      coach = {
+        name: legacyCoach.name,
+        avatarUrl: legacyCoach.coachProfile?.avatarUrl ?? legacyCoach.image,
+      }
     }
   }
 
@@ -82,10 +108,12 @@ function mapThreads(
   })
 }
 
-export default async function InboxPage() {
+export default async function InboxPage({ searchParams }: InboxPageProps) {
   const session = await getSession()
   if (!session) redirect('/')
   const pushConfigured = await isPushConfigured()
+  const params = await searchParams
+  const initialThreadId = parseThreadParam(params.thread)
 
   const coach = isCoachView(session)
 
@@ -103,6 +131,7 @@ export default async function InboxPage() {
           <InboxClient
             role="coach"
             threads={mapThreads(threadsRaw, 'coach')}
+            initialThreadId={initialThreadId}
             pushConfigured={pushConfigured}
             coachParticipant={coachParticipant}
             coachAthletes={coachAthletes.map((a) => ({
@@ -142,6 +171,7 @@ export default async function InboxPage() {
         <InboxClient
           role="athlete"
           threads={mapThreads(threadsRaw, 'athlete')}
+          initialThreadId={initialThreadId}
           pushConfigured={pushConfigured}
           coachParticipant={participants.coach}
           athleteParticipant={participants.athlete}

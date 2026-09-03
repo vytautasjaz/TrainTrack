@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v3'
+const CACHE_VERSION = 'v4'
 const STATIC_CACHE = `traintrack-static-${CACHE_VERSION}`
 const DYNAMIC_CACHE = `traintrack-dynamic-${CACHE_VERSION}`
 
@@ -149,7 +149,52 @@ async function networkFirstWithFallback(request) {
   }
 }
 
+
 // ─── Push notifications (Inbox) ─────────────────────────────────────────────
+
+function isTrustedInboxUrl(raw) {
+  try {
+    const url = new URL(raw, self.location.origin)
+    if (url.origin !== self.location.origin) return null
+    if (url.pathname !== '/inbox' && !url.pathname.startsWith('/inbox/')) {
+      return `${self.location.origin}/inbox`
+    }
+    return url.href
+  } catch {
+    return `${self.location.origin}/inbox`
+  }
+}
+
+async function updateAppBadge(unreadCount) {
+  const registration = self.registration
+  if (!('setAppBadge' in registration)) return
+  if (!Number.isFinite(unreadCount) || unreadCount < 0) return
+  if (unreadCount > 0) {
+    await registration.setAppBadge(unreadCount)
+  } else if ('clearAppBadge' in registration) {
+    await registration.clearAppBadge()
+  }
+}
+
+async function shouldSkipNotification(threadId) {
+  if (!threadId) return false
+  const clients = await self.clients.matchAll({
+    type: 'window',
+    includeUncontrolled: true,
+  })
+  for (const client of clients) {
+    if (!client.focused) continue
+    try {
+      const url = new URL(client.url)
+      if (url.pathname.startsWith('/inbox') && url.searchParams.get('thread') === threadId) {
+        return true
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return false
+}
 
 self.addEventListener('push', (event) => {
   const payload = (() => {
@@ -159,24 +204,44 @@ self.addEventListener('push', (event) => {
       return {}
     }
   })()
+
   const title = payload.title || 'TrainTrack'
-  const body = payload.body || 'You have a new notification'
-  const url = payload.url || '/inbox'
+  const body = payload.body || 'You have a new inbox message'
+  const url = isTrustedInboxUrl(payload.url || '/inbox') || `${self.location.origin}/inbox`
   const unreadCount = Number(payload.unreadCount)
+  const threadId = typeof payload.threadId === 'string' ? payload.threadId : null
+  const messageId = typeof payload.messageId === 'string' ? payload.messageId : null
+
   event.waitUntil(
     (async () => {
-      const registration = self.registration
-      if ('setAppBadge' in registration && Number.isFinite(unreadCount) && unreadCount >= 0) {
-        if (unreadCount > 0) {
-          await registration.setAppBadge(unreadCount)
-        } else if ('clearAppBadge' in registration) {
-          await registration.clearAppBadge()
-        }
+      await updateAppBadge(unreadCount)
+
+      const clients = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      })
+      for (const client of clients) {
+        client.postMessage({
+          type: 'TT_INBOX_PUSH',
+          threadId,
+          messageId,
+          unreadCount: Number.isFinite(unreadCount) ? unreadCount : null,
+          url,
+        })
       }
-      await registration.showNotification(title, {
+
+      if (await shouldSkipNotification(threadId)) return
+
+      await self.registration.showNotification(title, {
         body,
-        tag: payload.tag || 'inbox-notification',
-        data: { url },
+        tag: payload.tag || (threadId ? `inbox-thread-${threadId}` : 'inbox-notification'),
+        renotify: true,
+        data: {
+          url,
+          threadId,
+          messageId,
+          type: payload.type || 'new_message',
+        },
         badge: '/icons/icon-192.png',
         icon: '/icons/icon-192.png',
       })
@@ -186,16 +251,36 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
-  const targetUrl = event.notification?.data?.url || '/inbox'
+  const rawUrl = event.notification?.data?.url || '/inbox'
+  const targetUrl = isTrustedInboxUrl(rawUrl) || `${self.location.origin}/inbox`
+
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+    (async () => {
+      const clients = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      })
+
       for (const client of clients) {
-        if ('focus' in client && client.url.includes('/inbox')) {
-          return client.focus()
+        if (!client.url.startsWith(self.location.origin)) continue
+        if ('focus' in client) await client.focus()
+        client.postMessage({
+          type: 'TT_OPEN_INBOX_THREAD',
+          url: targetUrl.replace(self.location.origin, '') || '/inbox',
+        })
+        if (typeof client.navigate === 'function') {
+          try {
+            await client.navigate(targetUrl)
+          } catch {
+            // postMessage navigation is the fallback
+          }
         }
+        return
       }
-      if (self.clients.openWindow) return self.clients.openWindow(targetUrl)
-      return undefined
-    }),
+
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(targetUrl)
+      }
+    })(),
   )
 })

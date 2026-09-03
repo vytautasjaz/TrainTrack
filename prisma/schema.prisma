@@ -223,6 +223,11 @@ model User {
   workoutBuilderPrefs Json?
   /** Skip onboarding until user picks Start Training / Become a Coach. */
   onboardingSkippedAt DateTime?
+  /**
+   * Optional Web Push category prefs (all default on when null).
+   * Shape: { messages?, workoutAsks?, workoutFeedback?, raceThreads?, mentions? }
+   */
+  notificationPrefs Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -296,6 +301,8 @@ model CoachProfile {
   /** Public invite code, e.g. TT-83KF9 */
   coachingCode String   @unique
   bio          String?
+  /** Coach-facing photo (independent of athlete avatar / OAuth User.image). */
+  avatarUrl    String?
   verified     Boolean  @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -793,13 +800,16 @@ model CoachingMessage {
 }
 
 model WebPushSubscription {
-  id        String   @id @default(cuid())
-  userId    String
-  endpoint  String   @unique
-  p256dh    String
-  auth      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  userId     String
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

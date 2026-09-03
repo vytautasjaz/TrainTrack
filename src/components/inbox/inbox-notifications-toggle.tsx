@@ -59,12 +59,12 @@ export function InboxNotificationsToggle({
     if (!publicKey) return
     const requested = await Notification.requestPermission()
     setPermission(requested)
-    if (requested !== 'granted') return
-
-    const host = window.location.hostname
-    if (host === 'localhost' || host === '127.0.0.1' || host === '[::1]') return
+    if (requested !== 'granted') {
+      throw new Error('Browser blocked notification permission')
+    }
 
     const reg = await navigator.serviceWorker.register('/sw.js')
+    await reg.update().catch(() => {})
     const existing = await reg.pushManager.getSubscription()
     const sub =
       existing ??
@@ -82,6 +82,7 @@ export function InboxNotificationsToggle({
       endpoint: sub.endpoint,
       p256dh,
       auth,
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 500) : null,
     })
     setHasSubscription(true)
   }
@@ -103,8 +104,8 @@ export function InboxNotificationsToggle({
       ? 'Disabling…'
       : 'Enabling…'
     : hasSubscription
-      ? 'Inbox notifications on'
-      : 'Enable inbox notifications'
+      ? 'Notifications on'
+      : 'Enable notifications'
 
   return (
     <div className={cn('flex flex-col gap-2', compact && 'min-w-0')}>
