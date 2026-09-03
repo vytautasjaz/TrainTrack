@@ -2078,8 +2078,13 @@ html[data-inbox-mobile-detail='true'] .tt-inbox-thread-composer {
 }
 
 @media (max-width: 1023px) {
-  .tt-inbox-page-header {
+  [data-page-header].tt-inbox-page-header {
     padding-top: 0.15rem;
+  }
+
+  /* Training list sticky chrome — sit tight under the top bar. */
+  [data-page-header].tt-inbox-page-header.tt-training-list-page-header {
+    padding-top: 0.35rem;
   }
 
   .tt-inbox-page-header .tt-inbox-page-title {
@@ -2091,6 +2096,17 @@ html[data-inbox-mobile-detail='true'] .tt-inbox-thread-composer {
 
 .tt-inbox-title-dot {
   color: var(--tt-red, #da2f36);
+}
+
+/* List view mobile frame fills top bar → bottom nav — drop page chrome padding gaps. */
+@media (max-width: 1023px) {
+  [data-app-main-column]:has([data-training-list-frame='fixed']) {
+    padding-bottom: 0;
+  }
+
+  [data-app-main-column]:has([data-training-list-frame='fixed']) > [data-app-main] {
+    padding-bottom: 0;
+  }
 }
 
 .tt-inbox-compose-btn {

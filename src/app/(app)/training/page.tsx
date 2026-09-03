@@ -5,6 +5,8 @@ import { PlanMultiWeekTables } from "@/components/plan/plan-multi-week-tables";
 import { CalendarMonthView } from "@/components/training/calendar-month-view";
 import { TrainingMobileWeekView } from "@/components/training/training-mobile-week-view";
 import { TrainingCalendarControls } from "@/components/training/training-calendar-controls";
+import { TrainingListAddMenu } from "@/components/training/training-list-add-menu";
+import { TrainingListFrame } from "@/components/training/training-list-frame";
 import { TrainingListToolbar } from "@/components/training/training-list-toolbar";
 import { TrainingTableView } from "@/components/training/training-table-view";
 import {
@@ -373,31 +375,65 @@ export default async function TrainingPage({
       listHref={listHref}
       calendarHref={calendarHref}
       canLogWorkout={canLogWorkout}
+      isCoach={isCoach}
+      athleteId={athleteId}
+      canAddNote
+      showAddMenu={view !== "list"}
       showLibraryToggle={isCoach && view === "list"}
       showSportFilter={false}
     />
   );
 
-  const pageHeader =
-    view === "list" ? (
-      <PageHeader className="mb-3 items-end">
-        <div className="min-w-0">
-          {trainingEyebrow ? (
-            <PageHeaderEyebrow>{trainingEyebrow}</PageHeaderEyebrow>
-          ) : null}
-          <PageHeaderTitle className={trainingEyebrow ? "mt-1" : undefined}>
-            {trainingTitle}
-          </PageHeaderTitle>
-          {trainingDescription ? (
-            <PageHeaderDescription>{trainingDescription}</PageHeaderDescription>
-          ) : null}
+  const listAddMenu = (
+    <TrainingListAddMenu
+      isCoach={isCoach}
+      athleteId={athleteId}
+      canAddNote
+      canLogWorkout={canLogWorkout}
+    />
+  );
+
+  const listPageHeader = (
+    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:pt-0">
+      <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-0">
+        <div className="flex w-full min-w-0 items-center justify-between gap-3">
+          <div className="min-w-0">
+            {trainingEyebrow ? (
+              <PageHeaderEyebrow className="hidden lg:block">{trainingEyebrow}</PageHeaderEyebrow>
+            ) : null}
+            <PageHeaderTitle className="tt-inbox-page-title">
+              Training<span className="tt-inbox-title-dot">.</span>
+            </PageHeaderTitle>
+            {trainingDescription ? (
+              <PageHeaderDescription className="hidden max-w-lg lg:block">
+                {trainingDescription}
+              </PageHeaderDescription>
+            ) : null}
+          </div>
+          {/* Mobile: filter + Add on title row (Inbox pattern) */}
+          <div className="tt-inbox-mobile-header-actions lg:hidden">
+            <TrainingListToolbar mobileOnly />
+            {listAddMenu}
+          </div>
+          {/* Desktop: view switch + Filter · Layers · View beside Add */}
+          <PageHeaderActions className="hidden flex-col items-end gap-2 pt-0 sm:gap-2.5 lg:flex">
+            {calendarControls}
+            <div className="flex min-w-0 max-w-full items-end gap-2">
+              <TrainingListToolbar desktopOnly />
+              {listAddMenu}
+            </div>
+          </PageHeaderActions>
         </div>
-        <PageHeaderActions className="flex-col items-end gap-2 pt-0 sm:gap-2.5">
+        {/* Mobile: List/Week/Month under the title */}
+        <div className="flex min-w-0 items-center justify-end lg:hidden">
           {calendarControls}
-          <TrainingListToolbar />
-        </PageHeaderActions>
-      </PageHeader>
-    ) : (
+        </div>
+      </div>
+    </PageHeader>
+  );
+
+  const pageHeader =
+    view === "list" ? null : (
       <PageHeader
         title={trainingTitle}
         eyebrow={trainingEyebrow}
@@ -406,6 +442,35 @@ export default async function TrainingPage({
         action={calendarControls}
       />
     );
+
+  const listTableView = (
+    <TrainingTableView
+      initialDays={buildPlanTableDays(
+        eachDateOnlyDay(listRangeStart, listRangeEnd),
+        byDate,
+        notesByDate,
+        eventsByDate,
+        weatherByDate,
+      ).map((day) => ({
+        dateKey: day.dateKey,
+        dayLabel: day.dayLabel,
+        dateLabel: day.dateLabel,
+        isToday: day.isToday,
+        workouts: day.workouts,
+        dayNote: day.dayNote ?? null,
+        seasonEvents: day.seasonEvents ?? [],
+        weather:
+          (athletePlanConfig?.showWeather ?? true)
+            ? (day.weather ?? null)
+            : null,
+      }))}
+      initialFromKey={listFromKey}
+      initialToKey={listToKey}
+      isCoach={isCoach}
+      canEditDayNotes
+      athleteId={athleteId}
+    />
+  );
 
   const weekViewBlocks = weekBlocks.map((block) => {
     const sports = weekSportByKey.get(block.weekStartKey)!;
@@ -474,32 +539,9 @@ export default async function TrainingPage({
           nextMonthHref={nextHref}
         />
       ) : view === "list" ? (
-        <TrainingTableView
-          initialDays={buildPlanTableDays(
-            eachDateOnlyDay(listRangeStart, listRangeEnd),
-            byDate,
-            notesByDate,
-            eventsByDate,
-            weatherByDate,
-          ).map((day) => ({
-            dateKey: day.dateKey,
-            dayLabel: day.dayLabel,
-            dateLabel: day.dateLabel,
-            isToday: day.isToday,
-            workouts: day.workouts,
-            dayNote: day.dayNote ?? null,
-            seasonEvents: day.seasonEvents ?? [],
-            weather:
-              (athletePlanConfig?.showWeather ?? true)
-                ? (day.weather ?? null)
-                : null,
-          }))}
-          initialFromKey={listFromKey}
-          initialToKey={listToKey}
-          isCoach={isCoach}
-          canEditDayNotes
-          athleteId={athleteId}
-        />
+        <TrainingListFrame header={listPageHeader}>
+          {listTableView}
+        </TrainingListFrame>
       ) : (
         <>
           <div className="hidden lg:block">

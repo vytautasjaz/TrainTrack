@@ -24,10 +24,7 @@ import { DayNoteSection } from '@/components/plan/day-note-section'
 import { SeasonEventChips } from '@/components/plan/season-event-chips'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
 import { TrainingListWorkoutRow } from '@/components/training/training-list-workout-row'
-import {
-  ListDayWeatherMini,
-  ListDayWeatherStrip,
-} from '@/components/weather/list-day-weather'
+import { ListDayWeatherMini } from '@/components/weather/list-day-weather'
 import type { PlanDay } from '@/lib/plan-week'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { useFilteredPlanDays } from '@/components/training/use-plan-sport-filter-data'
@@ -40,6 +37,7 @@ import {
   SHOW_NOTES_STORAGE_KEY,
 } from '@/lib/plan-calendar-layers'
 import { useStoredFlag } from '@/hooks/use-stored-flag'
+import { getMobileBottomChromeInset } from '@/lib/mobile-chrome'
 import { cn } from '@/lib/utils'
 
 const CHUNK_DAYS = 14
@@ -111,11 +109,7 @@ function mergeDays(
 }
 
 function getBottomInset() {
-  const bottomNav = document.querySelector('nav.fixed')
-  if (!bottomNav) return 16
-  const rect = bottomNav.getBoundingClientRect()
-  if (rect.height === 0 || rect.bottom <= 0) return 16
-  return window.innerHeight - rect.top + 8
+  return getMobileBottomChromeInset()
 }
 
 function daySectionEl(dateKey: string) {
@@ -183,6 +177,14 @@ export function TrainingTableView({
     if (!el) return
 
     const updateHeight = () => {
+      const frame = el.closest('[data-training-list-frame="fixed"]')
+      if (frame) {
+        // Parent frame already sizes to the viewport chrome — fill it.
+        setListHeight(null)
+        el.style.height = '100%'
+        return
+      }
+      el.style.height = ''
       const top = el.getBoundingClientRect().top
       const bottom = getBottomInset()
       setListHeight(Math.max(180, Math.round(window.innerHeight - top - bottom)))
@@ -194,10 +196,19 @@ export function TrainingTableView({
     observer.observe(document.documentElement)
     const headerEl = document.querySelector('header')
     if (headerEl) observer.observe(headerEl)
+    const bottomNav = document.querySelector('[data-mobile-bottom-nav]')
+    if (bottomNav) observer.observe(bottomNav)
+
+    // Tab bar is portaled after first paint — recalc once it appears.
+    const bodyObserver = new MutationObserver(() => updateHeight())
+    bodyObserver.observe(document.body, { childList: true, subtree: true })
+    const retryId = window.setTimeout(updateHeight, 120)
 
     return () => {
       window.removeEventListener('resize', updateHeight)
       observer.disconnect()
+      bodyObserver.disconnect()
+      window.clearTimeout(retryId)
     }
   }, [])
 
@@ -447,12 +458,12 @@ export function TrainingTableView({
   return (
     <>
       <div
-        className="flex min-h-0 items-stretch gap-8"
+        className="flex min-h-0 max-lg:h-full max-lg:min-h-0 max-lg:flex-1 items-stretch gap-8"
         style={listHeight != null ? { height: listHeight } : undefined}
       >
         <div
           ref={scrollRef}
-          className="relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none] [scrollbar-gutter:stable]"
+          className="relative min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-y-contain [overflow-anchor:none] [scrollbar-gutter:stable] max-lg:h-full"
           aria-busy={loadingPast || loadingFuture}
         >
           {/* Zero-height sticky overlays — load labels must not shift scroll height */}
@@ -464,21 +475,21 @@ export function TrainingTableView({
             ) : null}
           </div>
 
-          {/* Column headers — sticky */}
-          <div className="sticky top-0 z-10 flex w-full items-center border-b border-[var(--tt-line,#ebebeb)] bg-background/98 backdrop-blur-[2px]">
+          {/* Column headers — sticky, desktop only */}
+          <div className="sticky top-0 z-10 hidden w-full items-center border-b border-[var(--tt-line,#ebebeb)] bg-background/98 backdrop-blur-[2px] lg:flex">
             <div className="w-[4.5rem] shrink-0 border-r border-[var(--tt-line,#ebebeb)] px-3 py-2.5 sm:w-[5.5rem]">
               <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Day</p>
             </div>
             <div className="flex min-w-0 flex-1 items-center gap-0 pl-4 pr-3">
               <p className="flex-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Workout / Event</p>
-              <p className="hidden w-[5.5rem] shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)] sm:block">Details</p>
-              <p className="w-[5.5rem] shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Dur / Dist</p>
-              <p className="w-10 shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Status</p>
+              <p className="hidden w-[4.5rem] shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)] lg:block">Details</p>
+              <p className="w-[4.25rem] shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Dur / Dist</p>
+              <p className="w-8 shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Status</p>
             </div>
           </div>
 
-          {/* Flat table — one shared border, days inline */}
-          <div className="w-full pb-2">
+          {/* Flat table — mobile: no wrapper; desktop: rounded card */}
+          <div className="w-full pb-2 max-lg:pb-0">
             <div ref={topSentinelRef} className="h-px w-full" aria-hidden />
 
             {displayDays.length === 0 ? (
@@ -487,7 +498,7 @@ export function TrainingTableView({
                 pull up for earlier ones.
               </p>
             ) : (
-              <div className="overflow-hidden rounded-[10px] border border-[var(--tt-line,#ebebeb)] bg-white shadow-[0_1px_2px_rgb(0_0_0_/0.04),0_2px_8px_rgb(0_0_0_/0.04)]">
+              <div className="lg:overflow-hidden lg:rounded-[10px] lg:border lg:border-[var(--tt-line,#ebebeb)] lg:bg-white lg:shadow-[0_1px_2px_rgb(0_0_0_/0.04),0_2px_8px_rgb(0_0_0_/0.04)]">
                 {displayDays.map((day, dayIdx) => {
                   const hasContent =
                     day.workouts.length > 0 ||
@@ -511,31 +522,27 @@ export function TrainingTableView({
                       className={cn(
                         'scroll-mt-14',
                         day.isToday && 'scroll-mt-16',
+                        !isFirst && 'border-t border-[var(--tt-line,#ebebeb)]',
+                        day.isToday && 'bg-[var(--tt-today-wash,rgb(218_47_54/0.025))]',
                       )}
                     >
-                      <div
-                        className={cn(
-                          'flex',
-                          !isFirst && 'border-t border-[var(--tt-line,#ebebeb)]',
-                          day.isToday && 'bg-[var(--tt-today-wash,rgb(218_47_54/0.025))]',
-                        )}
-                      >
+                      <div className="flex">
                         {/* DAY column */}
                         <div
                           className={cn(
-                            'flex w-[4.5rem] shrink-0 flex-col items-start justify-start border-r border-[var(--tt-line,#ebebeb)] px-3 sm:w-[5.5rem]',
-                            totalRows > 1 ? 'pt-3.5' : 'py-3.5',
+                            'flex w-[3.75rem] shrink-0 flex-col items-center justify-start px-1 text-center sm:w-[5.5rem] sm:items-start sm:px-2.5 sm:text-left',
+                            totalRows > 1 ? 'pt-3' : 'py-3',
                           )}
                         >
                           {day.isToday ? (
                             <>
-                              <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand,#da2f36)]">
+                              <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand,#da2f36)]">
                                 Today
                               </span>
-                              <span className="mt-0.5 text-[13px] font-bold leading-none text-[var(--tt-ink,#111)]">
+                              <span className="mt-0.5 text-[15px] font-bold leading-none text-[var(--tt-ink,#111)]">
                                 {format(day.date, 'd')}
                               </span>
-                              <span className="text-[10px] font-medium uppercase text-[var(--tt-ink-soft,#6b6b6b)]">
+                              <span className="text-[9px] font-medium uppercase tracking-[0.04em] text-[var(--tt-ink-soft,#6b6b6b)]">
                                 {format(day.date, 'MMM')}
                               </span>
                             </>
@@ -543,7 +550,7 @@ export function TrainingTableView({
                             <>
                               <span
                                 className={cn(
-                                  'text-[10px] font-semibold uppercase tracking-[0.08em]',
+                                  'text-[9px] font-semibold uppercase tracking-[0.08em]',
                                   day.date < new Date(new Date().setHours(0,0,0,0))
                                     ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
                                     : 'text-[var(--tt-ink-soft,#6b6b6b)]',
@@ -553,7 +560,7 @@ export function TrainingTableView({
                               </span>
                               <span
                                 className={cn(
-                                  'mt-0.5 text-[13px] font-bold leading-none',
+                                  'mt-0.5 text-[15px] font-bold leading-none',
                                   day.date < new Date(new Date().setHours(0,0,0,0))
                                     ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
                                     : 'text-[var(--tt-ink,#111)]',
@@ -563,7 +570,7 @@ export function TrainingTableView({
                               </span>
                               <span
                                 className={cn(
-                                  'text-[10px] font-medium uppercase',
+                                  'text-[9px] font-medium uppercase tracking-[0.04em]',
                                   day.date < new Date(new Date().setHours(0,0,0,0))
                                     ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
                                     : 'text-[var(--tt-ink-soft,#6b6b6b)]',
@@ -574,7 +581,7 @@ export function TrainingTableView({
                             </>
                           )}
                           {day.weather ? (
-                            <div className="mt-1.5">
+                            <div className="mt-1.5 hidden lg:block">
                               <ListDayWeatherMini weather={day.weather} />
                             </div>
                           ) : null}
@@ -591,18 +598,14 @@ export function TrainingTableView({
 
                           {/* Workout rows */}
                           {day.workouts.map((workout, i) => (
-                            <TrainingListWorkoutRow
-                              key={workout.id}
-                              workout={workout}
-                              isCoach={isCoach}
-                              last={
-                                i === day.workouts.length - 1 &&
-                                !(showNotes && dayNoteHasVisibleContent(day.dayNote)) &&
-                                !(showEvents && (day.seasonEvents?.length ?? 0) > 0)
-                              }
-                              selected={showDesktopPanel && panelWorkout?.id === workout.id}
-                              onOpen={() => setSelected(workout)}
-                            />
+                              <TrainingListWorkoutRow
+                                key={workout.id}
+                                workout={workout}
+                                isCoach={isCoach}
+                                last={i === day.workouts.length - 1}
+                                selected={showDesktopPanel && panelWorkout?.id === workout.id}
+                                onOpen={() => setSelected(workout)}
+                              />
                           ))}
 
                           {/* Events strip */}
@@ -610,7 +613,8 @@ export function TrainingTableView({
                             <div
                               className={cn(
                                 'bg-amber-50/90 px-4 py-3',
-                                (day.workouts.length > 0) && 'border-t border-amber-200/60',
+                                day.workouts.length > 0 &&
+                                  'border-t border-[var(--tt-line,#ebebeb)]',
                               )}
                             >
                               <SeasonEventChips
@@ -626,10 +630,11 @@ export function TrainingTableView({
                           {showNotes && dayNoteHasVisibleContent(day.dayNote) ? (
                             <div
                               className={cn(
-                                'px-4 py-3',
-                                (day.workouts.length > 0 || (showEvents && (day.seasonEvents?.length ?? 0) > 0))
-                                  ? 'border-t border-amber-200/60 bg-amber-50/90'
-                                  : 'bg-amber-50/90',
+                                'bg-amber-50/90 px-4 py-3',
+                                (day.workouts.length > 0 ||
+                                  (showEvents &&
+                                    (day.seasonEvents?.length ?? 0) > 0)) &&
+                                  'border-t border-[var(--tt-line,#ebebeb)]',
                               )}
                             >
                               <DayNoteSection

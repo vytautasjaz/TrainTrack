@@ -224,7 +224,7 @@ export function WorkoutInlineFeedback({
   const canExpand = notesOverflow.canExpand || replyOverflow.canExpand
   const clampClass = clampClassForLines(previewLines)
   const bodyTextClass = listView
-    ? 'text-sm leading-snug text-foreground/90'
+    ? 'text-xs font-normal leading-snug tracking-[0.004em] text-[var(--tt-ink-soft,#6b6b6b)]'
     : weekView
       ? 'text-xs leading-snug text-foreground/90'
       : 'text-[10px] leading-snug text-foreground/90'
@@ -236,14 +236,13 @@ export function WorkoutInlineFeedback({
         } as CSSProperties)
       : undefined
 
-  const showListHeader = listView && (preview.feeling || preview.notes)
   const weekNoteOnly =
     weekView && preview.notes && !preview.feeling && !preview.reply
 
   return (
     <div
       className={cn(
-        'space-y-1',
+        listView ? 'space-y-0.5' : 'space-y-1',
         section
           ? cn(
               'tt-workout-feedback-section border-t pt-1.5',
@@ -258,59 +257,63 @@ export function WorkoutInlineFeedback({
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => e.stopPropagation()}
     >
-      {showListHeader ? (
-        <div className="flex items-center justify-between gap-2">
-          <p className="title-eyebrow shrink-0 text-[var(--tt-ink-faint,#9a9a9a)]">
-            Feedback
-          </p>
-          {preview.feeling ? (
+      {listView ? (
+        <>
+          {preview.notes || preview.feeling ? (
+            <p
+              ref={preview.notes ? notesOverflow.ref : undefined}
+              className={cn(bodyTextClass, !expanded && preview.notes && clampClass)}
+            >
+              {preview.feeling ? (
+                <FeelingHint feeling={preview.feeling} className="text-xs" />
+              ) : null}
+              {preview.feeling && preview.notes ? ' · ' : null}
+              {preview.notes ? (
+                <span className="font-normal">{preview.notes}</span>
+              ) : null}
+            </p>
+          ) : null}
+          {preview.reply ? (
+            <p
+              ref={replyOverflow.ref}
+              className={cn(bodyTextClass, !expanded && clampClass)}
+            >
+              <span className="font-semibold text-[var(--tt-ink,#111)]">Coach</span>
+              {' · '}
+              <span className="font-normal">{preview.reply}</span>
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <>
+          {preview.notes ? (
+            <p
+              ref={notesOverflow.ref}
+              className={cn(bodyTextClass, !expanded && clampClass)}
+            >
+              {preview.notes}
+            </p>
+          ) : weekView && preview.feeling && !preview.notes ? (
             <FeelingHint feeling={preview.feeling} className="text-xs" />
           ) : null}
-        </div>
-      ) : null}
 
-      {preview.notes ? (
-        <p
-          ref={notesOverflow.ref}
-          className={cn(
-            bodyTextClass,
-            showListHeader ? 'mt-0.5' : undefined,
-            !expanded && clampClass,
-          )}
-        >
-          {preview.notes}
-        </p>
-      ) : weekView && preview.feeling && !preview.notes ? (
-        <FeelingHint feeling={preview.feeling} className="text-xs" />
-      ) : null}
-
-      {preview.reply ? (
-        <div
-          className={
-            preview.notes || showListHeader || weekNoteOnly ? 'pt-0.5' : undefined
-          }
-        >
-          {listView ? (
-            <div className="flex items-center justify-between gap-2">
-              <p className="title-eyebrow text-brand">Coach</p>
+          {preview.reply ? (
+            <div className={preview.notes || weekNoteOnly ? 'pt-0.5' : undefined}>
+              <p
+                ref={replyOverflow.ref}
+                className={cn(
+                  bodyTextClass,
+                  'text-[var(--tt-ink-soft,#6b6b6b)]',
+                  !expanded && clampClass,
+                )}
+              >
+                <span className="text-[var(--tt-ink-faint,#9a9a9a)]">Coach · </span>
+                {preview.reply}
+              </p>
             </div>
           ) : null}
-          <p
-            ref={replyOverflow.ref}
-            className={cn(
-              listView ? 'mt-0.5' : undefined,
-              bodyTextClass,
-              !listView && 'text-[var(--tt-ink-soft,#6b6b6b)]',
-              !expanded && clampClass,
-            )}
-          >
-            {!listView ? (
-              <span className="text-[var(--tt-ink-faint,#9a9a9a)]">Coach · </span>
-            ) : null}
-            {preview.reply}
-          </p>
-        </div>
-      ) : null}
+        </>
+      )}
 
       {canExpand ? (
         <button

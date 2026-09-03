@@ -50,6 +50,8 @@ type SeasonEventModalProps = {
   /** Defaults for create (YYYY-MM-DD). */
   defaultStartDate?: string
   defaultEndDate?: string
+  /** View-only — show event details without save/delete. */
+  readOnly?: boolean
 }
 
 export function SeasonEventModal({
@@ -58,10 +60,12 @@ export function SeasonEventModal({
   event = null,
   defaultStartDate,
   defaultEndDate,
+  readOnly = false,
 }: SeasonEventModalProps) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const editing = event
+  const canWrite = !readOnly
   const fallbackToday = useMemo(() => todayLocalKey(), [])
   const createStart = defaultStartDate ?? fallbackToday
   const createEnd = defaultEndDate ?? defaultStartDate ?? fallbackToday
@@ -93,6 +97,7 @@ export function SeasonEventModal({
     setStartKey(createStart)
     setEndKey(createEnd)
     setRecentLoaded(false)
+    if (!canWrite) return
     let cancelled = false
     void listCoachRecentSeasonEvents()
       .then((rows) => {
@@ -110,7 +115,7 @@ export function SeasonEventModal({
     return () => {
       cancelled = true
     }
-  }, [open, editing, createStart, createEnd])
+  }, [open, editing, createStart, createEnd, canWrite])
 
   function applyReuse(row: CoachRecentSeasonEvent) {
     setTitle(row.title)
@@ -120,7 +125,7 @@ export function SeasonEventModal({
     setError(null)
   }
 
-  const showReuse = !editing && recentLoaded && recentEvents.length > 0
+  const showReuse = canWrite && !editing && recentLoaded && recentEvents.length > 0
 
   return (
     <Dialog
@@ -132,15 +137,23 @@ export function SeasonEventModal({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{editing ? 'Edit event' : 'Add event'}</DialogTitle>
+          <DialogTitle>
+            {readOnly ? 'Event' : editing ? 'Edit event' : 'Add event'}
+          </DialogTitle>
           <DialogDescription>
-            Named blocks on the season plan — vacations, camps, or anything else you want to mark.
+            {readOnly
+              ? 'Season plan block details.'
+              : 'Named blocks on the season plan — vacations, camps, or anything else you want to mark.'}
           </DialogDescription>
         </DialogHeader>
         <form
           className="space-y-3"
           onSubmit={(e) => {
             e.preventDefault()
+            if (!canWrite) {
+              onOpenChange(false)
+              return
+            }
             setError(null)
             const fd = new FormData(e.currentTarget)
             startTransition(async () => {
@@ -199,11 +212,13 @@ export function SeasonEventModal({
           <FormField label="Title">
             <Input
               name="title"
-              required
+              required={canWrite}
               maxLength={120}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Alps training camp"
+              readOnly={readOnly}
+              disabled={readOnly}
             />
           </FormField>
           <FormField label="Notes (optional)">
@@ -212,6 +227,8 @@ export function SeasonEventModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Optional detail"
+              readOnly={readOnly}
+              disabled={readOnly}
             />
           </FormField>
           <div className="grid grid-cols-2 gap-3">
@@ -219,54 +236,66 @@ export function SeasonEventModal({
               <Input
                 name="startDate"
                 type="date"
-                required
+                required={canWrite}
                 value={startKey}
                 onChange={(e) => {
                   const next = e.target.value
                   setStartKey(next)
                   if (endKey && next && endKey < next) setEndKey(next)
                 }}
+                readOnly={readOnly}
+                disabled={readOnly}
               />
             </FormField>
             <FormField label="End">
               <Input
                 name="endDate"
                 type="date"
-                required
+                required={canWrite}
                 min={startKey || undefined}
                 value={endKey}
                 onChange={(e) => setEndKey(e.target.value)}
+                readOnly={readOnly}
+                disabled={readOnly}
               />
             </FormField>
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button type="submit" size="sm" disabled={pending}>
-              {pending ? 'Saving…' : editing ? 'Save' : 'Add event'}
-            </Button>
-            {editing ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="text-destructive"
-                disabled={pending}
-                onClick={() => {
-                  setError(null)
-                  startTransition(async () => {
-                    try {
-                      const fd = new FormData()
-                      fd.set('id', editing.id)
-                      await deleteSeasonEvent(fd)
-                      onOpenChange(false)
-                    } catch (err) {
-                      setError(err instanceof Error ? err.message : 'Could not delete event')
-                    }
-                  })
-                }}
-              >
-                Delete
+            {canWrite ? (
+              <>
+                <Button type="submit" size="sm" disabled={pending}>
+                  {pending ? 'Saving…' : editing ? 'Save' : 'Add event'}
+                </Button>
+                {editing ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive"
+                    disabled={pending}
+                    onClick={() => {
+                      setError(null)
+                      startTransition(async () => {
+                        try {
+                          const fd = new FormData()
+                          fd.set('id', editing.id)
+                          await deleteSeasonEvent(fd)
+                          onOpenChange(false)
+                        } catch (err) {
+                          setError(err instanceof Error ? err.message : 'Could not delete event')
+                        }
+                      })
+                    }}
+                  >
+                    Delete
+                  </Button>
+                ) : null}
+              </>
+            ) : (
+              <Button type="button" size="sm" onClick={() => onOpenChange(false)}>
+                Close
               </Button>
-            ) : null}
+            )}
           </div>
         </form>
       </DialogContent>

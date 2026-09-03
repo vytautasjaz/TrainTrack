@@ -207,25 +207,27 @@ export function SeasonEventChips({
           }
 
           return (
-            <li
-              key={event.id}
-              className={cardClass}
-              title={event.notes?.trim() || undefined}
-            >
-              {body}
+            <li key={event.id}>
+              <button
+                type="button"
+                onClick={() => setEditing(event)}
+                className={cn(cardClass, 'cursor-pointer transition hover:opacity-80')}
+                title={event.notes?.trim() || 'View event'}
+              >
+                {body}
+              </button>
             </li>
           )
         })}
       </ul>
-      {editable ? (
-        <SeasonEventModal
-          open={Boolean(editing)}
-          onOpenChange={(open) => {
-            if (!open) setEditing(null)
-          }}
-          event={editing}
-        />
-      ) : null}
+      <SeasonEventModal
+        open={Boolean(editing)}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null)
+        }}
+        event={editing}
+        readOnly={!editable}
+      />
     </>
   )
 }

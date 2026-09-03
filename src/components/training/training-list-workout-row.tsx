@@ -4,7 +4,6 @@ import { useState, type CSSProperties } from 'react'
 import { Calendar, Flag } from 'lucide-react'
 import { WorkoutStatus } from '@prisma/client'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
-import { WorkoutChatIndicator } from '@/components/plan/workout-chat-indicator'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import { SelfAddedBadge } from '@/components/plan/self-added-badge'
 import { RescheduleBadge } from '@/components/plan/reschedule-badge'
@@ -22,6 +21,7 @@ import {
   athleteHasQuickLogActions,
   canDragPlanWorkout,
   isStravaSynced,
+  workoutCoachingChatUnread,
   workoutHasCoachingChat,
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
@@ -99,31 +99,49 @@ function detailsLabel(workout: PlanWorkoutDetail): string | null {
   return SESSION_TYPE_LABELS[st as keyof typeof SESSION_TYPE_LABELS] ?? null
 }
 
+function compactSessionLabel(label: string): string {
+  return label
+    .replace(/\s+run$/i, '')
+    .replace(/\s+workout$/i, '')
+    .trim()
+}
+
 /** Compact workout type label used when no session type is set. */
 function typeLabel(workout: PlanWorkoutDetail): string {
   return WORKOUT_TYPE_LABELS[workout.type] ?? workout.type
 }
 
-/** Duration/distance hero value for the right column. */
-function distanceOrDurationCell(
+type ListMetricCell = {
+  planned: string | null
+  completed: string | null
+}
+
+/** Planned on top, completed below (when both exist). */
+function listMetricCell(
   workout: PlanWorkoutDetail,
   status: WorkoutStatus,
   hero: WorkoutCardHero | null,
   secondary: ReturnType<typeof listSecondaryMetric>,
-): string | null {
-  const completed = status === WorkoutStatus.COMPLETED
-  if (completed && workoutHasLoggedActuals(workout)) {
+): ListMetricCell | null {
+  const hasCompleted =
+    status === WorkoutStatus.COMPLETED && workoutHasLoggedActuals(workout)
+
+  if (hasCompleted) {
+    let completed: string | null = null
+    let planned: string | null = null
     if (hero) {
-      const prim = formatHeroPrimary(hero)
-      const plan = formatHeroPlanned(hero)
-      return plan ? `${prim} / ${plan}` : prim
+      completed = formatHeroPrimary(hero)
+      planned = formatHeroPlanned(hero)
+    } else if (secondary) {
+      completed = secondary.actual
+      planned = secondary.planned ?? null
     }
-    if (secondary) return secondary.actual
-    return null
+    if (!completed && !planned) return null
+    return { planned, completed }
   }
-  // Planned
-  if (hero) return formatHeroPrimary(hero)
-  if (secondary) return secondary.actual
+
+  if (hero) return { planned: formatHeroPrimary(hero), completed: null }
+  if (secondary) return { planned: secondary.actual, completed: null }
   return null
 }
 
@@ -133,7 +151,11 @@ type TrainingListWorkoutRowProps = {
   onOpen: () => void
   /** Dashboard Home: stacked day rows with sport left edge. */
   appearance?: 'default' | 'dashboard'
-  /** Last row in a day card — hide bottom border. */
+  /**
+   * Hide the bottom border — for the very last row in the whole table (desktop)
+   * or the last row inside a day card. On mobile the border is always shown
+   * to separate day blocks (since there is no outer wrapper border).
+   */
   last?: boolean
   /** Selected in list detail panel. */
   selected?: boolean
@@ -202,8 +224,6 @@ export function TrainingListWorkoutRow({
     : sportRail
   const hero = getWorkoutCardHero(workout, status)
   const secondary = listSecondaryMetric(workout, status)
-  const showCompletedMetrics =
-    completed && workoutHasLoggedActuals(workout) && Boolean(hero || secondary)
   const prescription = !completed ? listPrescriptionLine(workout, status) : null
   const SportIcon = isRace ? Flag : WORKOUT_TYPE_ICONS[workout.type]
   const iconColor =
@@ -213,11 +233,14 @@ export function TrainingListWorkoutRow({
         ? 'var(--tt-ink-faint, #9a9a9a)'
         : sportRail
 
-  // DETAILS column: session type label or workout type label
-  const details = detailsLabel(workout) ?? typeLabel(workout)
+  // Left subtitle under title: compact session label (e.g. "Easy", "Threshold")
+  const detailsRaw = detailsLabel(workout)
+  const subtitle = detailsRaw ? compactSessionLabel(detailsRaw) : typeLabel(workout)
+  // DETAILS column: type / intensity family
+  const detailPrimary = typeLabel(workout)
 
-  // DURATION/DISTANCE column
-  const distDur = distanceOrDurationCell(workout, status, hero, secondary)
+  // DURATION/DISTANCE column — planned above, completed below
+  const metricCell = listMetricCell(workout, status, hero, secondary)
 
   const rowBackground = (() => {
     if (colorMode === 'sport' && !skipped) {
@@ -287,9 +310,9 @@ export function TrainingListWorkoutRow({
         dnd?.setDragWorkout(null)
       }}
     >
-      {/* 3px sport/completion rail — left edge */}
+      {/* 3px sport/completion rail — only the workout body, not the full row */}
       <div
-        className="absolute inset-y-0 left-0 w-[3px]"
+        className="absolute top-2 bottom-2 left-0 w-[3px] overflow-hidden rounded-full"
         style={{ background: railTrack }}
         aria-hidden
       >
@@ -302,66 +325,94 @@ export function TrainingListWorkoutRow({
       {/* Main row body */}
       <div
         className={cn(
-          'flex w-full items-center gap-3 py-3.5 pl-[calc(0.75rem+3px)] pr-3.5',
+          'flex w-full items-start gap-2 py-3.5 pl-[calc(0.75rem+3px)] pr-2.5',
           workout.isRescheduleGhost && showReview && 'tt-list-workout-row-ghost-body',
         )}
       >
-        {/* Sport icon */}
-        <SportIcon
-          className="h-[17px] w-[17px] shrink-0"
-          strokeWidth={2}
-          style={{ color: iconColor }}
-          aria-hidden
-        />
+        {/* Sport icon — races: filled accent + white glyph; chat = corner dot */}
+        <div
+          className={cn(
+            'relative flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px]',
+            isRace
+              ? 'border-transparent'
+              : 'border border-[var(--tt-line,#ebebeb)] bg-white',
+          )}
+          style={isRace ? { background: sportRail } : undefined}
+        >
+          <SportIcon
+            className="h-[16px] w-[16px] shrink-0"
+            strokeWidth={2}
+            style={{ color: isRace ? '#fff' : iconColor }}
+            aria-hidden
+          />
+          {workoutHasCoachingChat(workout) ? (
+            <span
+              className={cn(
+                'absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-2 ring-white',
+                workoutCoachingChatUnread(workout, isCoach ? 'coach' : 'athlete')
+                  ? 'bg-[var(--tt-red,#da2f36)]'
+                  : 'bg-[var(--tt-ink-soft,#6b6b6b)]',
+              )}
+              aria-label="Workout has a chat thread"
+            />
+          ) : null}
+        </div>
 
         {/* WORKOUT / TITLE column — flex-1 */}
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
-            <p
-              className={cn(
-                'truncate text-[13.5px] font-semibold leading-snug text-[var(--tt-ink,#111)]',
-                completionChrome && completed && 'text-[var(--tt-good,#1a9f5c)]',
-                skipped && 'text-[var(--tt-ink-faint,#9a9a9a)]',
-              )}
-            >
-              {isRace ? `⚑ ${workout.title}` : workout.title}
-            </p>
+          <p
+            className={cn(
+              'line-clamp-2 break-words text-[13.5px] font-semibold leading-snug text-[var(--tt-ink,#111)]',
+              completionChrome && completed && 'text-[var(--tt-good,#1a9f5c)]',
+              skipped && 'text-[var(--tt-ink-faint,#9a9a9a)]',
+            )}
+          >
+            {isRace ? `⚑ ${workout.title}` : workout.title}
+          </p>
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
             {workout.selfLogged ? <SelfAddedBadge /> : null}
             {showReview ? null : <RescheduleBadge workout={workout} />}
-            {workoutHasCoachingChat(workout) && !showQuickActions ? (
-              <WorkoutChatIndicator
-                workout={workout}
-                role={isCoach ? 'coach' : 'athlete'}
-                size="sm"
-                className="translate-y-0.5"
-              />
-            ) : null}
           </div>
-          <p className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-soft,#6b6b6b)]">
-            {details}
+          <p className="mt-0.5 truncate text-[11px] font-normal text-[var(--tt-ink-soft,#6b6b6b)]">
+            {subtitle}
           </p>
         </div>
 
-        {/* DETAILS column (prescription / zone) — hidden xs, visible sm+ */}
-        <div className="hidden w-[5.5rem] shrink-0 sm:block">
+        {/* DETAILS column — desktop only, keep narrow */}
+        <div className="hidden w-[4.5rem] shrink-0 lg:block">
+          <p className="truncate text-[12px] font-normal text-[var(--tt-ink,#111)]">
+            {detailPrimary}
+          </p>
           {prescription ? (
-            <p className="truncate text-right text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
+            <p className="mt-0.5 truncate text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
               {prescription}
             </p>
           ) : null}
         </div>
 
         {/* DURATION / DISTANCE column */}
-        <div className="w-[5.5rem] shrink-0 text-right">
-          {distDur ? (
-            <p
-              className={cn(
-                'truncate text-[12px] font-semibold tabular-nums',
-                completed ? 'text-[var(--tt-good,#1a9f5c)]' : 'text-[var(--tt-ink,#111)]',
-              )}
-            >
-              {distDur}
-            </p>
+        <div className="w-[4.25rem] shrink-0 pt-0.5 text-right">
+          {metricCell ? (
+            <div className="flex flex-col items-end gap-0.5 leading-tight">
+              {metricCell.planned && metricCell.completed ? (
+                <>
+                  <p className="truncate text-[12px] font-normal tabular-nums text-[var(--tt-good,#1a9f5c)]">
+                    {metricCell.completed}
+                  </p>
+                  <p className="truncate text-[11px] font-normal tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
+                    {metricCell.planned}
+                  </p>
+                </>
+              ) : metricCell.completed ? (
+                <p className="truncate text-[12px] font-normal tabular-nums text-[var(--tt-good,#1a9f5c)]">
+                  {metricCell.completed}
+                </p>
+              ) : metricCell.planned ? (
+                <p className="truncate text-[12px] font-normal tabular-nums text-[var(--tt-ink,#111)]">
+                  {metricCell.planned}
+                </p>
+              ) : null}
+            </div>
           ) : (
             <p className="text-[12px] text-[var(--tt-ink-faint,#9a9a9a)]">—</p>
           )}
@@ -369,20 +420,33 @@ export function TrainingListWorkoutRow({
 
         {/* STATUS / ACTIONS column */}
         <div
-          className="flex w-10 shrink-0 items-center justify-end"
+          className="flex min-w-8 shrink-0 items-start justify-end pt-0.5"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
           {showQuickActions ? (
-            <AthleteWorkoutQuickActions
-              workout={workout}
-              isCoach={isCoach}
-              size="sm"
-              displayStatus={status}
-              onDisplayStatusChange={setOptimisticStatus}
-            />
+            <>
+              <AthleteWorkoutQuickActions
+                workout={workout}
+                isCoach={isCoach}
+                size="xs"
+                layout="picker"
+                className="lg:hidden"
+                displayStatus={status}
+                onDisplayStatusChange={setOptimisticStatus}
+              />
+              <AthleteWorkoutQuickActions
+                workout={workout}
+                isCoach={isCoach}
+                size="xs"
+                layout="below"
+                className="hidden items-end gap-0 pt-0 lg:flex lg:flex-col"
+                displayStatus={status}
+                onDisplayStatusChange={setOptimisticStatus}
+              />
+            </>
           ) : stravaSynced ? (
-            <StravaSyncedIndicator workout={workout} variant="icon" size="xs" />
+            <StravaSyncedIndicator workout={workout} variant="wordmark" size="xs" />
           ) : showCoachActions ? (
             <div className="opacity-60 transition group-hover/card:opacity-100">
               <PlanWorkoutActionsMenu workout={workout} compact />
@@ -391,24 +455,13 @@ export function TrainingListWorkoutRow({
         </div>
       </div>
 
-      {/* Chat indicator when paired with quick-actions */}
-      {workoutHasCoachingChat(workout) && showQuickActions ? (
-        <div className="pb-2.5 pl-[calc(0.75rem+3px)] pr-3.5">
-          <WorkoutChatIndicator
-            workout={workout}
-            role={isCoach ? 'coach' : 'athlete'}
-            size="sm"
-          />
-        </div>
-      ) : null}
-
       {/* Feedback strip */}
       <WorkoutInlineFeedback
         workout={workout}
         isCoach={isCoach}
         listView
         onOpenWorkout={onOpen}
-        className="border-t border-[var(--tt-line,#ebebeb)] pl-[calc(0.75rem+3px)] pr-3.5 pb-3 pt-2.5"
+        className="border-t border-[var(--tt-line,#ebebeb)] pl-[calc(0.75rem+3px)] pr-3.5 pb-2.5 pt-2"
       />
 
       {showReview ? (

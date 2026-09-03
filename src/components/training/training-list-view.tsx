@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import type { PlanDay } from "@/lib/plan-week";
 import type { TrainingDay } from "@/lib/training-timeline";
 import { todayKey, yesterdayKey } from "@/lib/training-timeline";
+import { getMobileBottomChromeInset } from "@/lib/mobile-chrome";
 import { PlanMobileDayStack } from "@/components/plan/plan-mobile-day-stack";
 import { dayHasRecovery, recoveryDayStripClass } from "@/lib/recovery-day";
 import { getDayRacePriority } from "@/lib/race-day";
@@ -228,11 +229,7 @@ function getAppHeaderHeight() {
 }
 
 function getBottomInset() {
-  const bottomNav = document.querySelector("nav.fixed");
-  if (!bottomNav) return 16;
-  const rect = bottomNav.getBoundingClientRect();
-  if (rect.height === 0 || rect.bottom <= 0) return 16;
-  return window.innerHeight - rect.top + 8;
+  return getMobileBottomChromeInset()
 }
 
 function getScrollTopForDay(
@@ -362,10 +359,18 @@ export function TrainingListView({
     const headerEl = document.querySelector("header");
     const observer = new ResizeObserver(updateLayout);
     if (headerEl) observer.observe(headerEl);
+    const bottomNav = document.querySelector("[data-mobile-bottom-nav]");
+    if (bottomNav) observer.observe(bottomNav);
+
+    const bodyObserver = new MutationObserver(() => updateLayout());
+    bodyObserver.observe(document.body, { childList: true, subtree: true });
+    const retryId = window.setTimeout(updateLayout, 120);
 
     return () => {
       window.removeEventListener("resize", updateLayout);
       observer.disconnect();
+      bodyObserver.disconnect();
+      window.clearTimeout(retryId);
     };
   }, [isFixed]);
 
