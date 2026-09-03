@@ -464,6 +464,15 @@ export function TrainingTableView({
             ) : null}
           </div>
 
+          {/* Column headers — desktop only, sticky below any loading banner */}
+          <div className="hidden w-full border-b border-[var(--tt-line,#ebebeb)] bg-background/95 py-2 pl-[calc(0.875rem+3px)] pr-3.5 lg:flex lg:items-center lg:gap-3" aria-hidden>
+            <div className="h-[18px] w-[18px] shrink-0" />
+            <p className="flex-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Workout / Event</p>
+            <p className="hidden w-[5.5rem] shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)] sm:block">Details</p>
+            <p className="w-[5.5rem] shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Duration / Dist</p>
+            <p className="w-10 shrink-0 text-right text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">Status</p>
+          </div>
+
           <div className="w-full space-y-7 pb-2">
             <div ref={topSentinelRef} className="h-px w-full" aria-hidden />
 
@@ -485,10 +494,13 @@ export function TrainingTableView({
                   )}
                 >
                   {day.isToday ? (
-                    <div className="flex flex-wrap items-center gap-3 pt-1">
-                      <p className="shrink-0 text-[11px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink,#1a1a1a)]">
+                    <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+                      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-brand,#da2f36)]">
                         Today
-                      </p>
+                      </span>
+                      <span className="text-[11px] font-medium text-[var(--tt-ink-soft,#6b6b6b)]">
+                        {format(day.date, 'd MMM')}
+                      </span>
                       <div
                         className="h-px min-w-[1.5rem] flex-1 bg-[var(--tt-line-strong,#ddd)]"
                         aria-hidden
@@ -502,9 +514,14 @@ export function TrainingTableView({
                     </div>
                   ) : (
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-soft,#6b6b6b)]">
-                        {format(day.date, 'EEEE d MMM')}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--tt-ink-soft,#6b6b6b)]">
+                          {format(day.date, 'EEE')}
+                        </span>
+                        <span className="text-[11px] font-medium text-[var(--tt-ink-faint,#9a9a9a)]">
+                          {format(day.date, 'd MMM')}
+                        </span>
+                      </div>
                       {day.weather ? (
                         <ListDayWeatherMini
                           weather={day.weather}
