@@ -18,6 +18,20 @@ function hasSlotData(slot: WeatherSlotSummary): boolean {
   )
 }
 
+function SlotValue({ slot }: { slot: WeatherSlotSummary }) {
+  const precip = formatWeatherPrecip(slot)
+  return (
+    <span className="flex flex-col items-end gap-px font-medium tabular-nums text-[var(--tt-ink-soft,#6b6b6b)]">
+      <span>{slotTemp(slot)}</span>
+      {precip ? (
+        <span className="text-[9px] font-medium text-[var(--tt-ink-faint,#9a9a9a)]">
+          {precip}
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
 /** Home/list today strip: Morning / Day / Evening with glyphs (matches design mock). */
 export function ListDayWeatherStrip({
   weather,
@@ -55,49 +69,93 @@ export function ListDayWeatherStrip({
       className={cn('flex flex-nowrap items-center', gapClass, className)}
       aria-label="Day weather"
     >
-      {slots.map((slot, i) => (
-        <div key={slot.label} className="flex items-center gap-1.5">
-          {i > 0 ? (
+      {slots.map((slot, i) => {
+        const precip = formatWeatherPrecip(slot)
+        return (
+          <div key={slot.label} className="flex items-center gap-1.5">
+            {i > 0 ? (
+              <span
+                className={cn(
+                  'h-1 w-1 shrink-0 rounded-full bg-[var(--tt-line-strong,#ddd)]',
+                  resolvedSize === 'lg' ? 'mx-1' : resolvedSize === 'sm' ? 'mx-0.5' : 'mx-1',
+                )}
+                aria-hidden
+              />
+            ) : null}
+            <WeatherGlyph
+              glyph={slot.emoji}
+              tone="muted"
+              className={glyphClass}
+              detail={`${slot.label} ${slotTemp(slot)}${precip ? ` ${precip}` : ''}`}
+            />
             <span
               className={cn(
-                'h-1 w-1 shrink-0 rounded-full bg-[var(--tt-line-strong,#ddd)]',
-                resolvedSize === 'lg' ? 'mx-1' : resolvedSize === 'sm' ? 'mx-0.5' : 'mx-1',
+                'flex flex-col gap-0.5 leading-none text-[var(--tt-ink-faint,#9a9a9a)]',
+                textClass,
               )}
-              aria-hidden
-            />
-          ) : null}
-          <WeatherGlyph
-            glyph={slot.emoji}
-            tone="muted"
-            className={glyphClass}
-          />
-          <span
-            className={cn(
-              'leading-none text-[var(--tt-ink-faint,#9a9a9a)]',
-              textClass,
-            )}
-          >
-            <span className="font-normal">{slot.label}</span>{' '}
-            <span className="font-medium tabular-nums text-[var(--tt-ink-soft,#6b6b6b)]">
-              {slotTemp(slot)}
+            >
+              <span>
+                <span className="font-normal">{slot.label}</span>{' '}
+                <span className="font-medium tabular-nums text-[var(--tt-ink-soft,#6b6b6b)]">
+                  {slotTemp(slot)}
+                </span>
+              </span>
+              {precip ? (
+                <span
+                  className={cn(
+                    'font-medium tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]',
+                    resolvedSize === 'lg' ? 'text-[11px]' : 'text-[9px]',
+                  )}
+                >
+                  {precip}
+                </span>
+              ) : null}
             </span>
-          </span>
-        </div>
-      ))}
+          </div>
+        )
+      })}
     </div>
   )
 }
 
-/** Compact upcoming-day weather: icon+temp | icon+temp | icon+temp */
+/** Compact upcoming-day weather: horizontal or stacked icon+temp slots */
 export function ListDayWeatherMini({
   weather,
+  layout = 'row',
   className,
 }: {
   weather: WeatherDaySummary
+  /** `stack` = narrow column so workout titles keep width */
+  layout?: 'row' | 'stack'
   className?: string
 }) {
   const slots = weather.slots.filter(hasSlotData)
   if (slots.length === 0) return null
+
+  if (layout === 'stack') {
+    return (
+      <div
+        className={cn(
+          'flex shrink-0 flex-col items-end gap-0.5 text-[10px] leading-none text-[var(--tt-ink-faint,#9a9a9a)]',
+          className,
+        )}
+        aria-label={slots
+          .map((s) => `${s.label} ${slotTemp(s)}${formatWeatherPrecip(s) ? ` ${formatWeatherPrecip(s)}` : ''}`)
+          .join(' ')}
+      >
+        {slots.map((slot) => (
+          <div key={slot.label} className="flex items-center gap-0.5">
+            <WeatherGlyph
+              glyph={slot.emoji}
+              tone="muted"
+              className="h-4 w-4"
+            />
+            <SlotValue slot={slot} />
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   return (
     <div
@@ -105,7 +163,9 @@ export function ListDayWeatherMini({
         'flex shrink-0 items-center gap-0.5 text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]',
         className,
       )}
-      aria-label={slots.map((s) => `${s.label} ${slotTemp(s)}`).join(' ')}
+      aria-label={slots
+        .map((s) => `${s.label} ${slotTemp(s)}${formatWeatherPrecip(s) ? ` ${formatWeatherPrecip(s)}` : ''}`)
+        .join(' ')}
     >
       {slots.map((slot, i) => (
         <div key={slot.label} className="flex items-center gap-0.5">
@@ -119,9 +179,7 @@ export function ListDayWeatherMini({
             tone="muted"
             className="h-6 w-6"
           />
-          <span className="font-medium tabular-nums text-[var(--tt-ink-soft,#6b6b6b)]">
-            {slotTemp(slot)}
-          </span>
+          <SlotValue slot={slot} />
         </div>
       ))}
     </div>

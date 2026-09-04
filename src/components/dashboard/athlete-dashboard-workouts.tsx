@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { ChevronDown, ChevronRight } from 'lucide-react'
 import { PlanWorkoutModal } from '@/components/plan/plan-workout-modal'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
 import { HomePrescriptionWorkoutCard } from '@/components/dashboard/home-prescription-workout-card'
@@ -13,7 +12,10 @@ import {
 } from '@/components/plan/athlete-workout-quick-actions'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import { ListDayWeatherMini } from '@/components/weather/list-day-weather'
-import { MobileAccordionBody } from '@/components/ui/mobile-accordion-body'
+import {
+  HomeMobileSectionHeader,
+  MobileAccordionBody,
+} from '@/components/ui/mobile-accordion-body'
 import {
   athleteHasQuickLogActions,
   type PlanWorkoutDetail,
@@ -83,47 +85,6 @@ function HomeCalendarDate({
   )
 }
 
-function SectionTitleButton({
-  title,
-  expanded,
-  onToggle,
-  trailing,
-}: {
-  title: string
-  expanded: boolean
-  onToggle: () => void
-  trailing?: React.ReactNode
-}) {
-  return (
-    <div
-      className={cn(
-        'mb-0 flex items-center justify-between gap-3 px-4 md:mb-3 md:px-0',
-        !expanded && 'border-b border-[var(--tt-line)] pb-3 md:border-b-0 md:pb-0',
-      )}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left md:pointer-events-none"
-      >
-        <h2 className="font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
-          {title}
-        </h2>
-        <ChevronDown
-          className={cn(
-            'h-4 w-4 shrink-0 text-[var(--tt-ink-faint)] transition-transform duration-300 md:hidden',
-            expanded && 'rotate-180',
-          )}
-          strokeWidth={1.75}
-          aria-hidden
-        />
-      </button>
-      {trailing}
-    </div>
-  )
-}
-
 function TodayPrescriptionRow({ workout }: { workout: PlanWorkoutDetail }) {
   const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout)
   const showQuickActions = athleteHasQuickLogActions(workout, false)
@@ -162,16 +123,20 @@ export function AthleteDashboardWorkouts({
 }: AthleteDashboardWorkoutsProps) {
   const upcomingDays = workoutsToPlanDays(upcomingWorkouts)
   const [selected, setSelected] = useState<PlanWorkoutDetail | null>(null)
+  const [todayOpen, setTodayOpen] = useState(true)
   const [upcomingOpen, setUpcomingOpen] = useState(true)
 
   return (
-    <div className="space-y-4 md:space-y-7">
-      {/* Today: title + cards only — no shared bubble / accordion shell */}
+    <div className="space-y-6 md:space-y-7">
+      {/* Today: no bubble; mobile collapse/expand */}
       <section className="space-y-3">
-        <h2 className="px-4 font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)] md:px-0">
-          Today
-        </h2>
-        <div className="space-y-2.5">
+        <HomeMobileSectionHeader
+          title="Today"
+          expanded={todayOpen}
+          onToggle={() => setTodayOpen((open) => !open)}
+          className="px-4 md:px-0"
+        />
+        <MobileAccordionBody expanded={todayOpen} className="space-y-2.5">
           {todayWorkouts.length === 0 ? (
             <p className="px-1 py-8 text-center text-[13px] text-[var(--tt-ink-soft,#6b6b6b)] md:rounded-[10px] md:border md:border-[var(--tt-line,#ebebeb)] md:px-4 md:py-10">
               Rest day — nothing scheduled.
@@ -181,14 +146,16 @@ export function AthleteDashboardWorkouts({
               <TodayPrescriptionRow key={workout.id} workout={workout} />
             ))
           )}
-        </div>
+        </MobileAccordionBody>
       </section>
 
-      <section className="tt-home-mobile-card">
-        <SectionTitleButton
+      {/* Upcoming: no bubble; mobile collapse/expand */}
+      <section className="space-y-3">
+        <HomeMobileSectionHeader
           title="Upcoming"
           expanded={upcomingOpen}
           onToggle={() => setUpcomingOpen((open) => !open)}
+          className="px-4 md:px-0"
           trailing={
             <Link
               href="/training"
@@ -198,15 +165,16 @@ export function AthleteDashboardWorkouts({
             </Link>
           }
         />
-        <MobileAccordionBody expanded={upcomingOpen} className="px-4 md:px-0">
+
+        <MobileAccordionBody expanded={upcomingOpen} className="space-y-3">
           {upcomingDays.length === 0 ? (
             <p className="px-1 py-8 text-center text-[13px] text-[var(--tt-ink-soft,#6b6b6b)] md:rounded-[10px] md:border md:border-[var(--tt-line,#ebebeb)] md:px-4">
               No upcoming workouts.
             </p>
           ) : (
             <>
-              {/* Mobile — flush list */}
-              <ul className="-mx-4 divide-y divide-[var(--tt-line,#ebebeb)] border-y border-[var(--tt-line,#ebebeb)] md:hidden">
+              {/* Mobile — flush list, weather instead of chevron */}
+              <ul className="divide-y divide-[var(--tt-line,#ebebeb)] border-y border-[var(--tt-line,#ebebeb)] md:hidden">
                 {upcomingDays.flatMap((day) =>
                   day.workouts.map((workout, index) => (
                     <li key={workout.id}>
@@ -236,17 +204,19 @@ export function AthleteDashboardWorkouts({
                             </p>
                           </div>
                         </div>
-                        <ChevronRight
-                          className="h-4 w-4 shrink-0 text-[var(--tt-ink-faint,#9a9a9a)]"
-                          aria-hidden
-                        />
+                        {showWeather && weatherByDate[day.dateKey] && index === 0 ? (
+                          <ListDayWeatherMini
+                            weather={weatherByDate[day.dateKey]!}
+                            layout="stack"
+                          />
+                        ) : null}
                       </button>
                     </li>
                   )),
                 )}
               </ul>
 
-              {/* Desktop — card shell */}
+              {/* Desktop — card shell, weather instead of chevron */}
               <div className="tt-surface-card hidden overflow-hidden divide-y divide-[var(--tt-line,#ebebeb)] md:block">
                 {upcomingDays.flatMap((day) =>
                   day.workouts.map((workout, index) => (
@@ -278,21 +248,14 @@ export function AthleteDashboardWorkouts({
                         </div>
                       </div>
                       {showWeather && weatherByDate[day.dateKey] && index === 0 ? (
-                        <ListDayWeatherMini
-                          weather={weatherByDate[day.dateKey]!}
-                          className="hidden sm:flex"
-                        />
+                        <ListDayWeatherMini weather={weatherByDate[day.dateKey]!} />
                       ) : null}
-                      <ChevronRight
-                        className="h-4 w-4 shrink-0 text-[var(--tt-ink-faint,#9a9a9a)]"
-                        aria-hidden
-                      />
                     </button>
                   )),
                 )}
               </div>
 
-              <div className="mt-3 md:hidden">
+              <div className="px-4 md:hidden">
                 <Link
                   href="/training"
                   className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--tt-ink-soft)] transition hover:text-[var(--tt-ink)]"

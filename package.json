@@ -30,6 +30,7 @@
     "@meteocons/svg": "^0.1.0",
     "@meteocons/svg-static": "^0.1.0",
     "@neondatabase/serverless": "^1.1.0",
+    "@netlify/blobs": "^11.0.3",
     "@prisma/adapter-neon": "^6.19.3",
     "@prisma/client": "^6.9.0",
     "@radix-ui/react-dialog": "^1.1.14",

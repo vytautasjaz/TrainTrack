@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, MapPin, Target } from 'lucide-react'
+import { MapPin, Target } from 'lucide-react'
 import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import {
   getRescheduleBadgeLabel,
@@ -182,18 +182,12 @@ export function HomePrescriptionWorkoutCard({
             className={cn(
               'tt-home-workout-title min-w-0 truncate',
               done && !ghost && 'text-[var(--tt-good,#1a9f5c)]',
-              skipped && !ghost && 'text-[var(--tt-red,#da2f36)] line-through',
+              skipped && !ghost && 'text-[var(--tt-red,#da2f36)]',
               ghost && 'text-[var(--tt-ink-faint,#9a9a9a)]',
             )}
           >
             {title}
           </p>
-          {done && !ghost && pct >= 100 ? (
-            <Check
-              className="h-3.5 w-3.5 shrink-0 text-[var(--tt-good,#1a9f5c)]"
-              strokeWidth={2.5}
-            />
-          ) : null}
         </div>
 
         {showRescheduleBadge ? (

@@ -68,11 +68,15 @@ export function formatWeatherLocationCompact(label: string): string {
 }
 
 export function formatWeatherPrecip(slot: WeatherSlotSummary): string {
+  if (slot.precipitationMm != null && slot.precipitationMm >= 0.2) {
+    const mm =
+      slot.precipitationMm >= 10
+        ? `${Math.round(slot.precipitationMm)}mm`
+        : `${slot.precipitationMm.toFixed(1)}mm`
+    return mm
+  }
   if (slot.precipitationProbability != null && slot.precipitationProbability >= 20) {
     return `${slot.precipitationProbability}%`
-  }
-  if (slot.precipitationMm != null && slot.precipitationMm >= 0.2) {
-    return `${slot.precipitationMm.toFixed(1)}mm`
   }
   return ''
 }

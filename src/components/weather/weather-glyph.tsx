@@ -27,17 +27,17 @@ export const WEATHER_GLYPH_TONES = {
   muted: {
     primary: '#6b7280',
     accent: '#d4a816',
-    secondary: '#e5e7eb',
+    secondary: '#94a3b8',
   },
   slate: {
     primary: '#475569',
     accent: '#f59e0b',
-    secondary: '#cbd5e1',
+    secondary: '#94a3b8',
   },
   monochrome: {
     primary: '#6b7280',
     accent: '#6b7280',
-    secondary: '#e5e7eb',
+    secondary: '#94a3b8',
   },
   contrast: {
     primary: '#334155',

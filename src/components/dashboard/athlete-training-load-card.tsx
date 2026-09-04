@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { format } from 'date-fns'
 import {
@@ -13,6 +13,11 @@ import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import {
   HomeMobileSectionHeader,
 } from '@/components/ui/mobile-accordion-body'
+import {
+  WeekSwipePane,
+  WeekSwipeSlide,
+} from '@/components/dashboard/week-swipe-pane'
+import { useMorphArray } from '@/components/dashboard/week-nav-morph'
 import { cn } from '@/lib/utils'
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const
@@ -20,6 +25,8 @@ const CHART_W = 320
 const CHART_H = 72
 const PAD_X = 12
 const PAD_Y = 12
+const OFFSETS = [-1, 0, 1] as const
+const CENTER_INDEX = 1
 
 const SHELL =
   'overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] px-4 py-3.5 shadow-[var(--tt-shadow)] md:rounded-[10px] md:p-4'
@@ -90,10 +97,6 @@ function smoothPath(daily: number[], yMax: number): string {
   return d
 }
 
-function easeOutCubic(t: number) {
-  return 1 - Math.pow(1 - t, 3)
-}
-
 function formatDelta(current: number, previous: number): {
   label: string
   positive: boolean
@@ -113,6 +116,78 @@ function formatDelta(current: number, previous: number): {
   }
 }
 
+function LoadChart({
+  daily,
+  yMax,
+  planned,
+  morphFrom,
+}: {
+  daily: number[]
+  yMax: number
+  planned: boolean
+  morphFrom: number[] | null
+}) {
+  const displayDaily = useMorphArray(daily, morphFrom)
+  const path = smoothPath(displayDaily, yMax)
+  const points = toPoints(displayDaily, yMax)
+
+  return (
+    <div className="mt-4 w-full">
+      <svg
+        viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+        className="block h-auto w-full"
+        style={{ aspectRatio: `${CHART_W} / ${CHART_H}` }}
+        preserveAspectRatio="xMidYMid meet"
+        aria-hidden
+      >
+        <line
+          x1={PAD_X}
+          x2={CHART_W - PAD_X}
+          y1={CHART_H - PAD_Y}
+          y2={CHART_H - PAD_Y}
+          stroke="var(--tt-line, #ebebeb)"
+          strokeWidth="1"
+        />
+        <path
+          d={path}
+          fill="none"
+          stroke={
+            planned ? 'var(--tt-ink-faint, #9a9a9a)' : 'var(--tt-good, #1a9f5c)'
+          }
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray={planned ? '6 4' : undefined}
+        />
+        {points.map((p, pi) => (
+          <circle
+            key={pi}
+            cx={p.x}
+            cy={p.y}
+            r="2.25"
+            fill={
+              planned ? 'var(--tt-ink-faint, #9a9a9a)' : 'var(--tt-good, #1a9f5c)'
+            }
+          />
+        ))}
+      </svg>
+      <div
+        className="mt-1 flex justify-between text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]"
+        style={{
+          paddingLeft: `${(PAD_X / CHART_W) * 100}%`,
+          paddingRight: `${(PAD_X / CHART_W) * 100}%`,
+        }}
+      >
+        {DAYS.map((d, di) => (
+          <span key={`${d}-${di}`} className="w-3 text-center">
+            {d}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /**
  * Athlete Home rail — Training load chart (mock `/design-mockups` TrainingLoadMock).
  * Uses duration minutes as volume stand-in until TSS exists.
@@ -122,12 +197,18 @@ export function AthleteTrainingLoadCard({
   anchorWeekStartKey,
   className,
 }: AthleteTrainingLoadCardProps) {
-  const [offset, setOffset] = useState(0) // -1 last, 0 this, +1 next
+  /** Logical week being shown (header + morph target). */
+  const [active, setActive] = useState(CENTER_INDEX)
+  /** Carousel track position — only moves on swipe (arrows morph in place). */
+  const [paneActive, setPaneActive] = useState(CENTER_INDEX)
+  const [dailyMorphFrom, setDailyMorphFrom] = useState<number[] | null>(null)
+  const [morphGen, setMorphGen] = useState(0)
   const todayKey = todayDateKey()
+  const syncTimerRef = useRef<number | null>(null)
 
   const weeks = useMemo(() => {
     const anchor = parseDateOnly(anchorWeekStartKey)
-    return ([-1, 0, 1] as const).map((off) => {
+    return OFFSETS.map((off) => {
       const startKey = toDateKey(addDateOnlyDays(anchor, off * 7))
       const keys = weekDateKeys(startKey)
       const end = parseDateOnly(keys[6]!)
@@ -149,46 +230,62 @@ export function AthleteTrainingLoadCard({
     })
   }, [anchorWeekStartKey, workouts, todayKey])
 
-  const week = weeks.find((w) => w.off === offset) ?? weeks[1]!
-  const prior = weeks.find((w) => w.off === offset - 1)
-  const delta = week.planned
-    ? { label: 'Planned week', positive: true }
-    : formatDelta(week.total, prior?.total ?? 0)
-
   const yMax = useMemo(
     () => Math.max(...weeks.flatMap((w) => w.daily), 1),
     [weeks],
   )
 
-  const displayRef = useRef<number[]>([...week.daily])
-  const [displayDaily, setDisplayDaily] = useState<number[]>([...week.daily])
-  const rafRef = useRef<number | null>(null)
+  const week = weeks[active]!
+  const prior = weeks.find((w) => w.off === week.off - 1)
+  const delta = week.planned
+    ? { label: 'Planned week', positive: true }
+    : formatDelta(week.total, prior?.total ?? 0)
+
+  const syncPaneToActive = useCallback(() => {
+    if (syncTimerRef.current != null) {
+      window.clearTimeout(syncTimerRef.current)
+      syncTimerRef.current = null
+    }
+    if (paneActive === active) return
+    setPaneActive(active)
+    setDailyMorphFrom(null)
+  }, [active, paneActive])
+
+  const onActiveChange = useCallback((index: number) => {
+    if (syncTimerRef.current != null) {
+      window.clearTimeout(syncTimerRef.current)
+      syncTimerRef.current = null
+    }
+    setDailyMorphFrom(null)
+    setActive(index)
+    setPaneActive(index)
+  }, [])
+
+  const goByArrow = useCallback(
+    (next: number) => {
+      if (next === active) return
+      if (syncTimerRef.current != null) {
+        window.clearTimeout(syncTimerRef.current)
+        syncTimerRef.current = null
+      }
+      setDailyMorphFrom([...weeks[active]!.daily])
+      setMorphGen((g) => g + 1)
+      setActive(next)
+      // Keep paneActive put — morph in place. Align track after morph (no slide).
+      syncTimerRef.current = window.setTimeout(() => {
+        syncTimerRef.current = null
+        setDailyMorphFrom(null)
+        setPaneActive(next)
+      }, 500)
+    },
+    [active, weeks],
+  )
 
   useEffect(() => {
-    const from = [...displayRef.current]
-    const to = week.daily
-    const start = performance.now()
-    const dur = 480
-    if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
-
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / dur)
-      const e = easeOutCubic(t)
-      const next = from.map((v, i) => v + (to[i]! - v) * e)
-      displayRef.current = next
-      setDisplayDaily(next)
-      if (t < 1) rafRef.current = requestAnimationFrame(tick)
-      else rafRef.current = null
-    }
-    rafRef.current = requestAnimationFrame(tick)
     return () => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current)
+      if (syncTimerRef.current != null) window.clearTimeout(syncTimerRef.current)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- animate on week change only
-  }, [week.startKey])
-
-  const path = smoothPath(displayDaily, yMax)
-  const points = toPoints(displayDaily, yMax)
+  }, [])
 
   return (
     <section className={cn(SHELL, className)}>
@@ -202,8 +299,8 @@ export function AthleteTrainingLoadCard({
               type="button"
               className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
               aria-label="Previous week"
-              onClick={() => setOffset((o) => Math.max(-1, o - 1))}
-              disabled={offset <= -1}
+              onClick={() => goByArrow(Math.max(0, active - 1))}
+              disabled={active <= 0}
             >
               <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
@@ -211,8 +308,8 @@ export function AthleteTrainingLoadCard({
               type="button"
               className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
               aria-label="Next week"
-              onClick={() => setOffset((o) => Math.min(1, o + 1))}
-              disabled={offset >= 1}
+              onClick={() => goByArrow(Math.min(weeks.length - 1, active + 1))}
+              disabled={active >= weeks.length - 1}
             >
               <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
             </button>
@@ -220,83 +317,59 @@ export function AthleteTrainingLoadCard({
         }
       />
 
-      <p
-          className="mt-2 text-[1.875rem] uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)] tabular-nums"
-          style={{ fontFamily: 'var(--font-display)' }}
-        >
-          {week.total}{' '}
-          <span className="text-base font-normal normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
-            min{week.planned ? ' plan' : ''}
-          </span>
-        </p>
-        <p
-          className={cn(
-            'mt-1 text-[12px] font-semibold',
-            delta.positive
-              ? 'text-[var(--tt-good,#1a9f5c)]'
-              : 'text-[var(--tt-ink-soft,#6b6b6b)]',
-          )}
-        >
-          {delta.label}
-        </p>
+      <WeekSwipePane
+        className="mt-2"
+        active={paneActive}
+        count={weeks.length}
+        onActiveChange={onActiveChange}
+        onGestureStart={syncPaneToActive}
+      >
+        {weeks.map((slide, i) => {
+          // While arrow-morphing, the visible pane slide shows the logical week.
+          const data = i === paneActive ? weeks[active]! : slide
+          const isVisible = i === paneActive
+          const slideDelta = isVisible
+            ? delta
+            : data.planned
+              ? { label: 'Planned week', positive: true }
+              : formatDelta(
+                  data.total,
+                  weeks.find((w) => w.off === data.off - 1)?.total ?? 0,
+                )
 
-        <div className="mt-4 w-full">
-          <svg
-            viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-            className="block h-auto w-full"
-            style={{ aspectRatio: `${CHART_W} / ${CHART_H}` }}
-            preserveAspectRatio="xMidYMid meet"
-            aria-hidden
-          >
-            <line
-              x1={PAD_X}
-              x2={CHART_W - PAD_X}
-              y1={CHART_H - PAD_Y}
-              y2={CHART_H - PAD_Y}
-              stroke="var(--tt-line, #ebebeb)"
-              strokeWidth="1"
-            />
-            <path
-              d={path}
-              fill="none"
-              stroke={
-                week.planned
-                  ? 'var(--tt-ink-faint, #9a9a9a)'
-                  : 'var(--tt-good, #1a9f5c)'
-              }
-              strokeWidth="1.75"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeDasharray={week.planned ? '6 4' : undefined}
-            />
-            {points.map((p, i) => (
-              <circle
-                key={i}
-                cx={p.x}
-                cy={p.y}
-                r="2.25"
-                fill={
-                  week.planned
-                    ? 'var(--tt-ink-faint, #9a9a9a)'
-                    : 'var(--tt-good, #1a9f5c)'
-                }
+          return (
+            <WeekSwipeSlide key={slide.startKey} active={isVisible}>
+              <p
+                className="text-[1.875rem] uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)] tabular-nums"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                {data.total}{' '}
+                <span className="text-base font-normal normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
+                  min{data.planned ? ' plan' : ''}
+                </span>
+              </p>
+              <p
+                className={cn(
+                  'mt-1 text-[12px] font-semibold',
+                  slideDelta.positive
+                    ? 'text-[var(--tt-good,#1a9f5c)]'
+                    : 'text-[var(--tt-ink-soft,#6b6b6b)]',
+                )}
+              >
+                {slideDelta.label}
+              </p>
+
+              <LoadChart
+                key={`${slide.startKey}-${isVisible ? morphGen : 'idle'}`}
+                daily={data.daily}
+                yMax={yMax}
+                planned={data.planned}
+                morphFrom={isVisible ? dailyMorphFrom : null}
               />
-            ))}
-          </svg>
-          <div
-            className="mt-1 flex justify-between text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]"
-            style={{
-              paddingLeft: `${(PAD_X / CHART_W) * 100}%`,
-              paddingRight: `${(PAD_X / CHART_W) * 100}%`,
-            }}
-          >
-            {DAYS.map((d, i) => (
-              <span key={`${d}-${i}`} className="w-3 text-center">
-                {d}
-              </span>
-            ))}
-          </div>
-        </div>
+            </WeekSwipeSlide>
+          )
+        })}
+      </WeekSwipePane>
     </section>
   )
 }

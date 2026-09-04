@@ -33,6 +33,7 @@ import {
   tokenHint,
 } from '@/lib/calendar-sync'
 import { queueGoogleCalendarSync } from '@/lib/google-calendar-sync'
+import { putAvatarFile } from '@/lib/avatar-storage'
 
 async function requireAthleteForPreferences() {
   const session = await requireSession()
@@ -287,8 +288,6 @@ async function writeAvatarFile(
     throw new Error('Image must be 2 MB or smaller.')
   }
 
-  const { mkdir, writeFile } = await import('fs/promises')
-  const path = await import('path')
   const ext =
     file.type === 'image/png'
       ? 'png'
@@ -298,11 +297,9 @@ async function writeAvatarFile(
           ? 'gif'
           : 'jpg'
 
-  const dir = path.join(process.cwd(), 'public', 'uploads', 'avatars')
-  await mkdir(dir, { recursive: true })
   const filename = `${basename}.${ext}`
   const buffer = Buffer.from(await file.arrayBuffer())
-  await writeFile(path.join(dir, filename), buffer)
+  await putAvatarFile(filename, buffer, file.type || 'image/jpeg')
   return `/uploads/avatars/${filename}?v=${Date.now()}`
 }
 

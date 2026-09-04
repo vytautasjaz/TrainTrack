@@ -153,12 +153,12 @@ export function WeekPlanWorkoutCard({
     ) : null
 
   const completionChrome = colorMode === 'completion'
-  // Mock: title green when done; faint + strike when skipped.
+  // Mock: title green when done; faint when skipped.
   const titleClass = cn(
     'min-w-0 flex-1 font-medium leading-snug text-[var(--tt-ink,#111)]',
     titleSize,
     completionChrome && completed && 'text-[var(--tt-good,#1a9f5c)]',
-    skipped && 'text-[var(--tt-ink-faint,#9a9a9a)] line-through',
+    skipped && 'text-[var(--tt-ink-faint,#9a9a9a)]',
   )
 
   const subtitleClass = cn(
