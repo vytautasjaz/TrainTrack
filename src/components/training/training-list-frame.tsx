@@ -106,16 +106,20 @@ export function TrainingListFrame({
       >
         <div
           className={cn(
-            'tt-training-list-sticky-header relative z-10 shrink-0 border-b border-[var(--tt-line,#ebebeb)] bg-background',
-            mobileFixed ? 'px-4 pb-2 pt-1' : 'sticky z-20 -mx-4 px-4 pb-2',
+            'tt-training-list-sticky-header relative z-10 shrink-0 bg-background',
+            mobileFixed
+              ? 'border-b border-[var(--tt-line,#ebebeb)] px-4 pb-2 pt-1'
+              : 'sticky z-20 -mx-4 px-4 pb-3 pt-1 lg:pb-5 lg:pt-2',
           )}
           style={!mobileFixed ? { top: desktopStickyTop } : undefined}
         >
           {header}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-full z-20 h-3 bg-gradient-to-b from-black/[0.06] to-transparent"
-          />
+          {mobileFixed ? (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-full z-20 h-3 bg-gradient-to-b from-black/[0.06] to-transparent"
+            />
+          ) : null}
         </div>
         <div
           className={cn(

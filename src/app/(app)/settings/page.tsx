@@ -6,6 +6,7 @@ import { AccountProfileSection } from '@/components/settings/account-profile-sec
 import { CoachInviteAthleteSection } from '@/components/settings/coach-invite-athlete-section'
 import { NotificationPrefsForm } from '@/components/settings/notification-prefs-form'
 import { PlanViewModePreferenceForm } from '@/components/settings/plan-view-mode-preference-form'
+import { TrainingDefaultViewForm } from '@/components/settings/training-default-view-form'
 import { SettingsShell } from '@/components/settings/settings-shell'
 import {
   SettingsCoachBuilderSection,
@@ -276,7 +277,12 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                   showWeather={weatherLocation?.showWeather ?? true}
                 />
               ) : null,
-            plan: !coachView ? <PlanViewModePreferenceForm embedded /> : null,
+            plan: !coachView ? (
+              <>
+                <TrainingDefaultViewForm embedded role="athlete" />
+                <PlanViewModePreferenceForm embedded />
+              </>
+            ) : null,
             integrations: (
               <SettingsIntegrationsSection
                 role={coachView ? 'coach' : 'athlete'}
@@ -303,7 +309,10 @@ export default async function SettingsPage({ searchParams }: PageProps) {
               />
             ),
             planning: coachView ? (
-              <SettingsCoachPlanningSection planningLeadDays={planningLeadDays} />
+              <>
+                <TrainingDefaultViewForm embedded role="coach" />
+                <SettingsCoachPlanningSection planningLeadDays={planningLeadDays} />
+              </>
             ) : null,
             builder: coachView ? (
               <SettingsCoachBuilderSection

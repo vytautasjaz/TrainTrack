@@ -2094,6 +2094,19 @@ html[data-inbox-mobile-detail='true'] .tt-inbox-thread-composer {
   }
 }
 
+/* Desktop training list — more air above/around the page title. */
+@media (min-width: 1024px) {
+  [data-page-header].tt-inbox-page-header.tt-training-list-page-header {
+    padding-top: 0.75rem;
+    padding-bottom: 0.35rem;
+  }
+
+  .tt-training-list-page-header .tt-inbox-page-title {
+    font-size: 3.25rem; /* 52px — slightly above default 48px */
+    line-height: 1.1;
+  }
+}
+
 .tt-inbox-title-dot {
   color: var(--tt-red, #da2f36);
 }
@@ -2140,6 +2153,13 @@ html[data-inbox-mobile-detail='true'] .tt-inbox-thread-composer {
   align-items: center;
   gap: 0.15rem;
   margin-top: 0.1rem;
+}
+
+/* `.tt-inbox-mobile-header-actions { display: flex }` overrides Tailwind `lg:hidden`. */
+@media (min-width: 1024px) {
+  .tt-inbox-mobile-header-actions {
+    display: none;
+  }
 }
 
 html[data-inbox-mobile-detail='true'] .tt-dashboard-content {

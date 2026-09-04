@@ -114,9 +114,13 @@ export default async function TrainingPage({
     redirect(`/training?${qs.toString()}`);
   }
 
-  // No explicit view → client picks List (mobile) or Week (desktop)
+  // No explicit view → Settings preference, else List (mobile) / Week (desktop)
   if (params.view == null || params.view === "") {
-    return <TrainingDefaultViewRedirect />;
+    return (
+      <TrainingDefaultViewRedirect
+        role={userIsCoach(session) ? "coach" : "athlete"}
+      />
+    );
   }
 
   const weekOffset = parseInt(params.week ?? "0", 10) || 0;
@@ -141,10 +145,9 @@ export default async function TrainingPage({
     addDateOnlyDays(anchor, (weekSpan - 1) * 7),
   );
 
-  // List starts at yesterday so recent sessions sit above today; earlier days
-  // load when scrolling up. Use date-only helpers so from/to keys match day rows
-  // (local midnight + toDateKey shifts -1 day in UTC+ and skips that day on past load).
-  const listRangeStart = addDateOnlyDays(todayOnly, -1);
+  // List includes recent past so the viewport can fill above Today when little
+  // is planned ahead. Earlier days still load when scrolling up.
+  const listRangeStart = addDateOnlyDays(todayOnly, -21);
   const listRangeEnd = addDateOnlyDays(todayOnly, 21);
   const listFromKey = toDateKey(listRangeStart);
   const listToKey = toDateKey(listRangeEnd);
@@ -394,28 +397,28 @@ export default async function TrainingPage({
   );
 
   const listPageHeader = (
-    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:pt-0">
-      <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-0">
-        <div className="flex w-full min-w-0 items-center justify-between gap-3">
+    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:mb-1 lg:pt-2">
+      <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-3">
+        <div className="flex w-full min-w-0 items-center justify-between gap-3 lg:items-end">
           <div className="min-w-0">
             {trainingEyebrow ? (
               <PageHeaderEyebrow className="hidden lg:block">{trainingEyebrow}</PageHeaderEyebrow>
             ) : null}
-            <PageHeaderTitle className="tt-inbox-page-title">
+            <PageHeaderTitle className="tt-inbox-page-title lg:mt-1">
               Training<span className="tt-inbox-title-dot">.</span>
             </PageHeaderTitle>
             {trainingDescription ? (
-              <PageHeaderDescription className="hidden max-w-lg lg:block">
+              <PageHeaderDescription className="mt-1 hidden max-w-lg lg:block">
                 {trainingDescription}
               </PageHeaderDescription>
             ) : null}
           </div>
-          {/* Mobile: filter + Add on title row (Inbox pattern) */}
+          {/* Mobile only: compact filter icon + Add on title row */}
           <div className="tt-inbox-mobile-header-actions lg:hidden">
             <TrainingListToolbar mobileOnly />
             {listAddMenu}
           </div>
-          {/* Desktop: view switch + Filter · Layers · View beside Add */}
+          {/* Desktop: view switch + inline Filter · Layers · View + Add */}
           <PageHeaderActions className="hidden flex-col items-end gap-2 pt-0 sm:gap-2.5 lg:flex">
             {calendarControls}
             <div className="flex min-w-0 max-w-full items-end gap-2">

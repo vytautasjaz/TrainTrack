@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CalendarDays, SlidersHorizontal, StickyNote } from 'lucide-react'
+import { CalendarDays, CalendarRange, SlidersHorizontal, StickyNote } from 'lucide-react'
 import {
   PlanSportFilterBar,
   PlanViewModeControl,
@@ -11,6 +11,7 @@ import {
 } from '@/components/training/plan-sport-filter-bar'
 import { FeedbackLayerToggle } from '@/components/training/feedback-layer-toggle'
 import {
+  SHOW_ALL_DAYS_STORAGE_KEY,
   SHOW_EVENTS_STORAGE_KEY,
   SHOW_NOTES_STORAGE_KEY,
 } from '@/lib/plan-calendar-layers'
@@ -26,6 +27,10 @@ function TrainingListFilterGroups({
 }) {
   const [showNotes, setShowNotes] = useStoredFlag(SHOW_NOTES_STORAGE_KEY, true)
   const [showEvents, setShowEvents] = useStoredFlag(SHOW_EVENTS_STORAGE_KEY, true)
+  const [showAllDays, setShowAllDays] = useStoredFlag(
+    SHOW_ALL_DAYS_STORAGE_KEY,
+    false,
+  )
   const stacked = layout === 'stack'
 
   return (
@@ -52,7 +57,7 @@ function TrainingListFilterGroups({
 
       <ToolbarFilterGroup
         label="Layers"
-        hint="Toggle Notes, Events, and Feedback"
+        hint="Toggle Notes, Events, Feedback, and empty days"
       >
         <div className="flex shrink-0 flex-wrap items-center gap-0.5">
           <ToolbarTextToggle
@@ -72,6 +77,18 @@ function TrainingListFilterGroups({
             Events
           </ToolbarTextToggle>
           <FeedbackLayerToggle />
+          <ToolbarTextToggle
+            pressed={showAllDays}
+            onClick={() => setShowAllDays((prev) => !prev)}
+            title={
+              showAllDays
+                ? 'Hide days with nothing planned'
+                : 'Show every day, including empty ones'
+            }
+          >
+            <CalendarRange className="h-3 w-3" aria-hidden />
+            All days
+          </ToolbarTextToggle>
         </div>
       </ToolbarFilterGroup>
 

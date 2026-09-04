@@ -20,7 +20,7 @@ export const ATHLETE_SETTINGS_NAV: SettingsNavItem[] = [
   { id: 'notifications', label: 'Notifications' },
   { id: 'zones', label: 'Training zones' },
   { id: 'weather', label: 'Weather' },
-  { id: 'plan', label: 'Plan display' },
+  { id: 'plan', label: 'Training display' },
   { id: 'integrations', label: 'Integrations' },
 ]
 

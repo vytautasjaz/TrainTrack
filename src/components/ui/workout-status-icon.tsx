@@ -32,10 +32,10 @@ export function workoutStatusIconClass(size: WorkoutStatusIconSize = 'md') {
 
 /** Done/Skip — thin outer ring only; check / X keep default stroke. */
 const QUICK_ACTION_RING_CLASS: Record<WorkoutStatusIconSize, string> = {
-  xs: '[&>circle]:![stroke-width:1.25]',
-  sm: '[&>circle]:![stroke-width:1.5]',
-  md: '[&>circle]:![stroke-width:1.5]',
-  lg: '[&>circle]:![stroke-width:1.75]',
+  xs: '[&>circle]:![stroke-width:0.85]',
+  sm: '[&>circle]:![stroke-width:0.95]',
+  md: '[&>circle]:![stroke-width:1.05]',
+  lg: '[&>circle]:![stroke-width:1.15]',
 }
 
 export function workoutQuickActionIconClass(size: WorkoutStatusIconSize = 'md') {

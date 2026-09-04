@@ -159,6 +159,8 @@ type TrainingListWorkoutRowProps = {
   last?: boolean
   /** Selected in list detail panel. */
   selected?: boolean
+  /** Today’s day strip — keep rose wash, no gray selected fill. */
+  isToday?: boolean
 }
 
 /** Compact list-view workout row (Training → List) — matches design mock agenda. */
@@ -169,6 +171,7 @@ export function TrainingListWorkoutRow({
   appearance = 'default',
   last = false,
   selected = false,
+  isToday = false,
 }: TrainingListWorkoutRowProps) {
   const dnd = usePlanWeekDnd()
   const [dragging, setDragging] = useState(false)
@@ -246,6 +249,10 @@ export function TrainingListWorkoutRow({
     if (colorMode === 'sport' && !skipped) {
       return `color-mix(in srgb, ${sportRail} ${selected ? 16 : 7}%, white)`
     }
+    // Today already has a day-content wash — don't stack a second rose fill.
+    if (selected && isToday) {
+      return undefined
+    }
     if (selected) {
       return 'color-mix(in srgb, var(--tt-ink, #111) 5%, var(--color-card, #fff))'
     }
@@ -281,7 +288,9 @@ export function TrainingListWorkoutRow({
         workout.isRescheduleGhost && 'tt-list-workout-row-ghost',
         canDrag && 'cursor-grab active:cursor-grabbing',
         dragging && 'opacity-40',
-        selected && 'bg-[color-mix(in_srgb,var(--tt-ink,#111)_4%,var(--color-card,#fff))]',
+        selected &&
+          !isToday &&
+          'bg-[color-mix(in_srgb,var(--tt-ink,#111)_4%,var(--color-card,#fff))]',
       )}
       style={rowBackground ? { background: rowBackground } as CSSProperties : undefined}
       aria-current={selected ? 'true' : undefined}
@@ -326,6 +335,7 @@ export function TrainingListWorkoutRow({
       <div
         className={cn(
           'flex w-full items-start gap-2 py-3.5 pl-[calc(0.75rem+3px)] pr-2.5',
+          'lg:gap-4',
           workout.isRescheduleGhost && showReview && 'tt-list-workout-row-ghost-body',
         )}
       >
@@ -358,8 +368,8 @@ export function TrainingListWorkoutRow({
           ) : null}
         </div>
 
-        {/* WORKOUT / TITLE column — flex-1 */}
-        <div className="min-w-0 flex-1">
+        {/* WORKOUT / TITLE — desktop fixed width matches header */}
+        <div className="min-w-0 flex-1 lg:w-[20rem] lg:flex-none">
           <p
             className={cn(
               'line-clamp-2 break-words text-[13.5px] font-semibold leading-snug text-[var(--tt-ink,#111)]',
@@ -378,22 +388,22 @@ export function TrainingListWorkoutRow({
           </p>
         </div>
 
-        {/* DETAILS column — desktop only, keep narrow */}
-        <div className="hidden w-[4.5rem] shrink-0 lg:block">
-          <p className="truncate text-[12px] font-normal text-[var(--tt-ink,#111)]">
+        {/* DETAILS — desktop centered on column axis */}
+        <div className="hidden w-[5.5rem] shrink-0 -ml-2 text-center lg:block">
+          <p className="truncate text-center text-[12px] font-normal text-[var(--tt-ink,#111)]">
             {detailPrimary}
           </p>
           {prescription ? (
-            <p className="mt-0.5 truncate text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
+            <p className="mt-0.5 truncate text-center text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
               {prescription}
             </p>
           ) : null}
         </div>
 
-        {/* DURATION / DISTANCE column */}
-        <div className="w-[4.25rem] shrink-0 pt-0.5 text-right">
+        {/* DUR / DIST — mobile right, desktop centered on column axis */}
+        <div className="w-[4.25rem] shrink-0 pt-0.5 text-right lg:w-[4.5rem] lg:text-center">
           {metricCell ? (
-            <div className="flex flex-col items-end gap-0.5 leading-tight">
+            <div className="flex flex-col items-end gap-0.5 leading-tight lg:items-center">
               {metricCell.planned && metricCell.completed ? (
                 <>
                   <p className="truncate text-[12px] font-normal tabular-nums text-[var(--tt-good,#1a9f5c)]">
@@ -418,9 +428,9 @@ export function TrainingListWorkoutRow({
           )}
         </div>
 
-        {/* STATUS / ACTIONS column */}
+        {/* STATUS — desktop centered on column axis (right side) */}
         <div
-          className="flex min-w-8 shrink-0 items-start justify-end pt-0.5"
+          className="flex min-w-8 shrink-0 items-start justify-end pt-0.5 lg:ml-auto lg:w-[4.75rem] lg:items-center lg:justify-center lg:pt-0"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >
@@ -438,9 +448,9 @@ export function TrainingListWorkoutRow({
               <AthleteWorkoutQuickActions
                 workout={workout}
                 isCoach={isCoach}
-                size="xs"
-                layout="below"
-                className="hidden items-end gap-0 pt-0 lg:flex lg:flex-col"
+                size="sm"
+                layout="inline"
+                className="hidden justify-center lg:flex"
                 displayStatus={status}
                 onDisplayStatusChange={setOptimisticStatus}
               />
