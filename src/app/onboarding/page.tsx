@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getSession } from '@/lib/session'
+import { getSession, isAdminOnly } from '@/lib/session'
 import { becomeCoach, skipOnboarding, startTraining } from '@/app/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +9,7 @@ import { getAthleteClaimCookie, resolveAthleteClaim } from '@/lib/athlete-claim'
 export default async function OnboardingPage() {
   const session = await getSession()
   if (!session) redirect('/')
+  if (isAdminOnly(session)) redirect('/admin')
 
   const inviteCode = await getCoachInviteCookie()
   const invite = inviteCode ? await resolveCoachInvite(inviteCode) : null

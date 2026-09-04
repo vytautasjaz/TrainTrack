@@ -24,6 +24,7 @@ const providers: Provider[] = [
 
       const user = await prisma.user.findUnique({ where: { email } })
       if (!user?.passwordHash) return null
+      if (user.disabledAt) return null
       const ok = await bcrypt.compare(password, user.passwordHash)
       if (!ok) return null
       return {
@@ -79,32 +80,70 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   callbacks: {
+    async signIn({ user }) {
+      if (!user?.id && !user?.email) return true
+      try {
+        const email = user.email?.trim().toLowerCase()
+        const dbUser = user.id
+          ? await prisma.user.findUnique({
+              where: { id: user.id },
+              select: { disabledAt: true, email: true },
+            })
+          : null
+        // OAuth may pass a non-DB id on first hop — fall back to email.
+        const resolved =
+          dbUser ??
+          (email
+            ? await prisma.user.findUnique({
+                where: { email },
+                select: { disabledAt: true, email: true },
+              })
+            : null)
+        if (resolved?.disabledAt) return false
+        return true
+      } catch (err) {
+        // Schema/DB blips must not lock everyone out as AccessDenied.
+        console.error('[auth] signIn disabled check failed', err)
+        return true
+      }
+    },
     async jwt({ token, user }) {
       if (user?.id) {
         token.sub = user.id
       }
       if (token.sub) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.sub },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            roles: true,
-            image: true,
-            onboardingSkippedAt: true,
-            athleteProfile: { select: { id: true } },
-            coachProfile: { select: { id: true } },
-          },
-        })
-        if (dbUser) {
-          token.roles = dbUser.roles
-          token.name = dbUser.name
-          token.email = dbUser.email
-          token.picture = dbUser.image
-          token.hasAthlete = Boolean(dbUser.athleteProfile)
-          token.hasCoach = Boolean(dbUser.coachProfile)
-          token.onboardingSkipped = Boolean(dbUser.onboardingSkippedAt)
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.sub },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              roles: true,
+              image: true,
+              disabledAt: true,
+              onboardingSkippedAt: true,
+              athleteProfile: { select: { id: true } },
+              coachProfile: { select: { id: true } },
+            },
+          })
+          // Only kill the session for a confirmed disabled account.
+          // Missing row / transient DB errors must not clear a valid login
+          // (that previously bounced people to /?error=AccessDenied).
+          if (dbUser?.disabledAt) {
+            return { ...token, sub: undefined }
+          }
+          if (dbUser) {
+            token.roles = dbUser.roles
+            token.name = dbUser.name
+            token.email = dbUser.email
+            token.picture = dbUser.image
+            token.hasAthlete = Boolean(dbUser.athleteProfile)
+            token.hasCoach = Boolean(dbUser.coachProfile)
+            token.onboardingSkipped = Boolean(dbUser.onboardingSkippedAt)
+          }
+        } catch (err) {
+          console.error('[auth] jwt user refresh failed', err)
         }
       }
       return token
@@ -123,10 +162,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   events: {
     async createUser({ user }) {
       if (!user.id) return
-      // New OAuth users start with no roles until onboarding.
+      const email = user.email?.trim().toLowerCase()
+      const adminEmails = (process.env.ADMIN_EMAILS ?? '')
+        .split(',')
+        .map((e) => e.trim().toLowerCase())
+        .filter(Boolean)
+      const roles =
+        email && adminEmails.includes(email) ? [UserRole.ADMIN] : []
       await prisma.user.update({
         where: { id: user.id },
-        data: { roles: [] },
+        data: { roles },
       })
     },
   },

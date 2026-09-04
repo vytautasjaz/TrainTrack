@@ -14,7 +14,8 @@ export const INITIAL_AUTH_FORM_STATE: AuthFormState = {}
 const NEXT_AUTH_ERROR_MESSAGES: Record<string, string> = {
   Configuration:
     'Sign-in is temporarily unavailable. Try again later or contact support.',
-  AccessDenied: 'Sign-in was cancelled.',
+  AccessDenied:
+    'Sign-in was denied. If you closed the Google window, try again. If your account was disabled, contact support.',
   Verification: 'The sign-in link expired or is invalid. Request a new one.',
   OAuthSignin: 'Could not start sign-in. Try again.',
   OAuthCallback: 'Sign-in failed during the provider callback. Try again.',

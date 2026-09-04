@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getSession } from '@/lib/session'
+import { getSession, isAdminOnly } from '@/lib/session'
 import { AuthEmailPanel } from '@/components/auth/auth-email-panel'
 import { AuthMarketingAside } from '@/components/auth/auth-marketing-aside'
 import { TrainTrackLogo } from '@/components/brand/traintrack-logo'
@@ -58,6 +58,7 @@ export default async function HomePage({
       }
     }
     if (session.needsOnboarding) redirect('/onboarding')
+    if (isAdminOnly(session)) redirect('/admin')
     redirect('/dashboard')
   }
 

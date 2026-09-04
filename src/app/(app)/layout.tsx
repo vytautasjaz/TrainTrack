@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { AppShell } from '@/components/layout/app-shell'
-import { getSession } from '@/lib/session'
+import { getSession, isAdminOnly } from '@/lib/session'
 import {
   clearCoachInviteCookie,
   coachInvitePath,
@@ -17,6 +17,11 @@ import {
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
   if (!session) redirect('/')
+
+  // Pure admin accounts use the admin shell, not athlete/coach chrome.
+  if (isAdminOnly(session)) {
+    redirect('/admin')
+  }
 
   let invite = null
   let claim = null

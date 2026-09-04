@@ -70,13 +70,19 @@ export async function registerWithEmail(
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
 
+  const adminEmails = (process.env.ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+  const roles = adminEmails.includes(email) ? [UserRole.ADMIN] : []
+
   try {
     await prisma.user.create({
       data: {
         name,
         email,
         passwordHash,
-        roles: [],
+        roles,
       },
     })
   } catch (err) {
@@ -86,11 +92,13 @@ export async function registerWithEmail(
   try {
     const claimToken = await getAthleteClaimCookie()
     const inviteCode = await getCoachInviteCookie()
-    const redirectTo = claimToken
-      ? '/onboarding'
-      : inviteCode
-        ? coachInvitePath(inviteCode)
-        : '/onboarding'
+    const redirectTo = roles.includes(UserRole.ADMIN)
+      ? '/admin'
+      : claimToken
+        ? '/onboarding'
+        : inviteCode
+          ? coachInvitePath(inviteCode)
+          : '/onboarding'
     await signIn('credentials', {
       email,
       password,

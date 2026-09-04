@@ -223,6 +223,9 @@ model User {
   workoutBuilderPrefs Json?
   /** Skip onboarding until user picks Start Training / Become a Coach. */
   onboardingSkippedAt DateTime?
+  /** Soft block — user cannot sign in while set. */
+  disabledAt DateTime?
+  disabledReason String?
   /**
    * Optional Web Push category prefs (all default on when null).
    * Shape: { messages?, workoutAsks?, workoutFeedback?, raceThreads?, mentions? }

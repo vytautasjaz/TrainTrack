@@ -48,6 +48,13 @@ export function isAdmin(session: Pick<SessionContext, 'roles'>): boolean {
   return hasRole(session.roles, UserRole.ADMIN)
 }
 
+/** Admin-only account (no athlete/coach profiles) — skips product onboarding. */
+export function isAdminOnly(
+  session: Pick<SessionContext, 'roles' | 'hasAthlete' | 'hasCoach'>,
+): boolean {
+  return isAdmin(session) && !session.hasAthlete && !session.hasCoach
+}
+
 /** UI workspace: coach nav/plan editing vs athlete self-view. */
 export function isCoachView(
   session: Pick<SessionContext, 'viewMode' | 'hasCoach'>,
@@ -78,6 +85,9 @@ function primaryRole(
   roles: UserRole[],
   opts?: { hasCoach?: boolean; hasAthlete?: boolean },
 ): UserRole {
+  if (roles.includes(UserRole.ADMIN) && !opts?.hasCoach && !opts?.hasAthlete) {
+    return UserRole.ADMIN
+  }
   if (roles.includes(UserRole.COACH) || opts?.hasCoach) return UserRole.COACH
   if (roles.includes(UserRole.ATHLETE) || opts?.hasAthlete) return UserRole.ATHLETE
   if (roles.includes(UserRole.ADMIN)) return UserRole.ADMIN
@@ -108,11 +118,13 @@ export async function getSession(): Promise<SessionContext | null> {
         roles: true,
         name: true,
         onboardingSkippedAt: true,
+        disabledAt: true,
         athleteProfile: { select: { id: true } },
         coachProfile: { select: { id: true } },
       },
     })
     if (!dbUser) return null
+    if (dbUser.disabledAt) return null
 
     const hasAthlete = Boolean(dbUser.athleteProfile)
     const hasCoach = Boolean(dbUser.coachProfile)
@@ -123,6 +135,7 @@ export async function getSession(): Promise<SessionContext | null> {
         .catch(() => {})
     }
     const onboardingSkipped = Boolean(dbUser.onboardingSkippedAt)
+    const isAdminUser = hasRole(roles, UserRole.ADMIN)
     const viewMode = resolveViewMode(
       cookieStore.get(VIEW_MODE_COOKIE)?.value,
       hasAthlete,
@@ -150,7 +163,8 @@ export async function getSession(): Promise<SessionContext | null> {
       hasCoach,
       viewMode,
       onboardingSkipped,
-      needsOnboarding: !hasAthlete && !hasCoach && !onboardingSkipped,
+      needsOnboarding:
+        !isAdminUser && !hasAthlete && !hasCoach && !onboardingSkipped,
     }
   }
 
@@ -160,6 +174,12 @@ export async function getSession(): Promise<SessionContext | null> {
 export async function requireSession(): Promise<SessionContext> {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
+  return session
+}
+
+export async function requireAdmin(): Promise<SessionContext> {
+  const session = await requireSession()
+  if (!isAdmin(session)) throw new Error('Admin only')
   return session
 }
 
