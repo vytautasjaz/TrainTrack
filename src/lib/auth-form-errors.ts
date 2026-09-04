@@ -25,6 +25,8 @@ const NEXT_AUTH_ERROR_MESSAGES: Record<string, string> = {
     'That email is already linked to another sign-in method. Use email/password or the original provider.',
   CredentialsSignin: 'Invalid email or password.',
   SessionRequired: 'Please sign in to continue.',
+  InviteNotFound:
+    'This coaching invite link is invalid or no longer available.',
   Default: 'Sign-in failed. Try again or use another method.',
 }
 

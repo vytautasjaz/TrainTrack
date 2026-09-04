@@ -20,24 +20,24 @@ export async function GET(request: Request, context: RouteContext) {
   const origin = new URL(request.url).origin
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/`)
+    return NextResponse.redirect(`${origin}/?error=InviteNotFound`)
   }
 
   const invite = await resolveCoachInvite(code)
+  if (!invite) {
+    return NextResponse.redirect(`${origin}/?error=InviteNotFound`)
+  }
+
   const session = await auth()
 
-  if (invite && session?.user?.id === invite.coachUserId) {
+  if (session?.user?.id === invite.coachUserId) {
     const response = NextResponse.redirect(`${origin}/dashboard`)
     clearInviteCookie(response)
     return response
   }
 
-  const acceptPath = `/join/${encodeURIComponent(code)}/accept`
+  const acceptPath = `/join/${encodeURIComponent(invite.code)}/accept`
   const response = NextResponse.redirect(`${origin}${acceptPath}`)
-
-  if (invite) {
-    response.cookies.set(COACH_INVITE_COOKIE, invite.code, coachInviteCookieOptions())
-  }
-
+  response.cookies.set(COACH_INVITE_COOKIE, invite.code, coachInviteCookieOptions())
   return response
 }

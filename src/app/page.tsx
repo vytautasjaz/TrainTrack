@@ -5,9 +5,16 @@ import { AuthMarketingAside } from '@/components/auth/auth-marketing-aside'
 import { TrainTrackLogo } from '@/components/brand/traintrack-logo'
 import { nextAuthErrorMessage } from '@/lib/auth-form-errors'
 import {
+  coachInvitePath,
   resolveCoachInvite,
+  getCoachInviteCookie,
 } from '@/lib/coach-invite'
-import { parseAthleteClaimToken, resolveAthleteClaim, getAthleteClaimCookie } from '@/lib/athlete-claim'
+import {
+  parseAthleteClaimToken,
+  resolveAthleteClaim,
+  getAthleteClaimCookie,
+  athleteClaimPath,
+} from '@/lib/athlete-claim'
 
 const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)
 
@@ -16,25 +23,44 @@ export default async function HomePage({
 }: {
   searchParams?: Promise<{ error?: string; invite?: string; claim?: string }>
 }) {
+  const params = searchParams ? await searchParams : {}
+  const authError = params.error
+
   let session = null
   try {
     session = await getSession()
   } catch {
     // Misconfigured auth (e.g. missing AUTH_SECRET) must not crash the sign-in page.
   }
-  if (session) {
-    if (session.needsOnboarding) redirect('/onboarding')
-    redirect('/dashboard')
-  }
 
-  const params = searchParams ? await searchParams : {}
-  const authError = params.error
-
+  // Claim deep-link (logged out or in)
   if (params.claim && parseAthleteClaimToken(params.claim)) {
     redirect(`/claim/${encodeURIComponent(parseAthleteClaimToken(params.claim)!)}`)
   }
 
+  // Invite deep-link: middleware seeds the cookie from ?invite=; signed-in users resume join.
   const inviteFromQuery = params.invite ? await resolveCoachInvite(params.invite) : null
+
+  if (session) {
+    if (inviteFromQuery) {
+      redirect(coachInvitePath(inviteFromQuery.code))
+    }
+    const inviteCookie = await getCoachInviteCookie()
+    if (inviteCookie) {
+      const invite = await resolveCoachInvite(inviteCookie)
+      if (invite) redirect(coachInvitePath(invite.code))
+    }
+    const claimToken = await getAthleteClaimCookie()
+    if (claimToken) {
+      const claim = await resolveAthleteClaim(claimToken)
+      if (claim && !claim.alreadyClaimed) {
+        redirect(`${athleteClaimPath(claimToken)}/accept`)
+      }
+    }
+    if (session.needsOnboarding) redirect('/onboarding')
+    redirect('/dashboard')
+  }
+
   const invite = inviteFromQuery
   const claimToken = await getAthleteClaimCookie()
   const claim = claimToken ? await resolveAthleteClaim(claimToken) : null
@@ -62,6 +88,7 @@ export default async function HomePage({
                 claim ? 'Create account & take over profile' : invite ? 'Create athlete account' : 'Create account'
               }
               googleEnabled={googleEnabled}
+              inviteCode={invite?.code ?? null}
               inviteCoachName={invite?.coachName ?? null}
               claimCoachName={claim?.coachName ?? null}
               claimAthleteName={claim?.athleteName ?? null}

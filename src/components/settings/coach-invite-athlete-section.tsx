@@ -30,7 +30,7 @@ export function CoachInviteAthleteSection({
       <SettingsPanel
         id="invite-athlete"
         title="Invite athlete"
-        description="Send a personal link. After they register, they'll be asked to accept you as their coach."
+        description="Send a personal link. After they register and start training, they connect with you automatically."
       >
         {body}
       </SettingsPanel>
@@ -42,7 +42,8 @@ export function CoachInviteAthleteSection({
       <div>
         <SectionTitle variant="ui">Invite athlete</SectionTitle>
         <Caption>
-          Send a personal link. After they register, they’ll be asked to accept you as their coach.
+          Send a personal link. After they register and start training, they connect with you
+          automatically.
         </Caption>
       </div>
       {body}

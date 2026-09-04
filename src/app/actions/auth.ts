@@ -10,8 +10,11 @@ import {
   clearCoachInviteCookie,
   coachInvitePath,
   getCoachInviteCookie,
+  linkAthleteToCoachInvite,
   parseCoachInviteCode,
   resolveCoachInvite,
+  resolvePendingCoachInviteRedirect,
+  setCoachInviteCookie,
 } from '@/lib/coach-invite'
 import { claimAthleteProfileForUser } from '@/app/actions/athlete-claim'
 import {
@@ -136,12 +139,20 @@ export async function signInWithEmail(
   return INITIAL_AUTH_FORM_STATE
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(inviteCode?: string | null) {
   const cookieStore = await cookies()
   cookieStore.delete('tt_user')
   cookieStore.delete('tt_athlete')
+
+  const preferred = parseCoachInviteCode(inviteCode)
+  if (preferred) {
+    await setCoachInviteCookie(preferred)
+  }
+
   await signIn('google', {
-    redirectTo: await resolvePostAuthRedirect(),
+    redirectTo: await resolvePostAuthRedirect(null, null, {
+      preferInviteCode: preferred,
+    }),
   })
 }
 
@@ -154,8 +165,16 @@ export async function signOutAction() {
   await signOut({ redirectTo: '/' })
 }
 
-export async function startTraining() {
+export async function startTraining(formData?: FormData) {
   const session = await requireSession()
+
+  const codeFromForm = parseCoachInviteCode(
+    formData ? String(formData.get('coachingCode') ?? '') : null,
+  )
+  if (codeFromForm) {
+    await setCoachInviteCookie(codeFromForm)
+  }
+
   const existing = await prisma.athlete.findUnique({
     where: { userId: session.userId },
   })
@@ -166,10 +185,6 @@ export async function startTraining() {
         roles: { set: Array.from(new Set([...session.roles, UserRole.ATHLETE])) },
       },
     })
-    const inviteCode = await getCoachInviteCookie()
-    if (inviteCode) {
-      redirect(coachInvitePath(inviteCode))
-    }
     const claimToken = await getAthleteClaimCookie()
     if (claimToken) {
       const claim = await resolveAthleteClaim(claimToken)
@@ -178,6 +193,15 @@ export async function startTraining() {
       }
       await clearAthleteClaimCookie()
     }
+    let inviteRedirect: string | null = null
+    try {
+      inviteRedirect = await resolvePendingCoachInviteRedirect(session.userId)
+    } catch (err) {
+      console.error('[startTraining] coach invite link failed', err)
+      const fallbackCode = codeFromForm ?? (await getCoachInviteCookie())
+      if (fallbackCode) inviteRedirect = coachInvitePath(fallbackCode)
+    }
+    if (inviteRedirect) redirect(inviteRedirect)
     redirect('/dashboard')
   }
 
@@ -217,11 +241,21 @@ export async function startTraining() {
     })
   })
 
-  const inviteCode = await getCoachInviteCookie()
-  if (inviteCode) {
-    redirect(coachInvitePath(inviteCode))
+  // Coach invite links already mean the coach invited them — connect immediately
+  // unless they already have a different coach (then confirm on accept page).
+  // If linking fails, keep the athlete account and send them to the join UI to retry.
+  let inviteRedirect: string | null = null
+  try {
+    inviteRedirect = await resolvePendingCoachInviteRedirect(session.userId)
+  } catch (err) {
+    console.error('[startTraining] coach invite link failed', err)
+    const fallbackCode = codeFromForm ?? (await getCoachInviteCookie())
+    if (fallbackCode) inviteRedirect = coachInvitePath(fallbackCode)
   }
-
+  revalidatePath('/dashboard')
+  revalidatePath('/training')
+  revalidatePath('/athletes')
+  if (inviteRedirect) redirect(inviteRedirect)
   redirect('/dashboard')
 }
 
@@ -269,6 +303,9 @@ export async function becomeCoach() {
 
 export async function skipOnboarding() {
   const session = await requireSession()
+  // Abandon pending invite/claim so Skip cannot leave a zombie cookie.
+  await clearCoachInviteCookie()
+  await clearAthleteClaimCookie()
   await prisma.user.update({
     where: { id: session.userId },
     data: { onboardingSkippedAt: new Date() },
@@ -569,48 +606,10 @@ export async function acceptCoachInvite(formData: FormData): Promise<void> {
     redirect('/dashboard')
   }
 
-  const athlete = await prisma.athlete.findUnique({
-    where: { userId: session.userId },
-    select: { id: true, coachId: true },
-  })
-  if (!athlete) {
+  const result = await linkAthleteToCoachInvite(session.userId, invite)
+  if (result === 'no_athlete') {
     throw new Error('Start training before connecting to a coach')
   }
-
-  await prisma.$transaction(async (tx) => {
-    await tx.coachAthleteLink.updateMany({
-      where: {
-        athleteId: athlete.id,
-        status: {
-          in: [CoachAthleteLinkStatus.ACCEPTED, CoachAthleteLinkStatus.PENDING],
-        },
-        NOT: { coachProfileId: invite.coachProfileId },
-      },
-      data: { status: CoachAthleteLinkStatus.REMOVED },
-    })
-
-    await tx.coachAthleteLink.upsert({
-      where: {
-        coachProfileId_athleteId: {
-          coachProfileId: invite.coachProfileId,
-          athleteId: athlete.id,
-        },
-      },
-      create: {
-        coachProfileId: invite.coachProfileId,
-        athleteId: athlete.id,
-        status: CoachAthleteLinkStatus.ACCEPTED,
-      },
-      update: {
-        status: CoachAthleteLinkStatus.ACCEPTED,
-      },
-    })
-
-    await tx.athlete.update({
-      where: { id: athlete.id },
-      data: { coachId: invite.coachUserId },
-    })
-  })
 
   await clearCoachInviteCookie()
   revalidatePath('/settings/account')

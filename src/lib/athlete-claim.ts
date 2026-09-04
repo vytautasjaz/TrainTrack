@@ -116,11 +116,19 @@ export async function clearAthleteClaimCookie(): Promise<void> {
   cookieStore.delete({ name: ATHLETE_CLAIM_COOKIE, path: '/' })
 }
 
-/** Prefer athlete claim over generic coach invite when both cookies exist. */
+/** Prefer athlete claim over generic coach invite when both cookies exist,
+ * unless an explicit invite code was provided (e.g. Google sign-in from /?invite=). */
 export async function resolvePostAuthRedirect(
   email?: string | null,
   userId?: string | null,
+  options?: { preferInviteCode?: string | null },
 ): Promise<string> {
+  const preferredInvite = options?.preferInviteCode?.trim()
+  if (preferredInvite) {
+    const { resolveSignInRedirect } = await import('@/lib/coach-invite')
+    return resolveSignInRedirect(email, userId, preferredInvite)
+  }
+
   const claimToken = await getAthleteClaimCookie()
   if (claimToken) {
     const claim = await resolveAthleteClaim(claimToken)
@@ -138,3 +146,4 @@ export async function resolvePostAuthRedirect(
   const { resolveSignInRedirect } = await import('@/lib/coach-invite')
   return resolveSignInRedirect(email, userId)
 }
+

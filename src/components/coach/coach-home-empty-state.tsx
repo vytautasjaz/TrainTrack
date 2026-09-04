@@ -17,8 +17,8 @@ export function CoachHomeEmptyState({ coachingCode }: CoachHomeEmptyStateProps) 
           Invite your first athlete
         </h2>
         <p className="mt-2 text-[13px] leading-relaxed text-[var(--tt-ink-soft)]">
-          Share your personal invite link or coaching code. After they register, they&apos;ll be
-          asked to accept you as their coach.
+          Share your personal invite link or coaching code. After they register and start training,
+          they connect with you automatically.
         </p>
       </div>
 

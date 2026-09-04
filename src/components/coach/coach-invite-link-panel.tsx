@@ -87,7 +87,7 @@ export function CoachInviteLinkPanel({
         </Button>
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        After they register, they’ll be asked to accept you as their coach.
+        After they register and start training, they’ll connect with you automatically.
       </p>
     </div>
   )

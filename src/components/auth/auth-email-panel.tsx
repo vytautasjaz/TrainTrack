@@ -43,6 +43,8 @@ type AuthEmailPanelProps = {
   initialMode?: AuthMode
   registerButtonLabel: string
   googleEnabled: boolean
+  /** Coaching code from /?invite= — baked into Google OAuth redirectTo. */
+  inviteCode?: string | null
   inviteCoachName?: string | null
   claimCoachName?: string | null
   claimAthleteName?: string | null
@@ -52,6 +54,7 @@ export function AuthEmailPanel({
   initialMode = 'sign-in',
   registerButtonLabel,
   googleEnabled,
+  inviteCode = null,
   inviteCoachName,
   claimCoachName,
   claimAthleteName,
@@ -125,7 +128,7 @@ export function AuthEmailPanel({
 
   function handleGoogleSignIn() {
     startGoogleTransition(async () => {
-      await signInWithGoogle()
+      await signInWithGoogle(inviteCode)
     })
   }
 

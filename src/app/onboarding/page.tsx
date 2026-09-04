@@ -9,12 +9,20 @@ import { getAthleteClaimCookie, resolveAthleteClaim } from '@/lib/athlete-claim'
 export default async function OnboardingPage() {
   const session = await getSession()
   if (!session) redirect('/')
-  if (!session.needsOnboarding) redirect('/dashboard')
 
   const inviteCode = await getCoachInviteCookie()
   const invite = inviteCode ? await resolveCoachInvite(inviteCode) : null
   const claimToken = await getAthleteClaimCookie()
   const claim = claimToken ? await resolveAthleteClaim(claimToken) : null
+  const hasPendingInvite = Boolean(invite || claim)
+
+  // Skipped users with a pending invite/claim must still finish Start Training.
+  if (!session.needsOnboarding && !hasPendingInvite) {
+    redirect('/dashboard')
+  }
+  if (!session.needsOnboarding && hasPendingInvite && session.hasAthlete) {
+    redirect('/dashboard')
+  }
 
   return (
     <div className="app-gradient flex min-h-dvh flex-col items-center justify-center px-5 py-8">
@@ -37,8 +45,8 @@ export default async function OnboardingPage() {
             </p>
           ) : invite ? (
             <p className="rounded-[6px] border border-brand/25 bg-brand-soft/40 px-3 py-2 text-center text-xs leading-relaxed">
-              After you start training, you’ll be asked to accept coaching from{' '}
-              <span className="font-semibold">{invite.coachName}</span>.
+              Starting training connects you with{' '}
+              <span className="font-semibold">{invite.coachName}</span> automatically.
             </p>
           ) : null}
           <form action={startTraining}>
@@ -46,7 +54,7 @@ export default async function OnboardingPage() {
               {claim
                 ? 'Start Training & take over profile'
                 : invite
-                  ? 'Start Training & continue'
+                  ? 'Start Training & connect'
                   : 'Start Training'}
             </Button>
           </form>
@@ -66,7 +74,7 @@ export default async function OnboardingPage() {
           ) : (
             <form action={skipOnboarding}>
               <Button type="submit" variant="ghost" className="w-full text-muted-foreground">
-                Skip for now
+                Decline invite
               </Button>
             </form>
           )}

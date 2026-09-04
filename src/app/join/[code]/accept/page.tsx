@@ -1,12 +1,20 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { CoachAthleteLinkStatus } from '@prisma/client'
-import { acceptCoachInvite, declineCoachInvite, startTraining } from '@/app/actions/auth'
+import { acceptCoachInvite, declineCoachInvite } from '@/app/actions/auth'
 import { CoachInviteAcceptForm } from '@/components/auth/coach-invite-accept-form'
+import { CoachInviteStartTrainingForm } from '@/components/auth/coach-invite-start-training-form'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { TrainTrackAppIcon } from '@/components/brand/traintrack-logo'
-import { parseCoachInviteCode, clearCoachInviteCookie, resolveCoachInvite } from '@/lib/coach-invite'
+import {
+  parseCoachInviteCode,
+  clearCoachInviteCookie,
+  coachInvitePath,
+  getCoachInviteCookie,
+  resolveCoachInvite,
+  resolvePendingCoachInviteRedirect,
+} from '@/lib/coach-invite'
 import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 
@@ -43,28 +51,33 @@ export default async function JoinCoachAcceptPage({ params }: JoinAcceptPageProp
     redirect(`/?invite=${encodeURIComponent(invite.code)}`)
   }
 
-  if (session.needsOnboarding || (!session.hasAthlete && !session.hasCoach)) {
-    redirect('/onboarding')
+  // Ensure cookie is seeded (join route sets it; recover if user hit /accept directly).
+  const cookieCode = await getCoachInviteCookie()
+  if (cookieCode !== invite.code) {
+    redirect(coachInvitePath(invite.code))
   }
 
+  // Do NOT bounce skipped users through /onboarding (that redirects to dashboard).
+  // Show Start Training here when they have no athlete profile yet.
   if (!session.hasAthlete) {
     return (
       <JoinShell>
         <CardHeader className="space-y-1.5 text-center">
-          <CardTitle className="text-xl">Start training first</CardTitle>
+          <CardTitle className="text-xl">
+            {session.hasCoach ? 'Start training first' : `Join ${invite.coachName}`}
+          </CardTitle>
           <CardDescription>
-            {invite.coachName} invited you to train with them. Add an athlete profile to continue.
+            {invite.coachName} invited you to train with them. Start training to connect
+            automatically.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2.5">
-          <form action={startTraining}>
-            <Button type="submit" className="w-full">
-              Start Training
+          <CoachInviteStartTrainingForm coachingCode={invite.code} />
+          <form action={declineCoachInvite}>
+            <Button type="submit" variant="ghost" className="w-full text-muted-foreground">
+              Not now
             </Button>
           </form>
-          <Button asChild variant="ghost" className="w-full text-muted-foreground">
-            <Link href="/dashboard">Not now</Link>
-          </Button>
         </CardContent>
       </JoinShell>
     )
@@ -95,11 +108,23 @@ export default async function JoinCoachAcceptPage({ params }: JoinAcceptPageProp
 
   const existingLink = athlete?.coachLinks[0] ?? null
   if (existingLink?.status === CoachAthleteLinkStatus.ACCEPTED) {
+    await clearCoachInviteCookie()
     redirect('/dashboard')
   }
 
   const hasOtherCoach =
     Boolean(athlete?.coachId) && athlete?.coachId !== invite.coachUserId
+
+  // Safe to auto-connect — coach already invited them via link.
+  // On DB/link failure, fall through to the Accept form instead of crashing the page.
+  if (!hasOtherCoach) {
+    try {
+      const pending = await resolvePendingCoachInviteRedirect(session.userId)
+      if (!pending) redirect('/dashboard')
+    } catch (err) {
+      console.error('[join/accept] auto-connect failed', err)
+    }
+  }
 
   return (
     <JoinShell>
