@@ -35,6 +35,8 @@ type TrainingCalendarControlsProps = {
   showLibraryToggle?: boolean
   /** Compact Filters dropdown (List view). Week/Month use the inline bar. */
   showSportFilter?: boolean
+  /** Only List / Week / Month switch — no Add, history, or filters. */
+  viewSwitchOnly?: boolean
 }
 
 const VIEW_OPTIONS: { id: TrainingView; label: string; Icon: LucideIcon }[] = [
@@ -55,12 +57,60 @@ export function TrainingCalendarControls({
   showAddMenu = true,
   showLibraryToggle = false,
   showSportFilter = true,
+  viewSwitchOnly = false,
 }: TrainingCalendarControlsProps) {
   const library = useTrainingLibrary()
   const viewHrefs: Record<TrainingView, string> = {
     week: weekHref,
     list: listHref,
     calendar: calendarHref,
+  }
+
+  const viewSwitch = (
+    <div className="contents">
+      {/* Wrapper needed: .segmented-control sets display and overrides Tailwind `hidden`. */}
+      <div className="hidden lg:block">
+        <SegmentedControl aria-label="Calendar view">
+          {VIEW_OPTIONS.map(({ id, label, Icon }) => (
+            <SegmentedControlItem key={id} asChild active={view === id}>
+              <Link href={viewHrefs[id]} className="inline-flex items-center gap-1.5">
+                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+                {label}
+              </Link>
+            </SegmentedControlItem>
+          ))}
+        </SegmentedControl>
+      </div>
+
+      <div
+        className="inline-flex h-8 shrink-0 items-center gap-0.5 lg:hidden"
+        role="tablist"
+        aria-label="Calendar view"
+      >
+        {VIEW_OPTIONS.map(({ id, label, Icon }) => (
+          <Link
+            key={id}
+            href={viewHrefs[id]}
+            role="tab"
+            aria-selected={view === id}
+            aria-label={label}
+            className={cn(
+              'pill-select-item inline-flex h-8 items-center gap-1 px-2.5 py-0',
+              view === id ? 'pill-select-item-active' : 'pill-select-item-inactive',
+            )}
+          >
+            <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
+            <span>{label}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  )
+
+  if (viewSwitchOnly) {
+    return (
+      <div className="flex flex-nowrap items-center gap-1.5 sm:gap-2">{viewSwitch}</div>
+    )
   }
 
   return (
@@ -78,42 +128,7 @@ export function TrainingCalendarControls({
         <HistoryLogToolbar canLogWorkout={canLogWorkout} compactOnMobile />
       )}
 
-      {/* Wrapper needed: .segmented-control sets display and overrides Tailwind `hidden`. */}
-      <div className="hidden lg:block">
-        <SegmentedControl aria-label="Calendar view">
-          {VIEW_OPTIONS.map(({ id, label, Icon }) => (
-            <SegmentedControlItem key={id} asChild active={view === id}>
-              <Link href={viewHrefs[id]} className="inline-flex items-center gap-1.5">
-                <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-                {label}
-              </Link>
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
-      </div>
-
-      <div
-        className="inline-flex shrink-0 items-center gap-0.5 lg:hidden"
-        role="tablist"
-        aria-label="Calendar view"
-      >
-        {VIEW_OPTIONS.map(({ id, label, Icon }) => (
-          <Link
-            key={id}
-            href={viewHrefs[id]}
-            role="tab"
-            aria-selected={view === id}
-            aria-label={label}
-            className={cn(
-              'pill-select-item inline-flex items-center gap-1 px-2 py-1',
-              view === id ? 'pill-select-item-active' : 'pill-select-item-inactive',
-            )}
-          >
-            <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-            <span>{label}</span>
-          </Link>
-        ))}
-      </div>
+      {viewSwitch}
 
       {showSportFilter ? (
         <>

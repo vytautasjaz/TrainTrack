@@ -1,13 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { WorkoutType } from "@prisma/client";
 import { AddWorkoutCell } from "@/components/plan/add-workout-cell";
 import { DayDropTd } from "@/components/plan/day-drop-td";
-import { PlanMobileDayStack } from "@/components/plan/plan-mobile-day-stack";
 import { SeasonEventChips } from "@/components/plan/season-event-chips";
 import { PlanWeekDndProvider, PlanWeekDndErrorBanner } from "@/components/plan/plan-week-dnd";
-import { PlanWeekDayStrip } from "@/components/plan/week-day-strip";
 import {
   WORKOUT_TYPE_COLORS,
   WORKOUT_TYPE_LABELS,
@@ -64,8 +62,10 @@ import { filterPlanSportRows } from "@/lib/plan-sport-filter";
 import { useFilteredPlanDays } from "@/components/training/use-plan-sport-filter-data";
 import { useOptionalPlanSportFilter } from "@/components/training/plan-sport-filter-context";
 import { useOptionalWeekCardSize } from "@/components/plan/week-card-size-context";
-
-const PORTRAIT_DAY_SECTION_ID = "plan-week-day";
+import { useOptionalWeekPortraitZoom } from "@/components/plan/week-portrait-zoom-context";
+import { WeekMatrixScrollSlider } from "@/components/plan/week-matrix-scroll-slider";
+import { WeekPortraitStats } from "@/components/plan/week-portrait-stats";
+import { defaultWeekPortraitZoom } from "@/lib/week-portrait-zoom";
 
 type PlanTableViewProps = {
   days: PlanDay[];
@@ -177,7 +177,7 @@ function DayHeaderRow({
       <Cell
         className={cn(
           TABLE_HEADER_VLINE,
-          "px-1 py-1.5 text-left text-[10px] font-medium text-white/55 landscape:max-lg:px-0.5 lg:px-3 lg:py-2",
+          "tt-week-header-sport-label px-1 py-1.5 text-left text-[10px] font-medium text-white/55 landscape:max-lg:px-0.5 lg:px-3 lg:py-2",
         )}
       >
         Sport
@@ -185,6 +185,8 @@ function DayHeaderRow({
       {days.map((day) => (
         <Cell
           key={day.dateKey}
+          data-week-day-col={day.dateKey}
+          data-week-day-today={day.isToday ? "1" : undefined}
           className={cn(
             "px-0.5 py-1.5 text-center align-middle landscape:max-lg:px-px lg:px-1 lg:py-2",
             day.dateKey !== lastDayKey && TABLE_HEADER_VLINE,
@@ -193,24 +195,23 @@ function DayHeaderRow({
         >
           <div
             className={cn(
-              "text-[9px] leading-tight landscape:max-lg:leading-tight lg:text-[11px]",
+              'tt-week-dayhead-weekday text-[11px] font-semibold leading-tight tracking-[0.01em] lg:text-xs',
               day.isToday
-                ? "font-semibold text-white"
-                : "font-medium text-white/80",
+                ? 'text-white'
+                : 'text-white/85',
             )}
           >
-            <span className="@min-[920px]:hidden">{day.dayLabel.slice(0, 3)}</span>
-            <span className="hidden @min-[920px]:inline">{day.dayLabel}</span>
+            {day.dayLabel}
           </div>
           <div
             className={cn(
-              "mt-0.5 tabular-nums landscape:max-lg:text-[8px] lg:text-[11px]",
+              'tt-week-dayhead-date mt-1 text-[9px] font-normal leading-none tabular-nums tracking-tight lg:mt-0.5 lg:text-[10px]',
               day.isToday
-                ? "font-medium text-white/90"
-                : "font-normal text-white/45",
+                ? 'text-white/80'
+                : 'text-white/50',
             )}
           >
-            {day.dateLabel}
+            {day.dateKey.slice(5)}
           </div>
         </Cell>
       ))}
@@ -464,7 +465,7 @@ function VolumeTableRow({
   const showDayAdd = isCoach || canEditDayNotes;
 
   return (
-    <tr className={cn("border-t", PLAN_TABLE_LINE_STRONG)}>
+    <tr className={cn("tt-week-volume-row border-t", PLAN_TABLE_LINE_STRONG)}>
       <th
         className={cn(
           "bg-muted/20 p-0 text-left align-top",
@@ -555,16 +556,19 @@ function SportTableRows({
           <tr key={sport} className={cn("border-b", PLAN_TABLE_LINE)} data-row="sport">
             <th
               className={cn(
-                "relative p-0 text-left align-top",
+                "tt-week-sport-label-cell relative p-0 text-left align-top",
                 PLAN_TABLE_VLINE,
                 WORKOUT_TYPE_CELL_TINT[sport],
               )}
             >
               <div
-                className={cn("absolute inset-y-0 left-0 w-[3px]", WORKOUT_TYPE_DOT_CLASS[sport])}
+                className={cn(
+                  "tt-week-sport-rail absolute inset-y-0 left-0 w-[3px]",
+                  WORKOUT_TYPE_DOT_CLASS[sport],
+                )}
                 aria-hidden
               />
-              <div className="flex min-w-0 flex-col gap-1 py-1.5 pl-[calc(0.375rem+3px)] pr-1.5 landscape:max-lg:py-1 landscape:max-lg:pl-[calc(0.25rem+3px)] landscape:max-lg:pr-1 lg:gap-1.5 lg:py-2 lg:pl-[calc(0.5rem+3px)] lg:pr-2">
+              <div className="tt-week-sport-label-inner flex min-w-0 flex-col gap-1 py-1.5 pl-[calc(0.375rem+3px)] pr-1.5 landscape:max-lg:py-1 landscape:max-lg:pl-[calc(0.25rem+3px)] landscape:max-lg:pr-1 lg:gap-1.5 lg:py-2 lg:pl-[calc(0.5rem+3px)] lg:pr-2">
                   <div className="flex items-center justify-between gap-1">
                     <span
                       className={cn(
@@ -578,7 +582,7 @@ function SportTableRows({
                         strokeWidth={2.25}
                         aria-hidden
                       />
-                      <span className="truncate text-[8px] font-semibold leading-none lg:text-[10px]">
+                      <span className="tt-week-sport-label-text truncate text-[8px] font-semibold leading-none lg:text-[10px]">
                         {WORKOUT_TYPE_LABELS[sport]}
                       </span>
                     </span>
@@ -594,7 +598,11 @@ function SportTableRows({
                         />
                       )}
                   </div>
-                  <SportWeekTotalsLabel sport={sport} totals={totals} />
+                  <SportWeekTotalsLabel
+                    sport={sport}
+                    totals={totals}
+                    className="tt-week-sport-totals"
+                  />
               </div>
             </th>
             {days.map((day) => {
@@ -688,82 +696,78 @@ function PlanTableViewInner({
   const showEmptyWorkoutsRow =
     !isCoach && sportRows.length === 0 && !showRecoveryRow;
 
-  const daySectionPrefix = `${PORTRAIT_DAY_SECTION_ID}-${weekStartKey ?? "week"}`;
-  const todayKey = days.find((d) => d.isToday)?.dateKey ?? days[0]?.dateKey ?? null;
-  const [activeDateKey, setActiveDateKey] = useState<string | null>(todayKey);
-  const [stripStickyTop, setStripStickyTop] = useState(52);
-  const didScrollToToday = useRef(false);
-  const portraitRootRef = useRef<HTMLDivElement>(null);
-  const dayStripRef = useRef<HTMLDivElement>(null);
+  const portraitZoom =
+    useOptionalWeekPortraitZoom()?.zoom ?? defaultWeekPortraitZoom();
+  const matrixBleedRef = useRef<HTMLDivElement>(null);
+  const matrixScrollRef = useRef<HTMLDivElement>(null);
+  const didScrollToTodayCol = useRef(false);
 
-  const scrollToDay = useCallback(
-    (dateKey: string, behavior: ScrollBehavior = "smooth") => {
-      setActiveDateKey(dateKey);
+  useLayoutEffect(() => {
+    didScrollToTodayCol.current = false;
+  }, [weekStartKey, portraitZoom]);
 
-      const root = portraitRootRef.current;
-      const target =
-        root?.querySelector<HTMLElement>(
-          `[data-plan-day-section="${dateKey}"]`,
-        ) ??
-        document.getElementById(`${daySectionPrefix}-${dateKey}`);
-      if (!target) return false;
+  /**
+   * Portrait isolation: bleed is in normal flow with an explicit height;
+   * the scroller is position:absolute inside it so the wide table cannot
+   * expand document width/height (Safari fixed-nav / white-void bug).
+   */
+  useLayoutEffect(() => {
+    const bleed = matrixBleedRef.current;
+    const scroll = matrixScrollRef.current;
+    if (!bleed || !scroll || typeof window === "undefined") return;
 
-      // Prefer window scroll with sticky chrome + day-strip offset — scrollIntoView
-      // often lands under sticky headers on mobile Safari.
-      const chrome = document.querySelector<HTMLElement>(
-        "[data-app-sticky-chrome]",
-      );
-      const offset =
-        (chrome?.getBoundingClientRect().height ?? 0) +
-        (dayStripRef.current?.getBoundingClientRect().height ?? 0) +
-        8;
-      const top =
-        window.scrollY + target.getBoundingClientRect().top - offset;
-      window.scrollTo({ top: Math.max(0, top), behavior });
-      return true;
-    },
-    [daySectionPrefix],
-  );
-
-  useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      setActiveDateKey(todayKey);
-    }, 0);
-    didScrollToToday.current = false;
-    return () => window.clearTimeout(timeoutId);
-  }, [todayKey, weekStartKey]);
-
-  useEffect(() => {
-    const updateStripTop = () => {
-      const chrome = document.querySelector<HTMLElement>("[data-app-sticky-chrome]");
-      setStripStickyTop(Math.ceil(chrome?.getBoundingClientRect().height ?? 52));
-    };
-    updateStripTop();
-    window.addEventListener("resize", updateStripTop);
-    const chrome = document.querySelector("[data-app-sticky-chrome]");
-    const observer = chrome ? new ResizeObserver(updateStripTop) : null;
-    if (chrome && observer) observer.observe(chrome);
-    return () => {
-      window.removeEventListener("resize", updateStripTop);
-      observer?.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!todayKey || didScrollToToday.current) return;
-    const run = () => {
+    function syncBleedHeight() {
       if (
-        typeof window !== "undefined" &&
-        window.matchMedia("(orientation: landscape)").matches
+        !window.matchMedia("(max-width: 1023px) and (orientation: portrait)")
+          .matches
       ) {
+        bleed!.style.height = "";
         return;
       }
-      if (scrollToDay(todayKey, "auto")) {
-        didScrollToToday.current = true;
-      }
+      const table = scroll!.querySelector<HTMLElement>(".tt-week-matrix-table");
+      const h = Math.ceil(table?.offsetHeight ?? 0);
+      bleed!.style.height = h > 0 ? `${h}px` : "";
+    }
+
+    syncBleedHeight();
+    const ro = new ResizeObserver(syncBleedHeight);
+    ro.observe(scroll);
+    const table = scroll.querySelector(".tt-week-matrix-table");
+    if (table) ro.observe(table);
+    window.addEventListener("resize", syncBleedHeight);
+    window.addEventListener("orientationchange", syncBleedHeight);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", syncBleedHeight);
+      window.removeEventListener("orientationchange", syncBleedHeight);
+      bleed.style.height = "";
     };
-    requestAnimationFrame(() => requestAnimationFrame(run));
-  }, [todayKey, days, scrollToDay]);
+  }, [days, weekStartKey, portraitZoom, weekCardSize, tableFragment]);
+
+  useLayoutEffect(() => {
+    if (didScrollToTodayCol.current) return;
+    const root = matrixScrollRef.current;
+    if (!root) return;
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia("(max-width: 1023px) and (orientation: portrait)").matches) {
+      return;
+    }
+    const todayCol = root.querySelector<HTMLElement>(
+      '[data-week-day-today="1"]',
+    );
+    if (!todayCol) return;
+
+    const labelCol = root.querySelector<HTMLElement>(
+      ".tt-week-matrix-table thead tr > :first-child",
+    );
+    const labelW = labelCol?.getBoundingClientRect().width ?? 0;
+    const rootRect = root.getBoundingClientRect();
+    const colRect = todayCol.getBoundingClientRect();
+    const nextLeft =
+      root.scrollLeft + (colRect.left - rootRect.left) - labelW - 4;
+    root.scrollLeft = Math.max(0, nextLeft);
+    didScrollToTodayCol.current = true;
+  }, [days, weekStartKey, portraitZoom, tableFragment]);
 
   const bodyRows = (
     <>
@@ -843,88 +847,61 @@ function PlanTableViewInner({
   }
 
   return (
-    <>
-      {/* Portrait mobile: day picker + stacked day cards */}
-      <div
-        ref={portraitRootRef}
-        className="portrait:max-lg:block landscape:max-lg:hidden lg:hidden"
-      >
-        <div
-          ref={dayStripRef}
-          data-week-day-strip
-          className="sticky z-20 -mx-4 mb-3 border-b border-border/50 bg-background/95 px-4 pb-2 pt-1 backdrop-blur-sm supports-[backdrop-filter]:bg-background/80"
-          style={{ top: stripStickyTop }}
-        >
-          <PlanWeekDayStrip
-            days={days}
-            activeDateKey={activeDateKey}
-            onDaySelect={(dateKey) => {
-              requestAnimationFrame(() => scrollToDay(dateKey, "smooth"));
-            }}
-            prevWeekHref={prevWeekHref}
-            nextWeekHref={nextWeekHref}
+    <div className="w-full min-w-0 max-w-full">
+      {weekLabel && (prevWeekHref || nextWeekHref) ? (
+        <div className="tt-week-view-chrome mb-2">
+          <CalendarPeriodNav
+            label={weekLabel}
+            prevHref={prevWeekHref}
+            nextHref={nextWeekHref}
+            prevAriaLabel="Previous week"
+            nextAriaLabel="Next week"
+            align="start"
+            className="mb-0"
           />
         </div>
-        <PlanMobileDayStack
-          days={days}
-          isCoach={isCoach}
-          canEditDayNotes={canEditDayNotes}
-          coachEditable={isCoach}
-          athleteId={athleteId}
-          planSportRows={planSportRows}
-          weekExtraPlanSportRows={weekExtraPlanSportRows}
-          weekHiddenPlanSportRows={weekHiddenPlanSportRows}
-          dragEnabled={dragEnabled}
-          trainingMode={!isCoach}
-          headerAddMenu={isCoach || canEditDayNotes}
-          daySectionIdPrefix={daySectionPrefix}
-          daySectionScrollMarginClass="scroll-mt-[7.5rem]"
-          showNotes={showNotes}
-          showEvents={showEvents}
-          showWeather={showWeather}
-          weatherLocation={weatherLocation}
-          onWeatherLocationSelect={onWeatherLocationSelect}
-          onWeatherLocationReset={onWeatherLocationReset}
-        />
-      </div>
-
-      {/* Landscape + desktop: full week table */}
-      <div className="hidden w-full landscape:max-lg:block lg:block">
-        {weekLabel && (prevWeekHref || nextWeekHref) ? (
-          <div className="mb-2">
-            <CalendarPeriodNav
-              label={weekLabel}
-              prevHref={prevWeekHref}
-              nextHref={nextWeekHref}
-              prevAriaLabel="Previous week"
-              nextAriaLabel="Next week"
-              align="start"
-              className="mb-0"
-            />
-          </div>
-        ) : null}
-        <div className="@container overflow-hidden rounded-[0.5rem]">
-          <div className="overflow-x-auto">
-          <table
-            className={cn(
-              TABLE_FRAME,
-              "w-full table-fixed text-left landscape:max-lg:text-[9px] lg:text-sm",
-            )}
-            data-card-size={weekCardSize ?? 'm'}
-          >
-            <colgroup>
-              <col className="w-[11%]" />
-              <col span={7} />
-            </colgroup>
-            <thead className={TABLE_HEADER}>
-              <DayHeaderRow days={days} as="th" />
-            </thead>
-            <tbody>{bodyRows}</tbody>
-          </table>
+      ) : null}
+      <div
+        ref={matrixBleedRef}
+        className="tt-week-matrix-bleed @container min-w-0 max-w-full overflow-hidden rounded-[0.5rem]"
+      >
+        <div
+          ref={matrixScrollRef}
+          className="tt-week-matrix-scroll min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
+          data-week-portrait-zoom={portraitZoom}
+        >
+          <div className="tt-week-matrix-scroll-inner">
+            <table
+              className={cn(
+                TABLE_FRAME,
+                "tt-week-matrix-table w-full table-fixed text-left landscape:max-lg:text-[9px] lg:text-sm",
+              )}
+              data-card-size={weekCardSize ?? "m"}
+            >
+              <colgroup>
+                <col className="tt-week-label-col w-[11%]" />
+                {days.map((day) => (
+                  <col key={day.dateKey} className="tt-week-day-col" />
+                ))}
+              </colgroup>
+              <thead className={TABLE_HEADER}>
+                <DayHeaderRow days={days} as="th" />
+              </thead>
+              <tbody>{bodyRows}</tbody>
+            </table>
           </div>
         </div>
       </div>
-    </>
+      <div className="tt-week-view-chrome min-w-0">
+        <WeekMatrixScrollSlider scrollRef={matrixScrollRef} days={days} />
+        <WeekPortraitStats
+          days={days}
+          sportRows={sportRows}
+          swimCssSecPer100m={swimCssSecPer100m}
+          className="mt-3"
+        />
+      </div>
+    </div>
   );
 }
 

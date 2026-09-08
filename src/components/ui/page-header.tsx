@@ -38,7 +38,7 @@ export function PageHeader({
     <div
       data-page-header
       className={cn(
-        'flex flex-wrap items-start justify-between gap-2 pt-2 lg:gap-3 lg:pt-4 landscape:max-lg:gap-1.5',
+        'flex w-full min-w-0 flex-wrap items-start justify-between gap-2 pt-2 lg:gap-3 lg:pt-4 landscape:max-lg:gap-1.5',
         className,
       )}
     >

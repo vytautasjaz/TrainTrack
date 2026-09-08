@@ -7,6 +7,7 @@ import { CoachInviteAthleteSection } from '@/components/settings/coach-invite-at
 import { NotificationPrefsForm } from '@/components/settings/notification-prefs-form'
 import { PlanViewModePreferenceForm } from '@/components/settings/plan-view-mode-preference-form'
 import { TrainingDefaultViewForm } from '@/components/settings/training-default-view-form'
+import { WeekCardSizePreferenceForm } from '@/components/settings/week-card-size-preference-form'
 import { SettingsShell } from '@/components/settings/settings-shell'
 import {
   SettingsCoachBuilderSection,
@@ -280,6 +281,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             plan: !coachView ? (
               <>
                 <TrainingDefaultViewForm embedded role="athlete" />
+                <WeekCardSizePreferenceForm embedded />
                 <PlanViewModePreferenceForm embedded />
               </>
             ) : null,
@@ -311,6 +313,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             planning: coachView ? (
               <>
                 <TrainingDefaultViewForm embedded role="coach" />
+                <WeekCardSizePreferenceForm embedded />
                 <SettingsCoachPlanningSection planningLeadDays={planningLeadDays} />
               </>
             ) : null,

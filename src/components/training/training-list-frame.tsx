@@ -17,10 +17,13 @@ export function TrainingListFrame({
   header,
   children,
   className,
+  /** Week (and similar): body scrolls under the sticky chrome. List keeps inner scroll. */
+  scrollBody = false,
 }: {
   header: ReactNode
   children: ReactNode
   className?: string
+  scrollBody?: boolean
 }) {
   const [frameStyle, setFrameStyle] = useState<CSSProperties | undefined>()
   const [spacerHeight, setSpacerHeight] = useState<number | null>(null)
@@ -108,7 +111,7 @@ export function TrainingListFrame({
           className={cn(
             'tt-training-list-sticky-header relative z-10 shrink-0 bg-background',
             mobileFixed
-              ? 'border-b border-[var(--tt-line,#ebebeb)] px-4 pb-2 pt-1'
+              ? 'border-b border-[var(--tt-line,#ebebeb)] px-2.5 pb-2 pt-1'
               : 'sticky z-20 -mx-4 px-4 pb-3 pt-1 lg:pb-5 lg:pt-2',
           )}
           style={!mobileFixed ? { top: desktopStickyTop } : undefined}
@@ -124,10 +127,15 @@ export function TrainingListFrame({
         <div
           className={cn(
             'min-h-0 min-w-0',
-            mobileFixed ? 'flex min-h-0 flex-1 flex-col overflow-hidden' : 'mt-0',
+            mobileFixed
+              ? cn(
+                  'flex min-h-0 flex-1 flex-col',
+                  scrollBody ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden',
+                )
+              : 'mt-0',
           )}
         >
-          {mobileFixed ? (
+          {mobileFixed && !scrollBody ? (
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               {children}
             </div>

@@ -29,6 +29,7 @@ import {
 import { isStravaSynced, workoutHasCoachingChat, type PlanWorkoutDetail } from '@/lib/plan-workout'
 import type { PlanColorMode } from '@/lib/plan-sport-filter'
 import type { WeekCardSize } from '@/lib/week-card-size'
+import { defaultWeekCardSize } from '@/lib/week-card-size'
 import { WORKOUT_TYPE_CALENDAR_SURFACE } from '@/lib/workout-display'
 import { surfaces } from '@/lib/design-tokens'
 import { workoutStatusToBlockStatus } from '@/components/workout-block/types'
@@ -83,7 +84,7 @@ export function WeekPlanWorkoutCard({
   const colorMode =
     useOptionalPlanSportFilter()?.colorMode ?? ('completion' as PlanColorMode)
   const ctxSize = useOptionalWeekCardSize()?.cardSize
-  const size: WeekCardSize = sizeProp ?? ctxSize ?? 'm'
+  const size: WeekCardSize = sizeProp ?? ctxSize ?? defaultWeekCardSize()
 
   const completed = isWorkoutCardCompleted(status)
   const skipped = isWorkoutCardSkipped(status)

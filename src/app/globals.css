@@ -1055,16 +1055,17 @@ body {
 /* Pin mobile tab bar to the viewport — portal to body; avoid ancestor transform traps. */
 .tt-mobile-bottom-nav {
   position: fixed;
-  inset-inline: 0;
+  left: 0;
+  right: 0;
   bottom: 0;
-  z-index: 50;
+  /* Prefer left/right over 100vw — vw can itself create horizontal page scroll. */
+  width: auto;
+  max-width: none;
+  z-index: 100;
   display: none;
   border-top: 1px solid color-mix(in srgb, var(--tt-line, #ebebeb) 80%, transparent);
   box-shadow: 0 -6px 20px rgb(0 0 0 / 0.04);
-  /* Keep compositing simple so iOS Safari doesn't detach fixed from the viewport. */
-  transform: translateZ(0);
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+  box-sizing: border-box;
 }
 
 @media (max-width: 1023px) and (orientation: portrait) {
@@ -2271,8 +2272,8 @@ html[data-inbox-mobile-detail='true'] .tt-dashboard-content > [class*='space-y']
 
 .tt-inbox-mobile-icon-btn {
   display: inline-flex;
-  height: 2.25rem;
-  width: 2.25rem;
+  height: 2rem; /* match Add button (h-8) */
+  width: 2rem;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
@@ -3518,6 +3519,71 @@ html[data-calendar-expanded='true'] [data-mobile-bottom-nav] {
   display: none !important;
 }
 
+/* Expanded week: drop empty sticky chrome; collapse stays fixed top-right. */
+html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
+  display: none;
+}
+
+.tt-week-expanded-collapse-btn {
+  position: fixed;
+  top: max(0.65rem, env(safe-area-inset-top, 0px));
+  right: max(0.65rem, env(safe-area-inset-right, 0px));
+  z-index: 80;
+  display: inline-flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--tt-line, #ebebeb);
+  background: var(--tt-surface, #fff);
+  color: var(--tt-ink, #111);
+  box-shadow: var(--tt-shadow, 0 1px 3px rgb(0 0 0 / 0.08));
+}
+
+.tt-week-expanded-collapse-btn:hover {
+  background: var(--tt-sidebar, #f5f5f5);
+}
+
+/*
+ * Portrait + Expand: rotate the week matrix into a landscape stage
+ * (phone stays upright; content reads as landscape).
+ */
+.tt-week-expand-rotate-root {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  background: var(--background, #fff);
+}
+
+.tt-week-expand-rotate-inner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  box-sizing: border-box;
+  width: 100dvh;
+  height: 100dvw;
+  padding: 0.5rem 0.75rem;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center center;
+}
+
+.tt-week-expand-rotate-inner .tt-week-view-root {
+  min-height: 100%;
+  max-width: none;
+  overflow: visible;
+}
+
+.tt-week-expand-rotate-inner .tt-week-matrix-scroll {
+  position: relative !important;
+  inset: auto !important;
+  max-width: none;
+  overflow-x: auto;
+}
+
 html[data-calendar-expanded='true'] [data-app-main] {
   max-width: none;
   padding-top: 0.5rem;
@@ -3555,6 +3621,206 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-table-body > 
 .tt-week-plan-card {
   border-radius: 6px;
   filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.045));
+}
+
+/*
+ * Phone portrait Week matrix: discrete column zoom + icon rail.
+ * Zoom drives --tt-week-* vars; do not use transform:scale (breaks DnD / taps).
+ *
+ * Isolation model (required on iOS):
+ * 1. `.tt-week-matrix-bleed` stays in normal flow with an explicit height (JS).
+ * 2. `.tt-week-matrix-scroll` is position:absolute inset 0 — wide content cannot
+ *    expand the document (fixes white void + detached fixed bottom nav).
+ * 3. html.tt-week-portrait-lock blocks sideways page pan.
+ */
+html.tt-week-portrait-lock,
+html.tt-week-portrait-lock body {
+  overflow-x: hidden !important;
+  max-width: 100%;
+  overscroll-behavior-x: none;
+}
+
+@media (max-width: 1023px) and (orientation: portrait) {
+  /* Skip portrait matrix chrome while expanded — expand forces landscape table. */
+  html:not([data-calendar-expanded='true']) {
+  .app-gradient:has(.tt-week-matrix-scroll) {
+    overflow-x: hidden;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  [data-app-main-column]:has(.tt-week-matrix-scroll),
+  [data-app-main]:has(.tt-week-matrix-scroll) {
+    overflow-x: hidden;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  [data-app-main]:has(.tt-week-matrix-scroll) > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* Full-bleed table: drop main side padding; re-pad chrome only. */
+  [data-app-main]:has(.tt-week-matrix-scroll) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  [data-app-main]:has(.tt-week-matrix-scroll) .tt-week-view-chrome,
+  [data-app-main]:has(.tt-week-matrix-scroll) [data-page-header] {
+    padding-left: 0.625rem;
+    padding-right: 0.625rem;
+  }
+
+  /* Sticky week chrome already has frame padding — don't double-pad. */
+  .tt-training-list-sticky-header [data-page-header],
+  .tt-training-list-sticky-header .tt-week-view-chrome {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .tt-week-view-root {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    touch-action: pan-y;
+  }
+
+  .tt-week-matrix-bleed {
+    position: relative;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  .tt-week-matrix-bleed .tt-week-matrix-table {
+    border-radius: 0;
+    border-left-width: 0;
+    border-right-width: 0;
+  }
+
+  /* Absolute scroller — width locked to bleed; X scroll only inside here. */
+  .tt-week-matrix-scroll {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: auto;
+    max-width: none;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tt-week-matrix-scroll[data-week-portrait-zoom='comfort'] {
+    --tt-week-label-col: 2.25rem;
+    --tt-week-day-col: 9rem;
+  }
+
+  .tt-week-matrix-scroll[data-week-portrait-zoom='medium'] {
+    --tt-week-label-col: 2.25rem;
+    --tt-week-day-col: 6.25rem;
+  }
+
+  .tt-week-matrix-scroll[data-week-portrait-zoom='fit'] {
+    --tt-week-label-col: 2.25rem;
+    --tt-week-day-col: calc((100% - 2.25rem) / 7);
+  }
+
+  .tt-week-matrix-scroll-inner {
+    box-sizing: border-box;
+    width: calc(var(--tt-week-label-col) + 7 * var(--tt-week-day-col));
+    max-width: none;
+    min-width: 0;
+  }
+
+  .tt-week-matrix-scroll[data-week-portrait-zoom='fit'] .tt-week-matrix-scroll-inner {
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .tt-week-matrix-scroll .tt-week-matrix-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    overflow: hidden;
+  }
+
+  .tt-week-matrix-scroll .tt-week-matrix-table col.tt-week-label-col {
+    width: var(--tt-week-label-col);
+  }
+
+  .tt-week-matrix-scroll .tt-week-matrix-table col.tt-week-day-col {
+    width: var(--tt-week-day-col);
+  }
+
+  .tt-week-matrix-scroll .tt-week-plan-card,
+  .tt-week-matrix-scroll .tt-workout-block {
+    filter: none;
+  }
+
+  .tt-week-matrix-scroll
+    .tt-week-matrix-table
+    > tbody
+    > tr
+    > :first-child {
+    background-color: var(--color-card, #ffffff);
+  }
+
+  .tt-week-matrix-scroll
+    .tt-week-matrix-table
+    > tbody
+    > tr[data-row='sport']
+    > :first-child {
+    background-color: var(--color-card, #ffffff) !important;
+  }
+
+  /* Prefer custom slider under the table on portrait. */
+  .tt-week-matrix-scroll {
+    scrollbar-width: none;
+  }
+
+  .tt-week-matrix-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Icon-only sport rail in portrait */
+  .tt-week-matrix-scroll .tt-week-sport-label-text,
+  .tt-week-matrix-scroll .tt-week-sport-totals,
+  .tt-week-matrix-scroll .tt-week-sport-rail {
+    display: none;
+  }
+
+  /* Volume lives under the table on portrait (WeekPortraitStats). */
+  .tt-week-matrix-table .tt-week-volume-row {
+    display: none;
+  }
+
+  .tt-week-matrix-scroll .tt-week-sport-label-cell {
+    padding: 0;
+  }
+
+  .tt-week-matrix-scroll .tt-week-sport-label-inner {
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.15rem;
+  }
+
+  .tt-week-matrix-scroll .tt-week-header-sport-label {
+    font-size: 0;
+    line-height: 0;
+    color: transparent;
+  }
+
+  .tt-week-matrix-scroll .tt-week-header-sport-label::after {
+    content: '';
+  }
+  }
 }
 
 .tt-calendar-card-sport:has(.tt-week-plan-card) {

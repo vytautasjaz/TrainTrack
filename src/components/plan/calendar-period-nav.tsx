@@ -13,6 +13,8 @@ type CalendarPeriodNavProps = {
   nextAriaLabel?: string
   /** Centered full-width row (month) vs compact left-aligned group (week). */
   align?: 'center' | 'start'
+  /** When false, render only prev/next arrows (week mobile). */
+  showLabel?: boolean
   className?: string
 }
 
@@ -23,15 +25,52 @@ export function CalendarPeriodNav({
   prevAriaLabel = 'Previous period',
   nextAriaLabel = 'Next period',
   align = 'center',
+  showLabel = true,
   className,
 }: CalendarPeriodNavProps) {
   const compact = align === 'start'
+  const arrowsOnly = !showLabel
+
+  if (arrowsOnly) {
+    return (
+      <div
+        className={cn('inline-flex shrink-0 items-center gap-0.5', className)}
+        role="group"
+        aria-label={label || 'Change period'}
+      >
+        {prevHref ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 rounded-full"
+            asChild
+          >
+            <Link href={prevHref} aria-label={prevAriaLabel}>
+              <ChevronLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+        ) : null}
+        {nextHref ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 rounded-full"
+            asChild
+          >
+            <Link href={nextHref} aria-label={nextAriaLabel}>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+    )
+  }
 
   return (
     <div
       className={cn(
         'flex items-center',
-        compact ? 'w-fit max-w-full gap-3' : 'w-full justify-center gap-1',
+        compact ? 'w-fit max-w-full gap-1.5' : 'w-full justify-center gap-1',
         className,
       )}
     >
@@ -39,7 +78,7 @@ export function CalendarPeriodNav({
         <Button
           variant="ghost"
           size="icon"
-          className={cn('shrink-0 rounded-full', compact ? 'h-7 w-7' : 'h-8 w-8')}
+          className="h-8 w-8 shrink-0 rounded-full"
           asChild
         >
           <Link href={prevHref} aria-label={prevAriaLabel}>
@@ -51,8 +90,10 @@ export function CalendarPeriodNav({
       )}
       <h2
         className={cn(
-          'min-w-0 text-sm font-semibold landscape:max-lg:text-xs',
-          compact ? 'whitespace-nowrap px-2' : 'flex-1 text-center',
+          'min-w-0 font-semibold',
+          compact
+            ? 'truncate px-1 text-xs tabular-nums'
+            : 'flex-1 text-center text-sm landscape:max-lg:text-xs',
         )}
       >
         {label}
@@ -61,7 +102,7 @@ export function CalendarPeriodNav({
         <Button
           variant="ghost"
           size="icon"
-          className={cn('shrink-0 rounded-full', compact ? 'h-7 w-7' : 'h-8 w-8')}
+          className="h-8 w-8 shrink-0 rounded-full"
           asChild
         >
           <Link href={nextHref} aria-label={nextAriaLabel}>

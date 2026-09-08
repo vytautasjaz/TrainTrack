@@ -3,7 +3,6 @@ import type { WorkoutType } from "@prisma/client";
 import { PageHeader, PageHeaderActions, PageHeaderDescription, PageHeaderEyebrow, PageHeaderTitle } from "@/components/ui/page-header";
 import { PlanMultiWeekTables } from "@/components/plan/plan-multi-week-tables";
 import { CalendarMonthView } from "@/components/training/calendar-month-view";
-import { TrainingMobileWeekView } from "@/components/training/training-mobile-week-view";
 import { TrainingCalendarControls } from "@/components/training/training-calendar-controls";
 import { TrainingListAddMenu } from "@/components/training/training-list-add-menu";
 import { TrainingListFrame } from "@/components/training/training-list-frame";
@@ -288,8 +287,6 @@ export default async function TrainingPage({
   );
 
   const firstWeek = weekBlocks[0]!;
-  const firstWeekSports = weekSportByKey.get(firstWeek.weekStartKey)!;
-
   const weekSpanQuery = weekSpan > 1 ? `&weeks=${weekSpan}` : "";
   const weekQuery = `week=${weekOffset}${weekSpanQuery}`;
   const monthSpanQuery = monthSpan > 1 ? `&months=${monthSpan}` : "";
@@ -340,7 +337,17 @@ export default async function TrainingPage({
       ? monthSpan === 1
         ? formatDateOnly(anchor, "MMMM yyyy")
         : `${formatDateOnly(anchor, "MMMM yyyy")} – ${formatDateOnly(rangeEndMonth, "MMMM yyyy")}`
-      : firstWeek.weekLabel;
+      : weekSpan > 1
+        ? (() => {
+            const firstLabel = weekBlocks[0]!.weekLabel;
+            const lastLabel = weekBlocks[weekBlocks.length - 1]!.weekLabel;
+            const start = firstLabel.split("–")[0]?.trim() ?? firstLabel;
+            const end = lastLabel.includes("–")
+              ? lastLabel.split("–").slice(1).join("–").trim()
+              : lastLabel;
+            return `${start} – ${end}`;
+          })()
+        : firstWeek.weekLabel;
 
   const trainingDescription =
     view === "list"
@@ -420,10 +427,12 @@ export default async function TrainingPage({
           </div>
           {/* Desktop: view switch + inline Filter · Layers · View + Add */}
           <PageHeaderActions className="hidden flex-col items-end gap-2 pt-0 sm:gap-2.5 lg:flex">
-            {calendarControls}
-            <div className="flex min-w-0 max-w-full items-end gap-2">
-              <TrainingListToolbar desktopOnly />
-              {listAddMenu}
+            <div className="flex w-full min-w-0 flex-col items-end gap-2">
+              {calendarControls}
+              <div className="flex min-w-0 max-w-full items-end gap-2">
+                <TrainingListToolbar desktopOnly />
+                {listAddMenu}
+              </div>
             </div>
           </PageHeaderActions>
         </div>
@@ -435,8 +444,40 @@ export default async function TrainingPage({
     </PageHeader>
   );
 
+  const weekPageHeader = (
+    <div className="min-w-0">
+      {trainingEyebrow ? (
+        <PageHeaderEyebrow className="hidden lg:block">{trainingEyebrow}</PageHeaderEyebrow>
+      ) : null}
+      <PageHeaderTitle className="tt-inbox-page-title lg:mt-1">
+        Week plan<span className="tt-inbox-title-dot">.</span>
+      </PageHeaderTitle>
+      {trainingDescription ? (
+        <PageHeaderDescription className="mt-1 hidden max-w-lg lg:block">
+          {trainingDescription}
+        </PageHeaderDescription>
+      ) : null}
+    </div>
+  );
+
+  const weekViewControls = (
+    <TrainingCalendarControls
+      view={view}
+      weekHref={weekHref}
+      listHref={listHref}
+      calendarHref={calendarHref}
+      canLogWorkout={canLogWorkout}
+      isCoach={isCoach}
+      athleteId={athleteId}
+      canAddNote
+      showAddMenu={false}
+      showSportFilter={false}
+      viewSwitchOnly
+    />
+  );
+
   const pageHeader =
-    view === "list" ? null : (
+    view === "list" || view === "week" ? null : (
       <PageHeader
         title={trainingTitle}
         eyebrow={trainingEyebrow}
@@ -546,50 +587,26 @@ export default async function TrainingPage({
           {listTableView}
         </TrainingListFrame>
       ) : (
-        <>
-          <div className="hidden lg:block">
-            <PlanMultiWeekTables
-              weeks={weekViewBlocks}
-              isCoach={isCoach}
-              canEditDayNotes
-              athleteId={athleteId}
-              athleteName={isCoach ? selectedAthlete?.name : undefined}
-              athleteAvatarUrl={isCoach ? selectedAthlete?.avatarUrl : undefined}
-              planSportRows={athletePlanConfig?.planSportRows ?? []}
-              prevWeekHref={prevHref}
-              nextWeekHref={nextHref}
-              addWeekHref={addWeekHref}
-              removeWeekHref={removeWeekHref}
-              swimCssSecPer100m={swimCssSecPer100m}
-              weatherLocation={activeWeatherLocation}
-              weatherVisibleByDefault={athletePlanConfig?.showWeather ?? true}
-            />
-          </div>
-
-          <div className="lg:hidden">
-            <TrainingMobileWeekView
-              days={firstWeek.trainingDays}
-              planDays={firstWeek.tableDays}
-              isCoach={isCoach}
-              canEditDayNotes
-              athleteId={athleteId}
-              prevWeekHref={prevHref}
-              nextWeekHref={nextHref}
-              weekLabel={firstWeek.weekLabel}
-              athleteName={isCoach ? selectedAthlete?.name : undefined}
-              weekStartKey={isCoach ? firstWeek.weekStartKey : undefined}
-              planSportRows={athletePlanConfig?.planSportRows ?? []}
-              weekExtraPlanSportRows={firstWeekSports.weekExtraPlanSportRows}
-              weekHiddenPlanSportRows={firstWeekSports.weekHiddenPlanSportRows}
-              weekBlocks={weekViewBlocks}
-              addWeekHref={addWeekHref}
-              removeWeekHref={removeWeekHref}
-              swimCssSecPer100m={swimCssSecPer100m}
-              weatherLocation={activeWeatherLocation}
-              weatherVisibleByDefault={athletePlanConfig?.showWeather ?? true}
-            />
-          </div>
-        </>
+        <PlanMultiWeekTables
+          weeks={weekViewBlocks}
+          isCoach={isCoach}
+          canEditDayNotes
+          athleteId={athleteId}
+          athleteName={isCoach ? selectedAthlete?.name : undefined}
+          athleteAvatarUrl={isCoach ? selectedAthlete?.avatarUrl : undefined}
+          planSportRows={athletePlanConfig?.planSportRows ?? []}
+          prevWeekHref={prevHref}
+          nextWeekHref={nextHref}
+          addWeekHref={addWeekHref}
+          removeWeekHref={removeWeekHref}
+          stickyTitle={weekPageHeader}
+          viewControls={weekViewControls}
+          canLogWorkout={canLogWorkout}
+          canAddNote
+          swimCssSecPer100m={swimCssSecPer100m}
+          weatherLocation={activeWeatherLocation}
+          weatherVisibleByDefault={athletePlanConfig?.showWeather ?? true}
+        />
       )}
     </TrainingPlanShell>
   );

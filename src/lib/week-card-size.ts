@@ -5,14 +5,21 @@ export type WeekCardSize = 's' | 'm' | 'l'
 
 export const WEEK_CARD_SIZES: WeekCardSize[] = ['s', 'm', 'l']
 
+export const WEEK_CARD_SIZE_LABEL: Record<WeekCardSize, string> = {
+  s: 'S — Compact',
+  m: 'M — Medium',
+  l: 'L — Large',
+}
+
 export const WEEK_CARD_SIZE_HINT: Record<WeekCardSize, string> = {
   s: 'Compact — title + primary metric',
   m: 'Medium — title, subtitle, primary + secondary (if enabled)',
-  l: 'Large — as medium + structure graph',
+  l: 'Large — detailed description + structure graph on the card',
 }
 
+/** Week matrix default: Large so description + structure chart are visible. */
 export function defaultWeekCardSize(): WeekCardSize {
-  return 'm'
+  return 'l'
 }
 
 export function parseWeekCardSize(raw: string | null): WeekCardSize {

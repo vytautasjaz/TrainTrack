@@ -254,17 +254,20 @@ export function ToolbarTextToggle({
   children,
   title,
   className,
+  disabled = false,
 }: {
   pressed: boolean
   onClick: () => void
   children: ReactNode
   title?: string
   className?: string
+  disabled?: boolean
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       aria-pressed={pressed}
       title={title}
       className={cn(
@@ -272,6 +275,7 @@ export function ToolbarTextToggle({
         pressed
           ? 'font-semibold text-foreground [&_svg]:opacity-100'
           : 'font-medium text-muted-foreground/40 hover:text-muted-foreground/70 [&_svg]:opacity-35',
+        disabled && 'pointer-events-none opacity-35',
         className,
       )}
     >

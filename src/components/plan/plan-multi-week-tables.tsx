@@ -1,20 +1,17 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { WorkoutType } from '@prisma/client'
 import {
-  CloudSun,
-  CalendarDays,
   Columns2,
   Maximize2,
   Minimize2,
   Minus,
   Plus,
   Rows2,
-  StickyNote,
 } from 'lucide-react'
 import { PlanTableView } from '@/components/plan/plan-table-view'
 import { PlanWeekDndProvider, PlanWeekDndErrorBanner } from '@/components/plan/plan-week-dnd'
@@ -22,21 +19,21 @@ import { CalendarPeriodNav } from '@/components/plan/calendar-period-nav'
 import { EditDefaultPlanSportsButton } from '@/components/coach/edit-default-plan-sports-button'
 import { AddPlanSportRowButton } from '@/components/coach/add-plan-sport-row-button'
 import {
-  PlanSportFilterBar,
-  PlanViewModeControl,
-  ToolbarDivider,
-  ToolbarFilterGroup,
-  ToolbarTextToggle,
-} from '@/components/training/plan-sport-filter-bar'
-import {
   WeekCardSizeProvider,
   useWeekCardSize,
 } from '@/components/plan/week-card-size-context'
-import { WeekCardSizeSwitch } from '@/components/plan/week-card-size-switch'
-import { FeedbackLayerToggle } from '@/components/training/feedback-layer-toggle'
+import {
+  WeekPortraitZoomProvider,
+  useWeekPortraitZoom,
+} from '@/components/plan/week-portrait-zoom-context'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
-import { useTrainingLibrary } from '@/components/training/training-library-context'
-import { TrainingLibraryToolbarToggle } from '@/components/training/training-library-toolbar-toggle'
+import { TrainingListFrame } from '@/components/training/training-list-frame'
+import { TrainingListAddMenu } from '@/components/training/training-list-add-menu'
+import { TrainingWeekToolbar } from '@/components/training/training-week-toolbar'
+import {
+  PageHeader,
+  PageHeaderActions,
+} from '@/components/ui/page-header'
 import { availableExtraPlanSports } from '@/lib/plan-sports'
 import {
   SHOW_EVENTS_STORAGE_KEY,
@@ -81,7 +78,12 @@ type PlanMultiWeekTablesProps = {
   nextWeekHref: string
   addWeekHref?: string | null
   removeWeekHref?: string | null
-  header?: ReactNode
+  /** Title column under sticky chrome (eyebrow + “Training week.”). */
+  stickyTitle?: ReactNode
+  /** List / Week / Month switch only. */
+  viewControls?: ReactNode
+  canLogWorkout?: boolean
+  canAddNote?: boolean
   swimCssSecPer100m?: number | null
   weatherLocation?: WeatherLocation | null
   /** Athlete preference: show forecast above workouts by default. */
@@ -89,11 +91,6 @@ type PlanMultiWeekTablesProps = {
 }
 
 const WEATHER_OVERRIDE_STORAGE_KEY = 'tt-weather-location-override'
-
-function WeekCardSizeToolbarControl() {
-  const { cardSize, setCardSize } = useWeekCardSize()
-  return <WeekCardSizeSwitch value={cardSize} onChange={setCardSize} />
-}
 
 function CombinedWeeksTable({
   weeks,
@@ -108,6 +105,7 @@ function CombinedWeeksTable({
   weatherLocation,
   onWeatherLocationSelect,
   onWeatherLocationReset,
+  forceLandscape = false,
 }: {
   weeks: PlanMultiWeekBlock[]
   isCoach: boolean
@@ -121,23 +119,37 @@ function CombinedWeeksTable({
   weatherLocation?: WeatherLocation | null
   onWeatherLocationSelect?: (place: WeatherPlace) => void
   onWeatherLocationReset?: () => void
+  /** Expand mode: always use landscape matrix, even on a portrait phone. */
+  forceLandscape?: boolean
 }) {
   const { cardSize } = useWeekCardSize()
+  const { zoom: portraitZoom } = useWeekPortraitZoom()
 
   const table = (
-    <div className="hidden w-full landscape:max-lg:block lg:block">
+    <div
+      className={cn(
+        'w-full',
+        forceLandscape
+          ? 'block'
+          : 'hidden landscape:max-lg:block lg:block',
+      )}
+    >
       <div className="@container overflow-hidden rounded-[0.5rem]">
-        <div className="overflow-x-auto">
+        <div
+          className="tt-week-matrix-scroll overflow-x-auto"
+          data-week-portrait-zoom={forceLandscape ? 'fit' : portraitZoom}
+        >
         <table
           className={cn(
             TABLE_FRAME,
-            'w-full table-fixed text-left landscape:max-lg:text-[9px] lg:text-sm',
+            'tt-week-matrix-table w-full table-fixed text-left landscape:max-lg:text-[9px] lg:text-sm',
+            forceLandscape && 'text-[9px] max-lg:text-[9px]',
           )}
           data-card-size={cardSize}
         >
           <colgroup>
-            <col className="w-[11%]" />
-            <col span={7} />
+            <col className="tt-week-label-col w-[11%]" />
+            <col className="tt-week-day-col" span={7} />
           </colgroup>
           {weeks.map((block, index) => (
             <PlanTableView
@@ -167,6 +179,10 @@ function CombinedWeeksTable({
       </div>
     </div>
   )
+
+  if (forceLandscape) {
+    return table
+  }
 
   const portrait = (
     <div className="space-y-4 portrait:max-lg:block landscape:max-lg:hidden lg:hidden">
@@ -215,7 +231,10 @@ export function PlanMultiWeekTables({
   nextWeekHref,
   addWeekHref,
   removeWeekHref,
-  header,
+  stickyTitle,
+  viewControls,
+  canLogWorkout = false,
+  canAddNote = false,
   swimCssSecPer100m = null,
   weatherLocation = null,
   weatherVisibleByDefault = true,
@@ -229,7 +248,8 @@ export function PlanMultiWeekTables({
   )
   const [showWeather, setShowWeather] = useState(weatherVisibleByDefault)
   const [expanded, setExpanded] = useState(false)
-  const library = useTrainingLibrary()
+  const [portraitPhone, setPortraitPhone] = useState(false)
+  const landscapeAutoExpandRef = useRef(false)
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -244,16 +264,77 @@ export function PlanMultiWeekTables({
     }
   }, [])
 
+  // Track phone/tablet portrait so expand can rotate content to landscape.
   useEffect(() => {
+    const mq = window.matchMedia(
+      '(max-width: 1023px) and (orientation: portrait)',
+    )
+    function sync() {
+      setPortraitPhone(mq.matches)
+    }
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
+  }, [])
+
+  // Phone/tablet landscape → expand; leave landscape → collapse only if we auto-opened it.
+  useEffect(() => {
+    const mq = window.matchMedia(
+      '(max-width: 1023px) and (orientation: landscape)',
+    )
+
+    function syncLandscapeExpand() {
+      if (mq.matches) {
+        setExpanded((prev) => {
+          if (!prev) landscapeAutoExpandRef.current = true
+          return true
+        })
+        setCalendarExpanded(true)
+        return
+      }
+      if (landscapeAutoExpandRef.current) {
+        landscapeAutoExpandRef.current = false
+        setExpanded(false)
+        setCalendarExpanded(false)
+      }
+    }
+
+    syncLandscapeExpand()
+    mq.addEventListener('change', syncLandscapeExpand)
     return () => {
+      mq.removeEventListener('change', syncLandscapeExpand)
+      landscapeAutoExpandRef.current = false
       setCalendarExpanded(false)
     }
   }, [])
+
+  // Lock horizontal page overflow while the Week matrix is mounted (portrait only).
+  useEffect(() => {
+    const root = document.documentElement
+    const mq = window.matchMedia(
+      '(max-width: 1023px) and (orientation: portrait)',
+    )
+
+    function syncLock() {
+      root.classList.toggle(
+        'tt-week-portrait-lock',
+        mq.matches && !expanded,
+      )
+    }
+
+    syncLock()
+    mq.addEventListener('change', syncLock)
+    return () => {
+      mq.removeEventListener('change', syncLock)
+      root.classList.remove('tt-week-portrait-lock')
+    }
+  }, [expanded])
 
   useEffect(() => {
     if (!expanded) return
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
+        landscapeAutoExpandRef.current = false
         setExpanded(false)
         setCalendarExpanded(false)
       }
@@ -313,6 +394,7 @@ export function PlanMultiWeekTables({
   function toggleExpanded() {
     setExpanded((prev) => {
       const next = !prev
+      if (!next) landscapeAutoExpandRef.current = false
       setCalendarExpanded(next)
       return next
     })
@@ -353,18 +435,6 @@ export function PlanMultiWeekTables({
 
   const showCombined = canCombine && combined
 
-  const combinedLabel = useMemo(() => {
-    if (weeks.length === 0) return ''
-    const first = weeks[0]?.weekLabel ?? ''
-    const last = weeks[weeks.length - 1]?.weekLabel ?? ''
-    if (weeks.length === 1) return first
-    const start = first.split('–')[0]?.trim() ?? first
-    const end = last.includes('–')
-      ? last.split('–').slice(1).join('–').trim()
-      : last
-    return `${start} – ${end}`
-  }, [weeks])
-
   const first = weeks[0]
   const typesInFirst = new Set(
     (first?.planDays ?? []).flatMap((d) => d.workouts.map((w) => w.type)),
@@ -384,125 +454,167 @@ export function PlanMultiWeekTables({
     isCoach && athleteId && athleteName && first,
   )
 
-  const toolbar = (
-    <div className="mb-2 flex min-w-0 items-end gap-1 overflow-x-auto pb-0.5">
-      <div className="mb-0.5 flex min-w-0 shrink-0 items-end gap-3">
-        {expanded && isCoach && athleteName ? (
-          <div className="flex min-w-0 items-center gap-2.5">
-            <AthleteAvatar
-              name={athleteName}
-              avatarUrl={athleteAvatarUrl}
-              size="sm"
-            />
-            <div className="min-w-0">
-              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
-                Planning for
-              </p>
-              <p className="truncate text-sm font-semibold leading-tight text-[var(--tt-ink,#111)]">
-                {athleteName}
-              </p>
+  const weekLabel =
+    weeks.length <= 1
+      ? (weeks[0]?.weekLabel ?? '')
+      : (() => {
+          const firstLabel = weeks[0]?.weekLabel ?? ''
+          const lastLabel = weeks[weeks.length - 1]?.weekLabel ?? ''
+          const start = firstLabel.split('–')[0]?.trim() ?? firstLabel
+          const end = lastLabel.includes('–')
+            ? lastLabel.split('–').slice(1).join('–').trim()
+            : lastLabel
+          return `${start} – ${end}`
+        })()
+
+  const weekToolbarProps = {
+    showNotes,
+    onToggleNotes: toggleShowNotes,
+    showEvents,
+    onToggleEvents: toggleShowEvents,
+    showWeather,
+    onToggleWeather: toggleShowWeather,
+    expanded,
+    onToggleExpanded: toggleExpanded,
+  }
+
+  const weekAddMenu = (
+    <TrainingListAddMenu
+      isCoach={isCoach}
+      athleteId={athleteId}
+      canAddNote={canAddNote}
+      canLogWorkout={canLogWorkout}
+    />
+  )
+
+  const expandToggleBtn = !expanded ? (
+    <button
+      type="button"
+      onClick={toggleExpanded}
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] text-muted-foreground transition hover:bg-foreground/[0.04] hover:text-foreground"
+      aria-label="Expand week plan"
+      title="Expand week plan"
+    >
+      <Maximize2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+    </button>
+  ) : null
+
+  const viewControlsWithExpand = (
+    <div className="flex shrink-0 items-center gap-0.5">
+      <div key="week-views" className="flex min-w-0 items-center">
+        {viewControls}
+      </div>
+      {expandToggleBtn ? (
+        <div key="week-expand" className="shrink-0">
+          {expandToggleBtn}
+        </div>
+      ) : null}
+    </div>
+  )
+
+  const stickyHeader = (
+    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 w-full pt-0 lg:mb-1 lg:pt-2">
+      <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-3">
+        {/* Mobile: each row full width — actions flush right */}
+        <div className="flex w-full min-w-0 flex-col gap-2.5 lg:hidden">
+          <div className="flex w-full min-w-0 items-center justify-between gap-3">
+            <div key="week-title" className="min-w-0">
+              {stickyTitle}
+            </div>
+            <div
+              key="week-header-actions"
+              className="tt-inbox-mobile-header-actions shrink-0"
+            >
+              <TrainingWeekToolbar mobileOnly {...weekToolbarProps} />
+              {weekAddMenu}
             </div>
           </div>
-        ) : null}
-        <CalendarPeriodNav
-          label={combinedLabel}
-          prevHref={prevWeekHref}
-          nextHref={nextWeekHref}
-          prevAriaLabel="Previous week"
-          nextAriaLabel="Next week"
-          align="start"
-          className="mb-0 shrink-0"
-        />
-      </div>
 
-      <div className="ml-auto flex min-w-0 shrink-0 items-end gap-2">
-        <ToolbarFilterGroup
-          label="Filter"
-          hint="Show or hide sports and workout statuses in the week grid"
-        >
-          <PlanSportFilterBar className="shrink-0" />
-        </ToolbarFilterGroup>
+          {expanded && isCoach && athleteName ? (
+            <div className="flex min-w-0 items-center gap-2.5">
+              <AthleteAvatar
+                name={athleteName}
+                avatarUrl={athleteAvatarUrl}
+                size="sm"
+              />
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+                  Planning for
+                </p>
+                <p className="truncate text-sm font-semibold leading-tight text-[var(--tt-ink,#111)]">
+                  {athleteName}
+                </p>
+              </div>
+            </div>
+          ) : null}
 
-        <ToolbarDivider className="mb-1.5 mx-0.5" />
-
-        <ToolbarFilterGroup
-          label="Layers"
-          hint="Toggle Notes, Events, Weather, and Feedback on cards"
-        >
-          <div className="flex shrink-0 items-center gap-0.5">
-            <ToolbarTextToggle
-              pressed={showNotes}
-              onClick={toggleShowNotes}
-              title={showNotes ? 'Hide day notes' : 'Show day notes'}
-            >
-              <StickyNote className="h-3 w-3" aria-hidden />
-              Notes
-            </ToolbarTextToggle>
-            <ToolbarTextToggle
-              pressed={showEvents}
-              onClick={toggleShowEvents}
-              title={showEvents ? 'Hide season events' : 'Show season events'}
-            >
-              <CalendarDays className="h-3 w-3" aria-hidden />
-              Events
-            </ToolbarTextToggle>
-            <ToolbarTextToggle
-              pressed={showWeather}
-              onClick={toggleShowWeather}
-              title={showWeather ? 'Hide weather row' : 'Show weather row'}
-            >
-              <CloudSun className="h-3 w-3" aria-hidden />
-              Weather
-            </ToolbarTextToggle>
-            <FeedbackLayerToggle />
+          <div className="flex w-full min-w-0 items-center justify-between gap-3">
+            <CalendarPeriodNav
+              key="week-period-nav"
+              label={weekLabel}
+              prevHref={prevWeekHref}
+              nextHref={nextWeekHref}
+              prevAriaLabel="Previous week"
+              nextAriaLabel="Next week"
+              showLabel={false}
+              className="mb-0 -ml-2 shrink-0"
+            />
+            <div key="week-view-controls" className="shrink-0">
+              {viewControlsWithExpand}
+            </div>
           </div>
-        </ToolbarFilterGroup>
+        </div>
 
-        <ToolbarDivider className="mb-1.5 mx-0.5" />
-
-        <ToolbarFilterGroup
-          label="View"
-          hint="How workout cards are colored in the week grid"
-        >
-          <PlanViewModeControl className="shrink-0" />
-        </ToolbarFilterGroup>
-
-        <ToolbarDivider className="mb-1.5 mx-0.5" />
-
-        <ToolbarFilterGroup
-          label="Cards"
-          hint="Week card density and expanded calendar"
-        >
-          <div className="flex items-center gap-0.5">
-            <WeekCardSizeToolbarControl />
-            <ToolbarTextToggle
-              pressed={expanded}
-              onClick={toggleExpanded}
-              title={expanded ? 'Exit expanded view' : 'Expand week plan'}
-              className="font-semibold text-foreground hover:text-foreground [&_svg]:opacity-100"
-            >
-              {expanded ? (
-                <Minimize2 className="h-3.5 w-3.5" aria-hidden />
-              ) : (
-                <Maximize2 className="h-3.5 w-3.5" aria-hidden />
-              )}
-            </ToolbarTextToggle>
+        {/* Desktop */}
+        <div className="hidden w-full min-w-0 flex-col gap-3 lg:flex">
+          <div className="flex w-full min-w-0 items-end justify-between gap-3">
+            <div key="week-title-desktop" className="min-w-0">
+              {stickyTitle}
+            </div>
+            <PageHeaderActions className="flex-col items-end gap-2 pt-0 sm:gap-2.5">
+              <div className="flex w-full min-w-0 flex-col items-end gap-2">
+                <div key="week-views-desktop">{viewControlsWithExpand}</div>
+                <div
+                  key="week-filters-desktop"
+                  className="flex min-w-0 max-w-full items-end gap-2"
+                >
+                  <TrainingWeekToolbar desktopOnly {...weekToolbarProps} />
+                  {weekAddMenu}
+                </div>
+              </div>
+            </PageHeaderActions>
           </div>
-        </ToolbarFilterGroup>
 
-        {library ? (
-          <>
-            <ToolbarDivider className="mb-1.5 mx-0.5" />
-            <ToolbarFilterGroup
-              label="Library"
-              hint="Open or close the workout library panel"
-            >
-              <TrainingLibraryToolbarToggle />
-            </ToolbarFilterGroup>
-          </>
-        ) : null}
+          {expanded && isCoach && athleteName ? (
+            <div className="flex min-w-0 items-center gap-2.5">
+              <AthleteAvatar
+                name={athleteName}
+                avatarUrl={athleteAvatarUrl}
+                size="sm"
+              />
+              <div className="min-w-0">
+                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+                  Planning for
+                </p>
+                <p className="truncate text-sm font-semibold leading-tight text-[var(--tt-ink,#111)]">
+                  {athleteName}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <CalendarPeriodNav
+            label={weekLabel}
+            prevHref={prevWeekHref}
+            nextHref={nextWeekHref}
+            prevAriaLabel="Previous week"
+            nextAriaLabel="Next week"
+            align="start"
+            className="mb-0 min-w-0"
+          />
+        </div>
       </div>
-    </div>
+    </PageHeader>
   )
 
   const footerControls =
@@ -534,12 +646,12 @@ export function PlanMultiWeekTables({
             <Link
               href={addWeekHref}
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-[6px] border border-border bg-card px-3 py-1.5',
+                'hidden items-center gap-1.5 rounded-[6px] border border-border bg-card px-3 py-1.5 lg:inline-flex',
                 'text-xs font-medium text-muted-foreground transition hover:text-foreground',
               )}
             >
               <Plus className="h-3.5 w-3.5" />
-              Add week
+              Show next week
             </Link>
           ) : null}
           {removeWeekHref ? (
@@ -586,50 +698,101 @@ export function PlanMultiWeekTables({
       weatherLocation={weatherLocation}
       onWeatherLocationSelect={applyWeatherOverride}
       onWeatherLocationReset={resetWeatherOverride}
+      forceLandscape={expanded}
     />
   )
 
+  const weekPlanBody = (
+    <div
+      className={cn(
+        'tt-week-view-root min-w-0 max-w-full space-y-4',
+        expanded && 'space-y-2',
+      )}
+    >
+      {showCombined || expanded ? (
+        <PlanWeekDndProvider mode={isCoach ? 'coach' : 'athlete'}>
+          <PlanWeekDndErrorBanner className="mb-4" />
+          {combinedContent}
+        </PlanWeekDndProvider>
+      ) : (
+        <div className="min-w-0 max-w-full space-y-6">
+          {weeks.map((block) => (
+            <PlanTableView
+              key={block.weekStartKey}
+              days={block.planDays}
+              isCoach={isCoach}
+              canEditDayNotes={canEditDayNotes}
+              athleteId={athleteId}
+              weekStartKey={block.weekStartKey}
+              planSportRows={planSportRows}
+              weekExtraPlanSportRows={block.weekExtraPlanSportRows}
+              weekHiddenPlanSportRows={block.weekHiddenPlanSportRows}
+              swimCssSecPer100m={swimCssSecPer100m}
+              showNotes={showNotes}
+              showEvents={showEvents}
+              showWeather={showWeather}
+              weatherLocation={weatherLocation}
+              onWeatherLocationSelect={applyWeatherOverride}
+              onWeatherLocationReset={resetWeatherOverride}
+            />
+          ))}
+        </div>
+      )}
+      {footerControls ? (
+        <div className="tt-week-view-chrome min-w-0 px-4 lg:px-0">
+          {footerControls}
+        </div>
+      ) : null}
+    </div>
+  )
+
+  /** Portrait phone + expand → rotate UI into a landscape stage. */
+  const rotateExpandToLandscape = expanded && portraitPhone
+
+  useEffect(() => {
+    if (!rotateExpandToLandscape) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [rotateExpandToLandscape])
+
   return (
-    <WeekCardSizeProvider>
-      <div
-        className={cn(
-          'space-y-4',
-          expanded && 'tt-calendar-expanded-root space-y-2',
-        )}
-      >
-        {header}
-        {toolbar}
-        {showCombined ? (
-          <PlanWeekDndProvider mode={isCoach ? 'coach' : 'athlete'}>
-            <PlanWeekDndErrorBanner className="mb-4" />
-            {combinedContent}
-          </PlanWeekDndProvider>
-        ) : (
-          <div className="space-y-6">
-            {weeks.map((block) => (
-              <PlanTableView
-                key={block.weekStartKey}
-                days={block.planDays}
-                isCoach={isCoach}
-                canEditDayNotes={canEditDayNotes}
-                athleteId={athleteId}
-                weekStartKey={block.weekStartKey}
-                planSportRows={planSportRows}
-                weekExtraPlanSportRows={block.weekExtraPlanSportRows}
-                weekHiddenPlanSportRows={block.weekHiddenPlanSportRows}
-                swimCssSecPer100m={swimCssSecPer100m}
-                showNotes={showNotes}
-                showEvents={showEvents}
-                showWeather={showWeather}
-                weatherLocation={weatherLocation}
-                onWeatherLocationSelect={applyWeatherOverride}
-                onWeatherLocationReset={resetWeatherOverride}
-              />
-            ))}
+    <WeekPortraitZoomProvider>
+      <WeekCardSizeProvider>
+        {expanded ? (
+          <button
+            type="button"
+            onClick={toggleExpanded}
+            className="tt-week-expanded-collapse-btn"
+            aria-label="Collapse week plan"
+            title="Collapse week plan"
+          >
+            <Minimize2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+          </button>
+        ) : null}
+
+        {rotateExpandToLandscape ? (
+          <div
+            className="tt-week-expand-rotate-root"
+            role="dialog"
+            aria-label="Week plan landscape"
+          >
+            <div className="tt-week-expand-rotate-inner tt-calendar-expanded-root">
+              {weekPlanBody}
+            </div>
           </div>
+        ) : (
+          <TrainingListFrame
+            scrollBody
+            className={cn(expanded && 'tt-calendar-expanded-root')}
+            header={stickyHeader}
+          >
+            {weekPlanBody}
+          </TrainingListFrame>
         )}
-        {footerControls}
-      </div>
-    </WeekCardSizeProvider>
+      </WeekCardSizeProvider>
+    </WeekPortraitZoomProvider>
   )
 }
