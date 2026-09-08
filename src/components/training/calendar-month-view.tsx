@@ -1,10 +1,13 @@
 "use client";
 
 import {
+  cloneElement,
+  isValidElement,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type ReactElement,
   type ReactNode,
 } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
@@ -71,6 +74,12 @@ import {
   TABLE_SHELL,
 } from "@/lib/table-styles";
 
+/** Mobile + desktop chrome both mount — clone so the same element isn’t reused twice. */
+function keyedNode(node: ReactNode, key: string): ReactNode {
+  if (!isValidElement(node)) return node;
+  return cloneElement(node as ReactElement, { key });
+}
+
 const DAY_NAMES = [
   { short: "Mon", full: "Monday" },
   { short: "Tue", full: "Tuesday" },
@@ -101,6 +110,8 @@ type CalendarMonthBlock = {
 
 type CalendarMonthViewProps = {
   rangeLabel: string;
+  /** Desktop period nav label (defaults to rangeLabel). */
+  desktopRangeLabel?: string;
   months: CalendarMonthBlock[];
   monthSpan: 1 | 2 | 3;
   monthOffset: number;
@@ -217,6 +228,7 @@ function CalendarWorkoutCard({
 
 export function CalendarMonthView({
   rangeLabel,
+  desktopRangeLabel = rangeLabel,
   months,
   monthSpan,
   monthOffset,
@@ -262,12 +274,10 @@ export function CalendarMonthView({
   }
 
   function toggleExpanded() {
-    setExpanded((prev) => {
-      const next = !prev;
-      if (!next) landscapeAutoExpandRef.current = false;
-      setCalendarExpanded(next);
-      return next;
-    });
+    const next = !expanded
+    if (!next) landscapeAutoExpandRef.current = false
+    setExpanded(next)
+    setCalendarExpanded(next)
   }
 
   useEffect(() => {
@@ -461,26 +471,39 @@ export function CalendarMonthView({
   ) : null;
 
   const stickyHeader = (
-    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:mb-1 lg:pt-2">
-      <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-3">
-        <div className="flex w-full min-w-0 items-center justify-between gap-3 lg:items-end">
-          <div className="min-w-0 lg:hidden">{stickyTitle}</div>
-          <div className="tt-inbox-mobile-header-actions lg:hidden">
+    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:mb-0 lg:pt-0">
+      <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-2">
+        {/* Mobile: title + Add / Filter / Expand */}
+        <div className="flex w-full min-w-0 items-center justify-between gap-3 lg:hidden">
+          <div className="min-w-0">{keyedNode(stickyTitle, "month-title-mobile")}</div>
+          <div className="tt-inbox-mobile-header-actions">
             {monthAddMenu}
             <TrainingMonthToolbar mobileOnly {...monthToolbarProps} />
             {expandToggleBtn}
           </div>
-          <div className="hidden min-w-0 lg:block">{stickyTitle}</div>
-          <PageHeaderActions className="hidden flex-col items-end gap-2 pt-0 sm:gap-2.5 lg:flex">
+        </div>
+
+        {/* Desktop: same shell as List — title+period left, views+filters right */}
+        <div className="hidden w-full min-w-0 items-end justify-between gap-3 lg:flex">
+          <div className="min-w-0">
+            {keyedNode(stickyTitle, "month-title-desktop")}
+            <CalendarPeriodNav
+              label={desktopRangeLabel}
+              prevHref={prevMonthHref}
+              nextHref={nextMonthHref}
+              prevAriaLabel="Previous month"
+              nextAriaLabel="Next month"
+              align="start"
+              size="subtitle"
+              className="mb-0 mt-1 min-w-0"
+            />
+          </div>
+          <PageHeaderActions className="flex-col items-end gap-2 pt-0 sm:gap-2.5">
             <div className="flex w-full min-w-0 flex-col items-end gap-2">
-              <div className="flex shrink-0 items-center gap-0.5">
-                <div className="flex min-w-0 items-center">{viewControls}</div>
-                {expandToggleBtn}
+              <div className="flex min-w-0 items-center">
+                {keyedNode(viewControls, "month-views-desktop")}
               </div>
-              <div className="flex min-w-0 max-w-full items-end gap-2">
-                <TrainingMonthToolbar desktopOnly {...monthToolbarProps} />
-                {monthAddMenu}
-              </div>
+              <TrainingMonthToolbar desktopOnly {...monthToolbarProps} />
             </div>
           </PageHeaderActions>
         </div>
@@ -513,32 +536,22 @@ export function CalendarMonthView({
             align="start"
             className="mb-0 -ml-1.5 shrink-0"
           />
-          <div className="shrink-0">{viewControls}</div>
+          <div className="shrink-0">{keyedNode(viewControls, "month-views-mobile")}</div>
         </div>
-
-        <CalendarPeriodNav
-          label={rangeLabel}
-          prevHref={prevMonthHref}
-          nextHref={nextMonthHref}
-          prevAriaLabel="Previous month"
-          nextAriaLabel="Next month"
-          align="start"
-          className="mb-0 hidden min-w-0 lg:flex"
-        />
       </div>
     </PageHeader>
   );
 
   const monthGrid = (
-    <div className="tt-month-view-root min-w-0">
-      <div className="tt-month-grid-bleed @container min-w-0 max-w-full overflow-hidden rounded-[0.5rem]">
+    <div className="tt-month-view-root flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="tt-month-grid-bleed @container flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden rounded-[0.5rem]">
         <div
-          className="tt-month-grid-scroll min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
+          className="tt-month-grid-scroll min-h-0 min-w-0 w-full max-w-full flex-1 overscroll-contain"
           data-month-stats={showStats ? "1" : "0"}
         >
           <div className="tt-month-grid-scroll-inner">
             <div className={TABLE_SHELL}>
-              <div className={cn("grid", gridCols, TABLE_HEADER)}>
+              <div className={cn("tt-month-grid-days-header grid", gridCols, TABLE_HEADER)}>
                 {showStats ? (
                   <div
                     className={cn(
@@ -625,7 +638,8 @@ export function CalendarMonthView({
         </div>
       ) : (
         <TrainingListFrame
-          scrollBody
+          /* Month pans X+Y inside the grid; frame only clips to the viewport. */
+          scrollBody={false}
           className={cn(expanded && "tt-calendar-expanded-root")}
           header={stickyHeader}
         >

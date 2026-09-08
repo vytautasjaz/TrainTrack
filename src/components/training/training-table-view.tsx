@@ -635,16 +635,19 @@ export function TrainingTableView({
             <div className="flex min-w-0 flex-1 items-center gap-4 pl-[calc(0.75rem+3px)] pr-2.5">
               {/* Spacer = sport icon column in rows */}
               <div className="h-8 w-8 shrink-0" aria-hidden />
-              <p className="w-[20rem] shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+              <p className="w-[16rem] shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
                 Workout / Event
               </p>
-              <p className="-ml-2 w-[5.5rem] shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+              <p className="min-w-0 flex-1 max-w-[16rem] text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+                Schema
+              </p>
+              <p className="ml-auto w-[5.5rem] shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
                 Details
               </p>
               <p className="w-[4.5rem] shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
                 Dur / Dist
               </p>
-              <p className="ml-auto w-[4.75rem] shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+              <p className="w-[4.75rem] shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
                 Status
               </p>
             </div>

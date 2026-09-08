@@ -19,6 +19,7 @@ import {
 } from '@/lib/race-distance-stats'
 import { WORKOUT_LIST_ORDER_BY } from '@/lib/workout-sort'
 import { athleteOwnedByCoachWhere } from '@/lib/session'
+import { normalizeNotificationPrefs } from '@/lib/notification-prefs'
 import {
   listCoachInboxThreads,
   serializeInboxThread,
@@ -53,6 +54,7 @@ import {
   buildCoachHomePlanningCoverageRows,
   buildCoachHomeRaceActivityRows,
   filterDismissedCoachHomeAttentionItems,
+  isUnderPlannedBelowDays,
   mergeCoachHomeActivityFeed,
   type CoachHomeRaceFeedSource,
 } from '@/lib/coach-home'
@@ -849,7 +851,7 @@ export async function getCoachHomeData(coachId: string) {
     result: { select: { actualDistance: true, actualDuration: true } },
   } as const
 
-  const [dashboard, pendingCoach, inboxStats, lastWeekWorkouts, todayWorkoutRows, recentCompletedRows, recentRaceRows] =
+  const [dashboard, pendingCoach, inboxStats, lastWeekWorkouts, todayWorkoutRows, recentCompletedRows, recentRaceRows, coachUser] =
     await Promise.all([
     getCoachDashboard(coachId),
     getPendingCoachRequests(coachId),
@@ -902,6 +904,10 @@ export async function getCoachHomeData(coachId: string) {
       orderBy: [{ date: 'desc' }],
       take: 200,
     }),
+    prisma.user.findUnique({
+      where: { id: coachId },
+      select: { notificationPrefs: true },
+    }),
   ])
 
   const {
@@ -920,8 +926,17 @@ export async function getCoachHomeData(coachId: string) {
   )
 
   const lastWeekWorkoutsByAthlete = groupWorkoutsByAthlete(lastWeekWorkouts)
+  const alertPrefs = normalizeNotificationPrefs(coachUser?.notificationPrefs)
   const planningWarningIds = new Set(
-    dashboard.planningWarnings.map((w) => w.athleteId),
+    dashboard.athletes
+      .filter((athlete) => athlete.status === AthleteStatus.ACTIVE)
+      .filter((athlete) =>
+        isUnderPlannedBelowDays(
+          dashboard.lastPlannedKeyByAthlete.get(athlete.id) ?? null,
+          alertPrefs.underPlannedAlertBelowDays,
+        ),
+      )
+      .map((athlete) => athlete.id),
   )
 
   const todayWorkoutsByAthlete = new Map<string, ReturnType<typeof toPlanWorkoutDetail>[]>()
@@ -990,6 +1005,7 @@ export async function getCoachHomeData(coachId: string) {
       const d = daysUntil(race.date)
       return { label: `${race.name} · ${d}d`, days: d }
     },
+    complianceAlertBelowPct: alertPrefs.complianceAlertBelowPct,
   })
 
   const avatarByAthlete = new Map(
@@ -1001,6 +1017,12 @@ export async function getCoachHomeData(coachId: string) {
     needsReplyThreads,
     planningWarnings: dashboard.planningWarnings,
     rosterRows,
+    alertPrefs: {
+      complianceAlerts: alertPrefs.complianceAlerts,
+      complianceAlertBelowPct: alertPrefs.complianceAlertBelowPct,
+      underPlannedAlerts: alertPrefs.underPlannedAlerts,
+      underPlannedAlertBelowDays: alertPrefs.underPlannedAlertBelowDays,
+    },
   })
 
   const coachingRequests = pendingCoach.requests.map((link) => ({

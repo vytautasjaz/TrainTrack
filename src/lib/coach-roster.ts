@@ -169,10 +169,13 @@ function attentionForAthlete(input: {
   unreadChatCount: number
   unreadFeedbackCount: number
   isUnderPlanned: boolean
-  compliance: number
-  planned: number
+  /** Last full week — soft attention after the week closes. */
+  lastWeekCompliance: number
+  lastWeekPlanned: number
+  complianceAlertBelowPct?: number
 }): { attention: CoachAthleteAttentionLevel; label: string | null; warning: string | null } {
   const unreadTotal = input.unreadChatCount + input.unreadFeedbackCount
+  const complianceBelow = input.complianceAlertBelowPct ?? 50
 
   if (input.needsReplyCount > 0 || unreadTotal > 0) {
     return {
@@ -188,11 +191,11 @@ function attentionForAthlete(input: {
       warning: 'Plan ahead',
     }
   }
-  if (input.planned > 0 && input.compliance < 50) {
+  if (input.lastWeekPlanned > 0 && input.lastWeekCompliance < complianceBelow) {
     return {
       attention: 1,
       label: 'Low compliance',
-      warning: `${input.compliance}% to today`,
+      warning: `${input.lastWeekCompliance}% last week`,
     }
   }
   return { attention: 0, label: null, warning: null }
@@ -216,6 +219,7 @@ export function buildCoachRosterRows(input: {
   generalChatByAthlete: Map<string, CoachRosterChatThread>
   feedbackThreadsByAthlete: Map<string, CoachRosterFeedbackItem[]>
   formatNextRace: (race: { name: string; date: Date }) => { label: string; days: number }
+  complianceAlertBelowPct?: number
 }): CoachRosterRow[] {
   return input.athletes.map((athlete) => {
     const wtd = weekToDateCompliance(athlete.workouts)
@@ -237,8 +241,9 @@ export function buildCoachRosterRows(input: {
       unreadChatCount,
       unreadFeedbackCount,
       isUnderPlanned,
-      compliance: wtd.compliance,
-      planned: wtd.planned,
+      lastWeekCompliance: lastWeek.compliance,
+      lastWeekPlanned: lastWeek.planned,
+      complianceAlertBelowPct: input.complianceAlertBelowPct,
     })
 
     const nextRace = athlete.races[0]

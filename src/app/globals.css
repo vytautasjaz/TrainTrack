@@ -2095,11 +2095,11 @@ html[data-inbox-mobile-detail='true'] .tt-inbox-thread-composer {
   }
 }
 
-/* Desktop training list — more air above/around the page title. */
+/* Desktop training list — air above title (sticky frame no longer adds lg:pt). */
 @media (min-width: 1024px) {
   [data-page-header].tt-inbox-page-header.tt-training-list-page-header {
-    padding-top: 0.75rem;
-    padding-bottom: 0.35rem;
+    padding-top: 0.5rem;
+    padding-bottom: 0.25rem;
   }
 
   .tt-training-list-page-header .tt-inbox-page-title {
@@ -3610,18 +3610,17 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
   position: relative !important;
   inset: auto !important;
   max-width: none;
-  /* Allow tall day cells (workouts) to grow; stage scrolls, don't clip. */
-  overflow-x: auto;
-  overflow-y: visible;
+  /* Free 2D pan inside the month scroller (stage shell stays overflow:hidden). */
+  overflow: auto;
 }
 
 .tt-week-expand-rotate-inner .tt-month-grid-bleed {
-  overflow: visible;
+  overflow: hidden;
 }
 
 /*
- * Month calendar: horizontal day-grid scroll; sticky chrome stays in TrainingListFrame.
- * Stats column sticks while days pan (when Stats layer is on).
+ * Month calendar: free 2D pan in one scroller (touch / trackpad diagonal).
+ * Sticky weekday header (top) + Stats column (left) stay put while days move.
  */
 .tt-month-grid-bleed {
   position: relative;
@@ -3637,10 +3636,42 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
-  overscroll-behavior-x: contain;
+  overflow: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile fixed frame + expand stage: fill leftover height so Y pans inside the grid. */
+.tt-training-list-frame[data-training-list-frame='fixed'] .tt-month-view-root,
+.tt-training-list-frame[data-training-list-frame='fixed'] .tt-month-grid-bleed,
+.tt-training-list-frame[data-training-list-frame='fixed'] .tt-month-grid-scroll,
+.tt-week-expand-rotate-inner .tt-month-view-root,
+.tt-week-expand-rotate-inner .tt-month-grid-bleed,
+.tt-week-expand-rotate-inner .tt-month-grid-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.tt-week-expand-rotate-inner:has(.tt-month-grid-scroll) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Desktop: cap height so both axes scroll in one viewport (not page Y + grid X). */
+@media (min-width: 1024px) {
+  html:not([data-calendar-expanded='true'])
+    .tt-training-list-frame[data-training-list-frame='flow']
+    .tt-month-grid-scroll {
+    max-height: calc(100dvh - 11.5rem);
+  }
+
+  html[data-calendar-expanded='true']
+    .tt-calendar-expanded-root
+    .tt-month-grid-scroll {
+    max-height: calc(100dvh - 3.5rem);
+  }
 }
 
 .tt-month-grid-scroll-inner {
@@ -3660,6 +3691,12 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
 .tt-month-grid-scroll .tt-table-body {
   width: 100%;
   min-width: 100%;
+}
+
+.tt-month-grid-scroll .tt-month-grid-days-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
 }
 
 .tt-month-grid-scroll .tt-month-stats-col {
@@ -3689,7 +3726,7 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
 }
 
 .tt-month-grid-scroll .tt-table-header .tt-month-stats-col {
-  z-index: 4;
+  z-index: 6;
   background: var(--tt-table-header-bg, #2a3144) !important;
 }
 

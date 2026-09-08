@@ -2,7 +2,11 @@
 
 import { requireSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
-import { isPushConfigured, type NotificationPrefs } from '@/lib/push-notifications'
+import { isPushConfigured } from '@/lib/push-notifications'
+import {
+  normalizeNotificationPrefs,
+  type NotificationPrefs,
+} from '@/lib/notification-prefs'
 
 type SubscriptionPayload = {
   endpoint: string
@@ -56,32 +60,12 @@ export async function getNotificationPrefs(): Promise<NotificationPrefs> {
     where: { id: session.userId },
     select: { notificationPrefs: true },
   })
-  const raw = user?.notificationPrefs
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return {
-      messages: true,
-      workoutAsks: true,
-      workoutFeedback: true,
-      raceThreads: true,
-    }
-  }
-  const prefs = raw as NotificationPrefs
-  return {
-    messages: prefs.messages !== false,
-    workoutAsks: prefs.workoutAsks !== false,
-    workoutFeedback: prefs.workoutFeedback !== false,
-    raceThreads: prefs.raceThreads !== false,
-  }
+  return normalizeNotificationPrefs(user?.notificationPrefs)
 }
 
 export async function updateNotificationPrefs(input: NotificationPrefs) {
   const session = await requireSession()
-  const next: NotificationPrefs = {
-    messages: input.messages !== false,
-    workoutAsks: input.workoutAsks !== false,
-    workoutFeedback: input.workoutFeedback !== false,
-    raceThreads: input.raceThreads !== false,
-  }
+  const next = normalizeNotificationPrefs(input)
   await prisma.user.update({
     where: { id: session.userId },
     data: { notificationPrefs: next },

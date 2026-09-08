@@ -6,6 +6,20 @@ import {
 } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { getAthleteInboxUnreadCount, getCoachInboxUnreadCount } from '@/lib/coaching-inbox'
+import type { NotificationPrefs } from '@/lib/notification-prefs'
+
+export type { NotificationPrefs } from '@/lib/notification-prefs'
+export {
+  DEFAULT_COMPLIANCE_ALERT_BELOW_PCT,
+  MIN_COMPLIANCE_ALERT_BELOW_PCT,
+  MAX_COMPLIANCE_ALERT_BELOW_PCT,
+  DEFAULT_UNDER_PLANNED_ALERT_BELOW_DAYS,
+  MIN_UNDER_PLANNED_ALERT_BELOW_DAYS,
+  MAX_UNDER_PLANNED_ALERT_BELOW_DAYS,
+  clampComplianceAlertBelowPct,
+  clampUnderPlannedAlertBelowDays,
+  normalizeNotificationPrefs,
+} from '@/lib/notification-prefs'
 
 let vapidConfigured = false
 
@@ -16,14 +30,6 @@ export type InboxPushType =
   | 'race_thread'
   | 'coach_reply'
   | 'athlete_reply'
-
-export type NotificationPrefs = {
-  messages?: boolean
-  workoutAsks?: boolean
-  workoutFeedback?: boolean
-  raceThreads?: boolean
-  mentions?: boolean
-}
 
 function ensureVapidConfig(): boolean {
   if (vapidConfigured) return true

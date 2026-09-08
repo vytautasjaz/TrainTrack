@@ -256,9 +256,13 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                 <SettingsPanel
                   id="notifications-types"
                   title="What to notify"
-                  description="Turn off categories you do not want pushed. Unread badges in the app are unchanged."
+                  description={
+                    coachView
+                      ? 'Inbox push categories, plus which coach Home alerts you want. Unread badges stay the same.'
+                      : 'Turn off categories you do not want pushed. Unread badges in the app are unchanged.'
+                  }
                 >
-                  <NotificationPrefsForm />
+                  <NotificationPrefsForm coachView={coachView} />
                 </SettingsPanel>
               </>
             ),

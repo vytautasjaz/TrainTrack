@@ -39,6 +39,10 @@ import {
 import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { WorkoutInlineFeedback } from '@/components/plan/workout-inline-feedback'
+import {
+  WorkoutCardDiagram,
+  workoutHasCardDiagram,
+} from '@/components/plan/workout-card-diagram'
 import { useOptionalPlanSportFilter } from '@/components/training/plan-sport-filter-context'
 import type { PlanColorMode } from '@/lib/plan-sport-filter'
 import { SESSION_TYPE_LABELS } from '@/lib/workout-builder/types'
@@ -369,7 +373,7 @@ export function TrainingListWorkoutRow({
         </div>
 
         {/* WORKOUT / TITLE — desktop fixed width matches header */}
-        <div className="min-w-0 flex-1 lg:w-[20rem] lg:flex-none">
+        <div className="min-w-0 flex-1 lg:w-[16rem] lg:flex-none">
           <p
             className={cn(
               'line-clamp-2 break-words text-[13.5px] font-semibold leading-snug text-[var(--tt-ink,#111)]',
@@ -388,8 +392,26 @@ export function TrainingListWorkoutRow({
           </p>
         </div>
 
-        {/* DETAILS — desktop centered on column axis */}
-        <div className="hidden w-[5.5rem] shrink-0 -ml-2 text-center lg:block">
+        {/* SCHEMA — desktop only, between workout and details */}
+        <div className="hidden min-w-0 flex-1 items-center lg:flex lg:max-w-[16rem]">
+          {workoutHasCardDiagram(workout) && !workout.isRescheduleGhost ? (
+            <WorkoutCardDiagram
+              workout={workout}
+              completed={completed}
+              skipped={skipped}
+              density="list"
+              className="w-full min-w-0"
+              tone={
+                skipped || colorMode !== 'completion' || !completed
+                  ? 'muted'
+                  : 'completed'
+              }
+            />
+          ) : null}
+        </div>
+
+        {/* DETAILS — pushed right with Dur/Dist toward Status */}
+        <div className="hidden w-[5.5rem] shrink-0 text-center lg:ml-auto lg:block">
           <p className="truncate text-center text-[12px] font-normal text-[var(--tt-ink,#111)]">
             {detailPrimary}
           </p>
@@ -430,7 +452,7 @@ export function TrainingListWorkoutRow({
 
         {/* STATUS — desktop centered on column axis (right side) */}
         <div
-          className="flex min-w-8 shrink-0 items-start justify-end pt-0.5 lg:ml-auto lg:w-[4.75rem] lg:items-center lg:justify-center lg:pt-0"
+          className="flex min-w-8 shrink-0 items-start justify-end pt-0.5 lg:w-[4.75rem] lg:items-center lg:justify-center lg:pt-0"
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => e.stopPropagation()}
         >

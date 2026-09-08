@@ -423,8 +423,8 @@ export default async function TrainingPage({
   );
 
   const listPageHeader = (
-    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:mb-1 lg:pt-2">
-      <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-3">
+    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:mb-0 lg:pt-0">
+      <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-2">
         <div className="flex w-full min-w-0 items-center justify-between gap-3 lg:items-end">
           <div className="min-w-0">
             {trainingEyebrow ? (
@@ -475,11 +475,6 @@ export default async function TrainingPage({
       <PageHeaderTitle className="tt-inbox-page-title lg:mt-1">
         Week plan<span className="tt-inbox-title-dot">.</span>
       </PageHeaderTitle>
-      {trainingDescription ? (
-        <PageHeaderDescription className="mt-1 hidden max-w-lg lg:block">
-          {trainingDescription}
-        </PageHeaderDescription>
-      ) : null}
     </div>
   );
 
@@ -493,11 +488,6 @@ export default async function TrainingPage({
       <PageHeaderTitle className="tt-inbox-page-title lg:mt-1">
         Month plan<span className="tt-inbox-title-dot">.</span>
       </PageHeaderTitle>
-      {trainingDescription ? (
-        <PageHeaderDescription className="mt-1 hidden max-w-lg lg:block">
-          {trainingDescription}
-        </PageHeaderDescription>
-      ) : null}
     </div>
   );
 
@@ -610,6 +600,7 @@ export default async function TrainingPage({
       {view === "calendar" ? (
         <CalendarMonthView
           rangeLabel={monthNavLabel}
+          desktopRangeLabel={periodLabel}
           months={monthBlocks.map(({ label, days }) => ({ label, days }))}
           monthSpan={monthSpan}
           monthOffset={monthOffset}

@@ -131,7 +131,7 @@ export function TrainingListFrame({
             'max-lg:border-b max-lg:border-[var(--tt-line,#ebebeb)] max-lg:px-2.5 max-lg:pb-2 max-lg:pt-1',
             mobileFixed
               ? null
-              : 'sticky z-30 lg:-mx-4 lg:border-0 lg:px-4 lg:pb-5 lg:pt-2',
+              : 'sticky z-30 lg:-mx-4 lg:border-0 lg:px-4 lg:pb-3 lg:pt-0',
           )}
           style={!mobileFixed ? { top: desktopStickyTop } : undefined}
         >

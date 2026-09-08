@@ -15,6 +15,11 @@ type CalendarPeriodNavProps = {
   align?: 'center' | 'start'
   /** When false, render only prev/next arrows (week mobile). */
   showLabel?: boolean
+  /**
+   * `subtitle` — match PageHeaderDescription height under Training titles
+   * (desktop Week/Month). Default keeps touch-friendly chrome.
+   */
+  size?: 'default' | 'subtitle'
   className?: string
 }
 
@@ -26,10 +31,12 @@ export function CalendarPeriodNav({
   nextAriaLabel = 'Next period',
   align = 'center',
   showLabel = true,
+  size = 'default',
   className,
 }: CalendarPeriodNavProps) {
   const compact = align === 'start'
   const arrowsOnly = !showLabel
+  const subtitle = size === 'subtitle'
 
   if (arrowsOnly) {
     return (
@@ -66,11 +73,23 @@ export function CalendarPeriodNav({
     )
   }
 
+  const arrowBtn = cn(
+    'shrink-0 rounded-full',
+    subtitle
+      ? 'h-5 w-5 text-[var(--tt-ink-soft,#6b6b6b)] hover:bg-transparent hover:text-foreground'
+      : compact
+        ? 'h-8 w-7'
+        : 'h-8 w-8',
+  )
+  const arrowIcon = subtitle ? 'h-3.5 w-3.5' : 'h-4 w-4'
+
   return (
     <div
       className={cn(
         'flex items-center',
-        compact ? 'w-fit max-w-full gap-0' : 'w-full justify-center gap-1',
+        compact || subtitle
+          ? 'w-fit max-w-full gap-0'
+          : 'w-full justify-center gap-1',
         className,
       )}
     >
@@ -78,25 +97,26 @@ export function CalendarPeriodNav({
         <Button
           variant="ghost"
           size="icon"
-          className={cn(
-            'shrink-0 rounded-full',
-            compact ? 'h-8 w-7' : 'h-8 w-8',
-          )}
+          className={arrowBtn}
           asChild
         >
           <Link href={prevHref} aria-label={prevAriaLabel}>
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className={arrowIcon} />
           </Link>
         </Button>
       ) : (
-        !compact && <span className="h-8 w-8 shrink-0" aria-hidden />
+        !compact && !subtitle && (
+          <span className="h-8 w-8 shrink-0" aria-hidden />
+        )
       )}
       <h2
         className={cn(
-          'font-semibold',
-          compact
-            ? 'shrink-0 whitespace-nowrap px-0.5 text-[13px] leading-none'
-            : 'min-w-0 flex-1 whitespace-nowrap text-center text-sm landscape:max-lg:text-xs',
+          'whitespace-nowrap',
+          subtitle
+            ? 'page-header-description shrink-0 px-0.5 font-normal'
+            : compact
+              ? 'shrink-0 px-0.5 text-[13px] font-semibold leading-none'
+              : 'min-w-0 flex-1 text-center text-sm font-semibold landscape:max-lg:text-xs',
         )}
       >
         {label}
@@ -105,18 +125,17 @@ export function CalendarPeriodNav({
         <Button
           variant="ghost"
           size="icon"
-          className={cn(
-            'shrink-0 rounded-full',
-            compact ? 'h-8 w-7' : 'h-8 w-8',
-          )}
+          className={arrowBtn}
           asChild
         >
           <Link href={nextHref} aria-label={nextAriaLabel}>
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className={arrowIcon} />
           </Link>
         </Button>
       ) : (
-        !compact && <span className="h-8 w-8 shrink-0" aria-hidden />
+        !compact && !subtitle && (
+          <span className="h-8 w-8 shrink-0" aria-hidden />
+        )
       )}
     </div>
   )

@@ -226,6 +226,20 @@ export function coachHomeAlertsAthleteStatus(status: AthleteStatus): boolean {
   return status === 'ACTIVE'
 }
 
+/** Monday of the previous full week — used as compliance alert context. */
+export function lastWeekStartDateKey(from: Date = todayDateOnly()): string {
+  return toDateKey(addDateOnlyDays(startOfWeekDateOnly(from), -7))
+}
+
+/** True when plan coverage ahead is strictly below `belowDays` (or missing). */
+export function isUnderPlannedBelowDays(
+  lastPlannedKey: string | null,
+  belowDays: number,
+): boolean {
+  if (!lastPlannedKey) return true
+  return daysUntil(parseDateOnly(lastPlannedKey)) < belowDays
+}
+
 export function buildCoachHomeAttentionItems(input: {
   joinRequests: Array<{
     id: string
@@ -240,9 +254,20 @@ export function buildCoachHomeAttentionItems(input: {
     lastPlannedKey: string | null
   }>
   rosterRows: CoachRosterRow[]
+  /** Coach Settings → Notifications. Defaults on when omitted. */
+  alertPrefs?: {
+    complianceAlerts?: boolean
+    complianceAlertBelowPct?: number
+    underPlannedAlerts?: boolean
+    underPlannedAlertBelowDays?: number
+  }
 }): CoachHomeAttentionItem[] {
   const items: CoachHomeAttentionItem[] = []
   const statusByAthleteId = new Map(input.rosterRows.map((row) => [row.id, row.status]))
+  const showCompliance = input.alertPrefs?.complianceAlerts !== false
+  const showUnderPlanned = input.alertPrefs?.underPlannedAlerts !== false
+  const complianceBelowPct = input.alertPrefs?.complianceAlertBelowPct ?? 50
+  const underPlannedBelowDays = input.alertPrefs?.underPlannedAlertBelowDays ?? 3
 
   for (const link of input.joinRequests) {
     items.push({
@@ -304,20 +329,23 @@ export function buildCoachHomeAttentionItems(input: {
     })
   }
 
-  for (const warning of input.planningWarnings) {
-    if (!coachHomeAlertsAthleteStatus(statusByAthleteId.get(warning.athleteId) ?? 'INACTIVE')) {
-      continue
-    }
+  for (const row of input.rosterRows) {
+    if (!showUnderPlanned) continue
+    if (!coachHomeAlertsAthleteStatus(row.status)) continue
+    if (!isUnderPlannedBelowDays(row.lastPlannedKey, underPlannedBelowDays)) continue
     items.push({
-      id: `plan-${warning.athleteId}`,
+      id: `plan-${row.id}`,
       kind: 'under_planned',
-      athleteId: warning.athleteId,
-      athleteName: warning.athleteName,
-      avatarUrl: warning.avatarUrl,
+      athleteId: row.id,
+      athleteName: row.name,
+      avatarUrl: null,
       categoryLabel: 'Planning',
-      description: 'Needs more days planned ahead',
-      contextLine: warning.lastPlannedKey
-        ? `Last planned ${formatDateKeyCompact(warning.lastPlannedKey)}`
+      description:
+        underPlannedBelowDays === 1
+          ? 'Plan coverage is under 1 day ahead'
+          : `Plan coverage is under ${underPlannedBelowDays} days ahead`,
+      contextLine: row.lastPlannedKey
+        ? `Last planned ${formatDateKeyCompact(row.lastPlannedKey)}`
         : 'No upcoming plan',
       workoutTitle: null,
       workoutDateKey: null,
@@ -325,14 +353,16 @@ export function buildCoachHomeAttentionItems(input: {
       statusLabel: 'Under-planned',
       occurredAt: new Date().toISOString(),
       actionLabel: 'Review athlete',
-      actionHref: `/athletes/${warning.athleteId}`,
-      action: { type: 'open_plan', lastPlannedKey: warning.lastPlannedKey },
+      actionHref: `/athletes/${row.id}`,
+      action: { type: 'open_plan', lastPlannedKey: row.lastPlannedKey },
     })
   }
 
   for (const row of input.rosterRows) {
+    if (!showCompliance) continue
     if (row.status !== 'ACTIVE') continue
-    if (row.planned <= 0 || row.compliance >= 50) continue
+    // After the week closes: incomplete last week (not mid-week “to today”).
+    if (row.lastWeekPlanned <= 0 || row.lastWeekCompliance >= complianceBelowPct) continue
     if (items.some((item) => item.athleteId === row.id && item.kind === 'low_compliance')) {
       continue
     }
@@ -343,12 +373,12 @@ export function buildCoachHomeAttentionItems(input: {
       athleteName: row.name,
       avatarUrl: null,
       categoryLabel: 'Compliance',
-      description: `${row.completed}/${row.planned} sessions completed this week`,
-      contextLine: 'This week',
+      description: `${row.lastWeekCompleted}/${row.lastWeekPlanned} sessions completed last week (${row.lastWeekCompliance}%)`,
+      contextLine: `Below ${complianceBelowPct}% · last week`,
       workoutTitle: null,
       workoutDateKey: null,
       workoutType: null,
-      statusLabel: 'At risk',
+      statusLabel: 'Missed plan',
       occurredAt: new Date().toISOString(),
       actionLabel: 'Review athlete',
       actionHref: `/athletes/${row.id}`,
@@ -378,7 +408,7 @@ export function coachHomeAttentionContextAt(item: CoachHomeAttentionItem): strin
     case 'under_planned':
       return item.action.type === 'open_plan' ? (item.action.lastPlannedKey ?? '') : ''
     case 'low_compliance':
-      return toDateKey(startOfWeekDateOnly(todayDateOnly()))
+      return lastWeekStartDateKey()
     default:
       return item.occurredAt
   }
@@ -399,7 +429,7 @@ function isCoachHomeAttentionDismissed(
       return currentKey === dismissal.contextAt
     }
     case 'low_compliance':
-      return dismissal.contextAt === toDateKey(startOfWeekDateOnly(todayDateOnly()))
+      return dismissal.contextAt === lastWeekStartDateKey()
     case 'missed_session':
     case 'join_request':
       return true
