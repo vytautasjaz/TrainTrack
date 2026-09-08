@@ -44,12 +44,27 @@ import {
 } from '@/lib/plan-calendar-layers'
 import { useStoredFlag } from '@/hooks/use-stored-flag'
 import { setCalendarExpanded } from '@/lib/calendar-expand'
+import {
+  addDateOnlyDays,
+  formatDateOnly,
+  parseDateOnly,
+} from '@/lib/dates'
 import type { PlanDay } from '@/lib/plan-week'
 import type { WeatherPlace } from '@/lib/weather/places'
 import { cn } from '@/lib/utils'
 import { TABLE_FRAME } from '@/lib/table-styles'
 
 const COMBINE_WEEKS_STORAGE_KEY = 'tt-combine-weeks'
+
+/** Compact chrome label, e.g. "Sep 07 – Sep 13". */
+function compactWeekNavLabel(weeks: PlanMultiWeekBlock[]): string {
+  const first = weeks[0]
+  const last = weeks[weeks.length - 1]
+  if (!first || !last) return ''
+  const start = parseDateOnly(first.weekStartKey)
+  const end = addDateOnlyDays(parseDateOnly(last.weekStartKey), 6)
+  return `${formatDateOnly(start, 'MMM dd')} – ${formatDateOnly(end, 'MMM dd')}`
+}
 
 export type PlanMultiWeekBlock = {
   weekStartKey: string
@@ -248,6 +263,9 @@ export function PlanMultiWeekTables({
   )
   const [showWeather, setShowWeather] = useState(weatherVisibleByDefault)
   const [expanded, setExpanded] = useState(false)
+  /** Phone/tablet width — expand uses the fullscreen stage (not desktop frame). */
+  const [mobilePhone, setMobilePhone] = useState(false)
+  /** Portrait vs landscape inside that stage (portrait = CSS-rotate fake landscape). */
   const [portraitPhone, setPortraitPhone] = useState(false)
   const landscapeAutoExpandRef = useRef(false)
   const pathname = usePathname()
@@ -264,17 +282,23 @@ export function PlanMultiWeekTables({
     }
   }, [])
 
-  // Track phone/tablet portrait so expand can rotate content to landscape.
+  // Track phone/tablet + orientation for the expanded week stage.
   useEffect(() => {
-    const mq = window.matchMedia(
+    const mobileMq = window.matchMedia('(max-width: 1023px)')
+    const portraitMq = window.matchMedia(
       '(max-width: 1023px) and (orientation: portrait)',
     )
     function sync() {
-      setPortraitPhone(mq.matches)
+      setMobilePhone(mobileMq.matches)
+      setPortraitPhone(portraitMq.matches)
     }
     sync()
-    mq.addEventListener('change', sync)
-    return () => mq.removeEventListener('change', sync)
+    mobileMq.addEventListener('change', sync)
+    portraitMq.addEventListener('change', sync)
+    return () => {
+      mobileMq.removeEventListener('change', sync)
+      portraitMq.removeEventListener('change', sync)
+    }
   }, [])
 
   // Phone/tablet landscape → expand; leave landscape → collapse only if we auto-opened it.
@@ -467,6 +491,8 @@ export function PlanMultiWeekTables({
           return `${start} – ${end}`
         })()
 
+  const weekNavLabel = compactWeekNavLabel(weeks)
+
   const weekToolbarProps = {
     showNotes,
     onToggleNotes: toggleShowNotes,
@@ -491,7 +517,7 @@ export function PlanMultiWeekTables({
     <button
       type="button"
       onClick={toggleExpanded}
-      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] text-muted-foreground transition hover:bg-foreground/[0.04] hover:text-foreground"
+      className="tt-inbox-mobile-icon-btn"
       aria-label="Expand week plan"
       title="Expand week plan"
     >
@@ -499,120 +525,89 @@ export function PlanMultiWeekTables({
     </button>
   ) : null
 
-  const viewControlsWithExpand = (
-    <div className="flex shrink-0 items-center gap-0.5">
-      <div key="week-views" className="flex min-w-0 items-center">
-        {viewControls}
-      </div>
-      {expandToggleBtn ? (
-        <div key="week-expand" className="shrink-0">
-          {expandToggleBtn}
-        </div>
-      ) : null}
-    </div>
-  )
-
   const stickyHeader = (
-    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 w-full pt-0 lg:mb-1 lg:pt-2">
+    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:mb-1 lg:pt-2">
+      {/* Same shell as Month: title row (Add / Filter / Expand) + nav / views row */}
       <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-3">
-        {/* Mobile: each row full width — actions flush right */}
-        <div className="flex w-full min-w-0 flex-col gap-2.5 lg:hidden">
-          <div className="flex w-full min-w-0 items-center justify-between gap-3">
-            <div key="week-title" className="min-w-0">
-              {stickyTitle}
-            </div>
-            <div
-              key="week-header-actions"
-              className="tt-inbox-mobile-header-actions shrink-0"
-            >
-              <TrainingWeekToolbar mobileOnly {...weekToolbarProps} />
-              {weekAddMenu}
-            </div>
+        <div className="flex w-full min-w-0 items-center justify-between gap-3 lg:items-end">
+          <div key="week-title" className="min-w-0 lg:hidden">
+            {stickyTitle}
           </div>
-
-          {expanded && isCoach && athleteName ? (
-            <div className="flex min-w-0 items-center gap-2.5">
-              <AthleteAvatar
-                name={athleteName}
-                avatarUrl={athleteAvatarUrl}
-                size="sm"
-              />
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
-                  Planning for
-                </p>
-                <p className="truncate text-sm font-semibold leading-tight text-[var(--tt-ink,#111)]">
-                  {athleteName}
-                </p>
+          <div
+            key="week-header-actions"
+            className="tt-inbox-mobile-header-actions lg:hidden"
+          >
+            {weekAddMenu}
+            <TrainingWeekToolbar mobileOnly {...weekToolbarProps} />
+            {expandToggleBtn}
+          </div>
+          <div key="week-title-desktop" className="hidden min-w-0 lg:block">
+            {stickyTitle}
+          </div>
+          <PageHeaderActions className="hidden flex-col items-end gap-2 pt-0 sm:gap-2.5 lg:flex">
+            <div className="flex w-full min-w-0 flex-col items-end gap-2">
+              <div
+                key="week-views-desktop"
+                className="flex shrink-0 items-center gap-0.5"
+              >
+                <div className="flex min-w-0 items-center">{viewControls}</div>
+                {expandToggleBtn}
+              </div>
+              <div
+                key="week-filters-desktop"
+                className="flex min-w-0 max-w-full items-end gap-2"
+              >
+                <TrainingWeekToolbar desktopOnly {...weekToolbarProps} />
+                {weekAddMenu}
               </div>
             </div>
-          ) : null}
-
-          <div className="flex w-full min-w-0 items-center justify-between gap-3">
-            <CalendarPeriodNav
-              key="week-period-nav"
-              label={weekLabel}
-              prevHref={prevWeekHref}
-              nextHref={nextWeekHref}
-              prevAriaLabel="Previous week"
-              nextAriaLabel="Next week"
-              showLabel={false}
-              className="mb-0 -ml-2 shrink-0"
-            />
-            <div key="week-view-controls" className="shrink-0">
-              {viewControlsWithExpand}
-            </div>
-          </div>
+          </PageHeaderActions>
         </div>
 
-        {/* Desktop */}
-        <div className="hidden w-full min-w-0 flex-col gap-3 lg:flex">
-          <div className="flex w-full min-w-0 items-end justify-between gap-3">
-            <div key="week-title-desktop" className="min-w-0">
-              {stickyTitle}
+        {expanded && isCoach && athleteName ? (
+          <div className="flex min-w-0 items-center gap-2.5">
+            <AthleteAvatar
+              name={athleteName}
+              avatarUrl={athleteAvatarUrl}
+              size="sm"
+            />
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+                Planning for
+              </p>
+              <p className="truncate text-sm font-semibold leading-tight text-[var(--tt-ink,#111)]">
+                {athleteName}
+              </p>
             </div>
-            <PageHeaderActions className="flex-col items-end gap-2 pt-0 sm:gap-2.5">
-              <div className="flex w-full min-w-0 flex-col items-end gap-2">
-                <div key="week-views-desktop">{viewControlsWithExpand}</div>
-                <div
-                  key="week-filters-desktop"
-                  className="flex min-w-0 max-w-full items-end gap-2"
-                >
-                  <TrainingWeekToolbar desktopOnly {...weekToolbarProps} />
-                  {weekAddMenu}
-                </div>
-              </div>
-            </PageHeaderActions>
           </div>
+        ) : null}
 
-          {expanded && isCoach && athleteName ? (
-            <div className="flex min-w-0 items-center gap-2.5">
-              <AthleteAvatar
-                name={athleteName}
-                avatarUrl={athleteAvatarUrl}
-                size="sm"
-              />
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
-                  Planning for
-                </p>
-                <p className="truncate text-sm font-semibold leading-tight text-[var(--tt-ink,#111)]">
-                  {athleteName}
-                </p>
-              </div>
-            </div>
-          ) : null}
-
+        {/* Mobile: week range + List/Week/Month */}
+        <div className="flex w-full min-w-0 items-center justify-between gap-2 lg:hidden">
           <CalendarPeriodNav
-            label={weekLabel}
+            key="week-period-nav"
+            label={weekNavLabel}
             prevHref={prevWeekHref}
             nextHref={nextWeekHref}
             prevAriaLabel="Previous week"
             nextAriaLabel="Next week"
             align="start"
-            className="mb-0 min-w-0"
+            className="mb-0 -ml-1.5 shrink-0"
           />
+          <div key="week-view-controls" className="shrink-0">
+            {viewControls}
+          </div>
         </div>
+
+        <CalendarPeriodNav
+          label={weekLabel}
+          prevHref={prevWeekHref}
+          nextHref={nextWeekHref}
+          prevAriaLabel="Previous week"
+          nextAriaLabel="Next week"
+          align="start"
+          className="mb-0 hidden min-w-0 lg:flex"
+        />
       </div>
     </PageHeader>
   )
@@ -746,17 +741,63 @@ export function PlanMultiWeekTables({
     </div>
   )
 
-  /** Portrait phone + expand → rotate UI into a landscape stage. */
-  const rotateExpandToLandscape = expanded && portraitPhone
+  /**
+   * Mobile expand always uses the fullscreen stage (same chrome as portrait + Expand).
+   * Portrait: CSS-rotate fake landscape (keeps status bar / avoids notch on content).
+   * Landscape: same stage, no rotate, inset by safe-area so the camera doesn’t cover cells.
+   */
+  const useMobileExpandStage = expanded && mobilePhone
 
   useEffect(() => {
-    if (!rotateExpandToLandscape) return
+    if (!useMobileExpandStage) return
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
+
+    // Prefer locking portrait while expanded so the CSS-rotate stage (status bar
+    // visible) survives physically tilting the phone. iOS Safari usually rejects;
+    // landscape then uses the same stage with safe-area insets instead.
+    const orientation = window.screen?.orientation as
+      | (ScreenOrientation & {
+          lock?: (orientation: string) => Promise<void>
+        })
+      | undefined
+    let cancelled = false
+    let didLock = false
+    if (
+      orientation &&
+      typeof orientation.lock === 'function' &&
+      window.matchMedia('(orientation: portrait)').matches
+    ) {
+      void orientation
+        .lock('portrait')
+        .then(() => {
+          if (cancelled) {
+            try {
+              orientation.unlock()
+            } catch {
+              /* ignore */
+            }
+            return
+          }
+          didLock = true
+        })
+        .catch(() => {
+          /* ignore — not supported / not allowed */
+        })
     }
-  }, [rotateExpandToLandscape])
+
+    return () => {
+      cancelled = true
+      document.body.style.overflow = previousOverflow
+      if (didLock && orientation) {
+        try {
+          orientation.unlock()
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }, [useMobileExpandStage])
 
   return (
     <WeekPortraitZoomProvider>
@@ -773,13 +814,17 @@ export function PlanMultiWeekTables({
           </button>
         ) : null}
 
-        {rotateExpandToLandscape ? (
+        {useMobileExpandStage ? (
           <div
             className="tt-week-expand-rotate-root"
+            data-expand-orientation={portraitPhone ? 'portrait' : 'landscape'}
             role="dialog"
             aria-label="Week plan landscape"
           >
-            <div className="tt-week-expand-rotate-inner tt-calendar-expanded-root">
+            <div
+              className="tt-week-expand-rotate-inner tt-calendar-expanded-root"
+              data-expand-orientation={portraitPhone ? 'portrait' : 'landscape'}
+            >
               {weekPlanBody}
             </div>
           </div>

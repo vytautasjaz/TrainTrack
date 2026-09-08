@@ -61,8 +61,8 @@ export function SaveToLibraryDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="z-[80] max-w-sm gap-5 p-5 sm:p-6"
-        overlayClassName="z-[80]"
+        className="z-[110] max-w-sm gap-5 p-5 sm:p-6"
+        overlayClassName="z-[110]"
       >
         <DialogHeader className="mb-0 space-y-1.5 pr-6">
           <DialogTitle className="text-lg font-semibold tracking-tight">

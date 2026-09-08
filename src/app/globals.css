@@ -3546,29 +3546,51 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
 }
 
 /*
- * Portrait + Expand: rotate the week matrix into a landscape stage
- * (phone stays upright; content reads as landscape).
+ * Mobile week Expand stage — same shell for portrait Expand and landscape auto-expand.
+ * Portrait: CSS-rotate fake landscape (status bar stays; content clears the camera).
+ * Landscape: fill the stage with safe-area insets (no edge-to-edge under the notch).
  */
 .tt-week-expand-rotate-root {
   position: fixed;
-  inset: 0;
   z-index: 70;
   overflow: hidden;
   background: var(--background, #fff);
 }
 
+.tt-week-expand-rotate-root[data-expand-orientation='portrait'] {
+  inset: 0;
+}
+
+.tt-week-expand-rotate-root[data-expand-orientation='landscape'] {
+  top: env(safe-area-inset-top, 0px);
+  right: env(safe-area-inset-right, 0px);
+  bottom: env(safe-area-inset-bottom, 0px);
+  left: env(safe-area-inset-left, 0px);
+}
+
 .tt-week-expand-rotate-inner {
-  position: absolute;
-  top: 50%;
-  left: 50%;
   box-sizing: border-box;
-  width: 100dvh;
-  height: 100dvw;
   padding: 0.5rem 0.75rem;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+.tt-week-expand-rotate-inner[data-expand-orientation='portrait'] {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100dvh;
+  height: 100dvw;
   transform: translate(-50%, -50%) rotate(90deg);
   transform-origin: center center;
+}
+
+.tt-week-expand-rotate-inner[data-expand-orientation='landscape'] {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  transform: none;
 }
 
 .tt-week-expand-rotate-inner .tt-week-view-root {
@@ -3582,6 +3604,231 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
   inset: auto !important;
   max-width: none;
   overflow-x: auto;
+}
+
+.tt-week-expand-rotate-inner .tt-month-grid-scroll {
+  position: relative !important;
+  inset: auto !important;
+  max-width: none;
+  /* Allow tall day cells (workouts) to grow; stage scrolls, don't clip. */
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.tt-week-expand-rotate-inner .tt-month-grid-bleed {
+  overflow: visible;
+}
+
+/*
+ * Month calendar: horizontal day-grid scroll; sticky chrome stays in TrainingListFrame.
+ * Stats column sticks while days pan (when Stats layer is on).
+ */
+.tt-month-grid-bleed {
+  position: relative;
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.tt-month-grid-scroll {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tt-month-grid-scroll-inner {
+  box-sizing: border-box;
+  /* Match day minmax(6.5rem) × 7 so the 7-col grid never collapses on mobile. */
+  min-width: 45.5rem;
+  width: max(100%, 45.5rem);
+}
+
+.tt-month-grid-scroll[data-month-stats='1'] .tt-month-grid-scroll-inner {
+  min-width: 56.5rem; /* 11rem stats + 45.5rem days */
+  width: max(100%, 56.5rem);
+}
+
+.tt-month-grid-scroll .tt-table-shell,
+.tt-month-grid-scroll .tt-table-header,
+.tt-month-grid-scroll .tt-table-body {
+  width: 100%;
+  min-width: 100%;
+}
+
+.tt-month-grid-scroll .tt-month-stats-col {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  /* Continuous edge wash via ::after — per-cell box-shadow looks segmented. */
+  box-shadow: none;
+}
+
+.tt-month-grid-scroll .tt-month-stats-col::after {
+  content: '';
+  position: absolute;
+  /* Bridge the 1px grid gap so the wash reads as one continuous edge. */
+  top: -1px;
+  right: -12px;
+  bottom: -1px;
+  width: 12px;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    to right,
+    rgb(0 0 0 / 0.06),
+    rgb(0 0 0 / 0.02) 50%,
+    transparent
+  );
+}
+
+.tt-month-grid-scroll .tt-table-header .tt-month-stats-col {
+  z-index: 4;
+  background: var(--tt-table-header-bg, #2a3144) !important;
+}
+
+.tt-month-grid-scroll .tt-table-body .tt-month-stats-col {
+  background-color: color-mix(
+    in oklab,
+    var(--color-muted, #f5f5f5) 40%,
+    var(--color-card, #fff)
+  ) !important;
+}
+
+@media (max-width: 1023px) {
+  [data-app-main]:has(.tt-month-grid-scroll) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+/* Expanded phone stage: weather slots keep icon + ° / precip only. */
+.tt-week-expand-rotate-inner .tt-week-weather-slot-label {
+  display: none;
+}
+
+.tt-week-expand-rotate-inner .tt-week-weather-slot {
+  min-height: 0;
+  justify-content: center;
+  gap: 0.2rem;
+}
+
+/*
+ * Sticky sport / layer label column while day columns scroll horizontally.
+ * Requires overflow:visible on the table (overflow:hidden breaks position:sticky).
+ * Sport washes are translucent — sticky cells use opaque color-mix so days don’t bleed under.
+ */
+.tt-week-matrix-scroll .tt-week-matrix-table.tt-table-frame {
+  overflow: visible;
+}
+
+/* Day cells stay under the sticky label column (check/skip overlays, cards). */
+.tt-week-matrix-scroll .tt-week-matrix-table > thead > tr > :not(:first-child),
+.tt-week-matrix-scroll .tt-week-matrix-table > tbody > tr > :not(:first-child) {
+  position: relative;
+  z-index: 0;
+}
+
+.tt-week-matrix-scroll .tt-week-matrix-table > thead > tr > :first-child,
+.tt-week-matrix-scroll .tt-week-matrix-table > tbody > tr > :first-child {
+  position: -webkit-sticky;
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  /* Continuous edge wash via ::after — per-cell box-shadow looks segmented. */
+  box-shadow: none;
+}
+
+.tt-week-matrix-scroll .tt-week-matrix-table > thead > tr > :first-child::after,
+.tt-week-matrix-scroll .tt-week-matrix-table > tbody > tr > :first-child::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -12px;
+  bottom: 0;
+  width: 12px;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    to right,
+    rgb(0 0 0 / 0.06),
+    rgb(0 0 0 / 0.02) 50%,
+    transparent
+  );
+}
+
+.tt-week-matrix-scroll .tt-week-matrix-table > thead > tr > :first-child {
+  z-index: 21;
+  background: var(--tt-table-header-bg, #2a3144) !important;
+}
+
+.tt-week-matrix-scroll .tt-week-matrix-table > tbody > tr > :first-child {
+  background-color: var(--color-card, #ffffff) !important;
+}
+
+/* Layer rows (notes / weather / recovery) — solid muted, not bg-muted/20. */
+.tt-week-matrix-scroll
+  .tt-week-matrix-table
+  > tbody
+  > tr:not([data-row='sport'])
+  > :first-child {
+  background-color: color-mix(
+    in srgb,
+    var(--color-muted, #f5f5f5) 18%,
+    var(--color-card, #ffffff)
+  ) !important;
+}
+
+.tt-week-matrix-scroll .tt-week-sport-label-cell[data-sport='RUN'],
+.tt-week-matrix-scroll .tt-week-sport-label-cell[data-sport='HYROX'] {
+  background-color: color-mix(
+    in srgb,
+    var(--color-sport-run) 8%,
+    var(--color-card, #ffffff)
+  ) !important;
+}
+
+.tt-week-matrix-scroll .tt-week-sport-label-cell[data-sport='BIKE'] {
+  background-color: color-mix(
+    in srgb,
+    var(--color-sport-bike) 8%,
+    var(--color-card, #ffffff)
+  ) !important;
+}
+
+.tt-week-matrix-scroll .tt-week-sport-label-cell[data-sport='SWIM'] {
+  background-color: color-mix(
+    in srgb,
+    var(--color-sport-swim) 8%,
+    var(--color-card, #ffffff)
+  ) !important;
+}
+
+.tt-week-matrix-scroll .tt-week-sport-label-cell[data-sport='STRENGTH'],
+.tt-week-matrix-scroll .tt-week-sport-label-cell[data-sport='RECOVERY'] {
+  background-color: color-mix(
+    in srgb,
+    var(--color-sport-strength) 8%,
+    var(--color-card, #ffffff)
+  ) !important;
+}
+
+.tt-week-matrix-scroll .tt-week-sport-label-cell[data-sport='TRIATHLON'] {
+  background-color: color-mix(
+    in srgb,
+    var(--color-sport-tri) 8%,
+    var(--color-card, #ffffff)
+  ) !important;
+}
+
+.tt-week-matrix-scroll .tt-week-sport-label-cell[data-sport='REST'] {
+  background-color: var(--color-sport-rest-bg, #fafafa) !important;
 }
 
 html[data-calendar-expanded='true'] [data-app-main] {
@@ -3667,15 +3914,22 @@ html.tt-week-portrait-lock body {
     padding-right: 0;
   }
 
-  [data-app-main]:has(.tt-week-matrix-scroll) .tt-week-view-chrome,
-  [data-app-main]:has(.tt-week-matrix-scroll) [data-page-header] {
+  /* Re-pad chrome that sits in the zeroed main (stats / footer) — not the sticky header. */
+  [data-app-main]:has(.tt-week-matrix-scroll) .tt-week-view-chrome {
     padding-left: 0.625rem;
     padding-right: 0.625rem;
   }
 
-  /* Sticky week chrome already has frame padding — don't double-pad. */
-  .tt-training-list-sticky-header [data-page-header],
-  .tt-training-list-sticky-header .tt-week-view-chrome {
+  /*
+   * Sticky header already uses TrainingListFrame px-2.5 (same as List).
+   * Must beat the old page-header re-pad rule so Week doesn’t double-inset.
+   */
+  [data-app-main]:has(.tt-week-matrix-scroll)
+    .tt-training-list-sticky-header
+    [data-page-header],
+  [data-app-main]:has(.tt-week-matrix-scroll)
+    .tt-training-list-sticky-header
+    .tt-week-view-chrome {
     padding-left: 0;
     padding-right: 0;
   }
@@ -3748,7 +4002,7 @@ html.tt-week-portrait-lock body {
   .tt-week-matrix-scroll .tt-week-matrix-table {
     width: 100% !important;
     min-width: 0 !important;
-    overflow: hidden;
+    overflow: visible;
   }
 
   .tt-week-matrix-scroll .tt-week-matrix-table col.tt-week-label-col {
@@ -3762,22 +4016,6 @@ html.tt-week-portrait-lock body {
   .tt-week-matrix-scroll .tt-week-plan-card,
   .tt-week-matrix-scroll .tt-workout-block {
     filter: none;
-  }
-
-  .tt-week-matrix-scroll
-    .tt-week-matrix-table
-    > tbody
-    > tr
-    > :first-child {
-    background-color: var(--color-card, #ffffff);
-  }
-
-  .tt-week-matrix-scroll
-    .tt-week-matrix-table
-    > tbody
-    > tr[data-row='sport']
-    > :first-child {
-    background-color: var(--color-card, #ffffff) !important;
   }
 
   /* Prefer custom slider under the table on portrait. */
@@ -3815,10 +4053,6 @@ html.tt-week-portrait-lock body {
     font-size: 0;
     line-height: 0;
     color: transparent;
-  }
-
-  .tt-week-matrix-scroll .tt-week-header-sport-label::after {
-    content: '';
   }
   }
 }

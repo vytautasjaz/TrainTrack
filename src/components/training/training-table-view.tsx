@@ -559,39 +559,20 @@ export function TrainingTableView({
       "[data-list-col-header]",
     );
     const stickyH = stickyHeader?.getBoundingClientRect().height ?? 0;
-    const usableViewport = Math.max(0, viewport - stickyH);
 
     if (todayEl) {
       const containerTop = container.getBoundingClientRect().top;
       const todayTop =
         container.scrollTop +
         (todayEl.getBoundingClientRect().top - containerTop);
-      const fromTodayToEnd = container.scrollHeight - todayTop;
-      // Enough upcoming content → pin so one day sits above Today
-      // (Today is the second visible row under the sticky header).
-      if (fromTodayToEnd >= usableViewport - 4) {
-        const todayIdx = displayDays.findIndex((d) => d.isToday);
-        const dayAbove =
-          todayIdx > 0 ? daySectionEl(displayDays[todayIdx - 1]!.dateKey) : null;
-        if (dayAbove) {
-          const aboveTop =
-            container.scrollTop +
-            (dayAbove.getBoundingClientRect().top - containerTop);
-          container.scrollTop = Math.max(0, aboveTop - stickyH);
-        } else {
-          container.scrollTop = Math.max(0, todayTop - stickyH);
-        }
-        hasScrolledToInitial.current = true;
-        return;
-      }
+      // Open with Today as the first visible day under the sticky header.
+      // Past days stay above in the DOM (scroll up); future below (scroll down).
+      container.scrollTop = Math.max(0, todayTop - stickyH);
+      hasScrolledToInitial.current = true;
+      return;
     }
 
-    // Little (or nothing) planned ahead → fill the viewport with past
-    // workouts; Today sits lower in the list.
-    container.scrollTop = Math.max(
-      0,
-      container.scrollHeight - viewport,
-    );
+    container.scrollTop = 0;
     hasScrolledToInitial.current = true;
   }, [listHeight, displayDays]);
 

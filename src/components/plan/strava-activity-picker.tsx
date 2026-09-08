@@ -187,8 +187,8 @@ export function StravaLinkPicker({
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
-          className="z-[70] max-h-[min(85vh,32rem)] max-w-md gap-4 overflow-hidden p-0"
-          overlayClassName="z-[70]"
+          className="z-[110] max-h-[min(85vh,32rem)] max-w-md gap-4 overflow-hidden p-0"
+          overlayClassName="z-[110]"
         >
           <DialogHeader className="space-y-1 border-b border-border/50 px-5 py-4 pr-12">
             <DialogTitle>Link Strava activity</DialogTitle>

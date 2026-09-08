@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
-  CalendarDays,
-  ChartColumn,
-  Maximize2,
-  Minimize2,
-  StickyNote,
-} from "lucide-react";
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { Maximize2, Minimize2 } from "lucide-react";
 import { WorkoutType } from "@prisma/client";
 import { CalendarPeriodNav } from "@/components/plan/calendar-period-nav";
 import { DayDropSection } from "@/components/plan/day-drop-section";
@@ -24,9 +23,7 @@ import { WorkoutModalTrigger } from "@/components/plan/workout-modal-trigger";
 import { WeekPlanWorkoutCard } from "@/components/plan/week-plan-workout-card";
 import {
   WeekCardSizeProvider,
-  useWeekCardSize,
 } from "@/components/plan/week-card-size-context";
-import { WeekCardSizeSwitch } from "@/components/plan/week-card-size-switch";
 import { usePlanWeekDnd } from "@/components/plan/plan-week-dnd";
 import { useOptimisticWorkoutStatus } from "@/components/plan/athlete-workout-quick-actions";
 import {
@@ -34,18 +31,15 @@ import {
   workoutCardCornerSpacerClass,
 } from "@/components/plan/workout-card-corner-overlay";
 import { CalendarWeekStatsCell } from "@/components/training/calendar-week-stats-cell";
-import {
-  PlanSportFilterBar,
-  PlanViewModeControl,
-  ToolbarDivider,
-  ToolbarFilterGroup,
-  ToolbarTextToggle,
-} from "@/components/training/plan-sport-filter-bar";
+import { TrainingMonthToolbar } from "@/components/training/training-month-toolbar";
+import { TrainingListFrame } from "@/components/training/training-list-frame";
+import { TrainingListAddMenu } from "@/components/training/training-list-add-menu";
 import { useFilteredWorkoutsByDate } from "@/components/training/use-plan-sport-filter-data";
-import { useTrainingLibrary } from "@/components/training/training-library-context";
-import { TrainingLibraryToolbarToggle } from "@/components/training/training-library-toolbar-toggle";
-import { FeedbackLayerToggle } from "@/components/training/feedback-layer-toggle";
 import { AthleteAvatar } from "@/components/athlete/athlete-avatar";
+import {
+  PageHeader,
+  PageHeaderActions,
+} from "@/components/ui/page-header";
 import type { DayNoteData } from "@/lib/day-notes";
 import { dayNoteHasVisibleContent } from "@/lib/day-notes";
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
@@ -87,13 +81,11 @@ const DAY_NAMES = [
   { short: "Sun", full: "Sunday" },
 ] as const;
 
+/** Force side-scroll on narrow phones; stats col stays sticky.
+ * Class strings must be static so Tailwind JIT emits them. */
 const STATS_GRID_COLS =
-  "grid-cols-[minmax(11rem,14rem)_repeat(7,minmax(0,1fr))]";
-
-function MonthCardSizeToolbarControl() {
-  const { cardSize, setCardSize } = useWeekCardSize();
-  return <WeekCardSizeSwitch value={cardSize} onChange={setCardSize} />;
-}
+  "grid-cols-[minmax(11rem,14rem)_repeat(7,minmax(6.5rem,1fr))]";
+const DAYS_GRID_COLS = "grid-cols-[repeat(7,minmax(6.5rem,1fr))]";
 
 type CalendarDay = {
   dateKey: string;
@@ -124,6 +116,10 @@ type CalendarMonthViewProps = {
   swimCssSecPer100m?: number | null;
   prevMonthHref?: string;
   nextMonthHref?: string;
+  stickyTitle?: ReactNode;
+  viewControls?: ReactNode;
+  canLogWorkout?: boolean;
+  canAddNote?: boolean;
 };
 
 function CalendarWorkoutCard({
@@ -236,6 +232,10 @@ export function CalendarMonthView({
   swimCssSecPer100m = null,
   prevMonthHref,
   nextMonthHref,
+  stickyTitle,
+  viewControls,
+  canLogWorkout = false,
+  canAddNote = false,
 }: CalendarMonthViewProps) {
   const [showNotes, setShowNotes] = useStoredFlag(SHOW_NOTES_STORAGE_KEY, true);
   const [showEvents, setShowEvents] = useStoredFlag(
@@ -244,7 +244,9 @@ export function CalendarMonthView({
   );
   const [showStats, setShowStats] = useStoredFlag(SHOW_STATS_STORAGE_KEY, false);
   const [expanded, setExpanded] = useState(false);
-  const library = useTrainingLibrary();
+  const [mobilePhone, setMobilePhone] = useState(false);
+  const [portraitPhone, setPortraitPhone] = useState(false);
+  const landscapeAutoExpandRef = useRef(false);
   const filteredByDate = useFilteredWorkoutsByDate(workoutsByDate);
 
   function toggleShowNotes() {
@@ -262,10 +264,59 @@ export function CalendarMonthView({
   function toggleExpanded() {
     setExpanded((prev) => {
       const next = !prev;
+      if (!next) landscapeAutoExpandRef.current = false;
       setCalendarExpanded(next);
       return next;
     });
   }
+
+  useEffect(() => {
+    const mobileMq = window.matchMedia("(max-width: 1023px)");
+    const portraitMq = window.matchMedia(
+      "(max-width: 1023px) and (orientation: portrait)",
+    );
+    function sync() {
+      setMobilePhone(mobileMq.matches);
+      setPortraitPhone(portraitMq.matches);
+    }
+    sync();
+    mobileMq.addEventListener("change", sync);
+    portraitMq.addEventListener("change", sync);
+    return () => {
+      mobileMq.removeEventListener("change", sync);
+      portraitMq.removeEventListener("change", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia(
+      "(max-width: 1023px) and (orientation: landscape)",
+    );
+
+    function syncLandscapeExpand() {
+      if (mq.matches) {
+        setExpanded((prev) => {
+          if (!prev) landscapeAutoExpandRef.current = true;
+          return true;
+        });
+        setCalendarExpanded(true);
+        return;
+      }
+      if (landscapeAutoExpandRef.current) {
+        landscapeAutoExpandRef.current = false;
+        setExpanded(false);
+        setCalendarExpanded(false);
+      }
+    }
+
+    syncLandscapeExpand();
+    mq.addEventListener("change", syncLandscapeExpand);
+    return () => {
+      mq.removeEventListener("change", syncLandscapeExpand);
+      landscapeAutoExpandRef.current = false;
+      setCalendarExpanded(false);
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -277,6 +328,7 @@ export function CalendarMonthView({
     if (!expanded) return;
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        landscapeAutoExpandRef.current = false;
         setExpanded(false);
         setCalendarExpanded(false);
       }
@@ -284,6 +336,56 @@ export function CalendarMonthView({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [expanded]);
+
+  const useMobileExpandStage = expanded && mobilePhone;
+
+  useEffect(() => {
+    if (!useMobileExpandStage) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const orientation = window.screen?.orientation as
+      | (ScreenOrientation & {
+          lock?: (orientation: string) => Promise<void>
+        })
+      | undefined
+    let cancelled = false
+    let didLock = false
+    if (
+      orientation &&
+      typeof orientation.lock === 'function' &&
+      window.matchMedia('(orientation: portrait)').matches
+    ) {
+      void orientation
+        .lock('portrait')
+        .then(() => {
+          if (cancelled) {
+            try {
+              orientation.unlock()
+            } catch {
+              /* ignore */
+            }
+            return
+          }
+          didLock = true
+        })
+        .catch(() => {
+          /* ignore */
+        })
+    }
+
+    return () => {
+      cancelled = true
+      document.body.style.overflow = previousOverflow
+      if (didLock && orientation) {
+        try {
+          orientation.unlock()
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }, [useMobileExpandStage]);
 
   const spanHrefs = {
     1: `/training?view=calendar&month=${monthOffset}`,
@@ -303,7 +405,6 @@ export function CalendarMonthView({
     return eventsByDate?.get(dateKey) ?? [];
   }
 
-  /** One continuous grid for 1m/2m/3m — no overlapping week duplicates. */
   const days = useMemo(() => {
     const seen = new Set<string>();
     const merged: CalendarDay[] = [];
@@ -325,30 +426,84 @@ export function CalendarMonthView({
     return chunks;
   }, [days]);
 
-  const gridCols = showStats ? STATS_GRID_COLS : "grid-cols-7";
+  const gridCols = showStats ? STATS_GRID_COLS : DAYS_GRID_COLS;
 
-  return (
-    <WeekCardSizeProvider storageKey={MONTH_CARD_SIZE_STORAGE_KEY}>
-    <div className={cn("space-y-4", expanded && "tt-calendar-expanded-root space-y-2")}>
-      <div className="mb-2 flex min-w-0 items-end gap-1 overflow-x-auto pb-0.5">
-        <div className="mb-0.5 flex min-w-0 shrink-0 items-end gap-3">
-          {expanded && isCoach && athleteName ? (
-            <div className="flex min-w-0 items-center gap-2.5">
-              <AthleteAvatar
-                name={athleteName}
-                avatarUrl={athleteAvatarUrl}
-                size="sm"
-              />
-              <div className="min-w-0">
-                <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
-                  Planning for
-                </p>
-                <p className="truncate text-sm font-semibold leading-tight text-[var(--tt-ink,#111)]">
-                  {athleteName}
-                </p>
+  const monthAddMenu = (
+    <TrainingListAddMenu
+      isCoach={isCoach}
+      athleteId={athleteId}
+      canAddNote={canAddNote}
+      canLogWorkout={canLogWorkout}
+    />
+  );
+
+  const monthToolbarProps = {
+    showNotes,
+    onToggleNotes: toggleShowNotes,
+    showEvents,
+    onToggleEvents: toggleShowEvents,
+    showStats,
+    onToggleStats: toggleShowStats,
+    monthSpan,
+    spanHrefs,
+  };
+
+  const expandToggleBtn = !expanded ? (
+    <button
+      type="button"
+      onClick={toggleExpanded}
+      className="tt-inbox-mobile-icon-btn"
+      aria-label="Expand month plan"
+      title="Expand month plan"
+    >
+      <Maximize2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+    </button>
+  ) : null;
+
+  const stickyHeader = (
+    <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:mb-1 lg:pt-2">
+      <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-3">
+        <div className="flex w-full min-w-0 items-center justify-between gap-3 lg:items-end">
+          <div className="min-w-0 lg:hidden">{stickyTitle}</div>
+          <div className="tt-inbox-mobile-header-actions lg:hidden">
+            {monthAddMenu}
+            <TrainingMonthToolbar mobileOnly {...monthToolbarProps} />
+            {expandToggleBtn}
+          </div>
+          <div className="hidden min-w-0 lg:block">{stickyTitle}</div>
+          <PageHeaderActions className="hidden flex-col items-end gap-2 pt-0 sm:gap-2.5 lg:flex">
+            <div className="flex w-full min-w-0 flex-col items-end gap-2">
+              <div className="flex shrink-0 items-center gap-0.5">
+                <div className="flex min-w-0 items-center">{viewControls}</div>
+                {expandToggleBtn}
+              </div>
+              <div className="flex min-w-0 max-w-full items-end gap-2">
+                <TrainingMonthToolbar desktopOnly {...monthToolbarProps} />
+                {monthAddMenu}
               </div>
             </div>
-          ) : null}
+          </PageHeaderActions>
+        </div>
+
+        {expanded && isCoach && athleteName ? (
+          <div className="flex min-w-0 items-center gap-2.5">
+            <AthleteAvatar
+              name={athleteName}
+              avatarUrl={athleteAvatarUrl}
+              size="sm"
+            />
+            <div className="min-w-0">
+              <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">
+                Planning for
+              </p>
+              <p className="truncate text-sm font-semibold leading-tight text-[var(--tt-ink,#111)]">
+                {athleteName}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="flex w-full min-w-0 items-center justify-between gap-2 lg:hidden">
           <CalendarPeriodNav
             label={rangeLabel}
             prevHref={prevMonthHref}
@@ -356,177 +511,127 @@ export function CalendarMonthView({
             prevAriaLabel="Previous month"
             nextAriaLabel="Next month"
             align="start"
-            className="mb-0 shrink-0"
+            className="mb-0 -ml-1.5 shrink-0"
           />
+          <div className="shrink-0">{viewControls}</div>
         </div>
 
-        <div className="ml-auto flex min-w-0 shrink-0 items-end gap-2">
-          <ToolbarFilterGroup
-            label="Filter"
-            hint="Show or hide sports and workout statuses"
-          >
-            <PlanSportFilterBar className="shrink-0" />
-          </ToolbarFilterGroup>
-
-          <ToolbarDivider className="mb-1.5 mx-0.5" />
-
-          <ToolbarFilterGroup
-            label="Layers"
-            hint="Toggle Notes, Events, Stats, and Feedback on cards"
-          >
-            <div className="flex shrink-0 items-center gap-0.5">
-              <ToolbarTextToggle
-                pressed={showNotes}
-                onClick={toggleShowNotes}
-                title={showNotes ? "Hide day notes" : "Show day notes"}
-              >
-                <StickyNote className="h-3 w-3" aria-hidden />
-                Notes
-              </ToolbarTextToggle>
-              <ToolbarTextToggle
-                pressed={showEvents}
-                onClick={toggleShowEvents}
-                title={showEvents ? "Hide season events" : "Show season events"}
-              >
-                <CalendarDays className="h-3 w-3" aria-hidden />
-                Events
-              </ToolbarTextToggle>
-              <ToolbarTextToggle
-                pressed={showStats}
-                onClick={toggleShowStats}
-                title={
-                  showStats
-                    ? "Hide weekly sport stats"
-                    : "Show weekly sport stats"
-                }
-              >
-                <ChartColumn className="h-3 w-3" aria-hidden />
-                Stats
-              </ToolbarTextToggle>
-              <FeedbackLayerToggle />
-            </div>
-          </ToolbarFilterGroup>
-
-          <ToolbarDivider className="mb-1.5 mx-0.5" />
-
-          <ToolbarFilterGroup label="View" hint="How workout cards are colored">
-            <PlanViewModeControl className="shrink-0" />
-          </ToolbarFilterGroup>
-
-          <ToolbarDivider className="mb-1.5 mx-0.5" />
-
-          <ToolbarFilterGroup
-            label="Cards"
-            hint="Workout card density on the month grid"
-          >
-            <MonthCardSizeToolbarControl />
-          </ToolbarFilterGroup>
-
-          <ToolbarDivider className="mb-1.5 mx-0.5" />
-
-          <ToolbarFilterGroup
-            label="Layout"
-            hint="Months shown and expanded calendar"
-          >
-            <div className="flex items-center gap-0.5" role="group" aria-label="Months shown">
-              {([1, 2, 3] as const).map((n) => (
-                <Link
-                  key={n}
-                  href={spanHrefs[n]}
-                  title={`Show ${n} month${n > 1 ? "s" : ""}`}
-                  aria-current={monthSpan === n ? "page" : undefined}
-                  className={cn(
-                    "inline-flex shrink-0 items-center gap-0.5 rounded-[4px] px-1.5 py-1 text-xs transition",
-                    monthSpan === n
-                      ? "font-semibold text-foreground"
-                      : "font-medium text-muted-foreground/40 hover:text-muted-foreground/70",
-                  )}
-                >
-                  {n}m
-                </Link>
-              ))}
-              <ToolbarTextToggle
-                pressed={expanded}
-                onClick={toggleExpanded}
-                title={expanded ? "Exit expanded view" : "Expand calendar"}
-                className="font-semibold text-foreground hover:text-foreground [&_svg]:opacity-100"
-              >
-                {expanded ? (
-                  <Minimize2 className="h-3.5 w-3.5" aria-hidden />
-                ) : (
-                  <Maximize2 className="h-3.5 w-3.5" aria-hidden />
-                )}
-              </ToolbarTextToggle>
-            </div>
-          </ToolbarFilterGroup>
-
-          {library ? (
-            <>
-              <ToolbarDivider className="mb-1.5 mx-0.5" />
-              <ToolbarFilterGroup
-                label="Library"
-                hint="Open or close the workout library panel"
-              >
-                <TrainingLibraryToolbarToggle />
-              </ToolbarFilterGroup>
-            </>
-          ) : null}
-        </div>
+        <CalendarPeriodNav
+          label={rangeLabel}
+          prevHref={prevMonthHref}
+          nextHref={nextMonthHref}
+          prevAriaLabel="Previous month"
+          nextAriaLabel="Next month"
+          align="start"
+          className="mb-0 hidden min-w-0 lg:flex"
+        />
       </div>
+    </PageHeader>
+  );
 
-      <div className={TABLE_SHELL}>
-        <div className={cn("grid", gridCols, TABLE_HEADER)}>
-          {showStats ? (
-            <div
-              className={cn(
-                "flex items-center px-1.5 py-2 text-left text-[11px] font-semibold",
-                TABLE_HEADER_VLINE,
-                TABLE_HEADER_CELL_MUTED,
-              )}
-            >
-              Stats
-            </div>
-          ) : null}
-          {DAY_NAMES.map((name, i) => (
-            <div
-              key={name.full}
-              className={cn(
-                "flex items-center justify-center px-1 py-2 text-center text-[11px] font-semibold",
-                i < 6 && TABLE_HEADER_VLINE,
-                i >= 5 && TABLE_HEADER_CELL_WEEKEND,
-                i >= 5 ? TABLE_HEADER_CELL : TABLE_HEADER_CELL_STRONG,
-              )}
-            >
-              <span className="hidden sm:inline">{name.full}</span>
-              <span className="sm:hidden">{name.short}</span>
-            </div>
-          ))}
-        </div>
+  const monthGrid = (
+    <div className="tt-month-view-root min-w-0">
+      <div className="tt-month-grid-bleed @container min-w-0 max-w-full overflow-hidden rounded-[0.5rem]">
+        <div
+          className="tt-month-grid-scroll min-w-0 w-full max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain"
+          data-month-stats={showStats ? "1" : "0"}
+        >
+          <div className="tt-month-grid-scroll-inner">
+            <div className={TABLE_SHELL}>
+              <div className={cn("grid", gridCols, TABLE_HEADER)}>
+                {showStats ? (
+                  <div
+                    className={cn(
+                      "tt-month-stats-col flex items-center px-1.5 py-2 text-left text-[11px] font-semibold",
+                      TABLE_HEADER_VLINE,
+                      TABLE_HEADER_CELL_MUTED,
+                    )}
+                  >
+                    Stats
+                  </div>
+                ) : null}
+                {DAY_NAMES.map((name, i) => (
+                  <div
+                    key={name.full}
+                    className={cn(
+                      "flex items-center justify-center px-1 py-2 text-center text-[11px] font-semibold",
+                      i < 6 && TABLE_HEADER_VLINE,
+                      i >= 5 && TABLE_HEADER_CELL_WEEKEND,
+                      i >= 5 ? TABLE_HEADER_CELL : TABLE_HEADER_CELL_STRONG,
+                    )}
+                  >
+                    <span className="hidden sm:inline">{name.full}</span>
+                    <span className="sm:hidden">{name.short}</span>
+                  </div>
+                ))}
+              </div>
 
-        <div className={cn("grid gap-px bg-border", gridCols, TABLE_BODY)}>
-          {weeks.map((week, weekIndex) => (
-            <CalendarWeekRow
-              key={week[0]?.dateKey ?? weekIndex}
-              week={week}
-              weekIndex={weekIndex}
-              allDays={days}
-              showStats={showStats}
-              showNotes={showNotes}
-              showEvents={showEvents}
-              isCoach={isCoach}
-              canEditDayNotes={canEditDayNotes}
-              athleteId={athleteId}
-              planSportRows={planSportRows}
-              swimCssSecPer100m={swimCssSecPer100m}
-              workoutsByDate={workoutsByDate}
-              dayWorkouts={dayWorkouts}
-              dayNote={dayNote}
-              dayEvents={dayEvents}
-            />
-          ))}
+              <div className={cn("grid gap-px bg-border", gridCols, TABLE_BODY)}>
+                {weeks.map((week, weekIndex) => (
+                  <CalendarWeekRow
+                    key={week[0]?.dateKey ?? weekIndex}
+                    week={week}
+                    weekIndex={weekIndex}
+                    allDays={days}
+                    showStats={showStats}
+                    showNotes={showNotes}
+                    showEvents={showEvents}
+                    isCoach={isCoach}
+                    canEditDayNotes={canEditDayNotes}
+                    athleteId={athleteId}
+                    planSportRows={planSportRows}
+                    swimCssSecPer100m={swimCssSecPer100m}
+                    workoutsByDate={workoutsByDate}
+                    dayWorkouts={dayWorkouts}
+                    dayNote={dayNote}
+                    dayEvents={dayEvents}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <WeekCardSizeProvider storageKey={MONTH_CARD_SIZE_STORAGE_KEY}>
+      {expanded ? (
+        <button
+          type="button"
+          onClick={toggleExpanded}
+          className="tt-week-expanded-collapse-btn"
+          aria-label="Collapse month plan"
+          title="Collapse month plan"
+        >
+          <Minimize2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+        </button>
+      ) : null}
+
+      {useMobileExpandStage ? (
+        <div
+          className="tt-week-expand-rotate-root"
+          data-expand-orientation={portraitPhone ? "portrait" : "landscape"}
+          role="dialog"
+          aria-label="Month plan landscape"
+        >
+          <div
+            className="tt-week-expand-rotate-inner tt-calendar-expanded-root"
+            data-expand-orientation={portraitPhone ? "portrait" : "landscape"}
+          >
+            {monthGrid}
+          </div>
+        </div>
+      ) : (
+        <TrainingListFrame
+          scrollBody
+          className={cn(expanded && "tt-calendar-expanded-root")}
+          header={stickyHeader}
+        >
+          {monthGrid}
+        </TrainingListFrame>
+      )}
     </WeekCardSizeProvider>
   );
 }
@@ -572,6 +677,7 @@ function CalendarWeekRow({
           workoutsByDate={workoutsByDate}
           planSportRows={planSportRows}
           swimCssSecPer100m={swimCssSecPer100m}
+          className="tt-month-stats-col"
         />
       ) : null}
       {week.map((day, dayInWeek) => {

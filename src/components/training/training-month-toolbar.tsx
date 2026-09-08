@@ -1,13 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import Link from 'next/link'
 import {
   CalendarDays,
-  CloudSun,
-  Maximize2,
-  Minimize2,
-  Minus,
-  Plus,
+  ChartColumn,
   SlidersHorizontal,
   StickyNote,
 } from 'lucide-react'
@@ -21,75 +18,43 @@ import {
 import { FeedbackLayerToggle } from '@/components/training/feedback-layer-toggle'
 import { WeekCardSizeSwitch } from '@/components/plan/week-card-size-switch'
 import { useWeekCardSize } from '@/components/plan/week-card-size-context'
-import { useWeekPortraitZoom } from '@/components/plan/week-portrait-zoom-context'
-import { WEEK_PORTRAIT_ZOOM_LABEL } from '@/lib/week-portrait-zoom'
 import { useTrainingLibrary } from '@/components/training/training-library-context'
 import { TrainingLibraryToolbarToggle } from '@/components/training/training-library-toolbar-toggle'
 import { cn } from '@/lib/utils'
 
-type TrainingWeekFilterGroupsProps = {
+type TrainingMonthFilterGroupsProps = {
   showNotes: boolean
   onToggleNotes: () => void
   showEvents: boolean
   onToggleEvents: () => void
-  showWeather: boolean
-  onToggleWeather: () => void
-  expanded: boolean
-  onToggleExpanded: () => void
+  showStats: boolean
+  onToggleStats: () => void
+  monthSpan: 1 | 2 | 3
+  spanHrefs: Record<1 | 2 | 3, string>
+  /** Extra control after Cards (e.g. desktop expand lives next to view switch instead). */
+  trailing?: ReactNode
   layout?: 'inline' | 'stack'
   className?: string
 }
 
-function WeekCardSizeToolbarControl() {
+function MonthCardSizeToolbarControl() {
   const { cardSize, setCardSize } = useWeekCardSize()
   return <WeekCardSizeSwitch value={cardSize} onChange={setCardSize} />
 }
 
-function WeekPortraitZoomToolbarControl() {
-  const { zoom, zoomIn, zoomOut, canZoomIn, canZoomOut } = useWeekPortraitZoom()
-  return (
-    <div
-      className="flex items-center gap-0.5"
-      role="group"
-      aria-label={`Week zoom: ${WEEK_PORTRAIT_ZOOM_LABEL[zoom]}`}
-    >
-      <ToolbarTextToggle
-        pressed
-        disabled={!canZoomOut}
-        onClick={zoomOut}
-        title="Show more of the week (smaller columns)"
-      >
-        <Minus className="h-3.5 w-3.5" aria-hidden />
-        <span className="sr-only">Zoom out</span>
-      </ToolbarTextToggle>
-      <span className="min-w-[4.25rem] px-0.5 text-center text-[10px] font-medium tabular-nums text-foreground/80">
-        {WEEK_PORTRAIT_ZOOM_LABEL[zoom]}
-      </span>
-      <ToolbarTextToggle
-        pressed
-        disabled={!canZoomIn}
-        onClick={zoomIn}
-        title="Larger day columns"
-      >
-        <Plus className="h-3.5 w-3.5" aria-hidden />
-        <span className="sr-only">Zoom in</span>
-      </ToolbarTextToggle>
-    </div>
-  )
-}
-
-export function TrainingWeekFilterGroups({
+export function TrainingMonthFilterGroups({
   showNotes,
   onToggleNotes,
   showEvents,
   onToggleEvents,
-  showWeather,
-  onToggleWeather,
-  expanded,
-  onToggleExpanded,
+  showStats,
+  onToggleStats,
+  monthSpan,
+  spanHrefs,
+  trailing,
   layout = 'inline',
   className,
-}: TrainingWeekFilterGroupsProps) {
+}: TrainingMonthFilterGroupsProps) {
   const library = useTrainingLibrary()
   const stacked = layout === 'stack'
 
@@ -104,7 +69,7 @@ export function TrainingWeekFilterGroups({
     >
       <ToolbarFilterGroup
         label="Filter"
-        hint="Show or hide sports and workout statuses in the week grid"
+        hint="Show or hide sports and workout statuses"
       >
         <PlanSportFilterBar className="shrink-0" />
       </ToolbarFilterGroup>
@@ -117,7 +82,7 @@ export function TrainingWeekFilterGroups({
 
       <ToolbarFilterGroup
         label="Layers"
-        hint="Toggle Notes, Events, Weather, and Feedback on cards"
+        hint="Toggle Notes, Events, Stats, and Feedback on cards"
       >
         <div className="flex shrink-0 flex-wrap items-center gap-0.5">
           <ToolbarTextToggle
@@ -137,12 +102,14 @@ export function TrainingWeekFilterGroups({
             Events
           </ToolbarTextToggle>
           <ToolbarTextToggle
-            pressed={showWeather}
-            onClick={onToggleWeather}
-            title={showWeather ? 'Hide weather row' : 'Show weather row'}
+            pressed={showStats}
+            onClick={onToggleStats}
+            title={
+              showStats ? 'Hide weekly sport stats' : 'Show weekly sport stats'
+            }
           >
-            <CloudSun className="h-3 w-3" aria-hidden />
-            Weather
+            <ChartColumn className="h-3 w-3" aria-hidden />
+            Stats
           </ToolbarTextToggle>
           <FeedbackLayerToggle />
         </div>
@@ -154,10 +121,7 @@ export function TrainingWeekFilterGroups({
         <ToolbarDivider className="mb-1.5 mx-0.5" />
       )}
 
-      <ToolbarFilterGroup
-        label="View"
-        hint="How workout cards are colored in the week grid"
-      >
+      <ToolbarFilterGroup label="View" hint="How workout cards are colored">
         <PlanViewModeControl className="shrink-0" />
       </ToolbarFilterGroup>
 
@@ -168,44 +132,53 @@ export function TrainingWeekFilterGroups({
       )}
 
       <ToolbarFilterGroup
-        label="Zoom"
-        hint="Day column size on phone portrait — comfort, medium, or fit the week"
-        className={stacked ? undefined : 'hidden portrait:max-lg:flex'}
+        label="Cards"
+        hint="Workout card density on the month grid"
       >
-        <WeekPortraitZoomToolbarControl />
+        <div className="flex items-center gap-0.5">
+          <MonthCardSizeToolbarControl />
+          {trailing}
+        </div>
       </ToolbarFilterGroup>
 
       {stacked ? (
         <div className="h-px w-full bg-[var(--tt-line,#ebebeb)]" aria-hidden />
       ) : (
-        <ToolbarDivider className="mb-1.5 mx-0.5 hidden portrait:max-lg:block" />
+        <ToolbarDivider className="mb-1.5 mx-0.5" />
       )}
 
-      <ToolbarFilterGroup
-        label="Cards"
-        hint="Week card density and expanded calendar"
-      >
-        <div className="flex items-center gap-0.5">
-          <WeekCardSizeToolbarControl />
-          <ToolbarTextToggle
-            pressed={expanded}
-            onClick={onToggleExpanded}
-            title={expanded ? 'Exit expanded view' : 'Expand week plan'}
-            className="font-semibold text-foreground hover:text-foreground [&_svg]:opacity-100"
-          >
-            {expanded ? (
-              <Minimize2 className="h-3.5 w-3.5" aria-hidden />
-            ) : (
-              <Maximize2 className="h-3.5 w-3.5" aria-hidden />
-            )}
-          </ToolbarTextToggle>
+      <ToolbarFilterGroup label="Layout" hint="Months shown on the calendar">
+        <div
+          className="flex items-center gap-0.5"
+          role="group"
+          aria-label="Months shown"
+        >
+          {([1, 2, 3] as const).map((n) => (
+            <Link
+              key={n}
+              href={spanHrefs[n]}
+              title={`Show ${n} month${n > 1 ? 's' : ''}`}
+              aria-current={monthSpan === n ? 'page' : undefined}
+              className={cn(
+                'inline-flex shrink-0 items-center gap-0.5 rounded-[4px] px-1.5 py-1 text-xs transition',
+                monthSpan === n
+                  ? 'font-semibold text-foreground'
+                  : 'font-medium text-muted-foreground/40 hover:text-muted-foreground/70',
+              )}
+            >
+              {n}m
+            </Link>
+          ))}
         </div>
       </ToolbarFilterGroup>
 
       {library ? (
         <>
           {stacked ? (
-            <div className="h-px w-full bg-[var(--tt-line,#ebebeb)]" aria-hidden />
+            <div
+              className="h-px w-full bg-[var(--tt-line,#ebebeb)]"
+              aria-hidden
+            />
           ) : (
             <ToolbarDivider className="mb-1.5 mx-0.5" />
           )}
@@ -221,20 +194,21 @@ export function TrainingWeekFilterGroups({
   )
 }
 
-/** Week filters — desktop inline; mobile behind filter icon (same as List). */
-export function TrainingWeekToolbar({
+/** Month filters — desktop inline; mobile behind filter icon (List/Week pattern). */
+export function TrainingMonthToolbar({
   showNotes,
   onToggleNotes,
   showEvents,
   onToggleEvents,
-  showWeather,
-  onToggleWeather,
-  expanded,
-  onToggleExpanded,
+  showStats,
+  onToggleStats,
+  monthSpan,
+  spanHrefs,
+  trailing,
   className,
   mobileOnly,
   desktopOnly,
-}: Omit<TrainingWeekFilterGroupsProps, 'layout'> & {
+}: Omit<TrainingMonthFilterGroupsProps, 'layout'> & {
   mobileOnly?: boolean
   desktopOnly?: boolean
 }) {
@@ -244,15 +218,16 @@ export function TrainingWeekToolbar({
     onToggleNotes,
     showEvents,
     onToggleEvents,
-    showWeather,
-    onToggleWeather,
-    expanded,
-    onToggleExpanded,
+    showStats,
+    onToggleStats,
+    monthSpan,
+    spanHrefs,
+    trailing,
   }
 
   const desktop = (
     <div className={cn('min-w-0 max-w-full overflow-x-auto pb-0.5', className)}>
-      <TrainingWeekFilterGroups {...filterProps} />
+      <TrainingMonthFilterGroups {...filterProps} />
     </div>
   )
 
@@ -261,7 +236,7 @@ export function TrainingWeekToolbar({
       <button
         type="button"
         className="tt-inbox-mobile-icon-btn"
-        aria-label="Open week filters"
+        aria-label="Open month filters"
         aria-expanded={open}
         aria-haspopup="dialog"
         onClick={() => setOpen((v) => !v)}
@@ -278,10 +253,10 @@ export function TrainingWeekToolbar({
           />
           <div
             role="dialog"
-            aria-label="Week filters"
+            aria-label="Month filters"
             className="absolute right-0 top-[calc(100%+0.35rem)] z-[33] max-h-[min(70vh,32rem)] w-[min(18.5rem,calc(100vw-1.5rem))] overflow-y-auto rounded-[8px] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] p-3 shadow-[var(--tt-shadow)]"
           >
-            <TrainingWeekFilterGroups layout="stack" {...filterProps} />
+            <TrainingMonthFilterGroups layout="stack" {...filterProps} />
           </div>
         </>
       ) : null}

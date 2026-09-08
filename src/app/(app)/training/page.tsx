@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 import type { WorkoutType } from "@prisma/client";
-import { PageHeader, PageHeaderActions, PageHeaderDescription, PageHeaderEyebrow, PageHeaderTitle } from "@/components/ui/page-header";
+import {
+  PageHeader,
+  PageHeaderActions,
+  PageHeaderDescription,
+  PageHeaderEyebrow,
+  PageHeaderTitle,
+} from "@/components/ui/page-header";
 import { PlanMultiWeekTables } from "@/components/plan/plan-multi-week-tables";
 import { CalendarMonthView } from "@/components/training/calendar-month-view";
 import { TrainingCalendarControls } from "@/components/training/training-calendar-controls";
@@ -20,9 +26,17 @@ import {
   groupWorkoutsByDate,
 } from "@/lib/queries";
 import { groupSeasonEventsByDate } from "@/lib/season-events";
-import { getSession, getCoachAthletes, resolveAthleteId, isCoachView as userIsCoach } from "@/lib/session";
+import {
+  getSession,
+  getCoachAthletes,
+  resolveAthleteId,
+  isCoachView as userIsCoach,
+} from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { toPlanWorkoutDetail, redactPlanWorkoutNotesForViewer } from "@/lib/plan-workout";
+import {
+  toPlanWorkoutDetail,
+  redactPlanWorkoutNotesForViewer,
+} from "@/lib/plan-workout";
 import { mergeRacesIntoByDate } from "@/lib/races";
 import { buildPlanTableDays } from "@/lib/plan-week";
 import { buildTrainingDays } from "@/lib/training-timeline";
@@ -39,7 +53,10 @@ import {
   todayDateOnly,
   toDateKey,
 } from "@/lib/dates";
-import { getCoachLibraryFolders, getCoachLibraryTemplates } from "@/lib/workout-library/queries";
+import {
+  getCoachLibraryFolders,
+  getCoachLibraryTemplates,
+} from "@/lib/workout-library/queries";
 import { resolveLibraryTemplateMetricsForAthlete } from "@/lib/workout-library/template-metrics";
 import { loadAthletePreferencesForBuilder } from "@/lib/workout-builder/load-athlete-preferences";
 import { TrainingPlanShell } from "@/components/training/training-plan-shell";
@@ -131,10 +148,9 @@ export default async function TrainingPage({
 
   // Always use UTC date-only + Monday week starts (never date-fns on local midnight).
   const todayOnly = todayDateOnly();
-  const anchor =
-    usesMonthGrid
-      ? addDateOnlyMonths(startOfMonthDateOnly(todayOnly), monthOffset)
-      : addDateOnlyDays(todayOnly, weekOffset * 7);
+  const anchor = usesMonthGrid
+    ? addDateOnlyMonths(startOfMonthDateOnly(todayOnly), monthOffset)
+    : addDateOnlyDays(todayOnly, weekOffset * 7);
 
   const rangeEndMonth = addDateOnlyMonths(anchor, monthSpan - 1);
   const monthGridStart = startOfWeekDateOnly(startOfMonthDateOnly(anchor));
@@ -151,18 +167,16 @@ export default async function TrainingPage({
   const listFromKey = toDateKey(listRangeStart);
   const listToKey = toDateKey(listRangeEnd);
 
-  const rangeStart =
-    usesMonthGrid
-      ? monthGridStart
-      : view === "list"
-        ? listRangeStart
-        : weekStart;
-  const rangeEnd =
-    usesMonthGrid
-      ? monthGridEnd
-      : view === "list"
-        ? listRangeEnd
-        : weekEnd;
+  const rangeStart = usesMonthGrid
+    ? monthGridStart
+    : view === "list"
+      ? listRangeStart
+      : weekStart;
+  const rangeEnd = usesMonthGrid
+    ? monthGridEnd
+    : view === "list"
+      ? listRangeEnd
+      : weekEnd;
 
   const rawWorkouts = await getPlanWorkoutsInRange(
     athleteId,
@@ -172,7 +186,7 @@ export default async function TrainingPage({
 
   const byDateRaw = groupWorkoutsByDate(rawWorkouts);
   const isCoach = userIsCoach(session);
-  const noteViewer = isCoach ? 'coach' : 'athlete'
+  const noteViewer = isCoach ? "coach" : "athlete";
   const byDateWorkouts = new Map(
     [...byDateRaw.entries()].map(([key, list]) => [
       key,
@@ -198,8 +212,7 @@ export default async function TrainingPage({
     rangeEnd,
   );
 
-  const canLogWorkout =
-    session.hasAthlete && Boolean(session.athleteId);
+  const canLogWorkout = session.hasAthlete && Boolean(session.athleteId);
   const today = todayDateKey();
 
   const coachAthletes = isCoach ? await getCoachAthletes(session.userId) : [];
@@ -225,9 +238,12 @@ export default async function TrainingPage({
           lon: overrideLon,
           isOverride: true,
         }
-      : athletePlanConfig?.weatherLat != null && athletePlanConfig.weatherLon != null
+      : athletePlanConfig?.weatherLat != null &&
+          athletePlanConfig.weatherLon != null
         ? {
-            name: athletePlanConfig.weatherLocationName?.trim() || "Default location",
+            name:
+              athletePlanConfig.weatherLocationName?.trim() ||
+              "Default location",
             lat: athletePlanConfig.weatherLat,
             lon: athletePlanConfig.weatherLon,
             isOverride: false,
@@ -240,7 +256,9 @@ export default async function TrainingPage({
       weatherByDate = await getYrWeatherSummaries({
         lat: activeWeatherLocation.lat,
         lon: activeWeatherLocation.lon,
-        dateKeys: eachDateOnlyDay(rangeStart, rangeEnd).map((d) => toDateKey(d)),
+        dateKeys: eachDateOnlyDay(rangeStart, rangeEnd).map((d) =>
+          toDateKey(d),
+        ),
       });
     } catch {
       weatherByDate = new Map();
@@ -258,7 +276,13 @@ export default async function TrainingPage({
       weekStartKey: toDateKey(start),
       weekLabel: `${formatDateOnly(start, "d MMM")} – ${formatDateOnly(end, "d MMM yyyy")}`,
       trainingDays: buildTrainingDays(days),
-      tableDays: buildPlanTableDays(days, byDate, notesByDate, eventsByDate, weatherByDate),
+      tableDays: buildPlanTableDays(
+        days,
+        byDate,
+        notesByDate,
+        eventsByDate,
+        weatherByDate,
+      ),
     };
   });
 
@@ -300,14 +324,12 @@ export default async function TrainingPage({
   const listHref = `/training?view=list`;
   const calendarHref = `/training?view=calendar&${monthQuery}`;
 
-  const prevHref =
-    usesMonthGrid
-      ? `/training?view=calendar&month=${prevMonth}${monthSpanQuery}`
-      : `/training?view=week&week=${prevWeek}${weekSpanQuery}`;
-  const nextHref =
-    usesMonthGrid
-      ? `/training?view=calendar&month=${nextMonth}${monthSpanQuery}`
-      : `/training?view=week&week=${nextWeek}${weekSpanQuery}`;
+  const prevHref = usesMonthGrid
+    ? `/training?view=calendar&month=${prevMonth}${monthSpanQuery}`
+    : `/training?view=week&week=${prevWeek}${weekSpanQuery}`;
+  const nextHref = usesMonthGrid
+    ? `/training?view=calendar&month=${nextMonth}${monthSpanQuery}`
+    : `/training?view=week&week=${nextWeek}${weekSpanQuery}`;
 
   const addWeekHref =
     weekSpan < MAX_WEEK_SPAN
@@ -320,63 +342,60 @@ export default async function TrainingPage({
         : `/training?view=week&week=${weekOffset}`
       : null;
 
-  const trainingTitle =
-    view === "calendar"
-      ? "Month plan"
-      : view === "list"
-        ? "This week"
-        : "Week plan";
   const trainingEyebrow = isCoach ? "Training · Coach" : "Training";
-  const athleteLabel =
-    isCoach
-      ? (selectedAthlete?.name ?? "Athlete")
-      : (session.name ?? "You");
+  const athleteLabel = isCoach
+    ? (selectedAthlete?.name ?? "Athlete")
+    : (session.name ?? "You");
 
-  const periodLabel =
-    usesMonthGrid
-      ? monthSpan === 1
-        ? formatDateOnly(anchor, "MMMM yyyy")
-        : `${formatDateOnly(anchor, "MMMM yyyy")} – ${formatDateOnly(rangeEndMonth, "MMMM yyyy")}`
-      : weekSpan > 1
-        ? (() => {
-            const firstLabel = weekBlocks[0]!.weekLabel;
-            const lastLabel = weekBlocks[weekBlocks.length - 1]!.weekLabel;
-            const start = firstLabel.split("–")[0]?.trim() ?? firstLabel;
-            const end = lastLabel.includes("–")
-              ? lastLabel.split("–").slice(1).join("–").trim()
-              : lastLabel;
-            return `${start} – ${end}`;
-          })()
-        : firstWeek.weekLabel;
+  const periodLabel = usesMonthGrid
+    ? monthSpan === 1
+      ? formatDateOnly(anchor, "MMMM yyyy")
+      : `${formatDateOnly(anchor, "MMMM yyyy")} – ${formatDateOnly(rangeEndMonth, "MMMM yyyy")}`
+    : weekSpan > 1
+      ? (() => {
+          const firstLabel = weekBlocks[0]!.weekLabel;
+          const lastLabel = weekBlocks[weekBlocks.length - 1]!.weekLabel;
+          const start = firstLabel.split("–")[0]?.trim() ?? firstLabel;
+          const end = lastLabel.includes("–")
+            ? lastLabel.split("–").slice(1).join("–").trim()
+            : lastLabel;
+          return `${start} – ${end}`;
+        })()
+      : firstWeek.weekLabel;
+
+  /** Month chrome nav — name only so it fits beside List/Week/Month. */
+  const monthNavLabel =
+    monthSpan === 1
+      ? formatDateOnly(anchor, "MMMM")
+      : `${formatDateOnly(anchor, "MMMM")} – ${formatDateOnly(rangeEndMonth, "MMMM")}`;
 
   const trainingDescription =
     view === "list"
       ? `${athleteLabel} · ${periodLabel} · list agenda`
       : `${athleteLabel} · ${periodLabel}`;
 
-  const monthBlocks =
-    usesMonthGrid
-      ? Array.from({ length: monthSpan }, (_, i) => {
-          const monthAnchor = addDateOnlyMonths(anchor, i);
-          const start = startOfWeekDateOnly(startOfMonthDateOnly(monthAnchor));
-          const end = endOfWeekDateOnly(endOfMonthDateOnly(monthAnchor));
-          return {
-            label: formatDateOnly(monthAnchor, "MMMM yyyy"),
-            anchorMonth: monthAnchor,
-            days: eachDateOnlyDay(start, end).map((day) => {
-              const key = toDateKey(day);
-              return {
-                dateKey: key,
-                dayNumber: day.getUTCDate(),
-                inMonth:
-                  day.getUTCMonth() === monthAnchor.getUTCMonth() &&
-                  day.getUTCFullYear() === monthAnchor.getUTCFullYear(),
-                isToday: key === today,
-              };
-            }),
-          };
-        })
-      : [];
+  const monthBlocks = usesMonthGrid
+    ? Array.from({ length: monthSpan }, (_, i) => {
+        const monthAnchor = addDateOnlyMonths(anchor, i);
+        const start = startOfWeekDateOnly(startOfMonthDateOnly(monthAnchor));
+        const end = endOfWeekDateOnly(endOfMonthDateOnly(monthAnchor));
+        return {
+          label: formatDateOnly(monthAnchor, "MMMM yyyy"),
+          anchorMonth: monthAnchor,
+          days: eachDateOnlyDay(start, end).map((day) => {
+            const key = toDateKey(day);
+            return {
+              dateKey: key,
+              dayNumber: day.getUTCDate(),
+              inMonth:
+                day.getUTCMonth() === monthAnchor.getUTCMonth() &&
+                day.getUTCFullYear() === monthAnchor.getUTCFullYear(),
+              isToday: key === today,
+            };
+          }),
+        };
+      })
+    : [];
 
   const calendarControls = (
     <TrainingCalendarControls
@@ -409,7 +428,9 @@ export default async function TrainingPage({
         <div className="flex w-full min-w-0 items-center justify-between gap-3 lg:items-end">
           <div className="min-w-0">
             {trainingEyebrow ? (
-              <PageHeaderEyebrow className="hidden lg:block">{trainingEyebrow}</PageHeaderEyebrow>
+              <PageHeaderEyebrow className="hidden lg:block">
+                {trainingEyebrow}
+              </PageHeaderEyebrow>
             ) : null}
             <PageHeaderTitle className="tt-inbox-page-title lg:mt-1">
               Training<span className="tt-inbox-title-dot">.</span>
@@ -447,10 +468,30 @@ export default async function TrainingPage({
   const weekPageHeader = (
     <div className="min-w-0">
       {trainingEyebrow ? (
-        <PageHeaderEyebrow className="hidden lg:block">{trainingEyebrow}</PageHeaderEyebrow>
+        <PageHeaderEyebrow className="hidden lg:block">
+          {trainingEyebrow}
+        </PageHeaderEyebrow>
       ) : null}
       <PageHeaderTitle className="tt-inbox-page-title lg:mt-1">
         Week plan<span className="tt-inbox-title-dot">.</span>
+      </PageHeaderTitle>
+      {trainingDescription ? (
+        <PageHeaderDescription className="mt-1 hidden max-w-lg lg:block">
+          {trainingDescription}
+        </PageHeaderDescription>
+      ) : null}
+    </div>
+  );
+
+  const monthPageHeader = (
+    <div className="min-w-0">
+      {trainingEyebrow ? (
+        <PageHeaderEyebrow className="hidden lg:block">
+          {trainingEyebrow}
+        </PageHeaderEyebrow>
+      ) : null}
+      <PageHeaderTitle className="tt-inbox-page-title lg:mt-1">
+        Month plan<span className="tt-inbox-title-dot">.</span>
       </PageHeaderTitle>
       {trainingDescription ? (
         <PageHeaderDescription className="mt-1 hidden max-w-lg lg:block">
@@ -476,16 +517,21 @@ export default async function TrainingPage({
     />
   );
 
-  const pageHeader =
-    view === "list" || view === "week" ? null : (
-      <PageHeader
-        title={trainingTitle}
-        eyebrow={trainingEyebrow}
-        description={trainingDescription}
-        className="mb-4"
-        action={calendarControls}
-      />
-    );
+  const monthViewControls = (
+    <TrainingCalendarControls
+      view={view}
+      weekHref={weekHref}
+      listHref={listHref}
+      calendarHref={calendarHref}
+      canLogWorkout={canLogWorkout}
+      isCoach={isCoach}
+      athleteId={athleteId}
+      canAddNote
+      showAddMenu={false}
+      showSportFilter={false}
+      viewSwitchOnly
+    />
+  );
 
   const listTableView = (
     <TrainingTableView
@@ -561,11 +607,9 @@ export default async function TrainingPage({
       templates={libraryTemplates}
       folders={libraryFolders}
     >
-      {pageHeader}
-
       {view === "calendar" ? (
         <CalendarMonthView
-          rangeLabel={periodLabel}
+          rangeLabel={monthNavLabel}
           months={monthBlocks.map(({ label, days }) => ({ label, days }))}
           monthSpan={monthSpan}
           monthOffset={monthOffset}
@@ -581,6 +625,10 @@ export default async function TrainingPage({
           swimCssSecPer100m={swimCssSecPer100m}
           prevMonthHref={prevHref}
           nextMonthHref={nextHref}
+          stickyTitle={monthPageHeader}
+          viewControls={monthViewControls}
+          canLogWorkout={canLogWorkout}
+          canAddNote
         />
       ) : view === "list" ? (
         <TrainingListFrame header={listPageHeader}>

@@ -2,6 +2,7 @@
 
 import {
   useLayoutEffect,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -28,21 +29,27 @@ export function TrainingListFrame({
   const [frameStyle, setFrameStyle] = useState<CSSProperties | undefined>()
   const [spacerHeight, setSpacerHeight] = useState<number | null>(null)
   const [desktopStickyTop, setDesktopStickyTop] = useState(0)
+  const lastMetricsRef = useRef<{ top: number; bottom: number } | null>(null)
 
   useLayoutEffect(() => {
     function measure() {
       const isMobile = window.matchMedia('(max-width: 1023px)').matches
       const chrome = document.querySelector<HTMLElement>('[data-app-sticky-chrome]')
-      const chromeBottom = Math.round(chrome?.getBoundingClientRect().bottom ?? 0)
+      const chromeBottom = Math.round(
+        chrome?.getBoundingClientRect().bottom ?? 0,
+      )
 
       if (!isMobile) {
+        lastMetricsRef.current = null
         setFrameStyle(undefined)
         setSpacerHeight(null)
         setDesktopStickyTop(Math.max(0, chromeBottom))
         return
       }
 
-      const bottomNav = document.querySelector<HTMLElement>('[data-mobile-bottom-nav]')
+      const bottomNav = document.querySelector<HTMLElement>(
+        '[data-mobile-bottom-nav]',
+      )
       const top = chromeBottom
 
       let bottom = 0
@@ -55,6 +62,10 @@ export function TrainingListFrame({
           }
         }
       }
+
+      const prev = lastMetricsRef.current
+      if (prev && prev.top === top && prev.bottom === bottom) return
+      lastMetricsRef.current = { top, bottom }
 
       setFrameStyle({
         position: 'fixed',
@@ -77,16 +88,14 @@ export function TrainingListFrame({
     const mq = window.matchMedia('(max-width: 1023px)')
     mq.addEventListener('change', measure)
 
-    const bodyObserver = new MutationObserver(() => measure())
-    bodyObserver.observe(document.body, { childList: true, subtree: true })
-    const retryId = window.setTimeout(measure, 120)
+    // One post-paint pass for late layout (fonts / bottom nav), not a mutation loop.
+    const retryId = window.requestAnimationFrame(() => measure())
 
     return () => {
       ro.disconnect()
       window.removeEventListener('resize', measure)
       mq.removeEventListener('change', measure)
-      bodyObserver.disconnect()
-      window.clearTimeout(retryId)
+      window.cancelAnimationFrame(retryId)
     }
   }, [])
 
@@ -109,10 +118,20 @@ export function TrainingListFrame({
       >
         <div
           className={cn(
-            'tt-training-list-sticky-header relative z-10 shrink-0 bg-background',
+            /*
+             * Above week/month sticky columns (z-20/21) so filter popovers and
+             * chrome aren’t painted over by day “+” controls in the table.
+             * Stay below mobile top bar (z-40).
+             */
+            'tt-training-list-sticky-header relative z-30 shrink-0 bg-background',
+            /*
+             * Mobile inset matches List (px-2.5). Keep identical before/after
+             * fixed positioning so header margins don’t jump on hydrate.
+             */
+            'max-lg:border-b max-lg:border-[var(--tt-line,#ebebeb)] max-lg:px-2.5 max-lg:pb-2 max-lg:pt-1',
             mobileFixed
-              ? 'border-b border-[var(--tt-line,#ebebeb)] px-2.5 pb-2 pt-1'
-              : 'sticky z-20 -mx-4 px-4 pb-3 pt-1 lg:pb-5 lg:pt-2',
+              ? null
+              : 'sticky z-30 lg:-mx-4 lg:border-0 lg:px-4 lg:pb-5 lg:pt-2',
           )}
           style={!mobileFixed ? { top: desktopStickyTop } : undefined}
         >
@@ -130,7 +149,9 @@ export function TrainingListFrame({
             mobileFixed
               ? cn(
                   'flex min-h-0 flex-1 flex-col',
-                  scrollBody ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden',
+                  scrollBody
+                    ? 'overflow-y-auto overflow-x-hidden'
+                    : 'overflow-hidden',
                 )
               : 'mt-0',
           )}

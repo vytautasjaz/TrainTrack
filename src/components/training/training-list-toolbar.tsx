@@ -144,14 +144,14 @@ export function TrainingListToolbar({
         <>
           <button
             type="button"
-            className="fixed inset-0 z-20 cursor-default"
+            className="fixed inset-0 z-[32] cursor-default"
             aria-label="Close filters"
             onClick={() => setOpen(false)}
           />
           <div
             role="dialog"
             aria-label="List filters"
-            className="absolute right-0 top-[calc(100%+0.35rem)] z-30 w-[min(18.5rem,calc(100vw-1.5rem))] rounded-[8px] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] p-3 shadow-[var(--tt-shadow)]"
+            className="absolute right-0 top-[calc(100%+0.35rem)] z-[33] w-[min(18.5rem,calc(100vw-1.5rem))] rounded-[8px] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] p-3 shadow-[var(--tt-shadow)]"
           >
             <TrainingListFilterGroups layout="stack" />
           </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Suspense } from 'react'
+import { Suspense, useLayoutEffect, useRef } from 'react'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { TrainTrackMark } from '@/components/brand/traintrack-logo'
 import { MobileNavMenu } from '@/components/layout/mobile-nav-menu'
@@ -30,8 +30,35 @@ export function MobileAppTopBar({
   athleteProfile,
   athleteBar,
 }: MobileAppTopBarProps) {
+  const chromeRef = useRef<HTMLDivElement>(null)
+
+  // Publish chrome bottom so list/week frames can pin without remount churn.
+  useLayoutEffect(() => {
+    const el = chromeRef.current
+    if (!el) return
+
+    function sync() {
+      const bottom = Math.round(el!.getBoundingClientRect().bottom)
+      document.documentElement.style.setProperty(
+        '--tt-sticky-chrome-bottom',
+        `${bottom}px`,
+      )
+    }
+
+    sync()
+    const ro = new ResizeObserver(sync)
+    ro.observe(el)
+    window.addEventListener('resize', sync)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', sync)
+      document.documentElement.style.removeProperty('--tt-sticky-chrome-bottom')
+    }
+  }, [])
+
   return (
     <div
+      ref={chromeRef}
       className="sticky top-0 z-40 bg-[var(--tt-home-hero-bg,#151827)]"
       data-app-sticky-chrome
       data-mobile-topbar="dark"

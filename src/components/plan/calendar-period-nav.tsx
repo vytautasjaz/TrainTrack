@@ -70,7 +70,7 @@ export function CalendarPeriodNav({
     <div
       className={cn(
         'flex items-center',
-        compact ? 'w-fit max-w-full gap-1.5' : 'w-full justify-center gap-1',
+        compact ? 'w-fit max-w-full gap-0' : 'w-full justify-center gap-1',
         className,
       )}
     >
@@ -78,7 +78,10 @@ export function CalendarPeriodNav({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0 rounded-full"
+          className={cn(
+            'shrink-0 rounded-full',
+            compact ? 'h-8 w-7' : 'h-8 w-8',
+          )}
           asChild
         >
           <Link href={prevHref} aria-label={prevAriaLabel}>
@@ -90,10 +93,10 @@ export function CalendarPeriodNav({
       )}
       <h2
         className={cn(
-          'min-w-0 font-semibold',
+          'font-semibold',
           compact
-            ? 'truncate px-1 text-xs tabular-nums'
-            : 'flex-1 text-center text-sm landscape:max-lg:text-xs',
+            ? 'shrink-0 whitespace-nowrap px-0.5 text-[13px] leading-none'
+            : 'min-w-0 flex-1 whitespace-nowrap text-center text-sm landscape:max-lg:text-xs',
         )}
       >
         {label}
@@ -102,7 +105,10 @@ export function CalendarPeriodNav({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 shrink-0 rounded-full"
+          className={cn(
+            'shrink-0 rounded-full',
+            compact ? 'h-8 w-7' : 'h-8 w-8',
+          )}
           asChild
         >
           <Link href={nextHref} aria-label={nextAriaLabel}>

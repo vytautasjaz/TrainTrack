@@ -379,9 +379,9 @@ function WeatherTableRow({
                 return (
                   <div
                     key={`${day.dateKey}-${slot.label}`}
-                    className="flex min-h-[4.7rem] flex-col items-center justify-between px-0.5 py-0.5 text-[10px]"
+                    className="tt-week-weather-slot flex min-h-[4.7rem] flex-col items-center justify-between px-0.5 py-0.5 text-[10px]"
                   >
-                    <span className="text-[9px] uppercase tracking-wide text-muted-foreground/80">
+                    <span className="tt-week-weather-slot-label text-[9px] uppercase tracking-wide text-muted-foreground/80">
                       {slot.label}
                     </span>
                     <span className="flex items-center justify-center">
@@ -555,6 +555,7 @@ function SportTableRows({
         return (
           <tr key={sport} className={cn("border-b", PLAN_TABLE_LINE)} data-row="sport">
             <th
+              data-sport={sport}
               className={cn(
                 "tt-week-sport-label-cell relative p-0 text-left align-top",
                 PLAN_TABLE_VLINE,
@@ -892,13 +893,12 @@ function PlanTableViewInner({
           </div>
         </div>
       </div>
-      <div className="tt-week-view-chrome min-w-0">
+      <div className="tt-week-view-chrome mt-2 flex min-w-0 flex-col gap-5">
         <WeekMatrixScrollSlider scrollRef={matrixScrollRef} days={days} />
         <WeekPortraitStats
           days={days}
           sportRows={sportRows}
           swimCssSecPer100m={swimCssSecPer100m}
-          className="mt-3"
         />
       </div>
     </div>

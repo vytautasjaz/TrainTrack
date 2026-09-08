@@ -80,9 +80,12 @@ export function TrainingListAddMenu({
     <div className={cn('relative shrink-0', className)}>
       <Button
         type="button"
-        variant="secondary"
+        variant="ghost"
         size="sm"
-        className="shrink-0 gap-1 px-2.5 sm:gap-1.5 sm:px-3"
+        className={cn(
+          'shrink-0 gap-0.5 px-1.5 font-medium sm:gap-1',
+          menuOpen && 'bg-foreground/[0.04] text-foreground',
+        )}
         aria-label="Add to plan"
         aria-expanded={menuOpen}
         aria-haspopup="menu"
@@ -93,7 +96,7 @@ export function TrainingListAddMenu({
           })
         }}
       >
-        <Plus className="h-4 w-4" />
+        <Plus className="h-4 w-4" strokeWidth={2} />
         Add
       </Button>
 
