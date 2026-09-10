@@ -9,6 +9,8 @@ type PrivateNoteToggleProps = {
   checked?: boolean
   defaultChecked?: boolean
   onCheckedChange?: (checked: boolean) => void
+  /** Overrides the default hideFrom copy. */
+  label?: string
   className?: string
 }
 
@@ -18,12 +20,14 @@ export function PrivateNoteToggle({
   checked,
   defaultChecked,
   onCheckedChange,
+  label: labelOverride,
   className,
 }: PrivateNoteToggleProps) {
   const label =
-    hideFrom === 'coach'
+    labelOverride ??
+    (hideFrom === 'coach'
       ? 'Keep private — don’t show to coach'
-      : 'Keep private — don’t show to athlete'
+      : 'Keep private — don’t show to athlete')
 
   return (
     <label

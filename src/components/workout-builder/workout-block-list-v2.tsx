@@ -102,7 +102,7 @@ export function WorkoutBlockListV2({
   }
 
   function commit(nextItems: typeof items) {
-    onChange(unflattenBlocks(nextItems));
+    onChange(unflattenBlocks(nextItems, structure));
   }
 
   function clearDrag() {

@@ -48,6 +48,8 @@ export function WorkoutModalTrigger({
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null)
   const pointerMovedRef = useRef(false)
   const openedThisGestureRef = useRef(false)
+  /** True only when pointerdown landed on this trigger — blocks overlay ghost clicks. */
+  const armedByPointerDownRef = useRef(false)
 
   const sharedClassName = cn(
     'text-left',
@@ -82,6 +84,11 @@ export function WorkoutModalTrigger({
     if (openedThisGestureRef.current) return
     if (suppressClick.current || pointerMovedRef.current) return
     if (isNestedControlTarget(e.target)) return
+    // Dismissed overlays fire a click on whatever is underneath without a
+    // matching pointerdown on this trigger — ignore those ghost clicks.
+    if (e.type === 'click' && !armedByPointerDownRef.current) return
+    if (e.type === 'pointerup' && !armedByPointerDownRef.current) return
+    armedByPointerDownRef.current = false
     openedThisGestureRef.current = true
     setOpen(true)
   }
@@ -91,8 +98,10 @@ export function WorkoutModalTrigger({
     openedThisGestureRef.current = false
     if (isNestedControlTarget(e.target)) {
       pointerDownRef.current = null
+      armedByPointerDownRef.current = false
       return
     }
+    armedByPointerDownRef.current = true
     pointerDownRef.current = { x: e.clientX, y: e.clientY }
     pointerMovedRef.current = false
   }
@@ -118,6 +127,7 @@ export function WorkoutModalTrigger({
     if (e.key !== 'Enter' && e.key !== ' ') return
     if (isNestedControlTarget(e.target)) return
     e.preventDefault()
+    armedByPointerDownRef.current = true
     tryOpenModal(e)
   }
 

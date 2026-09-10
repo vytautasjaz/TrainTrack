@@ -4,8 +4,8 @@
 import type { ReactNode } from 'react'
 import { useEffect, useState, useTransition } from 'react'
 import { WorkoutType } from '@prisma/client'
-import { Clock } from 'lucide-react'
 import { patchPlanWorkoutCard } from '@/app/actions/workouts'
+import { WorkoutCardMetricIcon } from '@/components/plan/workout-card-metric-icon'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { toUserMessage } from '@/lib/action-error'
 import {
@@ -331,7 +331,11 @@ export function PlanWorkoutCardInlineEdit({
       ) : null}
 
       {hero || heroValue ? (
-        <div className={cn('flex min-w-0 items-baseline', heroPadClassName)}>
+        <div className={cn('flex min-w-0 items-baseline gap-1', heroPadClassName)}>
+          <WorkoutCardMetricIcon
+            kind={hero?.kind ?? (heroIsDistance ? 'distance' : 'duration')}
+            className={cn('self-center', clockClassName)}
+          />
           {hero?.approximate ? (
             <span className={cn('shrink-0 font-medium text-[#6B7280]', unitClassName)}>
               ~
@@ -356,9 +360,10 @@ export function PlanWorkoutCardInlineEdit({
 
       {showDuration && durationLabel ? (
         <div className={cn('flex min-w-0 items-center gap-1 text-[#6B7280]', durationClassName)}>
-          {hero?.kind === 'distance' || (!hero && heroIsDistance) ? (
-            <Clock className={cn(clockClassName, 'shrink-0')} aria-hidden />
-          ) : null}
+          <WorkoutCardMetricIcon
+            kind={hero?.kind === 'duration' || (!hero && !heroIsDistance) ? 'distance' : 'duration'}
+            className={clockClassName}
+          />
           {hero?.kind === 'distance' || (!hero && heroIsDistance) ? (
             <>
               <MetricInput

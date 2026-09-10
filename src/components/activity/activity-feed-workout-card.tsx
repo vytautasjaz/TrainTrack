@@ -1,7 +1,7 @@
 'use client'
 
 import { format, isToday, isYesterday } from 'date-fns'
-import { Check, MessageSquare, Minus } from 'lucide-react'
+import { Check, Minus } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
 import { ActivityRouteMap } from '@/components/plan/activity-route-map'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
@@ -16,8 +16,8 @@ import {
 } from '@/lib/coach-home'
 import { parseDateOnly } from '@/lib/dates'
 import { isStravaSynced, workoutHasCoachingChat, athleteCanLeaveWorkoutComment } from '@/lib/plan-workout'
-import { workoutFeelingLabel } from '@/lib/workout-feeling'
 import { cn } from '@/lib/utils'
+import { ActivityFeedFeedbackReadout } from '@/components/activity/activity-feed-feeling'
 import { ActivityFeedInlineFeedback } from '@/components/dashboard/athlete-activity-feed-feedback'
 
 export function ActivityDayHeading({ dateKey }: { dateKey: string }) {
@@ -131,19 +131,6 @@ function FeedMetricCell({ metric }: { metric: { label: string; value: string } }
   )
 }
 
-function SkippedReason({ notes }: { notes: string | null }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint)]">
-        Reason
-      </p>
-      <p className="line-clamp-2 text-[12px] leading-snug text-[var(--tt-ink-soft)]">
-        {notes?.trim() ? `“${notes.trim()}”` : 'No reason provided'}
-      </p>
-    </div>
-  )
-}
-
 type ActivityFeedWorkoutCardProps = {
   row: CoachHomeWorkoutActivityRow
   isCoach: boolean
@@ -154,7 +141,6 @@ type ActivityFeedWorkoutCardProps = {
 function formatAthleteFeedDateMeta(opts: {
   dateKey: string
   activityAt?: string
-  sourceLabel?: string | null
 }): string {
   const date = parseDateOnly(opts.dateKey)
   const at = opts.activityAt ? new Date(opts.activityAt) : null
@@ -163,21 +149,14 @@ function formatAthleteFeedDateMeta(opts: {
     !Number.isNaN(at.getTime()) &&
     (at.getHours() !== 0 || at.getMinutes() !== 0 || at.getSeconds() !== 0)
 
-  let line: string
   if (isToday(date) || isYesterday(date)) {
     const day = isToday(date) ? 'Today' : 'Yesterday'
-    line = hasClock ? `${day} at ${format(at!, 'HH:mm')}` : day
-  } else if (hasClock) {
-    line = `${format(date, 'EEE · MMM d')} · ${format(at!, 'HH:mm')}`
-  } else {
-    line = format(date, 'EEE · MMM d')
+    return hasClock ? `${day} at ${format(at!, 'HH:mm')}` : day
   }
-
-  const source = opts.sourceLabel?.trim()
-  if (source && source !== '—') {
-    line = `${line} · ${source}`
+  if (hasClock) {
+    return `${format(date, 'MMM d, yyyy')} · ${format(at!, 'HH:mm')}`
   }
-  return line
+  return format(date, 'MMM d, yyyy')
 }
 
 export function ActivityFeedWorkoutCard({
@@ -186,7 +165,6 @@ export function ActivityFeedWorkoutCard({
   showDate = false,
 }: ActivityFeedWorkoutCardProps) {
   const skipped = row.status === 'skipped'
-  const hasFeedbackNotes = Boolean(row.feedbackNotes?.trim())
   const hasChat = workoutHasCoachingChat(row.workout)
   const stravaSynced = isStravaSynced(row.workout)
   const selfAdded = Boolean(row.workout.selfLogged)
@@ -213,7 +191,7 @@ export function ActivityFeedWorkoutCard({
           aria-hidden
         />
 
-        <div className="grid gap-2.5 py-3.5 pl-4 pr-3.5 md:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.6fr)] md:items-start md:gap-5">
+        <div className="grid gap-2.5 py-3.5 pl-4 pr-3.5 md:grid-cols-[minmax(15rem,1.1fr)_minmax(0,1.4fr)] md:items-start md:gap-4">
           <div className="min-w-0 space-y-3">
             <div className="flex min-w-0 items-start gap-2">
               <WorkoutSportIcon type={row.activityType} size="sm" className="mt-0.5 shrink-0" />
@@ -229,7 +207,6 @@ export function ActivityFeedWorkoutCard({
                     {formatAthleteFeedDateMeta({
                       dateKey: row.dateKey,
                       activityAt: row.activityAt,
-                      sourceLabel: row.sourceLabel,
                     })}
                   </time>
                 ) : null}
@@ -304,31 +281,22 @@ export function ActivityFeedWorkoutCard({
               </div>
             ) : null}
 
-            {!canAthleteFeedback && skipped ? (
-              <SkippedReason notes={row.feedbackNotes} />
-            ) : null}
-            {!canAthleteFeedback && !skipped && hasFeedbackNotes ? (
-              <p className="flex items-start gap-1.5 text-[12px] leading-snug text-[var(--tt-ink-soft)]">
-                <MessageSquare
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--tt-ink-faint)]"
-                  strokeWidth={1.75}
-                  aria-hidden
+            {!canAthleteFeedback ? (
+              <div className="hidden md:block">
+                <ActivityFeedFeedbackReadout
+                  notes={row.feedbackNotes}
+                  feeling={row.feedbackFeeling}
+                  skipped={skipped}
                 />
-                <span className="line-clamp-3 whitespace-pre-wrap">{row.feedbackNotes}</span>
-              </p>
-            ) : null}
-            {!canAthleteFeedback && !skipped && !hasFeedbackNotes && row.feedbackFeeling != null ? (
-              <p className="text-[12px] text-[var(--tt-ink-soft)]">
-                Feeling {row.feedbackFeeling}/10 · {workoutFeelingLabel(row.feedbackFeeling)}
-              </p>
+              </div>
             ) : null}
 
             {row.feedbackReply ? (
-              <div className="rounded-[6px] border border-brand/20 bg-brand-soft/25 px-2.5 py-2">
+              <div className="hidden rounded-[6px] border border-brand/20 bg-brand-soft/25 px-2.5 py-2 md:block">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-brand">
                   Coach reply
                 </p>
-                <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[12px] leading-snug text-[var(--tt-ink-soft)]">
+                <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[12px] leading-snug text-[var(--tt-ink-soft)] md:text-[13px]">
                   {row.feedbackReply}
                 </p>
               </div>
@@ -353,6 +321,25 @@ export function ActivityFeedWorkoutCard({
                 <span className="font-semibold uppercase tracking-[0.04em]">Planned </span>
                 {row.plannedSummary}
               </p>
+            ) : null}
+            {!canAthleteFeedback ? (
+              <div className="space-y-3 md:hidden">
+                <ActivityFeedFeedbackReadout
+                  notes={row.feedbackNotes}
+                  feeling={row.feedbackFeeling}
+                  skipped={skipped}
+                />
+                {row.feedbackReply ? (
+                  <div className="rounded-[6px] border border-brand/20 bg-brand-soft/25 px-2.5 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-brand">
+                      Coach reply
+                    </p>
+                    <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[12px] leading-snug text-[var(--tt-ink-soft)]">
+                      {row.feedbackReply}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
             ) : null}
           </div>
         </div>

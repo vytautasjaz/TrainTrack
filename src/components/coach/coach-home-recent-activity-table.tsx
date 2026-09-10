@@ -9,7 +9,6 @@ import {
   ChevronDown,
   Flag,
   ListFilter,
-  MessageSquare,
   Minus,
 } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
@@ -29,6 +28,7 @@ import { PriorityBadge } from '@/components/races/priority-badge'
 import { RaceLegsSummary } from '@/components/races/race-legs-fields'
 import { RACE_TYPE_LABELS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { parseDateOnly } from '@/lib/dates'
+import { getSessionTypeLabel } from '@/lib/workout-builder/session-modes'
 import {
   coachHomeRaceResultLabel,
   groupActivityRowsByDay,
@@ -42,7 +42,7 @@ import {
   type CoachHomeWorkoutActivityRow,
 } from '@/lib/coach-home'
 import { isStravaSynced, workoutHasCoachingChat } from '@/lib/plan-workout'
-import { workoutFeelingLabel } from '@/lib/workout-feeling'
+import { ActivityFeedFeedbackReadout } from '@/components/activity/activity-feed-feeling'
 import { cn } from '@/lib/utils'
 
 type StatusFilter = 'all' | 'completed' | 'skipped' | 'races'
@@ -273,13 +273,13 @@ export function CoachHomeRecentActivityTable({
           'md:overflow-visible md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none',
         )}
       >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <header className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-3 md:flex-col md:items-stretch md:gap-3">
+          <header className="min-w-0 flex-1 md:flex-none">
             <button
               type="button"
               onClick={() => setMobileOpen((open) => !open)}
               aria-expanded={mobileOpen}
-              className="flex w-full items-center justify-between gap-2 text-left md:pointer-events-none"
+              className="flex w-full items-center justify-between gap-2 text-left md:pointer-events-none md:block"
             >
               <h2 className="font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
                 Activity feed
@@ -293,7 +293,7 @@ export function CoachHomeRecentActivityTable({
                 aria-hidden
               />
             </button>
-            <p className="mt-1 hidden text-[13px] text-[var(--tt-ink-faint)] md:block">
+            <p className="mt-1.5 hidden text-[13px] leading-snug text-[var(--tt-ink-faint)] md:block">
               Recent workouts, races, and race reports from your athletes
             </p>
           </header>
@@ -314,7 +314,7 @@ export function CoachHomeRecentActivityTable({
             <ListFilter className="h-3.5 w-3.5" strokeWidth={1.75} />
           </button>
 
-          {/* Desktop — inline filters */}
+          {/* Desktop — filters on their own row, left-aligned with the title */}
           <div className="hidden flex-wrap items-center gap-2 md:flex">{filterControls}</div>
         </div>
 
@@ -363,7 +363,7 @@ export function CoachHomeRecentActivityTable({
               {groups.map((group) => (
                 <div key={group.dateKey} className="space-y-2">
                   <ActivityDayHeading dateKey={group.dateKey} />
-                  <ul className="divide-y divide-[var(--tt-line)] overflow-hidden border border-[var(--tt-line)] bg-white">
+                  <ul className="divide-y divide-[var(--tt-line)] overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] shadow-[var(--tt-shadow)]">
                     {group.rows.map((row) => (
                       <li key={row.id}>
                         <ActivityFeedCard row={row} />
@@ -408,12 +408,11 @@ function ActivityDayHeading({ dateKey }: { dateKey: string }) {
   )
 }
 
-/** Mobile meta under athlete name — e.g. "Today at 20:25 · Zwift". */
+/** Date under athlete name — e.g. "Today at 20:25" or "Sep 7, 2025". */
 function formatFeedCardAthleteMeta(opts: {
   dateKey: string
   activityAt?: string
-  sourceLabel?: string | null
-}): { when: string; source: string | null } {
+}): string {
   const date = parseDateOnly(opts.dateKey)
   const at = opts.activityAt ? new Date(opts.activityAt) : null
   const hasClock =
@@ -421,45 +420,29 @@ function formatFeedCardAthleteMeta(opts: {
     !Number.isNaN(at.getTime()) &&
     (at.getHours() !== 0 || at.getMinutes() !== 0 || at.getSeconds() !== 0)
 
-  let when: string
   if (isToday(date) || isYesterday(date)) {
     const day = isToday(date) ? 'Today' : 'Yesterday'
-    when = hasClock ? `${day} at ${format(at!, 'HH:mm')}` : day
-  } else if (hasClock) {
-    when = `${format(date, 'EEE · MMM d')} · ${format(at!, 'HH:mm')}`
-  } else {
-    when = format(date, 'EEE · MMM d')
+    return hasClock ? `${day} at ${format(at!, 'HH:mm')}` : day
   }
-
-  const source = opts.sourceLabel?.trim()
-  return {
-    when,
-    source: source && source !== '—' ? source : null,
+  if (hasClock) {
+    return `${format(date, 'MMM d, yyyy')} · ${format(at!, 'HH:mm')}`
   }
+  return format(date, 'MMM d, yyyy')
 }
 
 function FeedCardAthleteMeta({
   dateKey,
   activityAt,
-  sourceLabel,
 }: {
   dateKey: string
   activityAt?: string
-  sourceLabel?: string | null
 }) {
-  const meta = formatFeedCardAthleteMeta({ dateKey, activityAt, sourceLabel })
   return (
     <time
       dateTime={dateKey}
       className="mt-0.5 block truncate text-[11px] font-normal text-[var(--tt-ink-soft,#6b6b6b)]"
     >
-      {meta.when}
-      {meta.source ? (
-        <>
-          {' · '}
-          <span className="font-semibold text-[var(--tt-red)]">{meta.source}</span>
-        </>
-      ) : null}
+      {formatFeedCardAthleteMeta({ dateKey, activityAt })}
     </time>
   )
 }
@@ -523,21 +506,67 @@ function ActivityFeedCard({
   return <WorkoutFeedCard row={row} showDate={showDate} />
 }
 
+function feedWorkoutSubtitle(
+  activityType: WorkoutType,
+  sessionType: CoachHomeWorkoutActivityRow['workout']['sessionType'],
+): string {
+  const sport = WORKOUT_TYPE_LABELS[activityType]
+  const session = getSessionTypeLabel(sessionType, activityType)
+  const trimmed = session.replace(new RegExp(`\\s*${sport}$`, 'i'), '').trim()
+  if (!trimmed || trimmed.toLowerCase() === sport.toLowerCase()) return sport
+  return `${sport} · ${trimmed}`
+}
+
+function WorkoutFeedStatusBadges({
+  workout,
+  skipped,
+  hasChat,
+}: {
+  workout: CoachHomeWorkoutActivityRow['workout']
+  skipped: boolean
+  hasChat: boolean
+}) {
+  const stravaSynced = isStravaSynced(workout)
+  return (
+    <div
+      className="flex shrink-0 flex-wrap items-center justify-end gap-1.5"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      {skipped ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tt-red-soft,rgb(218_47_54_/0.08))] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--tt-red)]">
+          <Minus className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+          Skipped
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--tt-good-soft)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--tt-good)]">
+          <Check className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+          Completed
+        </span>
+      )}
+      {stravaSynced ? (
+        <span className="inline-flex items-center rounded-full bg-[var(--tt-sidebar,#f5f5f5)] px-2 py-0.5">
+          <StravaSyncedIndicator workout={workout} variant="wordmark" size="xs" />
+        </span>
+      ) : null}
+      {hasChat ? <WorkoutChatIndicator workout={workout} role="coach" size="sm" /> : null}
+    </div>
+  )
+}
+
 function WorkoutFeedCard({
   row,
-  showDate = false,
 }: {
   row: CoachHomeWorkoutActivityRow
   showDate?: boolean
 }) {
   const skipped = row.status === 'skipped'
-  const hasFeedbackNotes = Boolean(row.feedbackNotes?.trim())
   const hasChat = workoutHasCoachingChat(row.workout)
-  const stravaSynced = isStravaSynced(row.workout)
   const selfAdded = Boolean(row.workout.selfLogged)
   const summaryPolyline = row.workout.result?.summaryPolyline?.trim() || null
   const showMap = !skipped && Boolean(summaryPolyline)
   const metricSlots = feedMetricSlots(row)
+  const subtitle = feedWorkoutSubtitle(row.activityType, row.workout.sessionType)
 
   return (
     <WorkoutModalTrigger
@@ -557,7 +586,7 @@ function WorkoutFeedCard({
           aria-hidden
         />
 
-        <div className="grid gap-2.5 py-3.5 pl-4 pr-3.5 md:grid-cols-[minmax(12rem,0.9fr)_minmax(0,1.6fr)] md:items-start md:gap-5">
+        <div className="grid gap-2.5 py-3.5 pl-4 pr-3.5 md:grid-cols-[minmax(15rem,1.1fr)_minmax(0,1.4fr)] md:items-start md:gap-4">
           <div className="min-w-0 space-y-3">
             <div className="flex min-w-0 items-start gap-2">
               <AthleteAvatar
@@ -570,41 +599,16 @@ function WorkoutFeedCard({
                 <p className="truncate text-[13px] font-semibold text-[var(--tt-ink)]">
                   {row.athleteName}
                 </p>
-                {showDate ? (
-                  <FeedCardAthleteMeta
-                    dateKey={row.dateKey}
-                    activityAt={row.activityAt}
-                    sourceLabel={row.sourceLabel}
-                  />
-                ) : null}
+                <FeedCardAthleteMeta
+                  dateKey={row.dateKey}
+                  activityAt={row.activityAt}
+                />
               </div>
-
-              {/* Mobile — status + Strava at top right */}
-              <div
-                className="flex shrink-0 flex-col items-end gap-1.5 md:hidden"
-                onClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => event.stopPropagation()}
-              >
-                <p
-                  className={cn(
-                    'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em]',
-                    skipped ? 'text-[var(--tt-red)]' : 'text-[var(--tt-good)]',
-                  )}
-                >
-                  {skipped ? (
-                    <Minus className="h-3 w-3" strokeWidth={2} aria-hidden />
-                  ) : (
-                    <Check className="h-3 w-3" strokeWidth={2} aria-hidden />
-                  )}
-                  {skipped ? 'Skipped' : 'Completed'}
-                </p>
-                {stravaSynced ? (
-                  <StravaSyncedIndicator workout={row.workout} variant="wordmark" size="xs" />
-                ) : null}
-                {hasChat ? (
-                  <WorkoutChatIndicator workout={row.workout} role="coach" size="sm" />
-                ) : null}
-              </div>
+              <WorkoutFeedStatusBadges
+                workout={row.workout}
+                skipped={skipped}
+                hasChat={hasChat}
+              />
             </div>
 
             <div className="flex min-w-0 items-start gap-2">
@@ -613,62 +617,22 @@ function WorkoutFeedCard({
                 <p className="truncate text-[15px] font-semibold leading-snug text-[var(--tt-ink)]">
                   {row.activityTitle}
                 </p>
-                <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--tt-ink-faint)]">
-                    {WORKOUT_TYPE_LABELS[row.activityType]}
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                  <p className="text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
+                    {subtitle}
                   </p>
                   {selfAdded ? <SelfAddedBadge /> : null}
                 </div>
               </div>
             </div>
 
-            {/* Desktop — status row */}
-            <div className="hidden flex-wrap items-center gap-2 md:flex">
-              <p
-                className={cn(
-                  'inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.04em]',
-                  skipped ? 'text-[var(--tt-red)]' : 'text-[var(--tt-good)]',
-                )}
-              >
-                {skipped ? (
-                  <Minus className="h-3 w-3" strokeWidth={2} aria-hidden />
-                ) : (
-                  <Check className="h-3 w-3" strokeWidth={2} aria-hidden />
-                )}
-                {skipped ? 'Skipped' : 'Completed'}
-              </p>
-              <div
-                className="flex items-center gap-1"
-                onClick={(event) => event.stopPropagation()}
-                onKeyDown={(event) => event.stopPropagation()}
-              >
-                {hasChat ? (
-                  <WorkoutChatIndicator workout={row.workout} role="coach" size="sm" />
-                ) : null}
-                {stravaSynced ? (
-                  <StravaSyncedIndicator workout={row.workout} variant="wordmark" size="xs" />
-                ) : null}
-              </div>
+            <div className="hidden md:block">
+              <ActivityFeedFeedbackReadout
+                notes={row.feedbackNotes}
+                feeling={row.feedbackFeeling}
+                skipped={skipped}
+              />
             </div>
-
-            {skipped ? (
-              <SkippedReason notes={row.feedbackNotes} />
-            ) : hasFeedbackNotes ? (
-              <p className="flex items-start gap-1.5 text-[12px] leading-snug text-[var(--tt-ink-soft)]">
-                <MessageSquare
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--tt-ink-faint)]"
-                  strokeWidth={1.75}
-                  aria-hidden
-                />
-                <span className="line-clamp-3 whitespace-pre-wrap">
-                  {row.feedbackNotes}
-                </span>
-              </p>
-            ) : row.feedbackFeeling != null ? (
-              <p className="text-[12px] text-[var(--tt-ink-soft)]">
-                Feeling {row.feedbackFeeling}/10 · {workoutFeelingLabel(row.feedbackFeeling)}
-              </p>
-            ) : null}
           </div>
 
           <div className="min-w-0 space-y-3">
@@ -690,6 +654,13 @@ function WorkoutFeedCard({
                 {row.plannedSummary}
               </p>
             ) : null}
+            <div className="md:hidden">
+              <ActivityFeedFeedbackReadout
+                notes={row.feedbackNotes}
+                feeling={row.feedbackFeeling}
+                skipped={skipped}
+              />
+            </div>
           </div>
         </div>
       </article>
@@ -950,19 +921,6 @@ function PrimaryMetric({ metric }: { metric: CoachHomeActivityMetric }) {
       </p>
       <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint)]">
         {metric.label}
-      </p>
-    </div>
-  )
-}
-
-function SkippedReason({ notes }: { notes: string | null }) {
-  return (
-    <div className="space-y-0.5">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint)]">
-        Reason
-      </p>
-      <p className="line-clamp-2 text-[12px] leading-snug text-[var(--tt-ink-soft)]">
-        {notes?.trim() ? `“${notes.trim()}”` : 'No reason provided'}
       </p>
     </div>
   )

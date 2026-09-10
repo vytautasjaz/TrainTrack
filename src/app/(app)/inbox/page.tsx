@@ -13,6 +13,7 @@ import {
 import { InboxClient } from '@/components/inbox/inbox-client'
 import { getPendingCoachRequests } from '@/lib/queries'
 import { isPushConfigured } from '@/lib/push-notifications'
+import { resolveCoachAvatarUrl } from '@/lib/coach-avatar'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,7 +37,7 @@ async function getCoachParticipant(coachUserId: string) {
   })
   return {
     name: user?.name ?? 'Coach',
-    avatarUrl: user?.coachProfile?.avatarUrl ?? user?.image ?? null,
+    avatarUrl: resolveCoachAvatarUrl(user?.coachProfile?.avatarUrl, user?.image),
   }
 }
 
@@ -67,7 +68,7 @@ async function getAthleteInboxParticipants(athleteId: string) {
   let coach = linked
     ? {
         name: linked.user.name,
-        avatarUrl: linked.avatarUrl ?? linked.user.image,
+        avatarUrl: resolveCoachAvatarUrl(linked.avatarUrl, linked.user.image),
       }
     : null
 
@@ -83,7 +84,10 @@ async function getAthleteInboxParticipants(athleteId: string) {
     if (legacyCoach) {
       coach = {
         name: legacyCoach.name,
-        avatarUrl: legacyCoach.coachProfile?.avatarUrl ?? legacyCoach.image,
+        avatarUrl: resolveCoachAvatarUrl(
+          legacyCoach.coachProfile?.avatarUrl,
+          legacyCoach.image,
+        ),
       }
     }
   }

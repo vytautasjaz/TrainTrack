@@ -1,4 +1,5 @@
 import type { ProgressiveStepEvery, Target, WorkoutBlock } from './types'
+import { formatTargetSummary } from './target-helpers'
 
 export type ProgressiveStepPresetId =
   | 'gradual'
@@ -74,8 +75,8 @@ export function formatStepEvery(step?: ProgressiveStepEvery): string {
 }
 
 export function formatProgressivePreview(block: WorkoutBlock): string {
-  const start = block.startIntensity?.value?.trim() || '—'
-  const end = block.endIntensity?.value?.trim() || '—'
+  const start = formatTargetSummary(block.startIntensity) || '—'
+  const end = formatTargetSummary(block.endIntensity) || '—'
   const preset = progressiveStepPresetId(block.stepEvery)
   if (preset === 'gradual') return `${start} → ${end} · gradually`
   if (preset === 'custom') {

@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Check,
   Plus,
+  Lock,
 } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { RaceIntent, RacePriority, SeasonPhase } from '@prisma/client'
@@ -28,6 +29,7 @@ import { Button } from '@/components/ui/button'
 import { FormError } from '@/components/ui/form-error'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
+import { DateField } from '@/components/ui/date-field'
 import { Select } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
@@ -64,6 +66,7 @@ import {
   PLANNER_ZOOM_LABELS,
   SEASON_EVENT_CARD,
   formatSeasonEventLabel,
+  formatSeasonEventWhenLine,
   SEASON_PHASE_LABELS,
   buildPlannerScrollRange,
   buildPlannerWeekColumns,
@@ -118,6 +121,7 @@ type RacesPageClientProps = {
   phaseBlocks: SeasonPhaseBlockData[]
   seasonEvents: SeasonEventData[]
   athleteId: string
+  isCoach?: boolean
 }
 
 export function RacesPageClient({
@@ -126,6 +130,7 @@ export function RacesPageClient({
   phaseBlocks,
   seasonEvents,
   athleteId,
+  isCoach = false,
 }: RacesPageClientProps) {
   const allRaces = useMemo(
     () => [...allPlanned, ...watching].sort((a, b) => a.date.getTime() - b.date.getTime()),
@@ -140,6 +145,7 @@ export function RacesPageClient({
         phaseBlocks={phaseBlocks}
         seasonEvents={seasonEvents}
         athleteId={athleteId}
+        isCoach={isCoach}
       />
       <AllRacesTable races={allRaces} athleteId={athleteId} />
     </div>
@@ -156,12 +162,14 @@ function SeasonPlannerView({
   phaseBlocks,
   seasonEvents,
   athleteId,
+  isCoach,
 }: {
   planned: SeasonRace[]
   watching: SeasonRace[]
   phaseBlocks: SeasonPhaseBlockData[]
   seasonEvents: SeasonEventData[]
   athleteId: string
+  isCoach: boolean
 }) {
   const router = useRouter()
   const today = useMemo(() => new Date(), [])
@@ -420,6 +428,7 @@ function SeasonPlannerView({
           if (!open) setEventModal(null)
         }}
         event={eventModal?.mode === 'edit' ? eventModal.event : null}
+        isCoach={isCoach}
       />
     </div>
   )
@@ -1087,6 +1096,9 @@ function StackedEventCards({
           <>
             <PlannerTipTitle>{label}</PlannerTipTitle>
             <PlannerTipMeta>{dateLabel}</PlannerTipMeta>
+            {formatSeasonEventWhenLine(event) ? (
+              <PlannerTipRow>{formatSeasonEventWhenLine(event)}</PlannerTipRow>
+            ) : null}
             {event.notes?.trim() ? (
               <PlannerTipRow strong>{event.notes.trim()}</PlannerTipRow>
             ) : null}
@@ -1111,11 +1123,18 @@ function StackedEventCards({
             </p>
             <p
               className={cn(
-                'text-[11px] font-semibold leading-tight',
+                'flex items-start gap-1 text-[11px] font-semibold leading-tight',
                 roomy ? 'line-clamp-2' : 'truncate',
               )}
             >
-              {label}
+              {event.isPrivate ? (
+                <Lock
+                  className="mt-px h-3 w-3 shrink-0 opacity-70"
+                  strokeWidth={2}
+                  aria-label="Private"
+                />
+              ) : null}
+              <span className={roomy ? undefined : 'truncate'}>{label}</span>
             </p>
           </button>
         )
@@ -2324,9 +2343,9 @@ function PhaseBlockModal({
           </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Start">
-              <Input
+              <DateField
+                key={`${editing?.id ?? 'new'}-start`}
                 name="startDate"
-                type="date"
                 required
                 defaultValue={
                   editing ? editing.startDate.toISOString().slice(0, 10) : undefined
@@ -2334,9 +2353,9 @@ function PhaseBlockModal({
               />
             </FormField>
             <FormField label="End">
-              <Input
+              <DateField
+                key={`${editing?.id ?? 'new'}-end`}
                 name="endDate"
-                type="date"
                 required
                 defaultValue={
                   editing ? editing.endDate.toISOString().slice(0, 10) : undefined

@@ -23,6 +23,8 @@ import {
 import { type SeasonEventData } from '@/lib/season-planner'
 import { toDateKey } from '@/lib/dates'
 import { cn } from '@/lib/utils'
+import { PrivateNoteToggle } from '@/components/ui/private-note-toggle'
+import { DateField } from '@/components/ui/date-field'
 
 function dateInputValue(d: Date): string {
   return toDateKey(d)
@@ -52,6 +54,8 @@ type SeasonEventModalProps = {
   defaultEndDate?: string
   /** View-only — show event details without save/delete. */
   readOnly?: boolean
+  /** Coach view: events they create stay visible; no private toggle. */
+  isCoach?: boolean
 }
 
 export function SeasonEventModal({
@@ -61,6 +65,7 @@ export function SeasonEventModal({
   defaultStartDate,
   defaultEndDate,
   readOnly = false,
+  isCoach = false,
 }: SeasonEventModalProps) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -78,6 +83,13 @@ export function SeasonEventModal({
   const [endKey, setEndKey] = useState(
     editing ? dateInputValue(editing.endDate) : createEnd,
   )
+  const [isPrivate, setIsPrivate] = useState(
+    editing ? Boolean(editing.isPrivate) : !isCoach,
+  )
+  const [allDay, setAllDay] = useState(editing ? editing.allDay !== false : true)
+  const [startTime, setStartTime] = useState(editing?.startTime?.slice(0, 5) ?? '')
+  const [endTime, setEndTime] = useState(editing?.endTime?.slice(0, 5) ?? '')
+  const [location, setLocation] = useState(editing?.location ?? '')
   const [recentEvents, setRecentEvents] = useState<CoachRecentSeasonEvent[]>([])
   const [recentLoaded, setRecentLoaded] = useState(false)
 
@@ -88,6 +100,11 @@ export function SeasonEventModal({
       setNotes(editing.notes ?? '')
       setStartKey(dateInputValue(editing.startDate))
       setEndKey(dateInputValue(editing.endDate))
+      setIsPrivate(Boolean(editing.isPrivate))
+      setAllDay(editing.allDay !== false)
+      setStartTime(editing.startTime?.slice(0, 5) ?? '')
+      setEndTime(editing.endTime?.slice(0, 5) ?? '')
+      setLocation(editing.location ?? '')
       setRecentEvents([])
       setRecentLoaded(false)
       return
@@ -96,6 +113,11 @@ export function SeasonEventModal({
     setNotes('')
     setStartKey(createStart)
     setEndKey(createEnd)
+    setIsPrivate(!isCoach)
+    setAllDay(true)
+    setStartTime('')
+    setEndTime('')
+    setLocation('')
     setRecentLoaded(false)
     if (!canWrite) return
     let cancelled = false
@@ -115,13 +137,17 @@ export function SeasonEventModal({
     return () => {
       cancelled = true
     }
-  }, [open, editing, createStart, createEnd, canWrite])
+  }, [open, editing, createStart, createEnd, canWrite, isCoach])
 
   function applyReuse(row: CoachRecentSeasonEvent) {
     setTitle(row.title)
     setNotes(row.notes ?? '')
     setStartKey(row.startDate)
     setEndKey(row.endDate)
+    setAllDay(row.allDay)
+    setStartTime(row.startTime?.slice(0, 5) ?? '')
+    setEndTime(row.endTime?.slice(0, 5) ?? '')
+    setLocation(row.location ?? '')
     setError(null)
   }
 
@@ -231,35 +257,87 @@ export function SeasonEventModal({
               disabled={readOnly}
             />
           </FormField>
+          <FormField label="Location (optional)">
+            <Input
+              name="location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              maxLength={120}
+              placeholder="e.g. Vilnius"
+              readOnly={readOnly}
+              disabled={readOnly}
+            />
+          </FormField>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Start">
-              <Input
+              <DateField
                 name="startDate"
-                type="date"
-                required={canWrite}
                 value={startKey}
-                onChange={(e) => {
-                  const next = e.target.value
+                onChange={(next) => {
                   setStartKey(next)
                   if (endKey && next && endKey < next) setEndKey(next)
                 }}
-                readOnly={readOnly}
+                required={canWrite}
                 disabled={readOnly}
+                readOnly={readOnly}
               />
             </FormField>
             <FormField label="End">
-              <Input
+              <DateField
                 name="endDate"
-                type="date"
-                required={canWrite}
-                min={startKey || undefined}
                 value={endKey}
-                onChange={(e) => setEndKey(e.target.value)}
-                readOnly={readOnly}
+                onChange={setEndKey}
+                min={startKey || undefined}
+                required={canWrite}
                 disabled={readOnly}
+                readOnly={readOnly}
               />
             </FormField>
           </div>
+          <label className="flex cursor-pointer items-start gap-2 text-xs leading-snug text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={allDay}
+              onChange={(e) => setAllDay(e.target.checked)}
+              disabled={readOnly}
+              className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-brand"
+            />
+            <span>All day</span>
+          </label>
+          <input type="hidden" name="allDay" value={allDay ? 'true' : 'false'} />
+          {!allDay ? (
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Start time (optional)">
+                <Input
+                  name="startTime"
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                  readOnly={readOnly}
+                  disabled={readOnly}
+                />
+              </FormField>
+              <FormField label="End time (optional)">
+                <Input
+                  name="endTime"
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  readOnly={readOnly}
+                  disabled={readOnly}
+                />
+              </FormField>
+            </div>
+          ) : null}
+          {canWrite && !isCoach ? (
+            <PrivateNoteToggle
+              hideFrom="coach"
+              name="isPrivate"
+              checked={isPrivate}
+              onCheckedChange={setIsPrivate}
+              label="Private — only you can see this. Your coach will not."
+            />
+          ) : null}
           <div className="flex flex-wrap gap-2 pt-1">
             {canWrite ? (
               <>

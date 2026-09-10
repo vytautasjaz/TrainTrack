@@ -53,6 +53,7 @@ import {
 import { getSessionTypeLabel } from "@/lib/workout-builder/session-modes";
 import {
   buildAthleteStructureDisplay,
+  formatPhaseBlockDetail,
   type PhaseBlockDisplay,
 } from "@/lib/workout-builder/athlete-structure-display";
 import { hasIncludeItems, hasStructureContent } from "@/lib/workout-builder/utils";
@@ -100,15 +101,7 @@ function splitDistanceDisplay(distance: string): {
 }
 
 function blockSubtitle(block: PhaseBlockDisplay) {
-  if (block.intervalPreview) {
-    const target = block.paceLabel ?? block.zoneLabel;
-    return `${block.intervalPreview.reps} × ${block.intervalPreview.work}${
-      target ? ` @ ${target}` : ""
-    }`;
-  }
-
-  const target = block.paceLabel ?? block.zoneLabel;
-  return target ? `${block.primary} @ ${target}` : block.primary;
+  return formatPhaseBlockDetail(block);
 }
 
 function isHardIntensity(label: string | null): boolean {
@@ -289,7 +282,7 @@ function StructureRow({
             {subtitle}
           </p>
         ) : null}
-        {block.recoveryNote ? (
+        {block.recoveryNote && !block.intervalPreview?.recovery ? (
           <p className="mt-0.5 truncate text-[12px] text-[var(--tt-ink-faint)]">
             {block.recoveryNote}
           </p>

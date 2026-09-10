@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { DateField } from '@/components/ui/date-field'
 import { ItemActions } from '@/components/ui/item-actions'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import {
@@ -124,11 +124,10 @@ export function WorkoutLibraryTemplateCard({
             className="flex flex-wrap gap-2"
           >
             <input type="hidden" name="templateId" value={template.id} />
-            <Input
-              type="date"
+            <DateField
               name="date"
               defaultValue={today}
-              variant="table"
+              variant="compact"
               className="max-w-[160px]"
               disabled={schedulePending}
             />

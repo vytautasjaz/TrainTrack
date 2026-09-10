@@ -394,6 +394,7 @@ export function PlanDayAddMenu({
           onOpenChange={setEventOpen}
           defaultStartDate={dateKey}
           defaultEndDate={dateKey}
+          isCoach={isCoach}
         />
       )}
       {isCoach && (

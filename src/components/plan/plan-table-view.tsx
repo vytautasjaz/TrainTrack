@@ -261,7 +261,7 @@ function NotesEventsTableRow({
         const hasEvents = events.length > 0
         const empty = !hasNotes && !hasEvents
         const canAddNote = showNotes && canEditDayNotes
-        const canAddEvent = showEvents && isCoach
+        const canAddEvent = showEvents
 
         return (
           <td
@@ -289,8 +289,9 @@ function NotesEventsTableRow({
                   <SeasonEventChips
                     events={events}
                     variant="cell"
-                    editable={isCoach}
+                    editable
                     dateKey={day.dateKey}
+                    isCoach={isCoach}
                   />
                 ) : null}
                 {hasNotes ? (

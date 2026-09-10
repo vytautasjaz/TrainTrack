@@ -6,6 +6,7 @@ import type { Provider } from 'next-auth/providers'
 import bcrypt from 'bcryptjs'
 import { UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { resolveCoachAvatarUrl } from '@/lib/coach-avatar'
 
 const providers: Provider[] = [
   Credentials({
@@ -124,7 +125,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               disabledAt: true,
               onboardingSkippedAt: true,
               athleteProfile: { select: { id: true } },
-              coachProfile: { select: { id: true } },
+              coachProfile: { select: { id: true, avatarUrl: true } },
             },
           })
           // Only kill the session for a confirmed disabled account.
@@ -137,7 +138,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.roles = dbUser.roles
             token.name = dbUser.name
             token.email = dbUser.email
-            token.picture = dbUser.image
+            token.picture =
+              resolveCoachAvatarUrl(
+                dbUser.coachProfile?.avatarUrl,
+                dbUser.image,
+              ) ?? undefined
             token.hasAthlete = Boolean(dbUser.athleteProfile)
             token.hasCoach = Boolean(dbUser.coachProfile)
             token.onboardingSkipped = Boolean(dbUser.onboardingSkippedAt)

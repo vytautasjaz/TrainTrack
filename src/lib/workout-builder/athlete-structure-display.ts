@@ -13,7 +13,7 @@ import {
 } from './segment-estimation'
 import { formatEstimatedDistanceLabel, formatEstimatedDurationLabel } from './workout-summary'
 import { formatIntervalRecoveryLabel, formatSegment, formatTargets } from './utils'
-import { recoveryTarget } from './target-helpers'
+import { formatTargetSummary, recoveryTarget } from './target-helpers'
 import { sportSupportsWorkoutBuilder } from './session-modes'
 import { getBlockDisplayName, inferSmartBlockAccent, type SmartBlockAccent } from './smart-blocks'
 import { flattenStructure } from './structure-list'
@@ -88,6 +88,32 @@ const SECTION_LABELS: Record<WorkoutSection, string> = {
   cooldown: 'Cool-down',
 }
 
+function isQuantitativeTarget(target: Target, value: string): boolean {
+  return (
+    target.type === 'pace' ||
+    target.type === 'power' ||
+    target.type === 'speed' ||
+    target.type === 'powerZone' ||
+    value.includes('/km') ||
+    /^\d+:\d{1,2}/.test(value) ||
+    /^\d+(\.\d+)?\s*W$/i.test(value)
+  )
+}
+
+/** Work intensity only — interval recovery lives in `targets[1]`. */
+function workTargetsForBadges(block: WorkoutBlock): Target[] | undefined {
+  if (block.type === 'PROGRESSIVE') {
+    return [block.startIntensity, block.endIntensity, ...(block.targets ?? [])].filter(
+      Boolean,
+    ) as Target[]
+  }
+  if (block.type === 'INTERVAL' || block.type === 'REPETITION') {
+    const work = block.targets?.[0]
+    return work ? [work] : undefined
+  }
+  return block.targets
+}
+
 function extractTargetBadges(targets: Target[] | undefined): {
   paceLabel: string | null
   zoneLabel: string | null
@@ -95,6 +121,7 @@ function extractTargetBadges(targets: Target[] | undefined): {
   if (!targets?.length) return { paceLabel: null, zoneLabel: null }
 
   let paceLabel: string | null = null
+  let quantitative = false
   let zoneLabel: string | null = null
 
   for (const target of targets) {
@@ -106,15 +133,20 @@ function extractTargetBadges(targets: Target[] | undefined): {
       continue
     }
 
+    if (isQuantitativeTarget(target, value)) {
+      paceLabel = formatTargetSummary(target) || value
+      quantitative = true
+      continue
+    }
+
     if (
-      target.type === 'pace' ||
-      target.type === 'power' ||
-      target.type === 'rpe' ||
-      target.type === 'speed' ||
-      value.includes('/km') ||
-      /\d+:\d{1,2}/.test(value)
+      !quantitative &&
+      (target.type === 'rpe' ||
+        target.type === 'heartRate' ||
+        value.includes('/km') ||
+        /\d+:\d{1,2}/.test(value))
     ) {
-      paceLabel = value
+      paceLabel = formatTargetSummary(target) || value
     }
   }
 
@@ -142,8 +174,9 @@ function formatBlockPrimary(block: WorkoutBlock): string {
       }
 
       if (block.type === 'PROGRESSIVE') {
-        const start = block.startIntensity?.value?.trim() || formatTargets(block.targets) || ''
-        const end = block.endIntensity?.value?.trim() || ''
+        const start =
+          formatTargetSummary(block.startIntensity) || formatTargets(block.targets) || ''
+        const end = formatTargetSummary(block.endIntensity) || ''
         const ramp = start && end ? `${start} → ${end}` : start || end
         return [duration, ramp].filter(Boolean).join(' · ') || 'Progressive'
       }
@@ -152,7 +185,7 @@ function formatBlockPrimary(block: WorkoutBlock): string {
     }
     case 'INTERVAL': {
       const work = formatSegment(effectiveIntervalSegment(block.work, 'work', block.targets))
-      return `${block.repetitions ?? 1} x ${work}`
+      return `${block.repetitions ?? 1}x${work}`
     }
     case 'REPETITION':
       return `${block.repetitions ?? 1} x ${formatSegment(block.work)}`
@@ -192,14 +225,13 @@ function buildRecoveryNote(block: WorkoutBlock, sportType: WorkoutType): string 
   const restTarget = recoveryTarget(block.targets, sportType)
   const restLabel = formatTargets([restTarget])
 
-  // Avoid duplicating Easy when already included in recovery label
   if (recovery) {
     if (restLabel && !recovery.toLowerCase().includes(restLabel.toLowerCase())) {
-      return `${recovery} recovery @ ${restLabel}`
+      return `${recovery} @ ${restLabel}`
     }
-    return `${recovery} recovery`
+    return recovery
   }
-  if (restLabel) return `Recovery @ ${restLabel}`
+  if (restLabel) return restLabel
   return null
 }
 
@@ -208,13 +240,7 @@ function buildPhaseBlock(
   sportType: WorkoutType,
   preferences?: AthletePreferences | null,
 ): PhaseBlockDisplay {
-  const badgeTargets =
-    block.type === 'PROGRESSIVE'
-      ? ([block.startIntensity, block.endIntensity, ...(block.targets ?? [])].filter(
-          Boolean,
-        ) as Target[])
-      : block.targets
-  const { paceLabel, zoneLabel } = extractTargetBadges(badgeTargets)
+  const { paceLabel, zoneLabel } = extractTargetBadges(workTargetsForBadges(block))
   const durationMin = estimateBlockDurationMinutes(block, preferences, sportType)
 
   return {
@@ -347,17 +373,21 @@ export function formatListDurationLabel(minutes: number): string {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-export function formatListPhaseDetail(block: PhaseBlockDisplay): string {
-  let detail: string
+/** `4x1000 m @ 4:00/km, 90 sec Jog recovery` */
+export function formatPhaseBlockDetail(block: PhaseBlockDisplay): string {
+  const target = block.paceLabel ?? block.zoneLabel
   if (block.intervalPreview) {
-    detail = `${block.primary} • ${block.intervalPreview.recovery}`
-  } else if (block.paceLabel) {
-    detail = `${block.primary} • ${block.paceLabel}`
-  } else if (block.zoneLabel) {
-    detail = `${block.primary} • ${block.zoneLabel}`
-  } else {
-    detail = block.primary
+    const work = `${block.intervalPreview.reps}x${block.intervalPreview.work}`
+    const withTarget = target ? `${work} @ ${target}` : work
+    const recovery = block.intervalPreview.recovery
+    return recovery ? `${withTarget}, ${recovery}` : withTarget
   }
+  if (target) return `${block.primary} @ ${target}`
+  return block.primary
+}
+
+export function formatListPhaseDetail(block: PhaseBlockDisplay): string {
+  const detail = formatPhaseBlockDetail(block)
   if (block.notes) {
     return detail ? `${detail} · ${block.notes}` : block.notes
   }

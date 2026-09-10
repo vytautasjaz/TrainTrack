@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DateField } from '@/components/ui/date-field'
 import { ItemActions } from '@/components/ui/item-actions'
 import { WORKOUT_TYPE_LABELS, WORKOUT_TYPE_COLORS, WorkoutType } from '@/lib/constants'
 import { formatDistance, formatDuration } from '@/lib/utils'
@@ -87,11 +88,10 @@ export function WorkoutLibraryGrid({ templates, today }: WorkoutLibraryGridProps
                 <div className="space-y-3 border-t border-border/60 pt-3">
                   <form action={createWorkoutFromTemplate} className="flex flex-wrap gap-2">
                     <input type="hidden" name="templateId" value={t.id} />
-                    <Input
-                      type="date"
+                    <DateField
                       name="date"
                       defaultValue={today}
-                      variant="table"
+                      variant="compact"
                       className="max-w-[160px]"
                     />
                     <Button type="submit" variant="ghost" size="xs">

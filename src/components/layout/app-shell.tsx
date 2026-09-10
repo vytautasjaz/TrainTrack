@@ -3,6 +3,7 @@ import { AppNav, AppMobileBottomNav } from '@/components/layout/app-nav'
 import { DocumentChromeCleanup } from '@/components/layout/document-chrome-cleanup'
 import { MobileAppTopBar } from '@/components/layout/mobile-app-top-bar'
 import { ViewModeSwitchProvider } from '@/components/layout/view-mode-switch-context'
+import { DurationNotationProvider } from '@/components/workout-builder/duration-notation-context'
 import { CoachAthleteBarGate } from '@/components/coach/coach-athlete-bar-gate'
 import { StravaAutoSync } from '@/components/integrations/strava-auto-sync'
 import {
@@ -18,6 +19,13 @@ import {
   getAthleteInboxUnreadCount,
   getCoachInboxUnreadCount,
 } from '@/lib/coaching-inbox'
+import { parseWorkoutBuilderPrefs } from '@/lib/workout-builder/workout-builder-prefs'
+import {
+  DEFAULT_DURATION_NOTATION,
+  type DurationNotation,
+} from '@/lib/workout-builder/duration-notation'
+import { CoachAthleteLinkStatus } from '@prisma/client'
+import { resolveCoachAvatarUrl } from '@/lib/coach-avatar'
 
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -31,6 +39,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   let selectedAthleteId: string | null = null
   let athleteProfile: { name: string; avatarUrl: string | null } | null = null
   let showConnectCoach = false
+  let durationNotation: DurationNotation = DEFAULT_DURATION_NOTATION
 
   if (session?.hasAthlete && (!coach || session.viewMode === 'athlete')) {
     const ownAthlete = await prisma.athlete.findUnique({
@@ -51,13 +60,20 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       select: {
         name: true,
         image: true,
+        workoutBuilderPrefs: true,
         coachProfile: { select: { avatarUrl: true } },
       },
     })
     if (coachUser) {
+      durationNotation =
+        parseWorkoutBuilderPrefs(coachUser.workoutBuilderPrefs).durationNotation ??
+        DEFAULT_DURATION_NOTATION
       athleteProfile = {
         name: coachUser.name,
-        avatarUrl: coachUser.coachProfile?.avatarUrl ?? coachUser.image ?? null,
+        avatarUrl: resolveCoachAvatarUrl(
+          coachUser.coachProfile?.avatarUrl,
+          coachUser.image,
+        ),
       }
     } else if (session.name) {
       athleteProfile = { name: session.name, avatarUrl: null }
@@ -68,9 +84,28 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       inboxNotificationCount = await getAthleteInboxUnreadCount(athleteId)
       const athlete = await prisma.athlete.findUnique({
         where: { id: athleteId },
-        select: { name: true, avatarUrl: true },
+        select: {
+          name: true,
+          avatarUrl: true,
+          coachLinks: {
+            where: { status: CoachAthleteLinkStatus.ACCEPTED },
+            take: 1,
+            select: {
+              coachProfile: {
+                select: {
+                  user: { select: { workoutBuilderPrefs: true } },
+                },
+              },
+            },
+          },
+        },
       })
       if (athlete) {
+        const coachPrefs =
+          athlete.coachLinks[0]?.coachProfile?.user?.workoutBuilderPrefs
+        durationNotation =
+          parseWorkoutBuilderPrefs(coachPrefs).durationNotation ??
+          DEFAULT_DURATION_NOTATION
         athleteProfile = {
           name: athlete.name,
           avatarUrl: athlete.avatarUrl,
@@ -100,6 +135,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ViewModeSwitchProvider>
+      <DurationNotationProvider notation={durationNotation}>
       <div className="app-gradient flex min-h-dvh">
       {session?.hasAthlete ? <StravaAutoSync /> : null}
       <Suspense fallback={null}>
@@ -142,6 +178,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
       </div>
+      </DurationNotationProvider>
     </ViewModeSwitchProvider>
   )
 }

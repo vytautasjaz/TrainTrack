@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
-import { cloneElement, isValidElement, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { WorkoutType } from '@prisma/client'
@@ -53,12 +53,6 @@ import type { PlanDay } from '@/lib/plan-week'
 import type { WeatherPlace } from '@/lib/weather/places'
 import { cn } from '@/lib/utils'
 import { TABLE_FRAME } from '@/lib/table-styles'
-
-/** Mobile + desktop chrome both mount — clone so the same element isn’t reused twice. */
-function keyedNode(node: ReactNode, key: string): ReactNode {
-  if (!isValidElement(node)) return node
-  return cloneElement(node as ReactElement, { key })
-}
 
 const COMBINE_WEEKS_STORAGE_KEY = 'tt-combine-weeks'
 
@@ -532,20 +526,28 @@ export function PlanMultiWeekTables({
   const stickyHeader = (
     <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:mb-0 lg:pt-0">
       <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-2">
-        {/* Mobile: title + Add / Filter / Expand */}
-        <div className="flex w-full min-w-0 items-center justify-between gap-3 lg:hidden">
-          <div className="min-w-0">{keyedNode(stickyTitle, 'week-title-mobile')}</div>
-          <div className="tt-inbox-mobile-header-actions">
+        <div
+          className={cn(
+            'grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5',
+            'max-lg:[grid-template-areas:"title_actions"_"period_views"]',
+            'lg:items-end lg:gap-y-2 lg:[grid-template-areas:"title_views"_"period_toolbar"]',
+          )}
+        >
+          <div className="min-w-0 [grid-area:title]">{stickyTitle}</div>
+          <div className="tt-inbox-mobile-header-actions [grid-area:actions] lg:hidden">
             {weekAddMenu}
             <TrainingWeekToolbar mobileOnly {...weekToolbarProps} />
             {expandToggleBtn}
           </div>
-        </div>
-
-        {/* Desktop: same shell as List — title+period left, views+filters right */}
-        <div className="hidden w-full min-w-0 items-end justify-between gap-3 lg:flex">
-          <div className="min-w-0">
-            {keyedNode(stickyTitle, 'week-title-desktop')}
+          <div className="min-w-0 justify-self-end [grid-area:views]">
+            {viewControls}
+          </div>
+          <div className="hidden [grid-area:toolbar] lg:block">
+            <PageHeaderActions className="ml-0 flex-col items-end gap-2 pt-0 sm:gap-2.5">
+              <TrainingWeekToolbar desktopOnly {...weekToolbarProps} />
+            </PageHeaderActions>
+          </div>
+          <div className="hidden min-w-0 [grid-area:period] lg:block">
             <CalendarPeriodNav
               label={weekLabel}
               prevHref={prevWeekHref}
@@ -557,14 +559,17 @@ export function PlanMultiWeekTables({
               className="mb-0 mt-1 min-w-0"
             />
           </div>
-          <PageHeaderActions className="flex-col items-end gap-2 pt-0 sm:gap-2.5">
-            <div className="flex w-full min-w-0 flex-col items-end gap-2">
-              <div className="flex min-w-0 items-center">
-                {keyedNode(viewControls, 'week-views-desktop')}
-              </div>
-              <TrainingWeekToolbar desktopOnly {...weekToolbarProps} />
-            </div>
-          </PageHeaderActions>
+          <div className="min-w-0 [grid-area:period] lg:hidden">
+            <CalendarPeriodNav
+              label={weekNavLabel}
+              prevHref={prevWeekHref}
+              nextHref={nextWeekHref}
+              prevAriaLabel="Previous week"
+              nextAriaLabel="Next week"
+              align="start"
+              className="mb-0 -ml-1.5 shrink-0"
+            />
+          </div>
         </div>
 
         {expanded && isCoach && athleteName ? (
@@ -584,20 +589,6 @@ export function PlanMultiWeekTables({
             </div>
           </div>
         ) : null}
-
-        {/* Mobile: week range + List/Week/Month */}
-        <div className="flex w-full min-w-0 items-center justify-between gap-2 lg:hidden">
-          <CalendarPeriodNav
-            label={weekNavLabel}
-            prevHref={prevWeekHref}
-            nextHref={nextWeekHref}
-            prevAriaLabel="Previous week"
-            nextAriaLabel="Next week"
-            align="start"
-            className="mb-0 -ml-1.5 shrink-0"
-          />
-          <div className="shrink-0">{keyedNode(viewControls, 'week-views-mobile')}</div>
-        </div>
       </div>
     </PageHeader>
   )

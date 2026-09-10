@@ -13,6 +13,7 @@ import {
   type SeasonRace,
 } from '@/lib/season-races'
 import type { SeasonPhaseBlockData } from '@/lib/season-planner'
+import { getSeasonEventsForAthlete } from '@/lib/queries'
 
 export default async function SeasonPlanPage() {
   const session = await getSession()
@@ -21,10 +22,13 @@ export default async function SeasonPlanPage() {
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) redirect('/')
 
-  if (isCoachView(session)) {
+  const isCoach = isCoachView(session)
+  if (isCoach) {
     const allowed = await coachCanAccessAthlete(session.userId, athleteId)
     if (!allowed) redirect('/dashboard')
   }
+
+  const eventViewer = isCoach ? 'coach' : 'athlete'
 
   const [races, phaseBlocksRaw, seasonEventsRaw] = await Promise.all([
     prisma.race.findMany({
@@ -66,17 +70,7 @@ export default async function SeasonPlanPage() {
         endDate: true,
       },
     }),
-    prisma.seasonEvent.findMany({
-      where: { athleteId },
-      orderBy: { startDate: 'asc' },
-      select: {
-        id: true,
-        title: true,
-        notes: true,
-        startDate: true,
-        endDate: true,
-      },
-    }),
+    getSeasonEventsForAthlete(athleteId, eventViewer),
   ])
 
   const seasonRaces = races as SeasonRace[]
@@ -95,6 +89,7 @@ export default async function SeasonPlanPage() {
         phaseBlocks={phaseBlocks}
         seasonEvents={seasonEvents}
         athleteId={athleteId}
+        isCoach={isCoach}
       />
     </div>
   )

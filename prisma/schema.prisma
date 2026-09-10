@@ -574,6 +574,15 @@ model SeasonEvent {
   notes     String?
   startDate DateTime @db.Date
   endDate   DateTime @db.Date
+  /** Hidden from the coach; only the athlete sees it. New events default private. */
+  isPrivate Boolean  @default(true)
+  /** Date-only when true; startTime/endTime apply when false. */
+  allDay    Boolean  @default(true)
+  /** Local clock `HH:mm` on startDate. Ignored when allDay. */
+  startTime String?
+  /** Local clock `HH:mm` on endDate. Ignored when allDay. */
+  endTime   String?
+  location  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

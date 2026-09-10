@@ -15,6 +15,7 @@ import { BackButton } from '@/components/ui/back-button'
 import { Badge } from '@/components/ui/badge'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
+import { DateField } from '@/components/ui/date-field'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { PageHeaderTitle } from '@/components/ui/page-header'
@@ -247,11 +248,10 @@ export function WorkoutBuilder({
 
               {mode === 'workout' && (
                 <FormField label="Scheduled date" className="sm:col-span-2">
-                  <Input
-                    type="date"
+                  <DateField
                     value={workout.scheduledDate ?? ''}
-                    onChange={(e) =>
-                      setWorkout((p) => ({ ...p, scheduledDate: e.target.value }))
+                    onChange={(scheduledDate) =>
+                      setWorkout((p) => ({ ...p, scheduledDate }))
                     }
                     className="w-full sm:max-w-xs"
                   />

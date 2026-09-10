@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Maximize2, Minimize2, Minus, Plus, RotateCcw } from 'lucide-react'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { createPortal } from 'react-dom'
+import { Maximize2, Minus, Plus, RotateCcw, X } from 'lucide-react'
 import { decodePolyline } from '@/lib/polyline'
 import { cn } from '@/lib/utils'
 
@@ -13,6 +13,7 @@ type ActivityRouteMapProps = {
 }
 
 type MapSize = 'inline' | 'expanded'
+type BasemapId = 'street' | 'satellite'
 
 const TILE_SIZE = 256
 const MAX_TILES = 64
@@ -23,11 +24,37 @@ const TILE_PAD = 0.55
 /** Wheel → zoom: lower = gentler. */
 const WHEEL_ZOOM_SPEED = 0.0035
 /** OSM France HOT — softer pastels than standard OSM; no API key. */
-const TILE_SUBDOMAINS = ['a', 'b', 'c'] as const
+const STREET_TILE_SUBDOMAINS = ['a', 'b', 'c'] as const
 
-function tileUrl(zoom: number, tx: number, ty: number): string {
-  const sub = TILE_SUBDOMAINS[Math.abs(tx + ty) % TILE_SUBDOMAINS.length]!
-  return `https://${sub}.tile.openstreetmap.fr/hot/${zoom}/${tx}/${ty}.png`
+const BASEMAPS: Record<
+  BasemapId,
+  {
+    label: string
+    attribution: string
+    filter: string
+    opacity: number
+    tileUrl: (zoom: number, tx: number, ty: number) => string
+  }
+> = {
+  street: {
+    label: 'Map',
+    attribution: '© OSM · HOT',
+    filter: 'saturate(0.78) contrast(0.96) brightness(1.03)',
+    opacity: 0.92,
+    tileUrl: (zoom, tx, ty) => {
+      const sub = STREET_TILE_SUBDOMAINS[Math.abs(tx + ty) % STREET_TILE_SUBDOMAINS.length]!
+      return `https://${sub}.tile.openstreetmap.fr/hot/${zoom}/${tx}/${ty}.png`
+    },
+  },
+  satellite: {
+    label: 'Satellite',
+    attribution: '© Esri',
+    filter: 'none',
+    opacity: 1,
+    // Esri World Imagery — free raster tiles, no API key (z/y/x).
+    tileUrl: (zoom, tx, ty) =>
+      `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${tx}`,
+  },
 }
 
 type LatLng = { lat: number; lng: number }
@@ -114,6 +141,26 @@ export function ActivityRouteMap({
   className,
 }: ActivityRouteMapProps) {
   const [expanded, setExpanded] = useState(false)
+  const [portalReady, setPortalReady] = useState(false)
+  const [basemap, setBasemap] = useState<BasemapId>('street')
+
+  useEffect(() => {
+    setPortalReady(true)
+  }, [])
+
+  useEffect(() => {
+    if (!expanded) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpanded(false)
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [expanded])
 
   return (
     <>
@@ -122,24 +169,47 @@ export function ActivityRouteMap({
         routeColor={routeColor}
         className={className}
         size="inline"
+        basemap={basemap}
+        onBasemapChange={setBasemap}
         onExpand={() => setExpanded(true)}
       />
-      <Dialog open={expanded} onOpenChange={setExpanded}>
-        <DialogContent
-          hideCloseButton
-          className="w-[calc(100%-1.5rem)] max-w-[min(96vw,72rem)] gap-0 overflow-hidden border-[var(--tt-line)] bg-white p-2 sm:p-3"
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <DialogTitle className="sr-only">Expanded activity map</DialogTitle>
-          <ActivityRouteMapCanvas
-            summaryPolyline={summaryPolyline}
-            routeColor={routeColor}
-            size="expanded"
-            onCollapse={() => setExpanded(false)}
-          />
-        </DialogContent>
-      </Dialog>
+      {portalReady && expanded
+        ? createPortal(
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3 backdrop-blur-[2px]"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Expanded activity map"
+              // Close on click (not pointerdown) so the backdrop still owns the
+              // gesture and the feed card underneath never receives a ghost click.
+              onPointerDown={(event) => {
+                if (event.target !== event.currentTarget) return
+                event.stopPropagation()
+              }}
+              onClick={(event) => {
+                if (event.target !== event.currentTarget) return
+                event.stopPropagation()
+                setExpanded(false)
+              }}
+            >
+              <div
+                className="w-full max-w-[min(96vw,72rem)] overflow-hidden rounded-[6px] border border-[var(--tt-line)] bg-white p-2 shadow-lg sm:p-3"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <ActivityRouteMapCanvas
+                  summaryPolyline={summaryPolyline}
+                  routeColor={routeColor}
+                  size="expanded"
+                  basemap={basemap}
+                  onBasemapChange={setBasemap}
+                  onCollapse={() => setExpanded(false)}
+                />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </>
   )
 }
@@ -149,10 +219,14 @@ function ActivityRouteMapCanvas({
   routeColor = 'var(--color-sport-run, #e85d4c)',
   className,
   size,
+  basemap,
+  onBasemapChange,
   onExpand,
   onCollapse,
 }: ActivityRouteMapProps & {
   size: MapSize
+  basemap: BasemapId
+  onBasemapChange: (basemap: BasemapId) => void
   onExpand?: () => void
   onCollapse?: () => void
 }) {
@@ -237,6 +311,7 @@ function ActivityRouteMapCanvas({
 
   const tileZoom = tileZoomFor(viewZoom)
   const scale = 2 ** (viewZoom - tileZoom)
+  const basemapConfig = BASEMAPS[basemap]
 
   const geometry = useMemo(() => {
     if (!base || !ready) return null
@@ -276,8 +351,8 @@ function ActivityRouteMapCanvas({
         const tileWorldX = tx * TILE_SIZE
         const tileWorldY = ty * TILE_SIZE
         tiles.push({
-          key: `${tileZoom}/${tx}/${ty}`,
-          url: tileUrl(tileZoom, tx, ty),
+          key: `${basemap}/${tileZoom}/${tx}/${ty}`,
+          url: basemapConfig.tileUrl(tileZoom, tx, ty),
           x: tileWorldX - worldLeft,
           y: tileWorldY - worldTop,
           w: TILE_SIZE,
@@ -295,7 +370,7 @@ function ActivityRouteMapCanvas({
       end,
       tiles,
     }
-  }, [base, center, ready, tileZoom])
+  }, [base, basemap, basemapConfig, center, ready, tileZoom])
 
   const applyZoomDelta = useCallback(
     (delta: number, anchor?: { x: number; y: number }) => {
@@ -498,8 +573,8 @@ function ActivityRouteMapCanvas({
               top: `${(tile.y / geometry.height) * 100}%`,
               width: `${(tile.w / geometry.width) * 100}%`,
               height: `${(tile.h / geometry.height) * 100}%`,
-              filter: 'saturate(0.78) contrast(0.96) brightness(1.03)',
-              opacity: 0.92,
+              filter: basemapConfig.filter,
+              opacity: basemapConfig.opacity,
             }}
           />
         ))}
@@ -552,10 +627,56 @@ function ActivityRouteMapCanvas({
         </svg>
       </div>
 
+      {/* Google Maps–style map type control — expanded only */}
+      {size === 'expanded' ? (
+        <div
+          className="absolute left-2 top-2 flex h-8 overflow-hidden rounded-[2px] border border-[#dadce0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.3)]"
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          {(['street', 'satellite'] as const).map((id, index) => {
+            const selected = basemap === id
+            return (
+              <button
+                key={id}
+                type="button"
+                aria-label={`Show ${BASEMAPS[id].label.toLowerCase()} basemap`}
+                aria-pressed={selected}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onBasemapChange(id)
+                }}
+                className={cn(
+                  'px-3 text-[12px] font-medium leading-none transition-colors',
+                  index > 0 && 'border-l border-[#dadce0]',
+                  selected
+                    ? 'bg-[#e8eaed] text-[#202124]'
+                    : 'bg-white text-[#70757a] hover:bg-[#f1f3f4]',
+                )}
+              >
+                {BASEMAPS[id].label}
+              </button>
+            )
+          })}
+        </div>
+      ) : null}
+
       <div
         className="absolute right-1.5 top-1.5 flex flex-col overflow-hidden rounded-[6px] border border-black/10 bg-white/90 shadow-sm backdrop-blur-[2px]"
         onPointerDown={(event) => event.stopPropagation()}
       >
+        {onCollapse ? (
+          <button
+            type="button"
+            aria-label="Close map"
+            onClick={(event) => {
+              event.stopPropagation()
+              onCollapse()
+            }}
+            className="inline-flex h-7 w-7 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5"
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+          </button>
+        ) : null}
         <button
           type="button"
           aria-label="Zoom in"
@@ -564,7 +685,10 @@ function ActivityRouteMapCanvas({
             event.stopPropagation()
             animateZoomBy(1)
           }}
-          className="inline-flex h-7 w-7 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5 disabled:opacity-35"
+          className={cn(
+            'inline-flex h-7 w-7 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5 disabled:opacity-35',
+            onCollapse && 'border-t border-black/10',
+          )}
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
         </button>
@@ -593,19 +717,6 @@ function ActivityRouteMapCanvas({
             <Maximize2 className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
           </button>
         ) : null}
-        {onCollapse ? (
-          <button
-            type="button"
-            aria-label="Collapse map"
-            onClick={(event) => {
-              event.stopPropagation()
-              onCollapse()
-            }}
-            className="inline-flex h-7 w-7 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5"
-          >
-            <Minimize2 className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
-          </button>
-        ) : null}
         {!isFit ? (
           <button
             type="button"
@@ -625,7 +736,7 @@ function ActivityRouteMapCanvas({
         Scroll / drag to explore
       </p>
       <p className="pointer-events-none absolute bottom-1 right-1 rounded bg-white/75 px-1 py-0.5 text-[8px] leading-none text-black/55">
-        © OSM · HOT
+        {basemapConfig.attribution}
       </p>
     </div>
   )

@@ -15,6 +15,10 @@ import type { Segment, Target, WorkoutBlock, WorkoutStructure } from './types'
 import { progressiveMidpointTarget } from './progressive'
 import { recoveryTarget } from './target-helpers'
 import { formatBlockSummary, formatIntervalRecoveryLabel, formatSegment, formatTargets, segmentDistanceKm, segmentToMinutes } from './utils'
+import {
+  DEFAULT_DURATION_NOTATION,
+  type DurationNotation,
+} from './duration-notation'
 
 function progressiveEstimationTargets(block: WorkoutBlock): Target[] | undefined {
   const mid = progressiveMidpointTarget(block)
@@ -755,34 +759,67 @@ export function describeEstimatedSegment(
 export function formatIntervalBlockSummary(
   block: WorkoutBlock,
   sportType?: WorkoutType | null,
+  notation: DurationNotation = DEFAULT_DURATION_NOTATION,
 ): string {
+  return formatIntervalBlockEssenceLines(block, sportType, notation).join(' ')
+}
+
+/** Interval essence as one card line, e.g. `10x20" @ 320 W / 40" Easy`. */
+export function formatIntervalBlockEssenceLines(
+  block: WorkoutBlock,
+  sportType?: WorkoutType | null,
+  notation: DurationNotation = DEFAULT_DURATION_NOTATION,
+): string[] {
   const sport = sportType ?? 'RUN'
   const work = formatSegment(
     effectiveIntervalSegment(block.work, 'work', block.targets, sportType),
+    notation,
   )
   const recovery = formatIntervalRecoveryLabel(
     effectiveIntervalSegment(block.recovery, 'recovery', block.targets, sportType),
     block.targets,
     sport,
+    notation,
   )
   const workTarget = block.targets?.[0]
   const workLabel = workTarget ? formatTargets([workTarget]) : ''
   const reps = block.repetitions ?? 1
 
-  if (!work && !workLabel) return `${reps} x interval`
+  let workPart: string
+  if (!work && !workLabel) {
+    workPart = `${reps}x interval`
+  } else if (work) {
+    workPart = `${reps}x${work}${workLabel ? ` @ ${workLabel}` : ''}`
+  } else {
+    workPart = `${reps}x ${workLabel}`
+  }
 
-  const main = work
-    ? `${reps} x ${work}${workLabel ? ` @ ${workLabel}` : ''}`
-    : `${reps} x ${workLabel}`
-
-  if (!recovery) return main
-  return `${main} · ${recovery} rest`
+  if (recovery) {
+    return [`${workPart} / ${recovery}`]
+  }
+  return [workPart]
 }
 
 export function formatPlanBlockSummary(
   block: WorkoutBlock,
   sportType?: WorkoutType | null,
+  notation: DurationNotation = DEFAULT_DURATION_NOTATION,
 ): string {
-  if (block.type === 'INTERVAL') return formatIntervalBlockSummary(block, sportType)
-  return formatBlockSummary(block)
+  if (block.type === 'INTERVAL') {
+    return formatIntervalBlockSummary(block, sportType, notation)
+  }
+  return formatBlockSummary(block, sportType ?? 'RUN', notation)
+}
+
+/** One or more card lines for a single builder block (always separate lines on the card). */
+export function formatBlockEssenceLines(
+  block: WorkoutBlock,
+  sportType?: WorkoutType | null,
+  notation: DurationNotation = DEFAULT_DURATION_NOTATION,
+): string[] {
+  if (block.type === 'INTERVAL') {
+    return formatIntervalBlockEssenceLines(block, sportType, notation)
+  }
+  const summary = formatBlockSummary(block, sportType ?? 'RUN', notation)
+  return summary ? [summary] : []
 }

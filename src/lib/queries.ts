@@ -1246,21 +1246,49 @@ export function groupDayNotesByDate(
 }
 
 /** Season events that overlap [start, end] (inclusive). */
-export async function getSeasonEventsForRange(athleteId: string, start: Date, end: Date) {
+const SEASON_EVENT_SELECT = {
+  id: true,
+  title: true,
+  notes: true,
+  startDate: true,
+  endDate: true,
+  isPrivate: true,
+  allDay: true,
+  startTime: true,
+  endTime: true,
+  location: true,
+} as const
+
+export async function getSeasonEventsForRange(
+  athleteId: string,
+  start: Date,
+  end: Date,
+  viewer: DayNoteViewer = 'athlete',
+) {
   return prisma.seasonEvent.findMany({
     where: {
       athleteId,
       startDate: { lte: end },
       endDate: { gte: start },
+      ...(viewer === 'coach' ? { isPrivate: false } : {}),
     },
     orderBy: { startDate: 'asc' },
-    select: {
-      id: true,
-      title: true,
-      notes: true,
-      startDate: true,
-      endDate: true,
+    select: SEASON_EVENT_SELECT,
+  })
+}
+
+/** All season events for the athlete (season planner). */
+export async function getSeasonEventsForAthlete(
+  athleteId: string,
+  viewer: DayNoteViewer = 'athlete',
+) {
+  return prisma.seasonEvent.findMany({
+    where: {
+      athleteId,
+      ...(viewer === 'coach' ? { isPrivate: false } : {}),
     },
+    orderBy: { startDate: 'asc' },
+    select: SEASON_EVENT_SELECT,
   })
 }
 

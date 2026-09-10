@@ -1,8 +1,12 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 type AthleteAvatarProps = {
   name: string
   avatarUrl?: string | null
+  fallbackUrl?: string | null
   size?: 'sm' | 'md' | 'lg' | 'bar'
   className?: string
 }
@@ -18,22 +22,37 @@ const SIZE_CLASS = {
 export function AthleteAvatar({
   name,
   avatarUrl,
+  fallbackUrl,
   size = 'sm',
   className,
 }: AthleteAvatarProps) {
   const initial = name.trim().charAt(0).toUpperCase() || '?'
+  const [src, setSrc] = useState(avatarUrl || null)
+  const [failed, setFailed] = useState(false)
 
-  if (avatarUrl) {
+  useEffect(() => {
+    setSrc(avatarUrl || null)
+    setFailed(false)
+  }, [avatarUrl, fallbackUrl])
+
+  if (src && !failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- remote Strava + local upload URLs
       <img
-        src={avatarUrl}
+        src={src}
         alt=""
         className={cn(
           'shrink-0 rounded-full bg-brand-soft object-cover',
           SIZE_CLASS[size],
           className,
         )}
+        onError={() => {
+          if (fallbackUrl && src !== fallbackUrl) {
+            setSrc(fallbackUrl)
+            return
+          }
+          setFailed(true)
+        }}
       />
     )
   }

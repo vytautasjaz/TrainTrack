@@ -816,8 +816,9 @@ export function TrainingTableView({
                               <SeasonEventChips
                                 events={day.seasonEvents ?? []}
                                 variant="strip"
-                                editable={isCoach}
+                                editable
                                 dateKey={day.dateKey}
+                                isCoach={isCoach}
                               />
                             </div>
                           ) : null}

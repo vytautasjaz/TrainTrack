@@ -7,7 +7,7 @@ import {
   TriathlonDistance,
 } from '@prisma/client'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Calendar, Flag, MapPin, MoreHorizontal } from 'lucide-react'
+import { Flag, MapPin, MoreHorizontal } from 'lucide-react'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -28,11 +28,12 @@ import {
 } from '@/lib/race-form'
 import { raceUsesLegs } from '@/lib/race-legs'
 import { toDateKeyOrEmpty } from '@/lib/dates'
+import { DateField } from '@/components/ui/date-field'
 import { RaceLegsPlanFields } from '@/components/races/race-legs-fields'
 import { PLANNER_PRIORITY_DOT } from '@/lib/season-planner'
 import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
 import { cn } from '@/lib/utils'
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import type { RaceLegView } from '@/lib/race-legs'
 import type { RaceType, WorkoutType } from '@prisma/client'
 
@@ -98,17 +99,6 @@ type RaceDetailsFieldsProps = {
   className?: string
 }
 
-function formatSummaryDate(iso: string): string {
-  if (!iso) return 'Add date'
-  const d = new Date(`${iso}T12:00:00`)
-  if (Number.isNaN(d.getTime())) return 'Add date'
-  return d.toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
 export function RaceDetailsFields({
   initial,
   lockedIntent,
@@ -165,7 +155,6 @@ export function RaceDetailsFields({
   const [customKm, setCustomKm] = useState(
     initial?.customDistanceKm != null ? String(initial.customDistanceKm) : '',
   )
-  const dateInputRef = useRef<HTMLInputElement>(null)
 
   const isWatching = intent === RaceIntent.WATCHING
   const headerPriority = priority
@@ -230,17 +219,6 @@ export function RaceDetailsFields({
     setRunDistance(value === 'CUSTOM' ? 'CUSTOM' : null)
   }
 
-  function openDatePicker() {
-    const el = dateInputRef.current
-    if (!el) return
-    try {
-      el.showPicker()
-    } catch {
-      el.focus()
-      el.click()
-    }
-  }
-
   const metricSelectClass =
     'h-8 w-full max-w-full cursor-pointer appearance-none border-0 bg-transparent bg-none px-0 text-center text-sm font-semibold text-foreground outline-none focus:ring-0'
 
@@ -281,17 +259,6 @@ export function RaceDetailsFields({
         <input type="hidden" name="intent" value={intent} />
       )}
 
-      {/* Hidden native date input for hero date control */}
-      <input
-        ref={dateInputRef}
-        type="date"
-        value={date}
-        onChange={(e) => setDate(e.target.value)}
-        tabIndex={-1}
-        aria-hidden
-        className="pointer-events-none absolute h-0 w-0 opacity-0"
-      />
-
       {showSummary ? (
         <div
           className={cn(
@@ -331,17 +298,15 @@ export function RaceDetailsFields({
                 className="w-full bg-transparent text-[17px] font-semibold leading-snug text-[#111827] outline-none placeholder:text-muted-foreground/45"
               />
 
-              <button
-                type="button"
-                onClick={openDatePicker}
-                className={cn(
-                  'mt-1.5 flex items-center gap-1.5 text-left text-[13px] leading-snug transition hover:opacity-80',
-                  date ? 'text-[#6B7280]' : heroMuted,
-                )}
-              >
-                <Calendar className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                <span className={cn(!date && 'italic')}>{formatSummaryDate(date)}</span>
-              </button>
+              <div className={cn('mt-1.5', date ? 'text-[#6B7280]' : heroMuted)}>
+                <DateField
+                  value={date}
+                  onChange={setDate}
+                  variant="ghost"
+                  placeholder="Add date"
+                  required
+                />
+              </div>
 
               <div className="mt-1 flex items-center gap-1.5">
                 <MapPin

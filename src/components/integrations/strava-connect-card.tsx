@@ -7,7 +7,7 @@ import { Activity, ExternalLink, RefreshCw, Unplug } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FormField } from '@/components/ui/form-field'
-import { Input } from '@/components/ui/input'
+import { DateField } from '@/components/ui/date-field'
 import { todayDateKey } from '@/lib/dates'
 import {
   disconnectStrava,
@@ -230,12 +230,10 @@ export function StravaConnectCard({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <FormField label="From">
-                <Input
-                  type="date"
+                <DateField
                   value={fromKey}
                   max={todayDateKey()}
-                  onChange={(e) => {
-                    const next = e.target.value
+                  onChange={(next) => {
                     setFromKey(next)
                     if (toKey < next) setToKey(next)
                   }}
@@ -243,12 +241,11 @@ export function StravaConnectCard({
                 />
               </FormField>
               <FormField label="To">
-                <Input
-                  type="date"
+                <DateField
                   value={toKey}
                   min={fromKey}
                   max={todayDateKey()}
-                  onChange={(e) => setToKey(e.target.value)}
+                  onChange={setToKey}
                   disabled={isPending}
                 />
               </FormField>

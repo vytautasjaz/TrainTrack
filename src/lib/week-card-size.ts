@@ -12,7 +12,7 @@ export const WEEK_CARD_SIZE_LABEL: Record<WeekCardSize, string> = {
 }
 
 export const WEEK_CARD_SIZE_HINT: Record<WeekCardSize, string> = {
-  s: 'Compact — title + primary metric',
+  s: 'Compact — title + primary metric (and secondary if enabled)',
   m: 'Medium — title, subtitle, primary + secondary (if enabled)',
   l: 'Large — detailed description + structure graph on the card',
 }

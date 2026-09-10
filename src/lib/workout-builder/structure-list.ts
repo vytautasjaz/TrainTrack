@@ -20,10 +20,14 @@ export function flattenStructure(structure: WorkoutStructure): ListedBlock[] {
   return items
 }
 
-export function unflattenBlocks(items: ListedBlock[]): WorkoutStructure {
+export function unflattenBlocks(
+  items: ListedBlock[],
+  previous?: WorkoutStructure,
+): WorkoutStructure {
   // Flat block list only — warmup/mainSet/cooldown buckets are legacy storage.
   const mainSet = items.map(({ block }) => block)
   return {
+    ...previous,
     warmup: [],
     mainSet: normalizeOrders(mainSet),
     cooldown: [],

@@ -8,6 +8,7 @@ import { WorkoutType } from '@prisma/client'
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
+import { DateField } from '@/components/ui/date-field'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -163,9 +164,8 @@ export function LogManualWorkoutModal({ open, onOpenChange }: LogManualWorkoutMo
         {source === 'manual' ? (
           <form onSubmit={handleSubmit} className="space-y-3">
             <FormField label="Date">
-              <Input
+              <DateField
                 name="date"
-                type="date"
                 required
                 defaultValue={todayDateKey()}
                 max={todayDateKey()}
@@ -243,20 +243,18 @@ export function LogManualWorkoutModal({ open, onOpenChange }: LogManualWorkoutMo
               <>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <FormField label="From">
-                    <Input
-                      type="date"
+                    <DateField
                       value={fromKey}
                       max={toKey}
-                      onChange={(e) => setFromKey(e.target.value)}
+                      onChange={setFromKey}
                     />
                   </FormField>
                   <FormField label="To">
-                    <Input
-                      type="date"
+                    <DateField
                       value={toKey}
                       min={fromKey}
                       max={todayDateKey()}
-                      onChange={(e) => setToKey(e.target.value)}
+                      onChange={setToKey}
                     />
                   </FormField>
                 </div>

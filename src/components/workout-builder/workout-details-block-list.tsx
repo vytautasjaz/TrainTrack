@@ -158,7 +158,7 @@ export function WorkoutDetailsBlockList({
   const items = useMemo(() => flattenStructure(structure), [structure])
 
   function commit(nextItems: typeof items) {
-    onChange(unflattenBlocks(nextItems))
+    onChange(unflattenBlocks(nextItems, structure))
   }
 
   function clearDrag() {

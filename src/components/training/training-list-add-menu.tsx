@@ -220,6 +220,7 @@ export function TrainingListAddMenu({
           onOpenChange={setEventOpen}
           defaultStartDate={dateKey}
           defaultEndDate={dateKey}
+          isCoach={isCoach}
         />
       ) : null}
 

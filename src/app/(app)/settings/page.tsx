@@ -23,6 +23,7 @@ import { getAthletePreferences } from '@/app/actions/preferences'
 import { getCalendarFeedSummaries } from '@/app/actions/preferences'
 import { respondCoachRequest } from '@/app/actions/auth'
 import { getSession, isCoach, isCoachView, resolveAthleteId } from '@/lib/session'
+import { resolveCoachAvatarUrl } from '@/lib/coach-avatar'
 import { settingsNavForRole } from '@/lib/settings-nav'
 import { isStravaConfigured } from '@/lib/strava/config'
 import { getStravaConnectionSummary } from '@/lib/strava/sync'
@@ -113,7 +114,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
     ? user.name
     : (user.athleteProfile?.name ?? user.name)
   const profileAvatarUrl = coachView
-    ? (user.coachProfile?.avatarUrl ?? user.image ?? null)
+    ? resolveCoachAvatarUrl(user.coachProfile?.avatarUrl, user.image)
     : (user.athleteProfile?.avatarUrl ?? null)
 
   const providers = new Set(user.accounts.map((a) => a.provider))

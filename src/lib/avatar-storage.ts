@@ -12,7 +12,44 @@ function onNetlify() {
 
 async function blobStore() {
   try {
+    const siteID = process.env.NETLIFY_SITE_ID
+    const token =
+      process.env.NETLIFY_BLOBS_TOKEN || process.env.NETLIFY_AUTH_TOKEN
+    if (siteID && token) {
+      return getStore({ name: 'avatars', siteID, token, consistency: 'strong' })
+    }
     return getStore({ name: 'avatars', consistency: 'strong' })
+  } catch {
+    return null
+  }
+}
+
+function avatarSourceOrigin() {
+  const origin = (
+    process.env.AVATAR_SOURCE_ORIGIN ||
+    process.env.NEXT_PUBLIC_AVATAR_ORIGIN ||
+    ''
+  ).replace(/\/$/, '')
+  if (!origin || onNetlify()) return null
+  return origin
+}
+
+async function readRemoteAvatar(
+  filename: string,
+): Promise<{ body: Buffer; contentType: string } | null> {
+  const origin = avatarSourceOrigin()
+  if (!origin) return null
+  try {
+    const res = await fetch(
+      `${origin}/api/avatars/${encodeURIComponent(filename)}`,
+      { cache: 'no-store', signal: AbortSignal.timeout(4000) },
+    )
+    if (!res.ok) return null
+    const contentType = res.headers.get('content-type') || guessContentType(filename)
+    return {
+      body: Buffer.from(await res.arrayBuffer()),
+      contentType,
+    }
   } catch {
     return null
   }
@@ -90,9 +127,12 @@ export async function getAvatarFile(
         }
       }
     } catch {
-      // Fall through to disk (localhost).
+      // Fall through to remote / disk (localhost).
     }
   }
+
+  const remote = await readRemoteAvatar(filename)
+  if (remote) return remote
 
   const local = await readLocalAvatar(filename)
   if (!local) return null

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormMessage } from '@/components/ui/form-field'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
+import { AvatarCropDialog } from '@/components/settings/avatar-crop-dialog'
 import { clearCoachAvatar, uploadCoachAvatar } from '@/app/actions/preferences'
 
 type CoachAvatarFormProps = {
@@ -19,6 +20,7 @@ export function CoachAvatarForm({ name, avatarUrl }: CoachAvatarFormProps) {
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [cropFile, setCropFile] = useState<File | null>(null)
 
   function run(action: () => Promise<void>) {
     setError(null)
@@ -50,11 +52,22 @@ export function CoachAvatarForm({ name, avatarUrl }: CoachAvatarFormProps) {
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setError('Use a JPEG, PNG, WebP, or GIF image.')
+      return
+    }
+    setError(null)
+    setSaved(false)
+    setCropFile(file)
+  }
+
+  function handleCropped(file: File) {
+    setCropFile(null)
     const formData = new FormData()
     formData.set('avatar', file)
     run(() => uploadCoachAvatar(formData))
-    e.target.value = ''
   }
 
   return (
@@ -101,6 +114,16 @@ export function CoachAvatarForm({ name, avatarUrl }: CoachAvatarFormProps) {
       </div>
       {error && <FormMessage variant="error">{error}</FormMessage>}
       {saved && !error && <FormMessage variant="success">Photo updated.</FormMessage>}
+
+      <AvatarCropDialog
+        file={cropFile}
+        open={Boolean(cropFile)}
+        pending={isPending}
+        onOpenChange={(open) => {
+          if (!open) setCropFile(null)
+        }}
+        onConfirm={handleCropped}
+      />
 
       <ConfirmDialog
         open={confirmOpen}

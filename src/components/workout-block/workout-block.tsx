@@ -2,9 +2,11 @@
 
 import type { CSSProperties, ReactNode } from 'react'
 import { WorkoutStatus } from '@prisma/client'
-import { Clock, Flag } from 'lucide-react'
+import { Flag } from 'lucide-react'
 import { WorkoutCardDiagram } from '@/components/plan/workout-card-diagram'
 import { PlanWorkoutCardInlineEdit } from '@/components/plan/plan-workout-card-inline-edit'
+import { WorkoutCardMetricIcon } from '@/components/plan/workout-card-metric-icon'
+import { WorkoutCardEssenceLine } from '@/components/plan/workout-card-essence-line'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import { WorkoutChatIndicator } from '@/components/plan/workout-chat-indicator'
 import { SelfAddedBadge } from '@/components/plan/self-added-badge'
@@ -13,12 +15,14 @@ import {
   RescheduleBadge,
 } from '@/components/plan/reschedule-badge'
 import { useOptionalPlanSportFilter } from '@/components/training/plan-sport-filter-context'
+import { useDurationNotation } from '@/components/workout-builder/duration-notation-context'
 import { surfaces } from '@/lib/design-tokens'
 import { RACE_PRIORITY_BLOCK } from '@/lib/race-day'
 import { isStravaSynced, workoutHasCoachingChat, type PlanWorkoutDetail } from '@/lib/plan-workout'
 import type { PlanColorMode } from '@/lib/plan-sport-filter'
 import {
   getWorkoutCardDuration,
+  getWorkoutCardEssence,
   getWorkoutCardHero,
   getWorkoutCardSubtitle,
   getWorkoutCompletionPercent,
@@ -86,7 +90,7 @@ const DENSITY = {
     clock: 'h-2.5 w-2.5',
     gap: 'gap-1',
     showSubtitle: true,
-    showSecondary: false,
+    showSecondary: true,
     showFingerprint: true,
     showSportIcon: false,
   },
@@ -165,6 +169,7 @@ export function WorkoutBlock({
 }: WorkoutBlockProps) {
   const filterColorMode = useOptionalPlanSportFilter()?.colorMode
   const colorMode = colorModeProp ?? filterColorMode ?? 'completion'
+  const durationNotation = useDurationNotation()
   const styles = DENSITY[density]
   const completed = !workout.isRace && isWorkoutCardCompleted(status)
   const skipped = !workout.isRace && isWorkoutCardSkipped(status)
@@ -176,6 +181,12 @@ export function WorkoutBlock({
   const secondary = styles.showSecondary
     ? getWorkoutCardDuration(workout, status)
     : null
+  const cardEssence =
+    !workout.isRace && density !== 'xs'
+      ? getWorkoutCardEssence(workout, durationNotation, {
+          includeAllBlocks: density === 'md' || density === 'lg',
+        })
+      : []
   const SportIcon = workout.isRace ? Flag : WORKOUT_TYPE_ICONS[workout.type]
   const stravaSynced = isStravaSynced(workout)
   const completionPercent =
@@ -269,7 +280,8 @@ export function WorkoutBlock({
   ) : null
 
   const metricPrimary = hero ? (
-    <div className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+    <div className="flex min-w-0 items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap">
+      <WorkoutCardMetricIcon kind={hero.kind} className={styles.clock} />
       {hero.approximate ? (
         <span className={cn('font-medium text-muted-foreground', styles.unit)}>
           ~
@@ -295,20 +307,14 @@ export function WorkoutBlock({
   const metricSecondary = secondary ? (
     <div
       className={cn(
-        'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap',
+        'flex min-w-0 items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap',
         styles.secondary,
       )}
     >
-      {hero?.kind === 'distance' ? (
-        <Clock
-          className={cn(
-            styles.clock,
-            'mr-1 inline-block shrink-0 align-[-0.1em] text-muted-foreground',
-          )}
-          aria-hidden
-          strokeWidth={1.75}
-        />
-      ) : null}
+      <WorkoutCardMetricIcon
+        kind={hero?.kind === 'duration' ? 'distance' : 'duration'}
+        className={cn(styles.clock, 'text-muted-foreground')}
+      />
       <span className="font-semibold text-foreground">{secondary.actual}</span>
       {secondary.planned ? (
         <span className="text-tt-muted">
@@ -378,8 +384,36 @@ export function WorkoutBlock({
         </p>
       ) : null}
 
+      {cardEssence.length > 0 ? (
+        <div
+          className={cn(
+            'mt-1 flex min-w-0 flex-col gap-0.5',
+            density === 'lg' ? 'text-[13px] leading-snug' : 'text-[10px] leading-snug',
+          )}
+        >
+          {cardEssence.map((line, index) => (
+            <WorkoutCardEssenceLine
+              key={`${index}-${line}`}
+              line={line}
+              coreClassName={cn(
+                'text-foreground',
+                completed && colorMode === 'completion' && 'text-[var(--tt-good,#1a9f5c)]',
+                skipped && 'text-muted-foreground',
+              )}
+              detailClassName={cn(
+                'text-muted-foreground',
+                completed && colorMode === 'completion' && 'text-[var(--tt-good,#1a9f5c)]/75',
+                skipped && 'text-muted-foreground',
+              )}
+            />
+          ))}
+        </div>
+      ) : null}
+
       {metricPrimary ? (
-        <div className={cn(subtitle ? 'pt-0.5' : null)}>{metricPrimary}</div>
+        <div className={cn(subtitle || cardEssence.length > 0 ? 'pt-0.5' : null)}>
+          {metricPrimary}
+        </div>
       ) : null}
 
       {metricSecondary}

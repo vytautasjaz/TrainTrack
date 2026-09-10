@@ -90,12 +90,24 @@ export type WorkoutIncludeItem = {
   placementHint?: IncludePlacementHint
 }
 
+/**
+ * Compact, athlete-facing cues for a workout card. The structure remains the
+ * source of truth; these fields only choose or override its short summary.
+ */
+export type WorkoutCardSummary = {
+  /** Trainer-written wording, used instead of the automatic main-set summary. */
+  essence?: string
+  /** Main-set block ids selected for the card. Omit for automatic (all meaningful blocks). */
+  highlightedBlockIds?: string[]
+}
+
 export type WorkoutStructure = {
   warmup: WorkoutBlock[]
   mainSet: WorkoutBlock[]
   cooldown: WorkoutBlock[]
   coachNotes?: string
   includeItems?: WorkoutIncludeItem[]
+  cardSummary?: WorkoutCardSummary
 }
 
 export type BuilderWorkout = {

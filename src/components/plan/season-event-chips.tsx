@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Calendar } from 'lucide-react'
-import { formatSeasonEventLabel, type SeasonEventData } from '@/lib/season-planner'
+import { Calendar, Lock } from 'lucide-react'
+import { formatSeasonEventLabel, formatSeasonEventWhenLine, type SeasonEventData } from '@/lib/season-planner'
 import { SeasonEventModal } from '@/components/plan/season-event-modal'
 import {
   WeekAddPlusMark,
@@ -24,6 +24,8 @@ type SeasonEventChipsProps = {
   editable?: boolean
   /** YYYY-MM-DD — when set with editable, empty cells show mock-style + */
   dateKey?: string
+  /** Coach vs athlete workspace — private toggle only for athletes. */
+  isCoach?: boolean
 }
 
 /** Match WorkoutBlock density fonts (xs chip / md note). */
@@ -68,6 +70,7 @@ export function SeasonEventChips({
   variant = 'chip',
   editable = false,
   dateKey,
+  isCoach = false,
 }: SeasonEventChipsProps) {
   const [editing, setEditing] = useState<SeasonEventData | null>(null)
   const [creating, setCreating] = useState(false)
@@ -116,6 +119,7 @@ export function SeasonEventChips({
           onOpenChange={setCreating}
           defaultStartDate={dateKey}
           defaultEndDate={dateKey}
+          isCoach={isCoach}
         />
       </>
     )
@@ -131,16 +135,45 @@ export function SeasonEventChips({
         )}
       >
         {events.map((event) => {
+          const whenLine = formatSeasonEventWhenLine(event)
           const text = (
             <>
               <p
                 className={cn(
                   titleClass,
+                  'flex min-w-0 items-start gap-1',
                   !flatStyle && 'text-amber-950 dark:text-amber-100',
                 )}
               >
-                {formatSeasonEventLabel(event)}
+                {event.isPrivate ? (
+                  <Lock
+                    className={cn(
+                      'mt-0.5 shrink-0',
+                      cellStyle
+                        ? 'h-3 w-3 text-amber-950/70 dark:text-amber-100/70'
+                        : stripStyle
+                          ? 'h-3.5 w-3.5 text-amber-800/75 dark:text-amber-200/80'
+                          : 'h-3 w-3 text-amber-900/70 dark:text-amber-200/75',
+                    )}
+                    strokeWidth={2}
+                    aria-label="Private"
+                  />
+                ) : null}
+                <span className="min-w-0">{formatSeasonEventLabel(event)}</span>
               </p>
+              {whenLine ? (
+                <p
+                  className={cn(
+                    bodyClass,
+                    'mt-0.5',
+                    cellStyle
+                      ? 'text-amber-950/80 dark:text-amber-100/80'
+                      : 'text-amber-900/80 dark:text-amber-200/90',
+                  )}
+                >
+                  {whenLine}
+                </p>
+              ) : null}
               {event.notes?.trim() ? (
                 <p
                   className={cn(
@@ -227,6 +260,7 @@ export function SeasonEventChips({
         }}
         event={editing}
         readOnly={!editable}
+        isCoach={isCoach}
       />
     </>
   )

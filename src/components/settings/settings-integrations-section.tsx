@@ -5,6 +5,7 @@ import { CalendarSyncCard } from '@/components/integrations/calendar-sync-card'
 import { CoachInviteLinkPanel } from '@/components/coach/coach-invite-link-panel'
 import { CoachPlanningLeadForm } from '@/components/settings/coach-planning-lead-form'
 import { CoachWorkoutBuilderPrefsForm } from '@/components/settings/coach-workout-builder-prefs-form'
+import { CoachDurationNotationForm } from '@/components/settings/coach-duration-notation-form'
 import { CoachWorkoutTypePrefsForm } from '@/components/settings/coach-workout-type-prefs-form'
 import {
   SettingsGroup,
@@ -117,6 +118,9 @@ export function SettingsCoachBuilderSection({
       title="Builder preferences"
       description="Defaults for new workouts and session-type presets."
     >
+      <SettingsGroup label="Duration format">
+        <CoachDurationNotationForm initialPrefs={workoutBuilderPrefs} />
+      </SettingsGroup>
       <SettingsGroup label="Workout types">
         <CoachWorkoutTypePrefsForm initialPrefs={workoutTypePrefs} />
       </SettingsGroup>

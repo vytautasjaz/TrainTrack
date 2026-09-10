@@ -8,6 +8,11 @@ import {
   type SmartBlockOption,
 } from './smart-blocks'
 import { isBikeSport } from './target-helpers'
+import {
+  DEFAULT_DURATION_NOTATION,
+  parseDurationNotation,
+  type DurationNotation,
+} from './duration-notation'
 
 export const WORKOUT_BUILDER_PRESET_KINDS: PresetBlockKind[] = PRESET_BLOCK_OPTIONS.map(
   (o) => o.kind as PresetBlockKind,
@@ -48,6 +53,8 @@ export type SportBuilderPresetPrefs = {
 export type WorkoutBuilderPrefs = {
   RUN?: SportBuilderPresetPrefs
   BIKE?: SportBuilderPresetPrefs
+  /** How minutes/seconds are written on cards and block summaries. */
+  durationNotation?: DurationNotation
 }
 
 export type EditablePresetRow = {
@@ -138,6 +145,11 @@ export function parseWorkoutBuilderPrefs(raw: unknown): WorkoutBuilderPrefs {
   if (!raw || typeof raw !== 'object') return {}
   const root = raw as Record<string, unknown>
   const result: WorkoutBuilderPrefs = {}
+
+  const durationNotation = parseDurationNotation(root.durationNotation)
+  if (durationNotation !== DEFAULT_DURATION_NOTATION) {
+    result.durationNotation = durationNotation
+  }
 
   for (const key of ['RUN', 'BIKE'] as const) {
     const sportRaw = root[key]

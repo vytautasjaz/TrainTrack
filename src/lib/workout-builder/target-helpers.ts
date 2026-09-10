@@ -167,19 +167,47 @@ export function setRecoveryTarget(
   return [primaryTarget({ targets }, sport), recovery]
 }
 
+/** `150` / `150W` → `150 W`. Leaves Easy, Z3, and other labels unchanged. */
+export function formatWattsLabel(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return ''
+  const stripped = trimmed.replace(/\s*W(?:atts)?$/i, '').trim()
+  if (/^\d+(\.\d+)?$/.test(stripped)) return `${stripped} W`
+  if (/^\d+(\.\d+)?\s*[-–]\s*\d+(\.\d+)?$/.test(stripped)) {
+    return `${stripped.replace(/\s*[-–]\s*/, '-')} W`
+  }
+  return trimmed
+}
+
+/** Card / prescription intensity: add units, keep qualitative labels as-is. */
+export function formatTargetSummary(target: Target | undefined | null): string {
+  if (!target) return ''
+  const value = target.value?.trim()
+  if (value) {
+    if (target.type === 'power') return formatWattsLabel(value)
+    if (target.type === 'powerZone') {
+      const pct = value.replace(/%/g, '').replace(/\s*ftp/i, '').trim()
+      if (/^\d+(\.\d+)?$/.test(pct)) return `${pct}% FTP`
+    }
+    if (target.type === 'pace') {
+      const clock = paceInputDisplayValue(value)
+      if (/^\d{1,2}:\d{2}(?:\.\d{1,3})?$/.test(clock)) return `${clock}/km`
+    }
+    return value
+  }
+  if (target.min != null && target.max != null) {
+    const range = `${target.min}-${target.max}`
+    return target.type === 'power' ? `${range} W` : range
+  }
+  return ''
+}
+
 export function formatIntensityDisplay(target: Target, _sport: WorkoutType): string {
   const value = target.value?.trim()
   if (target.type === 'rpe' && value) return value
   if (!value) return targetTypeLabel(target.type)
-  if (target.type === 'power' && /^\d+$/.test(value)) return `${value}W`
-  if (target.type === 'powerZone') {
-    const pct = value.replace(/%/g, '').replace(/\s*ftp/i, '').trim()
-    if (/^\d+(\.\d+)?$/.test(pct)) return `${pct}% FTP`
-  }
-  if (target.type === 'pace') {
-    const clock = paceInputDisplayValue(value)
-    if (/^\d{1,2}:\d{2}(?:\.\d{1,3})?$/.test(clock)) return `${clock}/km`
-    return value
+  if (target.type === 'power' || target.type === 'powerZone' || target.type === 'pace') {
+    return formatTargetSummary(target)
   }
   return `${targetTypeLabel(target.type)} ${value}`
 }

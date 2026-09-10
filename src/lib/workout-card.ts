@@ -14,6 +14,14 @@ import {
   resolveMetricSource,
 } from '@/lib/workout-metric-source'
 import { hasStructureContent } from '@/lib/workout-builder/utils'
+import {
+  getWorkoutCardEssenceLines,
+  type WorkoutCardEssenceOptions,
+} from '@/lib/workout-builder/card-summary'
+import {
+  DEFAULT_DURATION_NOTATION,
+  type DurationNotation,
+} from '@/lib/workout-builder/duration-notation'
 
 export type WorkoutCardHero = {
   value: string
@@ -53,6 +61,23 @@ export function getWorkoutCardSubtitle(workout: PlanWorkoutDetail): string | nul
   }
 
   return null
+}
+
+/**
+ * The short, athlete-facing prescription shown beneath the card's primary
+ * metric. S: selected/auto work blocks. M/L: every builder block.
+ */
+export function getWorkoutCardEssence(
+  workout: PlanWorkoutDetail,
+  notation: DurationNotation = DEFAULT_DURATION_NOTATION,
+  options: WorkoutCardEssenceOptions = {},
+): string[] {
+  return getWorkoutCardEssenceLines(
+    workout.structure,
+    workout.type,
+    notation,
+    options,
+  )
 }
 
 function metricApproximate(

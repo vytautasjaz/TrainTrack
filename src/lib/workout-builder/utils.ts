@@ -9,8 +9,13 @@ import type {
   WorkoutIncludeItem,
   WorkoutStructure,
 } from './types'
-import { defaultIntensityTargetType, isBikeSport } from './target-helpers'
+import { defaultIntensityTargetType, formatTargetSummary, isBikeSport } from './target-helpers'
 import { normalizeIncludePlacement } from './include-placement'
+import {
+  DEFAULT_DURATION_NOTATION,
+  formatDurationQuantity,
+  type DurationNotation,
+} from './duration-notation'
 
 export function newBlockId() {
   return crypto.randomUUID()
@@ -147,32 +152,23 @@ export function segmentDistanceKm(segment?: Segment): number {
 
 export { estimateStructureDurationMinutes as estimateDurationMinutes } from './segment-estimation'
 
-export function formatSegment(segment?: Segment): string {
+export function formatSegment(
+  segment?: Segment,
+  notation: DurationNotation = DEFAULT_DURATION_NOTATION,
+): string {
   if (!segment || segment.value <= 0) return ''
-  const unitLabel =
-    segment.unit === 'min'
-      ? 'min'
-      : segment.unit === 'sec'
-        ? 'sec'
-        : segment.unit === 'km'
-          ? 'km'
-          : 'm'
-  const base = `${segment.value} ${unitLabel}`
+  const base = formatDurationQuantity(segment.value, segment.unit, notation)
+  if (!base) return ''
   return segment.description ? `${base} ${segment.description}` : base
 }
 
 /** Duration/distance only — no free-text description. */
-export function formatSegmentQuantity(segment?: Segment): string {
+export function formatSegmentQuantity(
+  segment?: Segment,
+  notation: DurationNotation = DEFAULT_DURATION_NOTATION,
+): string {
   if (!segment || segment.value <= 0) return ''
-  const unitLabel =
-    segment.unit === 'min'
-      ? 'min'
-      : segment.unit === 'sec'
-        ? 'sec'
-        : segment.unit === 'km'
-          ? 'km'
-          : 'm'
-  return `${segment.value} ${unitLabel}`
+  return formatDurationQuantity(segment.value, segment.unit, notation)
 }
 
 /** Run-only recovery wording that must never appear on bike workouts. */
@@ -187,8 +183,9 @@ export function formatIntervalRecoveryLabel(
   segment: Segment | undefined,
   targets: Target[] | undefined,
   sportType: WorkoutType,
+  notation: DurationNotation = DEFAULT_DURATION_NOTATION,
 ): string {
-  const quantity = formatSegmentQuantity(segment)
+  const quantity = formatSegmentQuantity(segment, notation)
   const restValue = targets?.[1]?.value?.trim() ?? ''
   let description = segment?.description?.trim() ?? ''
 
@@ -203,19 +200,13 @@ export function formatIntervalRecoveryLabel(
 
 export function formatTargets(targets?: Target[]): string {
   if (!targets?.length) return ''
-  return targets
-    .map((t) => {
-      if (t.value) return t.value
-      if (t.min != null && t.max != null) return `${t.min}-${t.max}`
-      return ''
-    })
-    .filter(Boolean)
-    .join(' · ')
+  return targets.map((t) => formatTargetSummary(t)).filter(Boolean).join(' · ')
 }
 
 export function formatBlockSummary(
   block: WorkoutBlock,
   sportType: WorkoutType = SportEnum.RUN,
+  notation: DurationNotation = DEFAULT_DURATION_NOTATION,
 ): string {
   switch (block.type) {
     case 'CONTINUOUS':
@@ -224,7 +215,8 @@ export function formatBlockSummary(
       const duration =
         block.durationType === 'distance'
           ? `${block.distance ?? 0} ${block.distanceUnit ?? 'km'}`
-          : `${block.time ?? 0} min`
+          : formatDurationQuantity(block.time ?? 0, 'min', notation) ||
+            `${block.time ?? 0} min`
       const target = formatTargets(block.targets)
       return target ? `${duration} @ ${target}` : duration
     }
@@ -232,29 +224,30 @@ export function formatBlockSummary(
       const duration =
         block.durationType === 'distance'
           ? `${block.distance ?? 0} ${block.distanceUnit ?? 'km'}`
-          : `${block.time ?? 0} min`
-      const start = block.startIntensity?.value?.trim() || formatTargets(block.targets) || '—'
-      const end = block.endIntensity?.value?.trim() || '—'
+          : formatDurationQuantity(block.time ?? 0, 'min', notation) ||
+            `${block.time ?? 0} min`
+      const start =
+        formatTargetSummary(block.startIntensity) || formatTargets(block.targets) || '—'
+      const end = formatTargetSummary(block.endIntensity) || '—'
       const step = block.stepEvery
         ? ` · every ${block.stepEvery.value} ${block.stepEvery.unit}`
         : ''
       return `${duration} · ${start} → ${end}${step}`
     }
     case 'INTERVAL': {
-      const work = formatSegment(block.work)
+      const work = formatSegment(block.work, notation)
       const workTarget = block.targets?.[0] ? formatTargets([block.targets[0]]) : ''
-      const recovery = formatIntervalRecoveryLabel(block.recovery, block.targets, sportType)
-      const parts = [
-        `${block.repetitions ?? 1} × ${work}${workTarget ? ` @ ${workTarget}` : ''}`,
-      ]
-      if (recovery) {
-        const alreadySaysRecovery = /\brecovery\b/i.test(recovery)
-        parts.push(alreadySaysRecovery ? recovery : `${recovery} recovery`)
-      }
-      return parts.join(' · ')
+      const recovery = formatIntervalRecoveryLabel(
+        block.recovery,
+        block.targets,
+        sportType,
+        notation,
+      )
+      const workPart = `${block.repetitions ?? 1}x${work}${workTarget ? ` @ ${workTarget}` : ''}`
+      return recovery ? `${workPart} / ${recovery}` : workPart
     }
     case 'REPETITION':
-      return `${block.repetitions ?? 1} × ${formatSegment(block.work)}`
+      return `${block.repetitions ?? 1} × ${formatSegment(block.work, notation)}`
     case 'FREE_TEXT':
       return block.text?.trim() || 'Free text'
     default:
@@ -279,7 +272,7 @@ export function formatBuilderBlockTimeLabel(
 
 export function parseStructure(raw: unknown): WorkoutStructure {
   if (!raw || typeof raw !== 'object') return emptyStructure()
-  const s = raw as WorkoutStructure & { includeItems?: unknown }
+  const s = raw as WorkoutStructure & { includeItems?: unknown; cardSummary?: unknown }
   const includeItems: WorkoutIncludeItem[] = Array.isArray(s.includeItems)
     ? s.includeItems
       .filter((item): item is WorkoutIncludeItem => {
@@ -305,6 +298,22 @@ export function parseStructure(raw: unknown): WorkoutStructure {
     cooldown: Array.isArray(s.cooldown) ? s.cooldown : [],
     coachNotes: s.coachNotes,
     includeItems,
+    cardSummary:
+      s.cardSummary && typeof s.cardSummary === 'object'
+        ? {
+            essence:
+              typeof (s.cardSummary as { essence?: unknown }).essence === 'string'
+                ? (s.cardSummary as { essence: string }).essence
+                : undefined,
+            highlightedBlockIds: Array.isArray(
+              (s.cardSummary as { highlightedBlockIds?: unknown }).highlightedBlockIds,
+            )
+              ? (s.cardSummary as { highlightedBlockIds: unknown[] }).highlightedBlockIds.filter(
+                  (id): id is string => typeof id === 'string',
+                )
+              : undefined,
+          }
+        : undefined,
   }
 }
 

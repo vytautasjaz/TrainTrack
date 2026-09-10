@@ -2,13 +2,21 @@ import { NextResponse } from 'next/server'
 import { getAvatarFile } from '@/lib/avatar-storage'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 type RouteContext = {
   params: Promise<{ filename: string }>
 }
 
+function sanitizeAvatarFilename(raw: string) {
+  const decoded = decodeURIComponent(raw)
+  const base = decoded.split(/[?#]/)[0]
+  return base.split('/').pop() ?? ''
+}
+
 export async function GET(_request: Request, context: RouteContext) {
-  const { filename } = await context.params
+  const { filename: raw } = await context.params
+  const filename = sanitizeAvatarFilename(raw)
   const file = await getAvatarFile(filename)
   if (!file) {
     return new NextResponse('Not found', { status: 404 })

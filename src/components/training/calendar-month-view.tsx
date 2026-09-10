@@ -1,13 +1,10 @@
 "use client";
 
 import {
-  cloneElement,
-  isValidElement,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ReactElement,
   type ReactNode,
 } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
@@ -73,12 +70,6 @@ import {
   TABLE_HEADER_VLINE,
   TABLE_SHELL,
 } from "@/lib/table-styles";
-
-/** Mobile + desktop chrome both mount — clone so the same element isn’t reused twice. */
-function keyedNode(node: ReactNode, key: string): ReactNode {
-  if (!isValidElement(node)) return node;
-  return cloneElement(node as ReactElement, { key });
-}
 
 const DAY_NAMES = [
   { short: "Mon", full: "Monday" },
@@ -473,20 +464,28 @@ export function CalendarMonthView({
   const stickyHeader = (
     <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:mb-0 lg:pt-0">
       <div className="flex w-full min-w-0 flex-col gap-2.5 lg:gap-2">
-        {/* Mobile: title + Add / Filter / Expand */}
-        <div className="flex w-full min-w-0 items-center justify-between gap-3 lg:hidden">
-          <div className="min-w-0">{keyedNode(stickyTitle, "month-title-mobile")}</div>
-          <div className="tt-inbox-mobile-header-actions">
+        <div
+          className={cn(
+            "grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2.5",
+            'max-lg:[grid-template-areas:"title_actions"_"period_views"]',
+            'lg:items-end lg:gap-y-2 lg:[grid-template-areas:"title_views"_"period_toolbar"]',
+          )}
+        >
+          <div className="min-w-0 [grid-area:title]">{stickyTitle}</div>
+          <div className="tt-inbox-mobile-header-actions [grid-area:actions] lg:hidden">
             {monthAddMenu}
             <TrainingMonthToolbar mobileOnly {...monthToolbarProps} />
             {expandToggleBtn}
           </div>
-        </div>
-
-        {/* Desktop: same shell as List — title+period left, views+filters right */}
-        <div className="hidden w-full min-w-0 items-end justify-between gap-3 lg:flex">
-          <div className="min-w-0">
-            {keyedNode(stickyTitle, "month-title-desktop")}
+          <div className="min-w-0 justify-self-end [grid-area:views]">
+            {viewControls}
+          </div>
+          <div className="hidden [grid-area:toolbar] lg:block">
+            <PageHeaderActions className="ml-0 flex-col items-end gap-2 pt-0 sm:gap-2.5">
+              <TrainingMonthToolbar desktopOnly {...monthToolbarProps} />
+            </PageHeaderActions>
+          </div>
+          <div className="hidden min-w-0 [grid-area:period] lg:block">
             <CalendarPeriodNav
               label={desktopRangeLabel}
               prevHref={prevMonthHref}
@@ -498,14 +497,17 @@ export function CalendarMonthView({
               className="mb-0 mt-1 min-w-0"
             />
           </div>
-          <PageHeaderActions className="flex-col items-end gap-2 pt-0 sm:gap-2.5">
-            <div className="flex w-full min-w-0 flex-col items-end gap-2">
-              <div className="flex min-w-0 items-center">
-                {keyedNode(viewControls, "month-views-desktop")}
-              </div>
-              <TrainingMonthToolbar desktopOnly {...monthToolbarProps} />
-            </div>
-          </PageHeaderActions>
+          <div className="min-w-0 [grid-area:period] lg:hidden">
+            <CalendarPeriodNav
+              label={rangeLabel}
+              prevHref={prevMonthHref}
+              nextHref={nextMonthHref}
+              prevAriaLabel="Previous month"
+              nextAriaLabel="Next month"
+              align="start"
+              className="mb-0 -ml-1.5 shrink-0"
+            />
+          </div>
         </div>
 
         {expanded && isCoach && athleteName ? (
@@ -525,19 +527,6 @@ export function CalendarMonthView({
             </div>
           </div>
         ) : null}
-
-        <div className="flex w-full min-w-0 items-center justify-between gap-2 lg:hidden">
-          <CalendarPeriodNav
-            label={rangeLabel}
-            prevHref={prevMonthHref}
-            nextHref={nextMonthHref}
-            prevAriaLabel="Previous month"
-            nextAriaLabel="Next month"
-            align="start"
-            className="mb-0 -ml-1.5 shrink-0"
-          />
-          <div className="shrink-0">{keyedNode(viewControls, "month-views-mobile")}</div>
-        </div>
       </div>
     </PageHeader>
   );
@@ -856,8 +845,9 @@ function CalendarDayCell({
               <SeasonEventChips
                 events={events}
                 variant="chip"
-                editable={isCoach}
+                editable
                 dateKey={day.dateKey}
+                isCoach={isCoach}
                 className="gap-0.5"
               />
             ) : null}

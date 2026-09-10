@@ -7,7 +7,7 @@ import { rescheduleWorkout } from '@/app/actions/workouts'
 import { Button } from '@/components/ui/button'
 import { FormError } from '@/components/ui/form-error'
 import { FormField } from '@/components/ui/form-field'
-import { Input } from '@/components/ui/input'
+import { DateField } from '@/components/ui/date-field'
 import {
   Dialog,
   DialogContent,
@@ -75,11 +75,10 @@ export function RescheduleWorkoutModal({
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <FormField label="New date">
-            <Input
-              type="date"
+            <DateField
               required
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={setDate}
             />
           </FormField>
           {workout.rescheduledFromDateKey ? (

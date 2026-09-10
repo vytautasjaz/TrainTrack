@@ -155,3 +155,10 @@ export function formatDateKey(dateKey: string): string {
   const [y, m, d] = dateKey.split('-').map(Number)
   return format(new Date(y, m - 1, d), 'EEE, MMM d')
 }
+
+/** Date field label (e.g. 9 Sep 2026). */
+export function formatDateKeyLong(dateKey: string): string {
+  if (!DATE_ONLY_RE.test(dateKey)) return ''
+  const [y, m, d] = dateKey.split('-').map(Number)
+  return format(new Date(y, m - 1, d), 'd MMM yyyy')
+}

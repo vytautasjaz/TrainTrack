@@ -5,6 +5,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Clock, Eye, EyeOff, Link2 } from "lucide-react";
 import { WorkoutType } from "@prisma/client";
 import { WorkoutSportIcon } from "@/components/plan/workout-sport-icon";
+import { WorkoutCardEssenceLine } from "@/components/plan/workout-card-essence-line";
 import { WORKOUT_TYPE_LABELS } from "@/lib/constants";
 import type {
   DistanceUnit,
@@ -167,6 +168,8 @@ export type EditableWorkoutCardShellProps = {
   sportOptions?: WorkoutType[];
   onSportChange?: (sport: WorkoutType) => void;
   className?: string;
+  /** Athlete-facing main-set essence lines (live card preview). */
+  cardEssence?: string[];
   footer?: ReactNode;
 };
 
@@ -208,6 +211,7 @@ export function EditableWorkoutCardShell({
   sportOptions,
   onSportChange,
   className,
+  cardEssence = [],
   footer,
 }: EditableWorkoutCardShellProps) {
   const canChangeSport =
@@ -442,6 +446,19 @@ export function EditableWorkoutCardShell({
         </div>
       </div>
 
+      {cardEssence.length > 0 ? (
+        <div className="mt-3 flex min-w-0 flex-col gap-0.5 px-0.5 text-[12px] leading-snug">
+          {cardEssence.map((line, index) => (
+            <WorkoutCardEssenceLine
+              key={`${index}-${line}`}
+              line={line}
+              coreClassName="text-white"
+              detailClassName="text-white/55"
+            />
+          ))}
+        </div>
+      ) : null}
+
       <div className="mt-5 flex min-w-0 items-stretch overflow-hidden">
         {workoutTypeControl ? (
           <>
@@ -476,6 +493,10 @@ export function EditableWorkoutCardShell({
                     : "Show on workout card"
                 }
                 onClick={() => {
+                  if (!distanceOnCard) {
+                    toggleDistanceCardVisibility();
+                    return;
+                  }
                   onPrimaryMetricChange("distance");
                 }}
                 className={cn(
@@ -592,6 +613,10 @@ export function EditableWorkoutCardShell({
                 : "Show on workout card"
             }
             onClick={() => {
+              if (!durationOnCard) {
+                toggleDurationCardVisibility();
+                return;
+              }
               onPrimaryMetricChange("duration");
             }}
             className={cn(

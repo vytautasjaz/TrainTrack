@@ -47,6 +47,12 @@ import { EditableWorkoutCardShell } from "@/components/workout-editor/editable-w
 import { IncludeItemsEditor } from "@/components/workout-editor/include-items-editor";
 import { formatIncludeItemsForSubtitle } from "@/components/workout-editor/include-items-summary";
 import { WorkoutBlockBuilder } from "@/components/plan/workout-block-builder";
+import { WorkoutCardSummaryEditor } from "@/components/workout-editor/workout-card-summary-editor";
+import {
+  getWorkoutCardEssenceLines,
+  pruneCardSummary,
+} from "@/lib/workout-builder/card-summary";
+import { useDurationNotation } from "@/components/workout-builder/duration-notation-context";
 import { WorkoutLibraryPicker } from "@/components/workout-builder/workout-library-picker";
 import { SwimWorkoutDetailsFields } from "@/components/swim-workout/swim-workout-details-fields";
 import {
@@ -91,7 +97,6 @@ import {
 import { metricSourceFromEditorIntent } from "@/lib/workout-metric-source";
 import {
   BIKE_WORKOUT_KINDS,
-  autoBikeSubtitle,
   bikeEnvironmentFromTags,
   bikeKindFromTags,
   bikeKindMeta,
@@ -274,10 +279,17 @@ function autoSubtitle(
   typePrefs?: WorkoutTypePrefs | null,
   optionId?: string | null,
 ): string {
+  // Metrics have their own hierarchy on the card; subtitle is contextual only.
+  void durationMin;
+  void distanceKm;
   const includeSuffix = formatIncludeItemsForSubtitle(includeItems);
   let base = "";
   if (sportType === WorkoutType.BIKE && bikeKind) {
-    base = autoBikeSubtitle(bikeKind, durationMin, distanceKm);
+    base = `${WORKOUT_TYPE_LABELS[sportType]} · ${customBikeKindLabel(
+      bikeKind,
+      typePrefs,
+      optionId,
+    )}`;
   } else if (sessionType) {
     const label = customSessionTypeLabel(
       sessionType,
@@ -285,17 +297,7 @@ function autoSubtitle(
       typePrefs,
       optionId,
     );
-    const parts: string[] = [];
-    if (durationMin > 0) parts.push(`${durationMin} min`);
-    if (distanceKm > 0) {
-      parts.push(
-        sportType === WorkoutType.SWIM
-          ? `${Math.round(distanceKm * 1000)} m`
-          : `${Math.round(distanceKm * 10) / 10} km`,
-      );
-    }
-    parts.push(label);
-    base = parts.join(" · ");
+    base = `${WORKOUT_TYPE_LABELS[sportType]} · ${label}`;
   }
   if (!base) return includeSuffix;
   if (!includeSuffix) return base;
@@ -341,6 +343,7 @@ export function SharedWorkoutEditor({
   embedded = false,
   className,
 }: SharedWorkoutEditorProps) {
+  const durationNotation = useDurationNotation();
   const isEdit = Boolean(workout) || Boolean(entityId);
   const isTemplate = mode === "template";
   const [sportType, setSportType] = useState<WorkoutType>(
@@ -955,7 +958,6 @@ export function SharedWorkoutEditor({
 
       if (primaryMetric == null && computedDistanceKm > 0) {
         setPrimaryMetric("distance");
-        setSecondaryMetricVisible(false);
       }
       return;
     }
@@ -988,7 +990,6 @@ export function SharedWorkoutEditor({
 
     if (primaryMetric == null && (minutes > 0 || km > 0)) {
       setPrimaryMetric(km > 0 ? "distance" : "duration");
-      setSecondaryMetricVisible(false);
     }
   }, [
     structureDrivesHero,
@@ -1120,7 +1121,6 @@ export function SharedWorkoutEditor({
     }
     setPrimaryMetric("duration");
     setDurationManual(true);
-    setSecondaryMetricVisible(false);
     setDurationInput(nextValue);
     const total = parseDurationInput(nextValue, durationUnit);
     setDurationMin(total);
@@ -1162,7 +1162,6 @@ export function SharedWorkoutEditor({
     if (!Number.isFinite(value) || value < 0) return;
     setPrimaryMetric("distance");
     setDistanceManual(true);
-    setSecondaryMetricVisible(false);
     setDistanceInput(cleaned);
     const km = config.distanceUnit === "m" ? value / 1000 : value;
     setDistanceKm(km);
@@ -1558,6 +1557,9 @@ export function SharedWorkoutEditor({
       ...(persistDetails ? structure : emptyStructure()),
       coachNotes: coachNotes || undefined,
       includeItems: persistInclude ? includeItems : [],
+      cardSummary: persistDetails
+        ? pruneCardSummary(structure)
+        : undefined,
     };
     const resolvedTitle =
       title.trim() ||
@@ -1704,6 +1706,9 @@ export function SharedWorkoutEditor({
             ...(persistDetails ? structure : emptyStructure()),
             coachNotes: coachNotes || undefined,
             includeItems: persistInclude ? includeItems : [],
+            cardSummary: persistDetails
+              ? pruneCardSummary(structure)
+              : undefined,
           };
           await saveWorkoutDraftToLibrary({
             title: input.title,
@@ -1805,6 +1810,9 @@ export function SharedWorkoutEditor({
         ...(persistDetails ? structure : emptyStructure()),
         coachNotes: coachNotes || undefined,
         includeItems: persistInclude ? includeItems : [],
+        cardSummary: persistDetails
+          ? pruneCardSummary(structure)
+          : undefined,
       };
       const resolvedTitle =
         title.trim() ||
@@ -2372,6 +2380,13 @@ export function SharedWorkoutEditor({
           distanceUnit={config.distanceUnit}
           durationUnit={durationUnit}
           allowDurationUnitToggle={config.allowDurationUnitToggle}
+          cardEssence={
+            config.detailsKind === "blocks" && sportType !== WorkoutType.SWIM
+              ? getWorkoutCardEssenceLines(structure, sportType, durationNotation, {
+                  includeAllBlocks: true,
+                })
+              : []
+          }
           onTitleChange={(value) => {
             setTitle(value);
             setTitleAuto(false);
@@ -2702,13 +2717,20 @@ export function SharedWorkoutEditor({
             !workoutReady ? (
               <WorkoutEditorSectionSkeleton variant="blocks" />
             ) : config.detailsKind === "blocks" ? (
-              <WorkoutBlockBuilder
-                structure={structure}
-                onChange={setStructure}
-                sportType={sportType}
-                athletePreferences={preferences}
-                builderPrefs={builderPrefs}
-              />
+              <>
+                <WorkoutBlockBuilder
+                  structure={structure}
+                  onChange={setStructure}
+                  sportType={sportType}
+                  athletePreferences={preferences}
+                  builderPrefs={builderPrefs}
+                />
+                <WorkoutCardSummaryEditor
+                  structure={structure}
+                  sportType={sportType}
+                  onChange={setStructure}
+                />
+              </>
             ) : (
               <Textarea
                 value={subtitle}

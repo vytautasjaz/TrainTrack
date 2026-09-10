@@ -15,9 +15,12 @@ import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator
 import { WorkoutChatIndicator } from '@/components/plan/workout-chat-indicator'
 import { useOptionalPlanSportFilter } from '@/components/training/plan-sport-filter-context'
 import { WorkoutInlineFeedback } from '@/components/plan/workout-inline-feedback'
+import { WorkoutCardMetricIcon } from '@/components/plan/workout-card-metric-icon'
+import { WorkoutCardEssenceLine } from '@/components/plan/workout-card-essence-line'
 import { useOptionalWeekCardSize } from '@/components/plan/week-card-size-context'
 import {
   getWorkoutCardDuration,
+  getWorkoutCardEssence,
   getWorkoutCardHero,
   getWorkoutCardSubtitle,
   getWorkoutCompletionPercent,
@@ -26,6 +29,7 @@ import {
   workoutHasLoggedActuals,
   type WorkoutCardHero,
 } from '@/lib/workout-card'
+import { useDurationNotation } from '@/components/workout-builder/duration-notation-context'
 import { isStravaSynced, workoutHasCoachingChat, type PlanWorkoutDetail } from '@/lib/plan-workout'
 import type { PlanColorMode } from '@/lib/plan-sport-filter'
 import type { WeekCardSize } from '@/lib/week-card-size'
@@ -83,6 +87,7 @@ export function WeekPlanWorkoutCard({
 }: WeekPlanWorkoutCardProps) {
   const colorMode =
     useOptionalPlanSportFilter()?.colorMode ?? ('completion' as PlanColorMode)
+  const durationNotation = useDurationNotation()
   const ctxSize = useOptionalWeekCardSize()?.cardSize
   const size: WeekCardSize = sizeProp ?? ctxSize ?? defaultWeekCardSize()
 
@@ -92,16 +97,35 @@ export function WeekPlanWorkoutCard({
   const subtitle = getWorkoutCardSubtitle(workout)
   const hero = getWorkoutCardHero(workout, status)
   const secondary = weekCardSecondary(workout, status)
+  const cardEssence = !workout.isRace
+    ? getWorkoutCardEssence(workout, durationNotation, {
+        includeAllBlocks: size === 'm' || size === 'l',
+      })
+    : []
   const showLoggedMetrics = !completed || workoutHasLoggedActuals(workout)
   const metricPrimary =
     showLoggedMetrics && hero ? formatHeroPrimary(hero) : null
   const metricPlanned =
     showLoggedMetrics && hero ? formatHeroPlanned(hero) : null
   const showSubtitle = size !== 's'
-  /** M + L: secondary metric only when coach enabled visibility on card. */
-  const showSecondary = (size === 'm' || size === 'l') && Boolean(secondary)
+  const showSecondary = Boolean(secondary) && showLoggedMetrics
+  const showEssence = cardEssence.length > 0
   const showStructure =
     size === 'l' && workoutHasCardDiagram(workout) && !workout.isRescheduleGhost
+
+  const distanceMetric =
+    hero?.kind === 'distance' && metricPrimary
+      ? { value: metricPrimary, planned: metricPlanned }
+      : showSecondary && hero?.kind === 'duration' && secondary
+        ? { value: secondary.actual, planned: secondary.planned }
+        : null
+  const durationMetric =
+    hero?.kind === 'duration' && metricPrimary
+      ? { value: metricPrimary, planned: metricPlanned }
+      : showSecondary && hero?.kind === 'distance' && secondary
+        ? { value: secondary.actual, planned: secondary.planned }
+        : null
+  const showMetrics = Boolean(distanceMetric || durationMetric)
 
   const pad =
     size === 'l'
@@ -168,10 +192,48 @@ export function WeekPlanWorkoutCard({
     skipped && 'text-[var(--tt-ink-faint,#9a9a9a)]',
   )
 
-  // Mock metrics: primary = dark ink; secondary / planned after slash = faint grey.
-  const metricPrimaryClass =
-    'font-medium tabular-nums text-[var(--tt-ink,#111)]'
-  const metricFaintClass = 'tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]'
+  const essenceCoreClass = cn(
+    'text-[var(--tt-ink,#111)]',
+    completionChrome && completed && 'text-[var(--tt-good,#1a9f5c)]',
+    skipped && 'text-[var(--tt-ink-faint,#9a9a9a)]',
+  )
+  const essenceDetailClass = cn(
+    'text-[var(--tt-ink-soft,#6b6b6b)]',
+    completionChrome && completed && 'text-[var(--tt-good,#1a9f5c)]/75',
+    skipped && 'text-[var(--tt-ink-faint,#9a9a9a)]',
+  )
+
+  const metricValueClass = cn(
+    'font-medium tabular-nums text-[var(--tt-ink,#111)]',
+    completionChrome && completed && 'text-[var(--tt-good,#1a9f5c)]',
+    skipped && 'text-[var(--tt-ink-faint,#9a9a9a)]',
+  )
+  const metricFaintClass = cn(
+    'tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]',
+    skipped && 'text-[var(--tt-ink-faint,#9a9a9a)]',
+  )
+  const metricIconSize = size === 's' ? 'h-2.5 w-2.5' : 'h-3 w-3'
+
+  function renderMetric(
+    kind: 'distance' | 'duration',
+    metric: { value: string; planned?: string | null },
+  ) {
+    return (
+      <p className="flex min-w-0 items-center gap-1 truncate">
+        <WorkoutCardMetricIcon
+          kind={kind}
+          className={cn(metricIconSize, metricValueClass)}
+        />
+        <span className={metricValueClass}>{metric.value}</span>
+        {metric.planned ? (
+          <span className={metricFaintClass}>
+            {'\u00a0/\u00a0'}
+            {metric.planned}
+          </span>
+        ) : null}
+      </p>
+    )
+  }
 
   const blockStatus = workoutStatusToBlockStatus(status)
   // Mock skipped = white card (not pink); completed = green soft in completion mode.
@@ -197,41 +259,33 @@ export function WeekPlanWorkoutCard({
       {showSubtitle && subtitle ? (
         <p className={subtitleClass}>{subtitle}</p>
       ) : null}
-      {metricPrimary || (showSecondary && showLoggedMetrics) ? (
+      {showEssence ? (
         <div
           className={cn(
-            'mt-1.5 flex flex-col gap-0.5 text-[11px] tabular-nums text-[var(--tt-ink-soft,#6b6b6b)]',
-            size === 's' && 'mt-0.5',
+            'mt-1 flex min-w-0 flex-col gap-0.5 leading-snug',
+            size === 's' ? 'text-[10px]' : 'text-[11px]',
           )}
         >
-          {metricPrimary ? (
-            <p className="min-w-0 truncate">
-              <span className={metricPrimaryClass}>{metricPrimary}</span>
-              {metricPlanned ? (
-                <span className={metricFaintClass}>
-                  {'\u00a0/\u00a0'}
-                  {metricPlanned}
-                </span>
-              ) : null}
-            </p>
-          ) : null}
-          {showSecondary && showLoggedMetrics && secondary ? (
-            <p className="min-w-0 truncate">
-              <span
-                className={
-                  metricPrimary ? metricFaintClass : metricPrimaryClass
-                }
-              >
-                {secondary.actual}
-              </span>
-              {secondary.planned ? (
-                <span className={metricFaintClass}>
-                  {'\u00a0/\u00a0'}
-                  {secondary.planned}
-                </span>
-              ) : null}
-            </p>
-          ) : null}
+          {cardEssence.map((line, index) => (
+            <WorkoutCardEssenceLine
+              key={`${index}-${line}`}
+              line={line}
+              coreClassName={essenceCoreClass}
+              detailClassName={essenceDetailClass}
+            />
+          ))}
+        </div>
+      ) : null}
+      {showMetrics ? (
+        <div
+          className={cn(
+            'flex items-center gap-3 text-[11px] tabular-nums',
+            showEssence ? 'mt-1.5 border-t border-[var(--tt-line,#ebebeb)] pt-1.5' : 'mt-1.5',
+            size === 's' && !showEssence && 'mt-0.5',
+          )}
+        >
+          {distanceMetric ? renderMetric('distance', distanceMetric) : null}
+          {durationMetric ? renderMetric('duration', durationMetric) : null}
         </div>
       ) : null}
       {showStructure ? (

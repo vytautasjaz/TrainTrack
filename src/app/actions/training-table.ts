@@ -77,7 +77,7 @@ export async function fetchTrainingTableDays(
   const byDate = mergeRacesIntoByDate(byDateWorkouts, races)
   const dayNotes = await getDayNotesForRange(athleteId, start, end)
   const notesByDate = groupDayNotesByDate(dayNotes, noteViewer)
-  const seasonEventsRaw = await getSeasonEventsForRange(athleteId, start, end)
+  const seasonEventsRaw = await getSeasonEventsForRange(athleteId, start, end, noteViewer)
   const eventsByDate = groupSeasonEventsByDate(seasonEventsRaw, start, end)
 
   const athleteWeather = await prisma.athlete.findUnique({

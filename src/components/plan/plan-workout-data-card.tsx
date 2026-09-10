@@ -2,9 +2,10 @@
 
 import type { ReactNode } from 'react'
 import { WorkoutStatus } from '@prisma/client'
-import { Clock, Flag } from 'lucide-react'
+import { Flag } from 'lucide-react'
 import { WorkoutCardDiagram, workoutHasCardDiagram } from '@/components/plan/workout-card-diagram'
 import { PlanWorkoutCardInlineEdit } from '@/components/plan/plan-workout-card-inline-edit'
+import { WorkoutCardMetricIcon } from '@/components/plan/workout-card-metric-icon'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import { WorkoutChatIndicator } from '@/components/plan/workout-chat-indicator'
 import { isStravaSynced, workoutHasCoachingChat, type PlanWorkoutDetail } from '@/lib/plan-workout'
@@ -225,10 +226,11 @@ export function PlanWorkoutDataCard({
       {hero ? (
         <div
           className={cn(
-            'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap',
+            'flex min-w-0 items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap',
             subtitle ? styles.heroPad : null,
           )}
         >
+          <WorkoutCardMetricIcon kind={hero.kind} className={styles.clock} />
           {hero.approximate ? (
             <span className={cn('font-medium text-[#6B7280]', styles.unit)}>~</span>
           ) : null}
@@ -258,19 +260,14 @@ export function PlanWorkoutDataCard({
       {duration ? (
         <div
           className={cn(
-            'min-w-0 overflow-hidden text-ellipsis whitespace-nowrap',
+            'flex min-w-0 items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap',
             styles.duration,
           )}
         >
-          {hero?.kind === 'distance' ? (
-            <Clock
-              className={cn(
-                styles.clock,
-                'mr-1 inline-block shrink-0 align-[-0.1em] text-[#6B7280]',
-              )}
-              aria-hidden
-            />
-          ) : null}
+          <WorkoutCardMetricIcon
+            kind={hero?.kind === 'duration' ? 'distance' : 'duration'}
+            className={cn(styles.clock, 'text-[#6B7280]')}
+          />
           <span className="font-semibold text-[#111827]">{duration.actual}</span>
           {duration.planned ? (
             <span className="text-[#9CA3AF]">

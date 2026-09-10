@@ -205,6 +205,7 @@ export default async function TrainingPage({
     athleteId,
     rangeStart,
     rangeEnd,
+    noteViewer,
   );
   const eventsByDate = groupSeasonEventsByDate(
     seasonEventsRaw,

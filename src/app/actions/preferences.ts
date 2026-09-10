@@ -469,6 +469,18 @@ export async function updateCoachWorkoutBuilderPrefs(prefs: WorkoutBuilderPrefs)
     select: { workoutBuilderPrefs: true },
   })
   const cleaned = parseWorkoutBuilderPrefs(prefs)
+  const existingParsed = parseWorkoutBuilderPrefs(existing?.workoutBuilderPrefs)
+  // Preset editor may omit durationNotation — keep the saved value unless explicitly set.
+  if (!Object.prototype.hasOwnProperty.call(prefs, 'durationNotation')) {
+    if (existingParsed.durationNotation) {
+      cleaned.durationNotation = existingParsed.durationNotation
+    }
+  } else if (prefs.durationNotation === 'athletic') {
+    cleaned.durationNotation = 'athletic'
+  } else {
+    delete cleaned.durationNotation
+  }
+
   await prisma.user.update({
     where: { id: session.userId },
     data: {

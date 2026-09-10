@@ -20,6 +20,7 @@ import { CoachReplyBlock } from "@/components/plan/coach-reply-block";
 import { MarkCoachReplyReadOnView } from "@/components/athlete/mark-coach-reply-read-on-view";
 import { parseStructure } from "@/lib/workout-builder/utils";
 import { Input } from "@/components/ui/input";
+import { DateField } from "@/components/ui/date-field";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { FormField } from "@/components/ui/form-field";
@@ -145,9 +146,8 @@ export default async function WorkoutDetailPage({
                 required
                 className="sm:col-span-2"
               />
-              <Input
+              <DateField
                 name="date"
-                type="date"
                 defaultValue={dateValue}
                 required
               />

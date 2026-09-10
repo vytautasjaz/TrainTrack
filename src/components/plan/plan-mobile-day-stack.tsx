@@ -346,6 +346,7 @@ export function PlanMobileDayStack({
                   events={day.seasonEvents ?? []}
                   variant="note"
                   editable
+                  isCoach={isCoach}
                 />
               </div>
             )}

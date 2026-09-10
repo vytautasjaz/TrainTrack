@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/dialog'
 import { FormField, FormMessage } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
+import { DateField } from '@/components/ui/date-field'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Caption } from '@/components/ui/typography'
@@ -542,7 +543,7 @@ function LogPastResultDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <FormField label="Date">
-              <Input name="date" type="date" required />
+              <DateField name="date" required />
             </FormField>
             <FormField label="Location" hint="Optional">
               <Input name="location" placeholder="City" autoComplete="off" />

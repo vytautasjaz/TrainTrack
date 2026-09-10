@@ -1171,8 +1171,8 @@ body {
 }
 
 .tt-dashboard-content {
-  max-width: 1500px;
-  margin-inline: auto;
+  max-width: 90rem;
+  margin-inline: 0;
   padding-block: 0.75rem 3rem;
 }
 
@@ -2178,6 +2178,17 @@ html[data-inbox-mobile-detail='true'] .tt-dashboard-content > [class*='space-y']
   min-width: 0;
   flex-direction: column;
   gap: 0.875rem;
+}
+
+/* `.tt-inbox-mobile { display: flex }` overrides Tailwind `lg:hidden`. */
+@media (min-width: 1024px) {
+  .tt-inbox-mobile {
+    display: none;
+  }
+
+  .tt-inbox-shell--mobile-thread {
+    display: none;
+  }
 }
 
 /*

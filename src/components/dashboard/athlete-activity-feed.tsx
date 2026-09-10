@@ -89,7 +89,7 @@ export function AthleteActivityFeed({ workouts }: AthleteActivityFeedProps) {
               {groups.map((group) => (
                 <div key={group.dateKey} className="space-y-2">
                   <ActivityDayHeading dateKey={group.dateKey} />
-                  <ul className="divide-y divide-[var(--tt-line)] overflow-hidden border border-[var(--tt-line)] bg-white">
+                  <ul className={cn(FEED_BUBBLE, 'divide-y divide-[var(--tt-line)]')}>
                     {group.rows
                       .filter(
                         (row): row is CoachHomeWorkoutActivityRow =>

@@ -195,6 +195,7 @@ export function NotesEventsCellAdd({
           onOpenChange={setEventOpen}
           defaultStartDate={dateKey}
           defaultEndDate={dateKey}
+          isCoach={noteKind === 'coach'}
         />
       ) : null}
     </div>

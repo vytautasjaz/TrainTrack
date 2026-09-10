@@ -348,11 +348,54 @@ export type SeasonEventData = {
   notes: string | null
   startDate: Date
   endDate: Date
+  /** True when only the athlete can see the event. */
+  isPrivate?: boolean
+  allDay?: boolean
+  startTime?: string | null
+  endTime?: string | null
+  location?: string | null
 }
 
 /** Display label for season events (title only). */
 export function formatSeasonEventLabel(event: { title: string }): string {
   return event.title.trim() || 'Event'
+}
+
+function formatClockHm(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const match = raw.trim().match(/^(\d{1,2}):([0-5]\d)/)
+  if (!match) return null
+  return `${match[1]!.padStart(2, '0')}:${match[2]}`
+}
+
+/**
+ * Chip / card subtitle:
+ * `09:00 - Vilnius` · `09:00 - 11:30 - Vilnius` · `All day - Vilnius`
+ */
+export function formatSeasonEventWhenLine(event: {
+  allDay?: boolean | null
+  startTime?: string | null
+  endTime?: string | null
+  location?: string | null
+}): string | null {
+  const location = event.location?.trim() || ''
+  const allDay = event.allDay !== false
+  const start = allDay ? null : formatClockHm(event.startTime)
+  const end = allDay ? null : formatClockHm(event.endTime)
+
+  if (allDay) {
+    return location ? `All day - ${location}` : null
+  }
+  if (start && end) {
+    return location ? `${start} - ${end} - ${location}` : `${start} - ${end}`
+  }
+  if (start) {
+    return location ? `${start} - ${location}` : start
+  }
+  if (end) {
+    return location ? `${end} - ${location}` : end
+  }
+  return location || null
 }
 
 /** Soft amber blocks — distinct from A/B/C race cards. */
