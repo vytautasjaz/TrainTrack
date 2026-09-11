@@ -20,6 +20,7 @@ import {
 import { WORKOUT_LIST_ORDER_BY } from '@/lib/workout-sort'
 import { athleteOwnedByCoachWhere } from '@/lib/session'
 import { normalizeNotificationPrefs } from '@/lib/notification-prefs'
+import type { SessionLoadThresholds } from '@/lib/training-load/session-tss'
 import {
   listCoachInboxThreads,
   serializeInboxThread,
@@ -366,7 +367,7 @@ export async function getAthleteDashboard(athleteId: string) {
           date: { lte: today },
           isRescheduleGhost: false,
           type: { notIn: [WorkoutType.REST, WorkoutType.RECOVERY] },
-          status: { in: [WorkoutStatus.COMPLETED, WorkoutStatus.SKIPPED] },
+          status: WorkoutStatus.COMPLETED,
         },
         include: WORKOUT_PLAN_INCLUDE,
         orderBy: [{ date: 'desc' }, { updatedAt: 'desc' }],
@@ -376,7 +377,15 @@ export async function getAthleteDashboard(athleteId: string) {
       getRacesForRange(athleteId, monthStart, monthEnd),
       prisma.athlete.findUnique({
         where: { id: athleteId },
-        select: { planSportRows: true, swimCssSecPer100m: true },
+        select: {
+          planSportRows: true,
+          swimCssSecPer100m: true,
+          bikeFtpWatts: true,
+          paceThresholdMinPerKm: true,
+          hrMax: true,
+          hrResting: true,
+          hrZone4Max: true,
+        },
       }),
     ])
 
@@ -475,6 +484,14 @@ export async function getAthleteDashboard(athleteId: string) {
     weekStatsAnchorStartKey: toDateKey(weekStart),
     planSportRows: athletePlan?.planSportRows ?? [],
     swimCssSecPer100m: athletePlan?.swimCssSecPer100m ?? null,
+    trainingLoadThresholds: {
+      bikeFtpWatts: athletePlan?.bikeFtpWatts ?? null,
+      paceThresholdMinPerKm: athletePlan?.paceThresholdMinPerKm ?? null,
+      swimCssSecPer100m: athletePlan?.swimCssSecPer100m ?? null,
+      hrMax: athletePlan?.hrMax ?? null,
+      hrResting: athletePlan?.hrResting ?? null,
+      hrZone4Max: athletePlan?.hrZone4Max ?? null,
+    },
   }
 }
 
@@ -1086,6 +1103,21 @@ export async function getCoachHomeData(coachId: string) {
   )
   const athleteOptions = athleteOptionsFromRoster(rosterRows)
 
+  const loadThresholdsByAthleteId: Record<string, SessionLoadThresholds> =
+    Object.fromEntries(
+      dashboard.athletes.map((athlete) => [
+        athlete.id,
+        {
+          bikeFtpWatts: athlete.bikeFtpWatts ?? null,
+          paceThresholdMinPerKm: athlete.paceThresholdMinPerKm ?? null,
+          swimCssSecPer100m: athlete.swimCssSecPer100m ?? null,
+          hrMax: athlete.hrMax ?? null,
+          hrResting: athlete.hrResting ?? null,
+          hrZone4Max: athlete.hrZone4Max ?? null,
+        },
+      ]),
+    )
+
   return {
     ...dashboard,
     pendingCoach,
@@ -1101,6 +1133,7 @@ export async function getCoachHomeData(coachId: string) {
     needsPlanCount,
     activityTableRows,
     athleteOptions,
+    loadThresholdsByAthleteId,
   }
 }
 
@@ -1155,6 +1188,7 @@ export async function getRacesForRange(athleteId: string, start: Date, end: Date
       goal: true,
       url: true,
       triathlonDistance: true,
+      hyroxDivision: true,
       customDistanceKm: true,
       outcome: true,
       resultTime: true,

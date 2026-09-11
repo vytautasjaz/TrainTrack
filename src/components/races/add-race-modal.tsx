@@ -37,6 +37,7 @@ function coachRecentRaceToFormInitial(row: CoachRecentRace): RaceFormInitialValu
     type: row.type,
     courseType: row.courseType,
     triathlonDistance: row.triathlonDistance,
+    hyroxDivision: row.hyroxDivision,
     customDistanceKm: row.customDistanceKm,
     legs: row.legs.map((leg) => ({
       ...leg,

@@ -2,12 +2,13 @@ import {
   RaceLegKind,
   RaceOutcome,
   RaceType,
+  HyroxDivision,
   TriathlonDistance,
   WorkoutType,
   type RacePriority,
 } from '@prisma/client'
 import { RACE_OUTCOME_LABELS, RACE_TYPE_LABELS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
-import { TRI_DISTANCE_OPTIONS } from '@/lib/race-form'
+import { HYROX_DIVISION_LABELS, TRI_DISTANCE_OPTIONS, type HyroxDivisionId } from '@/lib/race-form'
 import { toDateKey } from '@/lib/dates'
 import { matchPersonalBestPreset } from '@/lib/personal-bests'
 import { formatRaceLegResult } from '@/lib/race-legs'
@@ -26,6 +27,7 @@ export type RaceResultRow = {
   type: RaceType
   sport: WorkoutType
   triathlonDistance: TriathlonDistance | null
+  hyroxDivision: HyroxDivision | null
   customDistanceKm: number | null
   priority: RacePriority
   outcome: RaceOutcome
@@ -47,11 +49,15 @@ export function raceResultDistanceLabel(row: {
   type: RaceType
   sport: WorkoutType
   triathlonDistance?: TriathlonDistance | null
+  hyroxDivision?: HyroxDivision | null
   customDistanceKm?: number | null
 }): string {
   if (row.type === RaceType.TRIATHLON && row.triathlonDistance) {
     const tri = TRI_DISTANCE_OPTIONS.find((o) => o.id === row.triathlonDistance)
     return tri?.label ?? RACE_TYPE_LABELS.TRIATHLON
+  }
+  if (row.type === RaceType.HYROX && row.hyroxDivision) {
+    return HYROX_DIVISION_LABELS[row.hyroxDivision as HyroxDivisionId] ?? RACE_TYPE_LABELS.HYROX
   }
   if (row.type === RaceType.OTHER || row.type === RaceType.CYCLING) {
     if (row.customDistanceKm != null && row.customDistanceKm > 0) {
@@ -81,6 +87,7 @@ export function serializeRaceResult(race: {
   type: RaceType
   sport: WorkoutType
   triathlonDistance: TriathlonDistance | null
+  hyroxDivision: HyroxDivision | null
   customDistanceKm: number | null
   priority: RacePriority
   outcome: RaceOutcome | null
@@ -103,6 +110,7 @@ export function serializeRaceResult(race: {
     type: race.type,
     sport: race.sport,
     triathlonDistance: race.triathlonDistance,
+    hyroxDivision: race.hyroxDivision,
     customDistanceKm: race.customDistanceKm,
     priority: race.priority,
     outcome: race.outcome,

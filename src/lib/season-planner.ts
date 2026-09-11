@@ -94,16 +94,51 @@ export function resolvePreparationWeeks(
   return null
 }
 
-/** Zoom: months visible in the viewport. Index 0 = widest. */
-export const PLANNER_ZOOM_VIEWPORTS = [12, 6, 3] as const
-export const PLANNER_ZOOM_LABELS = ['12 months', '6 months', '3 months'] as const
-export const PLANNER_ZOOM_MAX = PLANNER_ZOOM_VIEWPORTS.length - 1
-/** Default: 3 months (widest week columns). */
-export const DEFAULT_PLANNER_ZOOM = PLANNER_ZOOM_MAX
+export type PlannerZoomUnit = 'week' | 'day'
 
+export type PlannerZoomLevel = {
+  label: string
+  shortLabel: string
+  unit: PlannerZoomUnit
+  /** Approximate days visible in the viewport. */
+  viewportDays: number
+}
+
+/** Index 0 = widest (year). Default stays at 4 months.
+ * Desktop: 12 mo → 6 mo → 4 mo → 2 wk (4 steps).
+ * Mobile: same + 1 wk as the tightest step.
+ */
+export const PLANNER_ZOOM_LEVELS = [
+  { label: '12 months', shortLabel: '12 mo', unit: 'week', viewportDays: 365 },
+  { label: '6 months', shortLabel: '6 mo', unit: 'week', viewportDays: 183 },
+  { label: '4 months', shortLabel: '4 mo', unit: 'week', viewportDays: 122 },
+  { label: '2 weeks', shortLabel: '2 wk', unit: 'day', viewportDays: 14 },
+  { label: '1 week', shortLabel: '1 wk', unit: 'day', viewportDays: 7 },
+] as const satisfies readonly PlannerZoomLevel[]
+
+/** Tightest zoom on desktop (2 weeks). */
+export const PLANNER_ZOOM_DESKTOP_MAX = 3
+/** Tightest zoom on mobile (1 week). */
+export const PLANNER_ZOOM_MOBILE_MAX = PLANNER_ZOOM_LEVELS.length - 1
+export const PLANNER_ZOOM_MAX = PLANNER_ZOOM_MOBILE_MAX
+/** Default: 4 months (week columns). */
+export const DEFAULT_PLANNER_ZOOM = 2
+
+/** @deprecated Prefer PLANNER_ZOOM_LEVELS — kept for short-label lookups. */
+export const PLANNER_ZOOM_LABELS = PLANNER_ZOOM_LEVELS.map((level) => level.label)
+
+export function plannerZoomLevel(zoom: number): PlannerZoomLevel {
+  const index = Math.min(PLANNER_ZOOM_MAX, Math.max(0, Math.round(zoom)))
+  return PLANNER_ZOOM_LEVELS[index]!
+}
+
+export function plannerZoomUnit(zoom: number): PlannerZoomUnit {
+  return plannerZoomLevel(zoom).unit
+}
+
+/** Approximate months in viewport (week zooms only; day zooms return a fraction). */
 export function plannerViewportMonths(zoom: number): number {
-  const index = Math.min(PLANNER_ZOOM_MAX, Math.max(0, zoom))
-  return PLANNER_ZOOM_VIEWPORTS[index]
+  return plannerZoomLevel(zoom).viewportDays / 30.4
 }
 
 export const PLANNER_LABEL_WIDTH_DESKTOP = 112
@@ -111,7 +146,14 @@ export const PLANNER_LABEL_WIDTH_NARROW = 72
 /** Matches Tailwind `sm`. */
 export const PLANNER_NARROW_MAX_PX = 639
 export const PLANNER_MIN_WEEK_COL = 24
+export const PLANNER_MIN_DAY_COL = 28
 export const PLANNER_FALLBACK_GRID_PX = 900
+
+export function plannerZoomMaxForWidth(viewportWidth: number): number {
+  return viewportWidth <= PLANNER_NARROW_MAX_PX
+    ? PLANNER_ZOOM_MOBILE_MAX
+    : PLANNER_ZOOM_DESKTOP_MAX
+}
 
 export function plannerLabelWidth(viewportWidth: number): number {
   return viewportWidth <= PLANNER_NARROW_MAX_PX
@@ -119,26 +161,73 @@ export function plannerLabelWidth(viewportWidth: number): number {
     : PLANNER_LABEL_WIDTH_DESKTOP
 }
 
-export function plannerVisibleWeekCount(zoom: number): number {
-  const months = plannerViewportMonths(zoom)
-  return Math.max(8, Math.round(months * 4.35))
+export function plannerVisibleColumnCount(zoom: number): number {
+  const level = plannerZoomLevel(zoom)
+  if (level.unit === 'day') {
+    return Math.max(7, level.viewportDays)
+  }
+  return Math.max(8, Math.round(level.viewportDays / 7))
 }
 
-/** Column width (px) scales so the visible grid ≈ that many months of weeks. */
+/** @deprecated Prefer plannerVisibleColumnCount. */
+export function plannerVisibleWeekCount(zoom: number): number {
+  return plannerVisibleColumnCount(zoom)
+}
+
+/** Column width (px) so the visible grid ≈ the zoom viewport. */
+export function plannerColumnWidth(
+  zoom: number,
+  visibleGridPx = PLANNER_FALLBACK_GRID_PX,
+): number {
+  const columnsVisible = plannerVisibleColumnCount(zoom)
+  const target = Math.max(160, visibleGridPx)
+  const minCol =
+    plannerZoomUnit(zoom) === 'day' ? PLANNER_MIN_DAY_COL : PLANNER_MIN_WEEK_COL
+  return Math.max(minCol, Math.round(target / columnsVisible))
+}
+
+/** @deprecated Prefer plannerColumnWidth. */
 export function plannerWeekColumnWidth(
   zoom: number,
   visibleGridPx = PLANNER_FALLBACK_GRID_PX,
 ): number {
-  const weeksVisible = plannerVisibleWeekCount(zoom)
-  const target = Math.max(160, visibleGridPx)
-  return Math.max(PLANNER_MIN_WEEK_COL, Math.round(target / weeksVisible))
+  return plannerColumnWidth(zoom, visibleGridPx)
 }
 
 /**
- * Horizontal scroll so `weekIndex` sits in the grid *after* the sticky label
+ * Horizontal scroll so `columnIndex` sits in the grid *after* the sticky label
  * column — never under it. `insetRatio` is how far into the remaining grid
- * the week’s left edge should land.
+ * the column’s left edge should land.
  */
+export function plannerScrollLeftForColumn(
+  columnIndex: number,
+  colW: number,
+  scrollerWidth: number,
+  labelW: number,
+  insetRatio = 0.22,
+): number {
+  if (columnIndex < 0 || colW <= 0) return 0
+  const visibleGrid = Math.max(0, scrollerWidth - labelW)
+  const inset = Math.min(
+    Math.max(visibleGrid * insetRatio, 8),
+    Math.max(visibleGrid - colW, 0),
+  )
+  return Math.max(0, columnIndex * colW - inset)
+}
+
+/** Keep a column centered in the visible grid (used when zooming). */
+export function plannerScrollLeftToCenterColumn(
+  columnIndex: number,
+  colW: number,
+  scrollerWidth: number,
+  labelW: number,
+): number {
+  if (columnIndex < 0 || colW <= 0) return 0
+  const visibleGrid = Math.max(0, scrollerWidth - labelW)
+  return Math.max(0, columnIndex * colW + colW / 2 - visibleGrid / 2)
+}
+
+/** @deprecated Prefer plannerScrollLeftForColumn. */
 export function plannerScrollLeftForWeek(
   weekIndex: number,
   colW: number,
@@ -146,13 +235,7 @@ export function plannerScrollLeftForWeek(
   labelW: number,
   insetRatio = 0.22,
 ): number {
-  if (weekIndex < 0 || colW <= 0) return 0
-  const visibleGrid = Math.max(0, scrollerWidth - labelW)
-  const inset = Math.min(
-    Math.max(visibleGrid * insetRatio, 8),
-    Math.max(visibleGrid - colW, 0),
-  )
-  return Math.max(0, weekIndex * colW - inset)
+  return plannerScrollLeftForColumn(weekIndex, colW, scrollerWidth, labelW, insetRatio)
 }
 
 export const PLANNER_LOOKBACK_WEEKS = 8
@@ -171,16 +254,41 @@ export type PlannerWeekColumn = {
   monthLabel: string
 }
 
+export type PlannerDayColumn = {
+  key: string
+  /** UTC midnight of the day. */
+  start: Date
+  /** UTC end of the day (same calendar day). */
+  end: Date
+  dayOfMonth: number
+  /** 0 Sun … 6 Sat (UTC). */
+  weekday: number
+  year: number
+  monthKey: string
+  monthLabel: string
+}
+
 export type PlannerMonthGroup = {
   key: string
   label: string
   year: number
+  /** Number of columns (weeks or days) in this month group. */
   weekCount: number
   startIndex: number
 }
 
+type PlannerMonthSource = {
+  monthKey: string
+  monthLabel: string
+  year: number
+}
+
+function utcDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+}
+
 function utcMonday(d: Date): Date {
-  const date = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+  const date = utcDay(d)
   const day = date.getUTCDay()
   const toMonday = day === 0 ? -6 : 1 - day
   date.setUTCDate(date.getUTCDate() + toMonday)
@@ -239,18 +347,42 @@ export function buildPlannerWeekColumns(rangeStart: Date, rangeEnd: Date): Plann
   return columns
 }
 
-export function groupPlannerMonths(weeks: PlannerWeekColumn[]): PlannerMonthGroup[] {
+export function buildPlannerDayColumns(rangeStart: Date, rangeEnd: Date): PlannerDayColumn[] {
+  const columns: PlannerDayColumn[] = []
+  let cursor = utcDay(rangeStart)
+  const endMs = utcDay(rangeEnd).getTime()
+  while (cursor.getTime() <= endMs) {
+    const year = cursor.getUTCFullYear()
+    const month = cursor.getUTCMonth()
+    columns.push({
+      key: cursor.toISOString().slice(0, 10),
+      start: new Date(cursor),
+      end: new Date(cursor),
+      dayOfMonth: cursor.getUTCDate(),
+      weekday: cursor.getUTCDay(),
+      year,
+      monthKey: `${year}-${String(month + 1).padStart(2, '0')}`,
+      monthLabel: MONTH_FULL[month],
+    })
+    cursor = addUtcDays(cursor, 1)
+  }
+  return columns
+}
+
+export function groupPlannerMonths(
+  columns: readonly PlannerMonthSource[],
+): PlannerMonthGroup[] {
   const groups: PlannerMonthGroup[] = []
-  for (let i = 0; i < weeks.length; i++) {
-    const week = weeks[i]!
+  for (let i = 0; i < columns.length; i++) {
+    const column = columns[i]!
     const last = groups[groups.length - 1]
-    if (last && last.key === week.monthKey) {
+    if (last && last.key === column.monthKey) {
       last.weekCount += 1
     } else {
       groups.push({
-        key: week.monthKey,
-        label: week.monthLabel,
-        year: week.year,
+        key: column.monthKey,
+        label: column.monthLabel,
+        year: column.year,
         weekCount: 1,
         startIndex: i,
       })
@@ -267,18 +399,107 @@ export function buildPlannerScrollRange(today = new Date()): { start: Date; end:
   return { start: utcMonday(start), end }
 }
 
-export function weekIndexForDate(weeks: PlannerWeekColumn[], date: Date): number {
+type DatedColumn = { start: Date; end: Date }
+
+function columnUtcStartMs(column: DatedColumn): number {
+  return Date.UTC(
+    column.start.getUTCFullYear(),
+    column.start.getUTCMonth(),
+    column.start.getUTCDate(),
+  )
+}
+
+/** Visual duration of one planner column in ms (week = 7d, day = 1d). */
+function plannerColumnDurationMs(unit: PlannerZoomUnit): number {
+  return unit === 'day' ? 86_400_000 : 7 * 86_400_000
+}
+
+function columnIndexForDate(columns: readonly DatedColumn[], date: Date): number {
+  if (columns.length === 0) return 0
   const t = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
-  for (let i = 0; i < weeks.length; i++) {
-    const w = weeks[i]!
-    if (t >= w.start.getTime() && t <= w.end.getTime()) return i
+  for (let i = 0; i < columns.length; i++) {
+    const column = columns[i]!
+    const start = Date.UTC(
+      column.start.getUTCFullYear(),
+      column.start.getUTCMonth(),
+      column.start.getUTCDate(),
+    )
+    const end = Date.UTC(
+      column.end.getUTCFullYear(),
+      column.end.getUTCMonth(),
+      column.end.getUTCDate(),
+    )
+    if (t >= start && t <= end) return i
   }
-  if (t < weeks[0]!.start.getTime()) return 0
-  return weeks.length - 1
+  if (t < Date.UTC(
+    columns[0]!.start.getUTCFullYear(),
+    columns[0]!.start.getUTCMonth(),
+    columns[0]!.start.getUTCDate(),
+  )) {
+    return 0
+  }
+  return columns.length - 1
+}
+
+/** Absolute UTC time under a grid X (px from timeline start). */
+export function plannerTimeMsAtGridX(
+  columns: readonly DatedColumn[],
+  colW: number,
+  gridX: number,
+  unit: PlannerZoomUnit,
+): number {
+  if (columns.length === 0 || colW <= 0) return Date.now()
+  const exact = Math.max(0, Math.min(columns.length - 1e-6, gridX / colW))
+  const col = Math.floor(exact)
+  const frac = exact - col
+  const startMs = columnUtcStartMs(columns[col]!)
+  return startMs + frac * plannerColumnDurationMs(unit)
+}
+
+/** Grid X (px) for an absolute UTC time — continuous within the column. */
+export function plannerGridXForTimeMs(
+  columns: readonly DatedColumn[],
+  colW: number,
+  timeMs: number,
+  unit: PlannerZoomUnit,
+): number {
+  if (columns.length === 0 || colW <= 0) return 0
+  const col = columnIndexForDate(columns, new Date(timeMs))
+  const startMs = columnUtcStartMs(columns[col]!)
+  const duration = plannerColumnDurationMs(unit)
+  const frac = Math.min(1, Math.max(0, (timeMs - startMs) / duration))
+  return (col + frac) * colW
+}
+
+/** Scroll so `timeMs` sits at `ratio` across the visible grid (0.5 = center). */
+export function plannerScrollLeftToTimeMs(
+  columns: readonly DatedColumn[],
+  colW: number,
+  scrollerWidth: number,
+  labelW: number,
+  timeMs: number,
+  unit: PlannerZoomUnit,
+  ratio = 0.5,
+): number {
+  const visibleGrid = Math.max(0, scrollerWidth - labelW)
+  const x = plannerGridXForTimeMs(columns, colW, timeMs, unit)
+  return Math.max(0, x - visibleGrid * ratio)
+}
+
+export function weekIndexForDate(weeks: PlannerWeekColumn[], date: Date): number {
+  return columnIndexForDate(weeks, date)
+}
+
+export function dayIndexForDate(days: PlannerDayColumn[], date: Date): number {
+  return columnIndexForDate(days, date)
 }
 
 export function todayWeekIndex(weeks: PlannerWeekColumn[], today = new Date()): number {
   return weekIndexForDate(weeks, today)
+}
+
+export function todayDayIndex(days: PlannerDayColumn[], today = new Date()): number {
+  return dayIndexForDate(days, today)
 }
 
 /**
@@ -324,6 +545,24 @@ export function prepWindowForRace(args: {
     endWeekIndex: raceIdx,
     weeksRemaining,
     active: weeksRemaining >= 0,
+  }
+}
+
+/**
+ * Convert a week-indexed prep window into day column indices
+ * (Monday of start week → Sunday of end week).
+ */
+export function prepWindowDaySpan(
+  prep: PrepWindow,
+  weeks: PlannerWeekColumn[],
+  days: PlannerDayColumn[],
+): { startDayIndex: number; endDayIndex: number } | null {
+  const startWeek = weeks[prep.startWeekIndex]
+  const endWeek = weeks[prep.endWeekIndex]
+  if (!startWeek || !endWeek) return null
+  return {
+    startDayIndex: dayIndexForDate(days, startWeek.start),
+    endDayIndex: dayIndexForDate(days, endWeek.end),
   }
 }
 

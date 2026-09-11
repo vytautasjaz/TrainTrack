@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, isCoachView, coachCanAccessAthlete, requireCoachOwnsAthlete } from '@/lib/session'
 import { parseDateOnly, requireDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
-import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, CoachAthleteLinkStatus, PlannedMetricSource } from '@prisma/client'
+import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, HyroxDivision, CoachAthleteLinkStatus, PlannedMetricSource } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
 import { defaultSportForRaceType } from '@/lib/races'
 import {
@@ -99,6 +99,14 @@ function parseTriathlonDistance(value: FormDataEntryValue | null): TriathlonDist
   if (!raw) return null
   return (Object.values(TriathlonDistance) as string[]).includes(raw)
     ? (raw as TriathlonDistance)
+    : null
+}
+
+function parseHyroxDivision(value: FormDataEntryValue | null): HyroxDivision | null {
+  const raw = typeof value === 'string' ? value.trim() : ''
+  if (!raw) return null
+  return (Object.values(HyroxDivision) as string[]).includes(raw)
+    ? (raw as HyroxDivision)
     : null
 }
 
@@ -755,6 +763,11 @@ export async function createRace(formData: FormData) {
   const courseType = parseRaceCourseType(formData.get('courseType'))
   const triathlonDistance =
     raceType === RaceType.TRIATHLON ? parseTriathlonDistance(formData.get('triathlonDistance')) : null
+  const hyroxDivision =
+    raceType === RaceType.HYROX ? parseHyroxDivision(formData.get('hyroxDivision')) : null
+  if (raceType === RaceType.HYROX && !hyroxDivision) {
+    throw new Error('Pick a HYROX division.')
+  }
   const isTriCustom = triathlonDistance === TriathlonDistance.CUSTOM
   const customDistanceKm = isTriCustom
     ? sumTriCustomDistanceKm(formData)
@@ -783,6 +796,7 @@ export async function createRace(formData: FormData) {
       sport: sportRaw || defaultSportForRaceType(raceType),
       courseType,
       triathlonDistance,
+      hyroxDivision,
       customDistanceKm,
       priority: priorityRaw,
       intent: intentRaw,
@@ -1346,6 +1360,11 @@ export async function updateRace(formData: FormData) {
   const courseType = parseRaceCourseType(formData.get('courseType'))
   const triathlonDistance =
     raceType === RaceType.TRIATHLON ? parseTriathlonDistance(formData.get('triathlonDistance')) : null
+  const hyroxDivision =
+    raceType === RaceType.HYROX ? parseHyroxDivision(formData.get('hyroxDivision')) : null
+  if (raceType === RaceType.HYROX && !hyroxDivision) {
+    throw new Error('Pick a HYROX division.')
+  }
   const isTriCustom = triathlonDistance === TriathlonDistance.CUSTOM
   const customDistanceKm = isTriCustom
     ? sumTriCustomDistanceKm(formData)
@@ -1375,6 +1394,7 @@ export async function updateRace(formData: FormData) {
       sport: sportRaw || defaultSportForRaceType(raceType),
       courseType,
       triathlonDistance,
+      hyroxDivision,
       customDistanceKm,
       priority: priorityRaw,
       intent: intentRaw,

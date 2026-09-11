@@ -31,6 +31,7 @@ function raceToInitial(race: SeasonRace): RaceFormInitialValues {
     type: race.type,
     courseType: race.courseType,
     triathlonDistance: race.triathlonDistance,
+    hyroxDivision: race.hyroxDivision,
     customDistanceKm: race.customDistanceKm,
     legs: race.legs,
     raceId: race.id,

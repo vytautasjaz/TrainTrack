@@ -50,7 +50,6 @@ export function UpcomingRaceTable({ races, className }: UpcomingRaceTableProps) 
                     <th>Status</th>
                     <th>Distance</th>
                     <th>Priority</th>
-                    <th>Goal</th>
                     <th className="text-right">Weeks</th>
                     <th>
                       <span className="sr-only">Actions</span>
@@ -85,18 +84,16 @@ export function UpcomingRaceTable({ races, className }: UpcomingRaceTableProps) 
                         <td>
                           <StatusPill tone="planned">Planned</StatusPill>
                         </td>
-                        <td className={cn('whitespace-nowrap', DATA_NUM, DATA_CELL_SECONDARY)}>
+                        <td className={cn('whitespace-nowrap', DATA_CELL_SECONDARY)}>
                           {raceDistanceLabel(race.type, {
                             triathlonDistance: race.triathlonDistance,
+                            hyroxDivision: race.hyroxDivision,
                             customDistanceKm: race.customDistanceKm,
                             legs: race.legs,
                           })}
                         </td>
                         <td>
                           <PriorityBadge priority={race.priority} />
-                        </td>
-                        <td className={cn('max-w-[10rem] truncate', DATA_CELL_SECONDARY)}>
-                          {race.goal || '—'}
                         </td>
                         <td className="text-right">
                           <div className="flex flex-col items-end leading-tight">
@@ -152,6 +149,13 @@ export function UpcomingRaceTable({ races, className }: UpcomingRaceTableProps) 
                     </p>
                     <p className={cn('mt-1', DATA_CELL_META)}>
                       {race.location || '—'}
+                      {' · '}
+                      {raceDistanceLabel(race.type, {
+                        triathlonDistance: race.triathlonDistance,
+                        hyroxDivision: race.hyroxDivision,
+                        customDistanceKm: race.customDistanceKm,
+                        legs: race.legs,
+                      })}
                       {' · '}
                       <span className={DATA_NUM}>{weeks}w</span>
                     </p>

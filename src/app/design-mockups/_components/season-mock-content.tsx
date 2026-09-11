@@ -1,13 +1,14 @@
 'use client'
 
 import {
+  useEffect,
   useLayoutEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react'
 import type { RacePriority } from '@prisma/client'
-import { ChevronLeft, ChevronRight, Plus, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Minus, Plus, Search } from 'lucide-react'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
 import { StatusPill } from '@/components/ui/status-pill'
 import {
@@ -29,15 +30,16 @@ import {
   PLANNER_PRIORITY_SHADOW,
   PLANNER_SPORT_LABELS,
   PLANNER_SPORTS,
-  PLANNER_ZOOM_LABELS,
+  PLANNER_ZOOM_DESKTOP_MAX,
   SEASON_EVENT_CARD,
   buildPlannerScrollRange,
   buildPlannerWeekColumns,
   groupPlannerMonths,
+  plannerColumnWidth,
   plannerLabelWidth,
-  plannerVisibleWeekCount,
-  plannerViewportMonths,
-  plannerWeekColumnWidth,
+  plannerVisibleColumnCount,
+  plannerZoomLevel,
+  plannerZoomMaxForWidth,
   todayWeekIndex,
   type PlannerSport,
 } from '@/lib/season-planner'
@@ -254,7 +256,7 @@ const PAST = [
 function useMockPlannerLayout(zoom: number) {
   const [layout, setLayout] = useState(() => ({
     labelW: plannerLabelWidth(1024),
-    colW: plannerWeekColumnWidth(zoom),
+    colW: plannerColumnWidth(zoom),
   }))
 
   useLayoutEffect(() => {
@@ -265,7 +267,7 @@ function useMockPlannerLayout(zoom: number) {
       const visibleGrid = Math.max(160, scrollerW - labelW)
       setLayout({
         labelW,
-        colW: plannerWeekColumnWidth(zoom, visibleGrid),
+        colW: plannerColumnWidth(zoom, visibleGrid),
       })
     }
     measure()
@@ -434,6 +436,7 @@ function RaceCard({
  */
 export function SeasonMockContent() {
   const [zoom, setZoom] = useState(DEFAULT_PLANNER_ZOOM)
+  const [zoomMax, setZoomMax] = useState(PLANNER_ZOOM_DESKTOP_MAX)
   const [priority, setPriority] = useState<Record<RacePriority, boolean>>({
     A: true,
     B: true,
@@ -451,6 +454,17 @@ export function SeasonMockContent() {
     'date' | 'name' | 'sport' | 'priority' | 'result'
   > | null>({ key: 'date', dir: 'desc' })
   const { labelW, colW } = useMockPlannerLayout(zoom)
+
+  useEffect(() => {
+    const sync = () => {
+      const max = plannerZoomMaxForWidth(window.innerWidth)
+      setZoomMax(max)
+      setZoom((z) => (z > max ? max : z))
+    }
+    sync()
+    window.addEventListener('resize', sync)
+    return () => window.removeEventListener('resize', sync)
+  }, [])
 
   const upcomingRows = useMemo(() => {
     const rows = [...UPCOMING]
@@ -526,8 +540,8 @@ export function SeasonMockContent() {
   }, [])
   const months = useMemo(() => groupPlannerMonths(weeks), [weeks])
   const todayIdx = todayWeekIndex(weeks, MOCK_TODAY)
-  const viewportWeeks = plannerVisibleWeekCount(zoom)
-  const shortMonthLabels = plannerViewportMonths(zoom) >= 12
+  const viewportWeeks = plannerVisibleColumnCount(zoom)
+  const shortMonthLabels = plannerZoomLevel(zoom).viewportDays >= 365
   const gridW = weeks.length * colW
 
   const raceA = todayIdx + 7
@@ -579,18 +593,26 @@ export function SeasonMockContent() {
           </button>
 
           <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            <SegmentedControl aria-label="Calendar range">
-              {PLANNER_ZOOM_LABELS.map((label, i) => (
-                <SegmentedControlItem
-                  key={label}
-                  active={zoom === i}
-                  type="button"
-                  onClick={() => setZoom(i)}
-                >
-                  {label.replace(' months', ' mo').replace(' month', ' mo')}
-                </SegmentedControlItem>
-              ))}
-            </SegmentedControl>
+            <div className="inline-flex items-center gap-0.5" role="group" aria-label="Zoom">
+              <button
+                type="button"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-[6px] border border-border text-muted-foreground disabled:opacity-35"
+                aria-label="Zoom out"
+                disabled={zoom <= 0}
+                onClick={() => setZoom((z) => Math.max(0, z - 1))}
+              >
+                <Minus className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                className="inline-flex h-7 w-7 items-center justify-center rounded-[6px] border border-border text-muted-foreground disabled:opacity-35"
+                aria-label="Zoom in"
+                disabled={zoom >= zoomMax}
+                onClick={() => setZoom((z) => Math.min(zoomMax, z + 1))}
+              >
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            </div>
             <button
               type="button"
               className="rounded-[6px] border border-border bg-card px-2.5 py-1.5 text-xs font-medium"
@@ -639,13 +661,20 @@ export function SeasonMockContent() {
                     <div
                       key={m.key}
                       className={cn(
-                        'flex items-center justify-center border-r border-white/8 px-2 py-1.5 text-center text-[11px] font-semibold',
+                        'relative border-r border-white/8',
                         TABLE_HEADER_CELL_STRONG,
                       )}
                       style={{ width: m.weekCount * colW }}
                     >
-                      <span>{shortMonthLabels ? m.label.slice(0, 3) : m.label}</span>
-                      <span className="ml-1 text-white/45">{m.year}</span>
+                      <div
+                        className="tt-season-month-label sticky z-[1] flex w-max max-w-full items-center gap-1 px-2 py-1.5 text-[11px] font-semibold"
+                        style={{ left: labelW }}
+                      >
+                        <span>
+                          {shortMonthLabels ? m.label.slice(0, 3) : m.label}
+                        </span>
+                        <span className="text-white/45">{m.year}</span>
+                      </div>
                     </div>
                   ))}
                 </div>

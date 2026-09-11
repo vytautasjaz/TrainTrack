@@ -82,6 +82,7 @@ export type PlanWorkoutDetail = {
     kilojoules?: number | null
     calories?: number | null
     averageWatts?: number | null
+    weightedAverageWatts?: number | null
     summaryPolyline?: string | null
     logType: AthleteLogType | null
   } | null
@@ -144,6 +145,7 @@ export function toPlanWorkoutDetail(w: {
     kilojoules?: number | null
     calories?: number | null
     averageWatts?: number | null
+    weightedAverageWatts?: number | null
     summaryPolyline?: string | null
     logType?: AthleteLogType | null
   } | null
@@ -208,6 +210,7 @@ export function toPlanWorkoutDetail(w: {
           kilojoules: w.result.kilojoules ?? null,
           calories: w.result.calories ?? null,
           averageWatts: w.result.averageWatts ?? null,
+          weightedAverageWatts: w.result.weightedAverageWatts ?? null,
           summaryPolyline: w.result.summaryPolyline ?? null,
           logType: w.result.logType ?? null,
         }

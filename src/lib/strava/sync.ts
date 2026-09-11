@@ -76,9 +76,8 @@ function stravaMetricsFromActivity(activity: StravaActivity) {
     averageCadence: optionalFinite(activity.average_cadence),
     kilojoules: optionalFinite(activity.kilojoules),
     calories: optionalFinite(activity.calories),
-    averageWatts: optionalFinite(
-      activity.average_watts ?? activity.weighted_average_watts,
-    ),
+    averageWatts: optionalFinite(activity.average_watts),
+    weightedAverageWatts: optionalFinite(activity.weighted_average_watts),
     summaryPolyline,
   }
 }
@@ -315,12 +314,19 @@ export async function syncStravaActivitiesForUser(
       // Backfill description / metrics / GPS / second-precise duration for previously synced activities.
       const needsDescription = !existing.stravaActivityDescription?.trim()
       const needsMetrics = existing.averageHeartrate == null && existing.averageSpeedMps == null
+      const needsWeightedWatts = existing.weightedAverageWatts == null
       const needsPolyline = !existing.summaryPolyline?.trim()
       const durationMin = secondsToMinutes(activity.moving_time || activity.elapsed_time)
       const needsDurationPrecision =
         existing.actualDuration == null ||
         Number.isInteger(existing.actualDuration)
-      if (needsDescription || needsMetrics || needsPolyline || needsDurationPrecision) {
+      if (
+        needsDescription ||
+        needsMetrics ||
+        needsWeightedWatts ||
+        needsPolyline ||
+        needsDurationPrecision
+      ) {
         try {
           const detailed =
             needsDescription || needsPolyline
@@ -370,8 +376,15 @@ export async function syncStravaActivitiesForUser(
                     kilojoules: existing.kilojoules ?? metrics.kilojoules,
                     calories: existing.calories ?? metrics.calories,
                     averageWatts: existing.averageWatts ?? metrics.averageWatts,
+                    weightedAverageWatts:
+                      existing.weightedAverageWatts ?? metrics.weightedAverageWatts,
                   }
-                : {}),
+                : needsWeightedWatts
+                  ? {
+                      weightedAverageWatts: metrics.weightedAverageWatts,
+                      averageWatts: existing.averageWatts ?? metrics.averageWatts,
+                    }
+                  : {}),
             },
           })
         } catch (err) {
@@ -539,6 +552,7 @@ export async function unlinkStravaFromWorkoutForAthlete(
         kilojoules: null,
         calories: null,
         averageWatts: null,
+        weightedAverageWatts: null,
         summaryPolyline: null,
         actualDistance: null,
         actualDuration: null,

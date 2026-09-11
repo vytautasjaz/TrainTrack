@@ -11,6 +11,10 @@ import {
 } from '@/lib/dates'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import {
+  daySessionLoad,
+  type SessionLoadThresholds,
+} from '@/lib/training-load/session-tss'
+import {
   HomeMobileSectionHeader,
 } from '@/components/ui/mobile-accordion-body'
 import {
@@ -31,9 +35,12 @@ const CENTER_INDEX = 1
 const SHELL =
   'overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] px-4 py-3.5 shadow-[var(--tt-shadow)] md:rounded-[10px] md:p-4'
 
+type LoadMetric = 'tss' | 'time'
+
 type AthleteTrainingLoadCardProps = {
   workouts: PlanWorkoutDetail[]
   anchorWeekStartKey: string
+  thresholds?: SessionLoadThresholds
   className?: string
 }
 
@@ -42,7 +49,7 @@ function weekDateKeys(weekStartKey: string): string[] {
   return Array.from({ length: 7 }, (_, i) => toDateKey(addDateOnlyDays(start, i)))
 }
 
-/** Daily volume proxy (minutes) until real TSS exists — matches mock chart chrome. */
+/** Daily duration minutes — same planned/actual rules as TSS series. */
 function dayLoadMinutes(
   workouts: PlanWorkoutDetail[],
   dateKey: string,
@@ -56,9 +63,12 @@ function dayLoadMinutes(
     if (w.status === 'SKIPPED') continue
 
     const usePlanned =
-      weekIsFullyFuture || dateKey > todayKey || dateKey === todayKey
-    if (usePlanned && w.status !== 'COMPLETED') {
-      sum += w.plannedDuration ?? 0
+      weekIsFullyFuture ||
+      dateKey > todayKey ||
+      (dateKey === todayKey && w.status !== 'COMPLETED')
+
+    if (usePlanned) {
+      sum += w.plannedDuration ?? w.result?.actualDuration ?? 0
       continue
     }
     if (w.status === 'COMPLETED') {
@@ -66,6 +76,32 @@ function dayLoadMinutes(
     }
   }
   return Math.max(0, Math.round(sum))
+}
+
+function formatDelta(
+  current: number,
+  previous: number,
+  metric: LoadMetric,
+): {
+  label: string
+  positive: boolean
+} {
+  if (previous <= 0 && current <= 0) {
+    return {
+      label: metric === 'tss' ? 'No load yet' : 'No volume yet',
+      positive: true,
+    }
+  }
+  if (previous <= 0) {
+    return { label: 'New week load', positive: true }
+  }
+  const pct = Math.round(((current - previous) / previous) * 100)
+  if (pct === 0) return { label: 'Same as prior week', positive: true }
+  const sign = pct > 0 ? '+' : '−'
+  return {
+    label: `${sign}${Math.abs(pct)}% vs prior week`,
+    positive: pct >= 0,
+  }
 }
 
 function toPoints(daily: number[], yMax: number) {
@@ -95,25 +131,6 @@ function smoothPath(daily: number[], yMax: number): string {
     d += ` C ${cp1x.toFixed(2)} ${cp1y.toFixed(2)}, ${cp2x.toFixed(2)} ${cp2y.toFixed(2)}, ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`
   }
   return d
-}
-
-function formatDelta(current: number, previous: number): {
-  label: string
-  positive: boolean
-} {
-  if (previous <= 0 && current <= 0) {
-    return { label: 'No volume yet', positive: true }
-  }
-  if (previous <= 0) {
-    return { label: 'New week load', positive: true }
-  }
-  const pct = Math.round(((current - previous) / previous) * 100)
-  if (pct === 0) return { label: 'Same as prior week', positive: true }
-  const sign = pct > 0 ? '+' : '−'
-  return {
-    label: `${sign}${Math.abs(pct)}% vs prior week`,
-    positive: pct >= 0,
-  }
 }
 
 function LoadChart({
@@ -190,17 +207,19 @@ function LoadChart({
 
 /**
  * Athlete Home rail — Training load chart (mock `/design-mockups` TrainingLoadMock).
- * Uses duration minutes as volume stand-in until TSS exists.
+ * Toggle between approximate session TSS and duration volume.
  */
 export function AthleteTrainingLoadCard({
   workouts,
   anchorWeekStartKey,
+  thresholds = {},
   className,
 }: AthleteTrainingLoadCardProps) {
   /** Logical week being shown (header + morph target). */
   const [active, setActive] = useState(CENTER_INDEX)
   /** Carousel track position — only moves on swipe (arrows morph in place). */
   const [paneActive, setPaneActive] = useState(CENTER_INDEX)
+  const [metric, setMetric] = useState<LoadMetric>('tss')
   const [dailyMorphFrom, setDailyMorphFrom] = useState<number[] | null>(null)
   const [morphGen, setMorphGen] = useState(0)
   const todayKey = todayDateKey()
@@ -214,9 +233,13 @@ export function AthleteTrainingLoadCard({
       const end = parseDateOnly(keys[6]!)
       const start = parseDateOnly(keys[0]!)
       const planned = keys.every((k) => k > todayKey)
-      const daily = keys.map((k) =>
+      const dailyTss = keys.map((k) =>
+        daySessionLoad(workouts, k, todayKey, planned, thresholds),
+      )
+      const dailyTime = keys.map((k) =>
         dayLoadMinutes(workouts, k, todayKey, planned),
       )
+      const daily = metric === 'tss' ? dailyTss : dailyTime
       const total = daily.reduce((a, b) => a + b, 0)
       const range =
         format(start, 'd') === format(end, 'd')
@@ -226,9 +249,20 @@ export function AthleteTrainingLoadCard({
             : `${format(start, 'd MMM')} – ${format(end, 'd MMM')}`
       const label =
         off === 0 ? 'This week' : off === -1 ? 'Last week' : 'Next week'
-      return { off, startKey, keys, daily, total, range, label, planned }
+      return {
+        off,
+        startKey,
+        keys,
+        daily,
+        dailyTss,
+        dailyTime,
+        total,
+        range,
+        label,
+        planned,
+      }
     })
-  }, [anchorWeekStartKey, workouts, todayKey])
+  }, [anchorWeekStartKey, workouts, todayKey, thresholds, metric])
 
   const yMax = useMemo(
     () => Math.max(...weeks.flatMap((w) => w.daily), 1),
@@ -239,7 +273,20 @@ export function AthleteTrainingLoadCard({
   const prior = weeks.find((w) => w.off === week.off - 1)
   const delta = week.planned
     ? { label: 'Planned week', positive: true }
-    : formatDelta(week.total, prior?.total ?? 0)
+    : formatDelta(week.total, prior?.total ?? 0, metric)
+
+  const unitLabel = metric === 'tss' ? 'TSS' : 'min'
+
+  const switchMetric = useCallback(
+    (next: LoadMetric) => {
+      if (next === metric) return
+      setDailyMorphFrom([...weeks[active]!.daily])
+      setMorphGen((g) => g + 1)
+      setMetric(next)
+      window.setTimeout(() => setDailyMorphFrom(null), 500)
+    },
+    [active, metric, weeks],
+  )
 
   const syncPaneToActive = useCallback(() => {
     if (syncTimerRef.current != null) {
@@ -335,19 +382,58 @@ export function AthleteTrainingLoadCard({
               : formatDelta(
                   data.total,
                   weeks.find((w) => w.off === data.off - 1)?.total ?? 0,
+                  metric,
                 )
 
           return (
             <WeekSwipeSlide key={slide.startKey} active={isVisible}>
-              <p
-                className="text-[1.875rem] uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)] tabular-nums"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                {data.total}{' '}
-                <span className="text-base font-normal normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
-                  min{data.planned ? ' plan' : ''}
-                </span>
-              </p>
+              <div className="flex items-end justify-between gap-2">
+                <p
+                  className="text-[1.875rem] uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)] tabular-nums"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  {data.total}{' '}
+                  <span className="text-base font-normal normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
+                    {unitLabel}
+                    {data.planned ? ' plan' : ''}
+                  </span>
+                </p>
+                {isVisible ? (
+                  <div
+                    className="mb-0.5 flex shrink-0 items-center gap-1 text-[10px] font-medium tracking-[0.02em]"
+                    role="group"
+                    aria-label="Load metric"
+                  >
+                    {(
+                      [
+                        { id: 'tss' as const, label: 'TSS' },
+                        { id: 'time' as const, label: 'Time' },
+                      ] as const
+                    ).map((option, index) => (
+                      <span key={option.id} className="inline-flex items-center gap-1">
+                        {index > 0 ? (
+                          <span className="text-[var(--tt-ink-faint,#9a9a9a)]" aria-hidden>
+                            ·
+                          </span>
+                        ) : null}
+                        <button
+                          type="button"
+                          aria-pressed={metric === option.id}
+                          onClick={() => switchMetric(option.id)}
+                          className={cn(
+                            'transition',
+                            metric === option.id
+                              ? 'text-[var(--tt-ink,#111)]'
+                              : 'text-[var(--tt-ink-faint,#9a9a9a)] hover:text-[var(--tt-ink-soft,#6b6b6b)]',
+                          )}
+                        >
+                          {option.label}
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
               <p
                 className={cn(
                   'mt-1 text-[12px] font-semibold',
@@ -360,7 +446,7 @@ export function AthleteTrainingLoadCard({
               </p>
 
               <LoadChart
-                key={`${slide.startKey}-${isVisible ? morphGen : 'idle'}`}
+                key={`${slide.startKey}-${metric}-${isVisible ? morphGen : 'idle'}`}
                 daily={data.daily}
                 yMax={yMax}
                 planned={data.planned}

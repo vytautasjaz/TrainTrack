@@ -8,7 +8,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 /** Increment when Race (or other) model fields change during local development. */
-const PRISMA_CLIENT_EPOCH = 12
+const PRISMA_CLIENT_EPOCH = 13
 
 function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL

@@ -29,9 +29,12 @@ import {
 } from '@/app/actions/race-results'
 import { PersonalBestUpdateModal } from '@/components/races/personal-best-update-modal'
 import {
-  RACE_FORM_SPORTS,
+  RACE_FORM_SPORT_GROUPS,
   RUN_DISTANCE_OPTIONS,
   TRI_DISTANCE_OPTIONS,
+  HYROX_DISTANCE_GROUPS,
+  courseTypeForSportId,
+  raceFormSportFamily,
   type RaceFormSportId,
 } from '@/lib/race-form'
 import {
@@ -480,26 +483,30 @@ function LogPastResultDialog({
   const [pbSuggestion, setPbSuggestion] = useState<PersonalBestSuggestion | null>(null)
   const [pbOpen, setPbOpen] = useState(false)
 
+  const sportFamily = raceFormSportFamily(sportId)
   const distanceChoices =
-    sportId === 'RUN'
+    sportFamily === 'RUN'
       ? RUN_DISTANCE_OPTIONS
-      : sportId === 'TRIATHLON'
+      : sportFamily === 'TRIATHLON'
         ? TRI_DISTANCE_OPTIONS.map((o) => ({ id: o.id, label: o.label }))
-        : sportId === 'HYROX'
-          ? [{ id: 'STANDARD', label: 'Standard' }]
+        : sportFamily === 'HYROX'
+          ? HYROX_DISTANCE_GROUPS.flatMap((g) => g.options)
           : [{ id: 'CUSTOM', label: 'Custom' }]
 
+  const hyroxDistanceGroups = sportFamily === 'HYROX' ? HYROX_DISTANCE_GROUPS : null
+
   const showCustomKm =
-    (sportId === 'RUN' && distance === 'CUSTOM') ||
-    sportId === 'BIKE' ||
-    sportId === 'SWIM' ||
-    sportId === 'OTHER'
+    (sportFamily === 'RUN' && distance === 'CUSTOM') ||
+    sportFamily === 'BIKE' ||
+    sportFamily === 'SWIM' ||
+    sportFamily === 'OTHER'
 
   function onSportChange(next: RaceFormSportId) {
     setSportId(next)
-    if (next === 'RUN') setDistance('TEN_K')
-    else if (next === 'TRIATHLON') setDistance(TriathlonDistance.OLYMPIC)
-    else if (next === 'HYROX') setDistance('STANDARD')
+    const family = raceFormSportFamily(next)
+    if (family === 'RUN') setDistance('TEN_K')
+    else if (family === 'TRIATHLON') setDistance(TriathlonDistance.OLYMPIC)
+    else if (family === 'HYROX') setDistance('')
     else setDistance('CUSTOM')
   }
 
@@ -508,6 +515,8 @@ function LogPastResultDialog({
     formData.set('sportId', sportId)
     formData.set('distance', distance)
     formData.set('outcome', outcome)
+    const courseType = courseTypeForSportId(sportId)
+    if (courseType) formData.set('courseType', courseType)
     startTransition(async () => {
       try {
         const result = await createManualRaceResult(formData)
@@ -556,20 +565,51 @@ function LogPastResultDialog({
                 value={sportId}
                 onChange={(e) => onSportChange(e.target.value as RaceFormSportId)}
               >
-                {RACE_FORM_SPORTS.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.label}
-                  </option>
-                ))}
+                {RACE_FORM_SPORT_GROUPS.map((group) =>
+                  group.label ? (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.options.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : (
+                    group.options.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))
+                  ),
+                )}
               </Select>
             </FormField>
             <FormField label="Distance">
-              <Select value={distance} onChange={(e) => setDistance(e.target.value)}>
-                {distanceChoices.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.label}
-                  </option>
-                ))}
+              <Select
+                value={distance}
+                required={
+                  sportFamily === 'HYROX' ||
+                  sportFamily === 'RUN' ||
+                  sportFamily === 'TRIATHLON'
+                }
+                onChange={(e) => setDistance(e.target.value)}
+              >
+                {hyroxDistanceGroups ? <option value="">Select</option> : null}
+                {hyroxDistanceGroups
+                  ? hyroxDistanceGroups.map((group) => (
+                      <optgroup key={group.label} label={group.label}>
+                        {group.options.map((opt) => (
+                          <option key={opt.id} value={opt.id}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))
+                  : distanceChoices.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
+                      </option>
+                    ))}
               </Select>
             </FormField>
           </div>

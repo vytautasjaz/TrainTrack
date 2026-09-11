@@ -3,12 +3,12 @@
 import { RaceIntent, RacePriority } from '@prisma/client'
 import { Calendar, Flag, MapPin, MoreHorizontal } from 'lucide-react'
 import {
-  RACE_FORM_SPORTS,
-  courseTypeLabel,
   distanceSummaryLabel,
+  raceFormSportFamily,
+  raceFormSportLabel,
+  resolveWorkoutSport,
   runDistanceFromRaceType,
   sportIdFromRace,
-  type RaceFormSportId,
 } from '@/lib/race-form'
 import { RACE_INTENT_LABELS, RACE_PRIORITY_LABELS } from '@/lib/constants'
 import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
@@ -56,10 +56,6 @@ function formatDate(date: Date): string {
   })
 }
 
-function sportLabel(id: RaceFormSportId): string {
-  return RACE_FORM_SPORTS.find((s) => s.id === id)?.label ?? id
-}
-
 type RaceHeroSummaryProps = {
   race: SeasonRace
   /** Flush to modal top edge. */
@@ -74,8 +70,9 @@ export function RaceHeroSummary({ race, flush = true, className }: RaceHeroSumma
     type: race.type,
     courseType: race.courseType,
   })
+  const sportFamily = raceFormSportFamily(sportId)
   const runDistance =
-    sportId === 'RUN' ? runDistanceFromRaceType(race.type) : null
+    sportFamily === 'RUN' ? runDistanceFromRaceType(race.type) : null
   const triDistance =
     sportId === 'TRIATHLON'
       ? (race.triathlonDistance ?? TriathlonDistance.OLYMPIC)
@@ -83,8 +80,14 @@ export function RaceHeroSummary({ race, flush = true, className }: RaceHeroSumma
   const legs = race.legs ?? []
   const distLabel = distanceSummaryLabel({
     sportId,
-    runDistance: sportId === 'RUN' ? runDistance : sportId === 'BIKE' || sportId === 'SWIM' || sportId === 'OTHER' ? 'CUSTOM' : null,
+    runDistance:
+      sportFamily === 'RUN'
+        ? runDistance
+        : sportFamily === 'BIKE' || sportFamily === 'SWIM' || sportFamily === 'OTHER'
+          ? 'CUSTOM'
+          : null,
     triDistance,
+    hyroxDistance: sportId === 'HYROX' ? (race.hyroxDivision ?? null) : null,
     customDistanceKm: race.customDistanceKm,
     customSwimKm: legs.find((l) => l.kind === 'SWIM')?.plannedDistanceKm,
     customBikeKm: legs.find((l) => l.kind === 'BIKE')?.plannedDistanceKm,
@@ -93,9 +96,7 @@ export function RaceHeroSummary({ race, flush = true, className }: RaceHeroSumma
   const SportIcon =
     sportId === 'OTHER'
       ? MoreHorizontal
-      : WORKOUT_TYPE_ICONS[
-          RACE_FORM_SPORTS.find((s) => s.id === sportId)?.sport ?? 'RUN'
-        ]
+      : WORKOUT_TYPE_ICONS[resolveWorkoutSport(sportId)]
 
   const gradient = isWatching ? HERO_WATCHING.gradient : HERO_GRADIENT[race.priority]
   const iconBox = isWatching ? HERO_WATCHING.icon : HERO_ICON[race.priority]
@@ -168,7 +169,9 @@ export function RaceHeroSummary({ race, flush = true, className }: RaceHeroSumma
           <div className="mt-1.5 flex h-8 w-full items-center justify-center">
             <div className="inline-flex max-w-full items-center gap-1">
               <SportIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-              <span className="truncate text-sm font-semibold">{sportLabel(sportId)}</span>
+              <span className="truncate text-sm font-semibold">
+                {raceFormSportLabel(sportId)}
+              </span>
             </div>
           </div>
         </div>
@@ -181,19 +184,6 @@ export function RaceHeroSummary({ race, flush = true, className }: RaceHeroSumma
           </span>
           <div className="mt-1.5 flex h-8 w-full items-center justify-center">
             <span className="truncate text-sm font-semibold">{distLabel || '—'}</span>
-          </div>
-        </div>
-
-        <div className="w-px shrink-0 self-stretch bg-foreground/20" />
-
-        <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center px-1.5 text-center">
-          <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Type
-          </span>
-          <div className="mt-1.5 flex h-8 w-full items-center justify-center">
-            <span className="truncate text-sm font-semibold">
-              {race.courseType ? courseTypeLabel(race.courseType) : '—'}
-            </span>
           </div>
         </div>
       </div>

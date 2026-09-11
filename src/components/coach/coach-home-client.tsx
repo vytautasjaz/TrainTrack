@@ -20,6 +20,7 @@ import {
   CoachHomePlanningCoverageRow,
   coachHomeAttentionContextAt,
 } from '@/lib/coach-home'
+import type { SessionLoadThresholds } from '@/lib/training-load/session-tss'
 import { cn } from '@/lib/utils'
 
 const HANDLED_FLASH_MS = 420
@@ -35,6 +36,7 @@ type CoachHomeClientProps = {
   planningLeadDays: number
   activityRows: CoachHomeActivityTableRow[]
   athleteOptions: Array<{ id: string; name: string }>
+  loadThresholdsByAthleteId?: Record<string, SessionLoadThresholds>
   totalAthletes: number
   coachingCode: string | null
 }
@@ -49,6 +51,7 @@ export function CoachHomeClient({
   planningLeadDays,
   activityRows,
   athleteOptions,
+  loadThresholdsByAthleteId = {},
   totalAthletes,
   coachingCode,
 }: CoachHomeClientProps) {
@@ -251,6 +254,7 @@ export function CoachHomeClient({
             )}
             rows={activityRows}
             athleteOptions={athleteOptions}
+            loadThresholdsByAthleteId={loadThresholdsByAthleteId}
           />
         </div>
       </div>

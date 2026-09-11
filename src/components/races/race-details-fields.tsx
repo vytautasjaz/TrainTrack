@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  RaceCourseType,
   RaceIntent,
   RacePriority,
   TriathlonDistance,
@@ -13,16 +12,19 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { RACE_INTENT_LABELS, RACE_PRIORITY_LABELS } from '@/lib/constants'
 import {
-  RACE_FORM_SPORTS,
-  courseTypeLabel,
-  courseTypesForSport,
+  RACE_FORM_SPORT_GROUPS,
+  courseTypeForSportId,
+  distanceOptionGroupsForSport,
   distanceOptionsForSport,
+  isHyroxDivisionId,
+  raceFormSportFamily,
   resolveRaceType,
   resolveWorkoutSport,
   runDistanceFromRaceType,
   showsCustomDistance,
   showsTriCustomLegDistances,
   sportIdFromRace,
+  type HyroxDivisionId,
   type RaceFormSportId,
   type RunDistancePreset,
 } from '@/lib/race-form'
@@ -35,7 +37,7 @@ import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
 import { cn } from '@/lib/utils'
 import { useState } from 'react'
 import type { RaceLegView } from '@/lib/race-legs'
-import type { RaceType, WorkoutType } from '@prisma/client'
+import type { RaceCourseType, RaceType, WorkoutType } from '@prisma/client'
 
 const RACE_PRIORITIES = Object.keys(RACE_PRIORITY_LABELS) as RacePriority[]
 
@@ -83,6 +85,7 @@ export type RaceFormInitialValues = {
   type?: RaceType
   courseType?: RaceCourseType | null
   triathlonDistance?: TriathlonDistance | null
+  hyroxDivision?: HyroxDivisionId | null
   customDistanceKm?: number | null
   legs?: RaceLegView[]
   raceId?: string
@@ -92,7 +95,7 @@ type RaceDetailsFieldsProps = {
   initial?: RaceFormInitialValues
   lockedIntent?: RaceIntent
   showIntent?: boolean
-  /** Hero card + Sport/Distance/Type metrics row. */
+  /** Hero card + Sport/Distance metrics row. */
   showSummary?: boolean
   /** Seamless modal top (no frame); use in Add Race dialog. */
   heroFlush?: boolean
@@ -116,16 +119,17 @@ export function RaceDetailsFields({
       })
     : null
 
+  const inferredFamily = raceFormSportFamily(inferredSport)
   const [sportId, setSportId] = useState<RaceFormSportId | null>(inferredSport)
   const [runDistance, setRunDistance] = useState<RunDistancePreset | null>(() => {
-    if (!isEdit || !inferredSport) return null
-    if (inferredSport === 'RUN') {
+    if (!isEdit || !inferredSport || !inferredFamily) return null
+    if (inferredFamily === 'RUN') {
       return initial?.type ? runDistanceFromRaceType(initial.type) : null
     }
     if (
-      inferredSport === 'BIKE' ||
-      inferredSport === 'SWIM' ||
-      inferredSport === 'OTHER'
+      inferredFamily === 'BIKE' ||
+      inferredFamily === 'SWIM' ||
+      inferredFamily === 'OTHER'
     ) {
       return initial?.customDistanceKm != null ? 'CUSTOM' : null
     }
@@ -137,11 +141,13 @@ export function RaceDetailsFields({
         ? (initial?.triathlonDistance ?? null)
         : null,
   )
-  const [hyroxDistance, setHyroxDistance] = useState<'STANDARD' | null>(
-    () => (inferredSport === 'HYROX' ? 'STANDARD' : null),
-  )
-  const [courseType, setCourseType] = useState<RaceCourseType | null>(
-    () => initial?.courseType ?? null,
+  const [hyroxDistance, setHyroxDistance] = useState<HyroxDivisionId | null>(
+    () =>
+      inferredSport === 'HYROX' &&
+      initial?.hyroxDivision &&
+      isHyroxDivisionId(initial.hyroxDivision)
+        ? initial.hyroxDivision
+        : null,
   )
   const [intent, setIntent] = useState<RaceIntent>(
     lockedIntent ?? initial?.intent ?? RaceIntent.PLANNED,
@@ -156,6 +162,8 @@ export function RaceDetailsFields({
     initial?.customDistanceKm != null ? String(initial.customDistanceKm) : '',
   )
 
+  const sportFamily = raceFormSportFamily(sportId)
+  const courseType = courseTypeForSportId(sportId)
   const isWatching = intent === RaceIntent.WATCHING
   const headerPriority = priority
   const heroGradient = isWatching ? HERO_WATCHING.gradient : HERO_GRADIENT[headerPriority]
@@ -165,19 +173,22 @@ export function RaceDetailsFields({
   const raceType = resolveRaceType({
     sportId,
     runDistance:
-      sportId === 'RUN' || sportId === 'BIKE' || sportId === 'SWIM' || sportId === 'OTHER'
+      sportFamily === 'RUN' ||
+      sportFamily === 'BIKE' ||
+      sportFamily === 'SWIM' ||
+      sportFamily === 'OTHER'
         ? runDistance
         : null,
     triDistance: sportId === 'TRIATHLON' ? triDistance : null,
   })
   const sport = resolveWorkoutSport(sportId)
-  const courseOptions = courseTypesForSport(sportId)
   const distanceOptions = distanceOptionsForSport(sportId)
+  const distanceGroups = distanceOptionGroupsForSport(sportId)
   const showCustomKm = showsCustomDistance(sportId, runDistance, triDistance)
   const showTriLegDistances = showsTriCustomLegDistances(sportId, triDistance)
 
   const distanceSelectValue =
-    sportId === 'RUN'
+    sportFamily === 'RUN'
       ? (runDistance ?? '')
       : sportId === 'TRIATHLON'
         ? (triDistance ?? '')
@@ -189,10 +200,12 @@ export function RaceDetailsFields({
 
   function selectSport(next: RaceFormSportId | null) {
     setSportId(next)
-    setRunDistance(null)
+    const family = raceFormSportFamily(next)
+    setRunDistance(
+      family === 'BIKE' || family === 'SWIM' || family === 'OTHER' ? 'CUSTOM' : null,
+    )
     setTriDistance(null)
     setHyroxDistance(null)
-    setCourseType(null)
     setCustomKm('')
   }
 
@@ -204,7 +217,7 @@ export function RaceDetailsFields({
       setCustomKm('')
       return
     }
-    if (sportId === 'RUN') {
+    if (sportFamily === 'RUN') {
       setRunDistance(value as RunDistancePreset)
       return
     }
@@ -213,7 +226,7 @@ export function RaceDetailsFields({
       return
     }
     if (sportId === 'HYROX') {
-      setHyroxDistance('STANDARD')
+      setHyroxDistance(isHyroxDivisionId(value) ? value : null)
       return
     }
     setRunDistance(value === 'CUSTOM' ? 'CUSTOM' : null)
@@ -244,6 +257,11 @@ export function RaceDetailsFields({
         <input type="hidden" name="triathlonDistance" value={triDistance} />
       ) : (
         <input type="hidden" name="triathlonDistance" value="" />
+      )}
+      {sportId === 'HYROX' && hyroxDistance ? (
+        <input type="hidden" name="hyroxDivision" value={hyroxDistance} />
+      ) : (
+        <input type="hidden" name="hyroxDivision" value="" />
       )}
       {showCustomKm ? (
         <input type="hidden" name="customDistanceKm" value={customKm} />
@@ -396,7 +414,7 @@ export function RaceDetailsFields({
             </div>
           </div>
 
-          {/* Sport / Distance / Type — workout-style metrics row */}
+          {/* Sport / Distance — workout-style metrics row */}
           <div className="mt-4 flex min-w-0 items-stretch overflow-hidden border-t border-black/10 pt-3">
             <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center px-1.5 text-center">
               <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -426,11 +444,23 @@ export function RaceDetailsFields({
                     )}
                   >
                     <option value="">Select</option>
-                    {RACE_FORM_SPORTS.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.label}
-                      </option>
-                    ))}
+                    {RACE_FORM_SPORT_GROUPS.map((group) =>
+                      group.label ? (
+                        <optgroup key={group.label} label={group.label}>
+                          {group.options.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ) : (
+                        group.options.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.label}
+                          </option>
+                        ))
+                      ),
+                    )}
                   </select>
                 </div>
               </div>
@@ -446,6 +476,11 @@ export function RaceDetailsFields({
                 <select
                   aria-label="Distance"
                   disabled={!sportId}
+                  required={
+                    sportFamily === 'HYROX' ||
+                    sportFamily === 'RUN' ||
+                    sportFamily === 'TRIATHLON'
+                  }
                   value={distanceSelectValue}
                   onChange={(e) => onDistanceChange(e.target.value)}
                   className={cn(
@@ -454,11 +489,21 @@ export function RaceDetailsFields({
                   )}
                 >
                   <option value="">Select</option>
-                  {distanceOptions.map((opt) => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </option>
-                  ))}
+                  {distanceGroups
+                    ? distanceGroups.map((group) => (
+                        <optgroup key={group.label} label={group.label}>
+                          {group.options.map((opt) => (
+                            <option key={opt.id} value={opt.id}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))
+                    : distanceOptions.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
                 </select>
               </div>
               {showCustomKm ? (
@@ -473,37 +518,6 @@ export function RaceDetailsFields({
                   className="mt-1 w-full max-w-[5.5rem] border-0 border-b border-foreground/20 bg-transparent pb-0.5 text-center text-xs tabular-nums outline-none placeholder:text-muted-foreground/40 focus:border-foreground/40"
                 />
               ) : null}
-            </div>
-
-            <div className="w-px shrink-0 self-stretch bg-foreground/20" />
-
-            <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center px-1.5 text-center">
-              <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Type
-              </span>
-              <div className="mt-1.5 flex h-8 w-full items-center justify-center">
-                <select
-                  aria-label="Type"
-                  disabled={!sportId}
-                  value={courseType ?? ''}
-                  onChange={(e) =>
-                    setCourseType(
-                      e.target.value ? (e.target.value as RaceCourseType) : null,
-                    )
-                  }
-                  className={cn(
-                    metricSelectClass,
-                    !courseType && 'font-medium text-muted-foreground',
-                  )}
-                >
-                  <option value="">Select</option>
-                  {courseOptions.map((c) => (
-                    <option key={c} value={c}>
-                      {courseTypeLabel(c)}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
           </div>
         </div>

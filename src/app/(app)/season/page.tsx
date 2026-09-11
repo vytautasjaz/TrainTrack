@@ -43,6 +43,7 @@ export default async function SeasonPlanPage() {
         sport: true,
         courseType: true,
         triathlonDistance: true,
+        hyroxDivision: true,
         customDistanceKm: true,
         priority: true,
         intent: true,

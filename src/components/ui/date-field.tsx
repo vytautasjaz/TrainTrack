@@ -1,5 +1,9 @@
 'use client'
 
+/**
+ * App-wide date control. All date picking in the product should use this —
+ * the popover chrome lives in `.tt-date-picker` (globals.css).
+ */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -12,7 +16,9 @@ import {
 } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
-const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'] as const
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+const PANEL_WIDTH = 300
+const PANEL_HEIGHT = 340
 
 type DateFieldProps = {
   name?: string
@@ -75,12 +81,17 @@ export function DateField({
   const [inner, setInner] = useState(defaultValue)
   const value = controlled ? valueProp : inner
   const [open, setOpen] = useState(false)
+  const [yearPicker, setYearPicker] = useState(false)
   const [viewKey, setViewKey] = useState(() =>
     monthStartKey(value || todayDateKey()),
   )
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const panelRef = useRef<HTMLDivElement>(null)
-  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const [pos, setPos] = useState({
+    top: 0,
+    left: 0,
+    caretX: PANEL_WIDTH / 2,
+    placement: 'below' as 'below' | 'above',
+  })
   const [portalReady, setPortalReady] = useState(false)
 
   useEffect(() => {
@@ -88,44 +99,41 @@ export function DateField({
   }, [])
 
   useEffect(() => {
-    if (open) setViewKey(monthStartKey(value || todayDateKey()))
-  }, [open, value])
+    if (!open) return
+    setViewKey(monthStartKey(value || todayDateKey()))
+    setYearPicker(false)
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps -- only reset view when opening
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return
     const rect = triggerRef.current.getBoundingClientRect()
-    const width = 272
-    const height = 340
     const left = Math.min(
-      Math.max(8, rect.left),
-      window.innerWidth - width - 8,
+      Math.max(8, rect.left + rect.width / 2 - PANEL_WIDTH / 2),
+      window.innerWidth - PANEL_WIDTH - 8,
     )
-    const below = rect.bottom + 6
-    const top =
-      below + height > window.innerHeight && rect.top - height - 6 > 8
-        ? rect.top - height - 6
-        : below
-    setPos({ top, left })
+    const below = rect.bottom + 10
+    const placeAbove =
+      below + PANEL_HEIGHT > window.innerHeight && rect.top - PANEL_HEIGHT - 10 > 8
+    const top = placeAbove ? rect.top - PANEL_HEIGHT - 10 : below
+    const caretX = Math.min(
+      Math.max(16, rect.left + rect.width / 2 - left),
+      PANEL_WIDTH - 16,
+    )
+    setPos({
+      top,
+      left,
+      caretX,
+      placement: placeAbove ? 'above' : 'below',
+    })
   }, [open])
 
   useEffect(() => {
     if (!open) return
-    function onPointerDown(event: MouseEvent) {
-      const target = event.target as Node
-      if (panelRef.current?.contains(target) || triggerRef.current?.contains(target)) {
-        return
-      }
-      setOpen(false)
-    }
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false)
     }
-    document.addEventListener('mousedown', onPointerDown)
     document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKey)
-    }
+    return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
   function commit(next: string) {
@@ -176,11 +184,13 @@ export function DateField({
         aria-haspopup="dialog"
         aria-expanded={open}
       >
-        {variant !== 'ghost' ? (
-          <Calendar className="h-3.5 w-3.5 shrink-0 opacity-60" strokeWidth={2} />
-        ) : (
-          <Calendar className="h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={2} />
-        )}
+        <Calendar
+          className={cn(
+            'h-3.5 w-3.5 shrink-0',
+            variant === 'ghost' ? 'opacity-70' : 'opacity-60',
+          )}
+          strokeWidth={2}
+        />
         <span className="min-w-0 flex-1 truncate">{label}</span>
       </button>
       {name ? (
@@ -199,94 +209,152 @@ export function DateField({
 
       {portalReady && open
         ? createPortal(
-            <div
-              ref={panelRef}
-              role="dialog"
-              aria-label="Choose date"
-              data-radix-popover-content
-              className="fixed z-[220] w-[17rem] rounded-[10px] border border-border bg-card p-3 shadow-lg"
-              style={{ top: pos.top, left: pos.left }}
-            >
-              <div className="mb-2 flex items-center gap-1">
-                <button
-                  type="button"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-[6px] text-muted-foreground hover:bg-muted/70"
-                  onClick={() =>
-                    setViewKey(toDateKey(addDateOnlyMonths(parseDateOnly(viewKey), -1)))
-                  }
-                  aria-label="Previous month"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <p className="min-w-0 flex-1 text-center text-sm font-medium capitalize">
-                  {monthLabel}
-                </p>
-                <button
-                  type="button"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-[6px] text-muted-foreground hover:bg-muted/70"
-                  onClick={() =>
-                    setViewKey(toDateKey(addDateOnlyMonths(parseDateOnly(viewKey), 1)))
-                  }
-                  aria-label="Next month"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="mb-2 flex justify-center">
-                <select
-                  value={year}
-                  onChange={(e) => {
-                    const nextYear = Number(e.target.value)
-                    const d = parseDateOnly(viewKey)
-                    setViewKey(
-                      toDateKey(new Date(Date.UTC(nextYear, d.getUTCMonth(), 1))),
-                    )
-                  }}
-                  className="rounded-[6px] border border-border bg-card px-2 py-0.5 text-xs text-muted-foreground"
-                  aria-label="Year"
-                >
-                  {years.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-7 gap-0.5 text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                {WEEKDAYS.map((day) => (
-                  <span key={day} className="py-1">
-                    {day}
-                  </span>
-                ))}
-              </div>
-              <div className="grid grid-cols-7 gap-0.5">
-                {cells.map((key, index) => {
-                  if (!key) {
-                    return <span key={`e-${index}`} className="h-8" />
-                  }
-                  const blocked = isOutOfRange(key, min, max)
-                  const selected = key === value
-                  const isToday = key === today
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      disabled={blocked}
-                      onClick={() => commit(key)}
+            <>
+              {/*
+                Dedicated backdrop closes the picker without a document capture
+                listener (those raced Dialog and unmounted the panel before click).
+              */}
+              <div
+                data-tt-date-field-backdrop
+                className="fixed inset-0 z-[219] pointer-events-auto"
+                aria-hidden
+                onPointerDown={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setOpen(false)
+                }}
+              />
+              <div
+                role="listbox"
+                aria-label="Choose date"
+                data-tt-date-field-panel
+                data-radix-popover-content
+                className="tt-date-picker fixed z-[220] pointer-events-auto"
+                style={{ top: pos.top, left: pos.left }}
+                onPointerDown={(event) => {
+                  // Keep parent Dialog from treating this as an outside click.
+                  event.stopPropagation()
+                }}
+              >
+                <span
+                  className="tt-date-picker__caret"
+                  data-placement={pos.placement}
+                  style={{ left: pos.caretX }}
+                  aria-hidden
+                />
+
+                <div className="relative mb-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="tt-date-picker__month-btn"
+                    onClick={() => setYearPicker((prev) => !prev)}
+                    aria-label={yearPicker ? 'Show calendar' : 'Choose year'}
+                    aria-expanded={yearPicker}
+                  >
+                    <span className="tt-date-picker__month-label">{monthLabel}</span>
+                    <ChevronRight
                       className={cn(
-                        'h-8 rounded-[6px] text-sm tabular-nums transition',
-                        blocked && 'cursor-not-allowed text-muted-foreground/40',
-                        !blocked && !selected && 'hover:bg-muted/80',
-                        selected && 'bg-foreground font-semibold text-background',
-                        isToday && !selected && 'ring-1 ring-inset ring-foreground/30',
+                        'h-3.5 w-3.5 shrink-0 text-brand transition-transform',
+                        yearPicker && 'rotate-90',
                       )}
+                      strokeWidth={2.5}
+                    />
+                  </button>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <button
+                      type="button"
+                      className="tt-date-picker__nav-btn"
+                      onClick={() => {
+                        setYearPicker(false)
+                        setViewKey(
+                          toDateKey(addDateOnlyMonths(parseDateOnly(viewKey), -1)),
+                        )
+                      }}
+                      aria-label="Previous month"
                     >
-                      {Number(key.slice(8, 10))}
+                      <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
                     </button>
-                  )
-                })}
+                    <button
+                      type="button"
+                      className="tt-date-picker__nav-btn"
+                      onClick={() => {
+                        setYearPicker(false)
+                        setViewKey(
+                          toDateKey(addDateOnlyMonths(parseDateOnly(viewKey), 1)),
+                        )
+                      }}
+                      aria-label="Next month"
+                    >
+                      <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+                    </button>
+                  </div>
+                </div>
+
+                {yearPicker ? (
+                  <div className="grid max-h-[15.5rem] grid-cols-3 gap-1.5 overflow-y-auto pr-0.5">
+                    {years.map((y) => (
+                      <button
+                        key={y}
+                        type="button"
+                        data-selected={y === year ? 'true' : undefined}
+                        className="tt-date-picker__year"
+                        onClick={() => {
+                          const d = parseDateOnly(viewKey)
+                          setViewKey(
+                            toDateKey(new Date(Date.UTC(y, d.getUTCMonth(), 1))),
+                          )
+                          setYearPicker(false)
+                        }}
+                      >
+                        {y}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-1.5 grid grid-cols-7">
+                      {WEEKDAYS.map((day) => (
+                        <span key={day} className="tt-date-picker__weekday">
+                          {day}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-y-1">
+                      {cells.map((key, index) => {
+                        if (!key) {
+                          return (
+                            <span
+                              key={`e-${index}`}
+                              className="flex h-9 items-center justify-center"
+                            />
+                          )
+                        }
+                        const blocked = isOutOfRange(key, min, max)
+                        const selected = key === value
+                        const isToday = key === today
+                        return (
+                          <div
+                            key={key}
+                            className="flex h-9 items-center justify-center"
+                          >
+                            <button
+                              type="button"
+                              disabled={blocked}
+                              data-selected={selected ? 'true' : undefined}
+                              data-today={isToday ? 'true' : undefined}
+                              className="tt-date-picker__day"
+                              onClick={() => commit(key)}
+                            >
+                              {Number(key.slice(8, 10))}
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
-            </div>,
+            </>,
             document.body,
           )
         : null}

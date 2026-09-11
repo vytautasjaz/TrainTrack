@@ -81,6 +81,7 @@ export async function evaluatePersonalBestSuggestionForRace(
       sport: true,
       customDistanceKm: true,
       triathlonDistance: true,
+      hyroxDivision: true,
       outcome: true,
       resultTime: true,
       athleteId: true,

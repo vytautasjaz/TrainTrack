@@ -71,12 +71,12 @@ export function CoachHomePlanningCoverage({
           'transition-[padding] duration-300',
         )}
       >
-        <div className="flex min-w-0 items-baseline gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <h2 className="font-[family-name:var(--font-display)] text-[1.35rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
             Plan coverage
           </h2>
           {needsPlanCount > 0 ? (
-            <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--tt-red)] px-1.5 text-[11px] font-semibold tabular-nums text-white">
+            <span className="inline-flex h-5 min-w-5 shrink-0 translate-y-[1px] items-center justify-center rounded-full bg-[var(--tt-red)] px-1.5 text-[11px] font-semibold leading-none tabular-nums text-white">
               {needsPlanCount}
             </span>
           ) : null}
@@ -192,6 +192,7 @@ function PlanningCoverageMobileRow({ row }: { row: CoachHomePlanningCoverageRow 
   const [isPending, startTransition] = useTransition()
   const label = formatCoachHomePlanAhead(row.daysAhead)
   const tone = coachHomePlanAheadTone(row.daysAhead)
+  const needsPlan = row.daysUnplanned > 0
 
   function openPlan() {
     if (isPending) return
@@ -203,7 +204,12 @@ function PlanningCoverageMobileRow({ row }: { row: CoachHomePlanningCoverageRow 
   }
 
   return (
-    <li className="flex items-center gap-2 px-4 py-3">
+    <li
+      className={cn(
+        'flex items-center gap-2 px-4 py-3',
+        needsPlan && 'bg-[color-mix(in_srgb,var(--tt-red)_6%,white)]',
+      )}
+    >
       <button
         type="button"
         onClick={openPlan}
@@ -254,6 +260,7 @@ function PlanningCoverageRow({ row }: { row: CoachHomePlanningCoverageRow }) {
   const [isPending, startTransition] = useTransition()
   const label = formatCoachHomePlanAhead(row.daysAhead)
   const tone = coachHomePlanAheadTone(row.daysAhead)
+  const needsPlan = row.daysUnplanned > 0
 
   function openPlan() {
     if (isPending) return
@@ -275,6 +282,7 @@ function PlanningCoverageRow({ row }: { row: CoachHomePlanningCoverageRow }) {
       }}
       tabIndex={0}
       aria-label={`Open plan for ${row.athleteName}`}
+      data-needs-plan={needsPlan ? 'true' : undefined}
       className={cn(
         'cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--tt-ink-faint)]',
         isPending && 'pointer-events-none opacity-60',

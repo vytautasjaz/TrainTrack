@@ -9,6 +9,7 @@ import {
   type CoachHomeWorkoutActivityRow,
 } from '@/lib/coach-home'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import type { SessionLoadThresholds } from '@/lib/training-load/session-tss'
 import {
   ActivityDayHeading,
   ActivityFeedWorkoutCard,
@@ -22,9 +23,13 @@ const FEED_BUBBLE =
 
 type AthleteActivityFeedProps = {
   workouts: PlanWorkoutDetail[]
+  loadThresholds?: SessionLoadThresholds
 }
 
-export function AthleteActivityFeed({ workouts }: AthleteActivityFeedProps) {
+export function AthleteActivityFeed({
+  workouts,
+  loadThresholds = {},
+}: AthleteActivityFeedProps) {
   const [mobileOpen, setMobileOpen] = useState(true)
 
   const rows = useMemo(() => buildAthleteHomeActivityRows(workouts), [workouts])
@@ -80,7 +85,12 @@ export function AthleteActivityFeed({ workouts }: AthleteActivityFeedProps) {
                 )
                 .map((row) => (
                   <li key={row.id} className={FEED_BUBBLE}>
-                    <ActivityFeedWorkoutCard row={row} isCoach={false} showDate />
+                    <ActivityFeedWorkoutCard
+                      row={row}
+                      isCoach={false}
+                      showDate
+                      loadThresholds={loadThresholds}
+                    />
                   </li>
                 ))}
             </ul>
@@ -97,7 +107,11 @@ export function AthleteActivityFeed({ workouts }: AthleteActivityFeedProps) {
                       )
                       .map((row) => (
                         <li key={row.id}>
-                          <ActivityFeedWorkoutCard row={row} isCoach={false} />
+                          <ActivityFeedWorkoutCard
+                            row={row}
+                            isCoach={false}
+                            loadThresholds={loadThresholds}
+                          />
                         </li>
                       ))}
                   </ul>

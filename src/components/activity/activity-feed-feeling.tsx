@@ -73,7 +73,7 @@ export function ActivityFeedFeedbackReadout({
   if (skipped) {
     if (!trimmed) return null
     return (
-      <div className="space-y-1.5 rounded-[8px] bg-white px-3 py-2.5 shadow-[0_1px_3px_rgb(0_0_0_/0.06),0_1px_2px_rgb(0_0_0_/0.04)]">
+      <div className="space-y-1.5">
         <ActivityFeedFeedbackLabel skipped />
         <ActivityFeedNotes text={trimmed} />
       </div>
@@ -83,7 +83,7 @@ export function ActivityFeedFeedbackReadout({
   if (!trimmed && feeling == null) return null
 
   return (
-    <div className="space-y-1.5 rounded-[8px] bg-white px-3 py-2.5 shadow-[0_1px_3px_rgb(0_0_0_/0.06),0_1px_2px_rgb(0_0_0_/0.04)]">
+    <div className="space-y-1.5">
       <ActivityFeedFeedbackLabel feeling={feeling} />
       {trimmed ? <ActivityFeedNotes text={trimmed} /> : null}
     </div>

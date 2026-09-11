@@ -4,10 +4,11 @@ import type {
   RaceOutcome,
   RacePriority,
   RaceType,
+  HyroxDivision,
   TriathlonDistance,
 } from '@prisma/client'
 import { RACE_OUTCOME_LABELS, RACE_TYPE_DISTANCE_LABELS, RACE_TYPE_LABELS } from '@/lib/constants'
-import { TRIATHLON_DISTANCE_LABELS } from '@/lib/race-form'
+import { HYROX_DIVISION_LABELS, TRIATHLON_DISTANCE_LABELS, type HyroxDivisionId } from '@/lib/race-form'
 import { daysUntil } from '@/lib/utils'
 import type { RaceLegView } from '@/lib/race-legs'
 
@@ -20,6 +21,7 @@ export type SeasonRace = {
   sport?: import('@prisma/client').WorkoutType
   courseType?: RaceCourseType | null
   triathlonDistance?: TriathlonDistance | null
+  hyroxDivision?: HyroxDivision | null
   customDistanceKm?: number | null
   priority: RacePriority
   intent: RaceIntent
@@ -135,6 +137,7 @@ export function raceDistanceLabel(
   type: RaceType,
   extras?: {
     triathlonDistance?: TriathlonDistance | null
+    hyroxDivision?: HyroxDivision | HyroxDivisionId | null
     customDistanceKm?: number | null
     legs?: Array<{
       kind: string
@@ -155,6 +158,9 @@ export function raceDistanceLabel(
       if (parts.length > 0) return parts.join(' / ')
     }
     return TRIATHLON_DISTANCE_LABELS[extras.triathlonDistance]
+  }
+  if (type === 'HYROX' && extras?.hyroxDivision) {
+    return HYROX_DIVISION_LABELS[extras.hyroxDivision as HyroxDivisionId] ?? 'HYROX'
   }
   if (
     (type === 'OTHER' || type === 'CYCLING') &&

@@ -5,17 +5,144 @@ import {
   WorkoutType,
 } from '@prisma/client'
 
-/** Sports offered in Add / Edit Race (maps to calendar WorkoutType). */
+/** Sports offered in Add / Edit Race (maps to calendar WorkoutType + course). */
 export const RACE_FORM_SPORTS = [
-  { id: 'RUN', label: 'Running', sport: WorkoutType.RUN },
-  { id: 'BIKE', label: 'Cycling', sport: WorkoutType.BIKE },
-  { id: 'TRIATHLON', label: 'Triathlon', sport: WorkoutType.TRIATHLON },
-  { id: 'HYROX', label: 'HYROX', sport: WorkoutType.HYROX },
-  { id: 'SWIM', label: 'Swimming', sport: WorkoutType.SWIM },
-  { id: 'OTHER', label: 'Other', sport: WorkoutType.RUN },
+  {
+    id: 'RUN',
+    label: 'Run',
+    sport: WorkoutType.RUN,
+    courseType: RaceCourseType.ROAD,
+    group: 'Running',
+  },
+  {
+    id: 'TRAIL_RUN',
+    label: 'Trail Run',
+    sport: WorkoutType.RUN,
+    courseType: RaceCourseType.TRAIL,
+    group: 'Running',
+  },
+  {
+    id: 'TRACK_RUN',
+    label: 'Track Run',
+    sport: WorkoutType.RUN,
+    courseType: RaceCourseType.TRACK,
+    group: 'Running',
+  },
+  {
+    id: 'ROAD_BIKE',
+    label: 'Road cycling',
+    sport: WorkoutType.BIKE,
+    courseType: RaceCourseType.ROAD,
+    group: 'Cycling',
+  },
+  {
+    id: 'GRAVEL',
+    label: 'Gravel',
+    sport: WorkoutType.BIKE,
+    courseType: RaceCourseType.GRAVEL,
+    group: 'Cycling',
+  },
+  {
+    id: 'MTB',
+    label: 'MTB',
+    sport: WorkoutType.BIKE,
+    courseType: RaceCourseType.MTB,
+    group: 'Cycling',
+  },
+  {
+    id: 'TRIATHLON',
+    label: 'Triathlon',
+    sport: WorkoutType.TRIATHLON,
+    courseType: null,
+    group: null,
+  },
+  {
+    id: 'HYROX',
+    label: 'HYROX',
+    sport: WorkoutType.HYROX,
+    courseType: null,
+    group: null,
+  },
+  {
+    id: 'SWIM',
+    label: 'Swimming',
+    sport: WorkoutType.SWIM,
+    courseType: null,
+    group: null,
+  },
+  {
+    id: 'OTHER',
+    label: 'Other',
+    sport: WorkoutType.RUN,
+    courseType: RaceCourseType.OTHER,
+    group: null,
+  },
 ] as const
 
 export type RaceFormSportId = (typeof RACE_FORM_SPORTS)[number]['id']
+
+export type RaceFormSportFamily =
+  | 'RUN'
+  | 'BIKE'
+  | 'TRIATHLON'
+  | 'HYROX'
+  | 'SWIM'
+  | 'OTHER'
+
+const RUN_SPORT_IDS: RaceFormSportId[] = ['RUN', 'TRAIL_RUN', 'TRACK_RUN']
+const BIKE_SPORT_IDS: RaceFormSportId[] = ['ROAD_BIKE', 'GRAVEL', 'MTB']
+
+/** Optgroups for the sport select (Running / Cycling + ungrouped). */
+export const RACE_FORM_SPORT_GROUPS: {
+  label: string | null
+  options: (typeof RACE_FORM_SPORTS)[number][]
+}[] = (() => {
+  const groups: {
+    label: string | null
+    options: (typeof RACE_FORM_SPORTS)[number][]
+  }[] = []
+  for (const sport of RACE_FORM_SPORTS) {
+    const label = sport.group
+    const existing = groups.find((g) => g.label === label)
+    if (existing) existing.options.push(sport)
+    else groups.push({ label, options: [sport] })
+  }
+  return groups
+})()
+
+export function isRaceFormSportId(value: string): value is RaceFormSportId {
+  return RACE_FORM_SPORTS.some((s) => s.id === value)
+}
+
+/** Normalize legacy form values (`BIKE`) and validate. */
+export function parseRaceFormSportId(raw: string): RaceFormSportId {
+  if (raw === 'BIKE') return 'ROAD_BIKE'
+  if (isRaceFormSportId(raw)) return raw
+  return 'RUN'
+}
+
+export function raceFormSportFamily(
+  sportId: RaceFormSportId | null,
+): RaceFormSportFamily | null {
+  if (!sportId) return null
+  if (RUN_SPORT_IDS.includes(sportId)) return 'RUN'
+  if (BIKE_SPORT_IDS.includes(sportId)) return 'BIKE'
+  if (sportId === 'TRIATHLON') return 'TRIATHLON'
+  if (sportId === 'HYROX') return 'HYROX'
+  if (sportId === 'SWIM') return 'SWIM'
+  return 'OTHER'
+}
+
+export function raceFormSportLabel(sportId: RaceFormSportId): string {
+  return RACE_FORM_SPORTS.find((s) => s.id === sportId)?.label ?? sportId
+}
+
+export function courseTypeForSportId(
+  sportId: RaceFormSportId | null,
+): RaceCourseType | null {
+  if (!sportId) return null
+  return RACE_FORM_SPORTS.find((s) => s.id === sportId)?.courseType ?? null
+}
 
 /** Running (+ generic) distance presets. */
 export type RunDistancePreset =
@@ -45,6 +172,70 @@ export const TRI_DISTANCE_OPTIONS: {
   { id: TriathlonDistance.CUSTOM, label: 'Custom' },
 ]
 
+/** Official HYROX race divisions (Singles / Doubles / Relay). */
+export type HyroxDivisionId =
+  | 'MEN'
+  | 'WOMEN'
+  | 'PRO_MEN'
+  | 'PRO_WOMEN'
+  | 'ADAPTIVE_MEN'
+  | 'ADAPTIVE_WOMEN'
+  | 'DOUBLES_MEN'
+  | 'DOUBLES_WOMEN'
+  | 'DOUBLES_MIXED'
+  | 'PRO_DOUBLES_MEN'
+  | 'PRO_DOUBLES_WOMEN'
+  | 'RELAY_MEN'
+  | 'RELAY_WOMEN'
+  | 'RELAY_MIXED'
+
+export const HYROX_DISTANCE_GROUPS: {
+  label: string
+  options: { id: HyroxDivisionId; label: string }[]
+}[] = [
+  {
+    label: 'Singles',
+    options: [
+      { id: 'MEN', label: 'HYROX Men' },
+      { id: 'WOMEN', label: 'HYROX Women' },
+      { id: 'PRO_MEN', label: 'HYROX Pro Men' },
+      { id: 'PRO_WOMEN', label: 'HYROX Pro Women' },
+      { id: 'ADAPTIVE_MEN', label: 'HYROX Adaptive Men' },
+      { id: 'ADAPTIVE_WOMEN', label: 'HYROX Adaptive Women' },
+    ],
+  },
+  {
+    label: 'Doubles',
+    options: [
+      { id: 'DOUBLES_MEN', label: 'HYROX Doubles Men' },
+      { id: 'DOUBLES_WOMEN', label: 'HYROX Doubles Women' },
+      { id: 'DOUBLES_MIXED', label: 'HYROX Doubles Mixed' },
+      { id: 'PRO_DOUBLES_MEN', label: 'HYROX Pro Doubles Men' },
+      { id: 'PRO_DOUBLES_WOMEN', label: 'HYROX Pro Doubles Women' },
+    ],
+  },
+  {
+    label: 'Relay',
+    options: [
+      { id: 'RELAY_MEN', label: "HYROX Men's Relay" },
+      { id: 'RELAY_WOMEN', label: "HYROX Women's Relay" },
+      { id: 'RELAY_MIXED', label: 'HYROX Mixed Relay' },
+    ],
+  },
+]
+
+export const HYROX_DISTANCE_OPTIONS: { id: HyroxDivisionId; label: string }[] =
+  HYROX_DISTANCE_GROUPS.flatMap((group) => group.options)
+
+export const HYROX_DIVISION_LABELS: Record<HyroxDivisionId, string> =
+  Object.fromEntries(
+    HYROX_DISTANCE_OPTIONS.map((opt) => [opt.id, opt.label]),
+  ) as Record<HyroxDivisionId, string>
+
+export function isHyroxDivisionId(value: string): value is HyroxDivisionId {
+  return HYROX_DISTANCE_OPTIONS.some((opt) => opt.id === value)
+}
+
 export const RACE_COURSE_TYPE_LABELS: Record<RaceCourseType, string> = {
   ROAD: 'Road',
   TRAIL: 'Trail',
@@ -54,24 +245,6 @@ export const RACE_COURSE_TYPE_LABELS: Record<RaceCourseType, string> = {
   POOL: 'Pool',
   OPEN_WATER: 'Open water',
   OTHER: 'Other',
-}
-
-export function courseTypesForSport(sportId: RaceFormSportId | null): RaceCourseType[] {
-  if (!sportId) return []
-  switch (sportId) {
-    case 'RUN':
-      return [RaceCourseType.ROAD, RaceCourseType.TRAIL, RaceCourseType.TRACK, RaceCourseType.OTHER]
-    case 'BIKE':
-      return [RaceCourseType.ROAD, RaceCourseType.GRAVEL, RaceCourseType.MTB, RaceCourseType.OTHER]
-    case 'SWIM':
-      return [RaceCourseType.POOL, RaceCourseType.OPEN_WATER, RaceCourseType.OTHER]
-    case 'TRIATHLON':
-      return [RaceCourseType.ROAD, RaceCourseType.OTHER]
-    case 'HYROX':
-    case 'OTHER':
-    default:
-      return [RaceCourseType.OTHER]
-  }
 }
 
 export function courseTypeLabel(courseType: RaceCourseType): string {
@@ -84,21 +257,25 @@ export function distanceOptionsForSport(sportId: RaceFormSportId | null): {
   id: string
   label: string
 }[] {
-  if (!sportId) return []
-  if (sportId === 'RUN') return RUN_DISTANCE_OPTIONS
-  if (sportId === 'TRIATHLON') return TRI_DISTANCE_OPTIONS
-  if (sportId === 'HYROX') return [{ id: 'STANDARD', label: 'Standard' }]
+  const family = raceFormSportFamily(sportId)
+  if (!family) return []
+  if (family === 'RUN') return RUN_DISTANCE_OPTIONS
+  if (family === 'TRIATHLON') return TRI_DISTANCE_OPTIONS
+  if (family === 'HYROX') return HYROX_DISTANCE_OPTIONS
   return [{ id: 'CUSTOM', label: 'Custom' }]
 }
 
-export function defaultCourseType(sportId: RaceFormSportId | null): RaceCourseType | null {
-  if (!sportId) return null
-  const options = courseTypesForSport(sportId)
-  return options[0] ?? null
+/** Optgroup structure for sports that need sectioned distance lists. */
+export function distanceOptionGroupsForSport(sportId: RaceFormSportId | null): {
+  label: string
+  options: { id: string; label: string }[]
+}[] | null {
+  if (raceFormSportFamily(sportId) === 'HYROX') return HYROX_DISTANCE_GROUPS
+  return null
 }
 
 export function defaultRunDistance(sportId: RaceFormSportId): RunDistancePreset | null {
-  if (sportId !== 'RUN') return null
+  if (raceFormSportFamily(sportId) !== 'RUN') return null
   return 'MARATHON'
 }
 
@@ -108,7 +285,8 @@ export function defaultTriDistance(sportId: RaceFormSportId): TriathlonDistance 
 }
 
 export function showsDistancePresets(sportId: RaceFormSportId): boolean {
-  return sportId === 'RUN' || sportId === 'TRIATHLON'
+  const family = raceFormSportFamily(sportId)
+  return family === 'RUN' || family === 'TRIATHLON'
 }
 
 export function showsCustomDistance(
@@ -116,11 +294,12 @@ export function showsCustomDistance(
   runDistance: RunDistancePreset | null,
   _triDistance: TriathlonDistance | null,
 ): boolean {
-  if (!sportId) return false
-  if (sportId === 'RUN') return runDistance === 'CUSTOM'
+  const family = raceFormSportFamily(sportId)
+  if (!family) return false
+  if (family === 'RUN') return runDistance === 'CUSTOM'
   // Triathlon Custom uses per-leg swim/bike/run distances instead of one total.
-  if (sportId === 'TRIATHLON') return false
-  if (sportId === 'HYROX') return false
+  if (family === 'TRIATHLON') return false
+  if (family === 'HYROX') return false
   // Bike / Swim / Other — only after Custom is explicitly chosen
   return runDistance === 'CUSTOM'
 }
@@ -138,8 +317,9 @@ export function resolveRaceType(args: {
   runDistance: RunDistancePreset | null
   triDistance: TriathlonDistance | null
 }): RaceType {
-  if (!args.sportId) return RaceType.OTHER
-  switch (args.sportId) {
+  const family = raceFormSportFamily(args.sportId)
+  if (!family) return RaceType.OTHER
+  switch (family) {
     case 'RUN':
       switch (args.runDistance) {
         case 'FIVE_K':
@@ -179,8 +359,14 @@ export function sportIdFromRace(args: {
   courseType?: RaceCourseType | null
 }): RaceFormSportId {
   if (args.type === RaceType.HYROX || args.sport === WorkoutType.HYROX) return 'HYROX'
-  if (args.type === RaceType.TRIATHLON || args.sport === WorkoutType.TRIATHLON) return 'TRIATHLON'
-  if (args.type === RaceType.CYCLING || args.sport === WorkoutType.BIKE) return 'BIKE'
+  if (args.type === RaceType.TRIATHLON || args.sport === WorkoutType.TRIATHLON) {
+    return 'TRIATHLON'
+  }
+  if (args.type === RaceType.CYCLING || args.sport === WorkoutType.BIKE) {
+    if (args.courseType === RaceCourseType.GRAVEL) return 'GRAVEL'
+    if (args.courseType === RaceCourseType.MTB) return 'MTB'
+    return 'ROAD_BIKE'
+  }
   if (args.sport === WorkoutType.SWIM) return 'SWIM'
   if (
     args.type === RaceType.MARATHON ||
@@ -188,19 +374,24 @@ export function sportIdFromRace(args: {
     args.type === RaceType.FIVE_K ||
     args.type === RaceType.TEN_K
   ) {
-    return 'RUN'
+    return runSportIdFromCourse(args.courseType)
   }
   if (args.type === RaceType.OTHER) {
-    const runCourses: RaceCourseType[] = [
-      RaceCourseType.ROAD,
-      RaceCourseType.TRAIL,
-      RaceCourseType.TRACK,
-    ]
-    if (args.courseType && runCourses.includes(args.courseType)) return 'RUN'
+    if (args.courseType === RaceCourseType.TRAIL) return 'TRAIL_RUN'
+    if (args.courseType === RaceCourseType.TRACK) return 'TRACK_RUN'
+    if (args.courseType === RaceCourseType.ROAD) return 'RUN'
+    if (args.courseType === RaceCourseType.GRAVEL) return 'GRAVEL'
+    if (args.courseType === RaceCourseType.MTB) return 'MTB'
     return 'OTHER'
   }
-  if (args.sport === WorkoutType.RUN) return 'RUN'
+  if (args.sport === WorkoutType.RUN) return runSportIdFromCourse(args.courseType)
   return 'OTHER'
+}
+
+function runSportIdFromCourse(courseType?: RaceCourseType | null): RaceFormSportId {
+  if (courseType === RaceCourseType.TRAIL) return 'TRAIL_RUN'
+  if (courseType === RaceCourseType.TRACK) return 'TRACK_RUN'
+  return 'RUN'
 }
 
 export function runDistanceFromRaceType(type: RaceType): RunDistancePreset {
@@ -222,6 +413,7 @@ export function distanceSummaryLabel(args: {
   sportId: RaceFormSportId
   runDistance: RunDistancePreset | null
   triDistance: TriathlonDistance | null
+  hyroxDistance?: HyroxDivisionId | null
   customDistanceKm?: number | null
   customSwimKm?: number | null
   customBikeKm?: number | null
@@ -231,12 +423,14 @@ export function distanceSummaryLabel(args: {
     sportId,
     runDistance,
     triDistance,
+    hyroxDistance,
     customDistanceKm,
     customSwimKm,
     customBikeKm,
     customRunKm,
   } = args
-  if (sportId === 'RUN' && runDistance) {
+  const family = raceFormSportFamily(sportId)
+  if (family === 'RUN' && runDistance) {
     if (runDistance === 'CUSTOM') {
       return customDistanceKm != null && customDistanceKm > 0
         ? `${customDistanceKm} km`
@@ -244,7 +438,7 @@ export function distanceSummaryLabel(args: {
     }
     return RUN_DISTANCE_OPTIONS.find((o) => o.id === runDistance)?.label ?? null
   }
-  if (sportId === 'TRIATHLON' && triDistance) {
+  if (family === 'TRIATHLON' && triDistance) {
     if (triDistance === TriathlonDistance.CUSTOM) {
       const parts = [
         customSwimKm != null && customSwimKm > 0
@@ -261,10 +455,19 @@ export function distanceSummaryLabel(args: {
     }
     return TRI_DISTANCE_OPTIONS.find((o) => o.id === triDistance)?.label ?? null
   }
-  if ((sportId === 'BIKE' || sportId === 'OTHER') && customDistanceKm != null && customDistanceKm > 0) {
+  if (family === 'HYROX') {
+    if (hyroxDistance && isHyroxDivisionId(hyroxDistance)) {
+      return HYROX_DIVISION_LABELS[hyroxDistance]
+    }
+    return 'HYROX'
+  }
+  if (
+    (family === 'BIKE' || family === 'OTHER') &&
+    customDistanceKm != null &&
+    customDistanceKm > 0
+  ) {
     return `${customDistanceKm} km`
   }
-  if (sportId === 'HYROX') return 'HYROX'
   return null
 }
 

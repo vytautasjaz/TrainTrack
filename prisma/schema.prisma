@@ -96,6 +96,24 @@ enum TriathlonDistance {
   CUSTOM
 }
 
+/** HYROX race division when Race.type = HYROX. */
+enum HyroxDivision {
+  MEN
+  WOMEN
+  PRO_MEN
+  PRO_WOMEN
+  ADAPTIVE_MEN
+  ADAPTIVE_WOMEN
+  DOUBLES_MEN
+  DOUBLES_WOMEN
+  DOUBLES_MIXED
+  PRO_DOUBLES_MEN
+  PRO_DOUBLES_WOMEN
+  RELAY_MEN
+  RELAY_WOMEN
+  RELAY_MIXED
+}
+
 enum RacePriority {
   A
   B
@@ -452,6 +470,8 @@ model Race {
   courseType RaceCourseType?
   /** When type = TRIATHLON — Sprint, Olympic, 70.3, Ironman, Custom. */
   triathlonDistance TriathlonDistance?
+  /** When type = HYROX — Open / Pro / Doubles / Relay division. */
+  hyroxDivision HyroxDivision?
   /** Freeform distance (km) when distance preset is Custom / Other. */
   customDistanceKm Float?
   priority  RacePriority @default(C)
@@ -764,6 +784,8 @@ model WorkoutResult {
   calories         Float?
   /** Strava average watts (rides). */
   averageWatts     Float?
+  /** Strava weighted average watts (NP-like) when available. */
+  weightedAverageWatts Float?
   /** Encoded Google polyline from Strava map.summary_polyline (GPS route). */
   summaryPolyline  String?
   logType          AthleteLogType?

@@ -6,15 +6,18 @@ import {
   RaceOutcome,
   RacePriority,
   RaceType,
+  HyroxDivision,
   TriathlonDistance,
 } from '@prisma/client'
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
 import {
+  courseTypeForSportId,
+  parseRaceFormSportId,
+  raceFormSportFamily,
   resolveRaceType,
   resolveWorkoutSport,
-  type RaceFormSportId,
   type RunDistancePreset,
 } from '@/lib/race-form'
 import { defaultSportForRaceType } from '@/lib/races'
@@ -55,6 +58,7 @@ export async function getAthleteRaceResults(athleteId: string): Promise<RaceResu
       type: true,
       sport: true,
       triathlonDistance: true,
+      hyroxDivision: true,
       customDistanceKm: true,
       priority: true,
       outcome: true,
@@ -77,10 +81,8 @@ export async function getAthleteRaceResults(athleteId: string): Promise<RaceResu
     .filter((row): row is RaceResultRow => row != null)
 }
 
-function parseSportId(raw: string): RaceFormSportId {
-  const allowed: RaceFormSportId[] = ['RUN', 'BIKE', 'TRIATHLON', 'HYROX', 'SWIM', 'OTHER']
-  if ((allowed as string[]).includes(raw)) return raw as RaceFormSportId
-  return 'RUN'
+function parseSportId(raw: string) {
+  return parseRaceFormSportId(raw)
 }
 
 /** Manually log a past race result into the athlete's results database. */
@@ -100,26 +102,38 @@ export async function createManualRaceResult(formData: FormData): Promise<{
   const date = parseDateOnly(dateRaw)
 
   const sportId = parseSportId(String(formData.get('sportId') ?? 'RUN'))
+  const sportFamily = raceFormSportFamily(sportId)
   const distanceRaw = String(formData.get('distance') ?? '').trim()
 
   let runDistance: RunDistancePreset | null = null
   let triDistance: TriathlonDistance | null = null
-  if (sportId === 'RUN') {
+  let hyroxDivision: HyroxDivision | null = null
+  if (sportFamily === 'RUN') {
     runDistance = (['FIVE_K', 'TEN_K', 'HALF_MARATHON', 'MARATHON', 'CUSTOM'] as const).includes(
       distanceRaw as RunDistancePreset,
     )
       ? (distanceRaw as RunDistancePreset)
       : 'CUSTOM'
-  } else if (sportId === 'TRIATHLON') {
+  } else if (sportFamily === 'TRIATHLON') {
     triDistance = (Object.values(TriathlonDistance) as string[]).includes(distanceRaw)
       ? (distanceRaw as TriathlonDistance)
       : TriathlonDistance.OLYMPIC
-  } else if (sportId === 'BIKE' || sportId === 'SWIM' || sportId === 'OTHER') {
+  } else if (sportFamily === 'HYROX') {
+    if (!(Object.values(HyroxDivision) as string[]).includes(distanceRaw)) {
+      throw new Error('Pick a HYROX division.')
+    }
+    hyroxDivision = distanceRaw as HyroxDivision
+  } else if (
+    sportFamily === 'BIKE' ||
+    sportFamily === 'SWIM' ||
+    sportFamily === 'OTHER'
+  ) {
     runDistance = 'CUSTOM'
   }
 
   const raceType = resolveRaceType({ sportId, runDistance, triDistance })
   const sport = resolveWorkoutSport(sportId) || defaultSportForRaceType(raceType)
+  const courseType = courseTypeForSportId(sportId)
 
   const customRaw = String(formData.get('customDistanceKm') ?? '').trim()
   let customDistanceKm: number | null = null
@@ -170,7 +184,9 @@ export async function createManualRaceResult(formData: FormData): Promise<{
       location,
       type: raceType,
       sport,
+      courseType,
       triathlonDistance: raceType === RaceType.TRIATHLON ? triDistance : null,
+      hyroxDivision: raceType === RaceType.HYROX ? hyroxDivision : null,
       customDistanceKm,
       priority: RacePriority.C,
       intent: RaceIntent.PLANNED,

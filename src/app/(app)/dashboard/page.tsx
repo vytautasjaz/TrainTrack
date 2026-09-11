@@ -134,7 +134,10 @@ export default async function DashboardPage() {
                 showWeather={showWeather}
               />
 
-              <AthleteActivityFeed workouts={activityFeedWorkouts} />
+              <AthleteActivityFeed
+                workouts={activityFeedWorkouts}
+                loadThresholds={data.trainingLoadThresholds}
+              />
             </div>
 
             <aside className="min-w-0">
@@ -162,6 +165,7 @@ export default async function DashboardPage() {
                 <AthleteTrainingLoadCard
                   workouts={weekStatsWorkouts}
                   anchorWeekStartKey={data.weekStatsAnchorStartKey}
+                  thresholds={data.trainingLoadThresholds}
                 />
               </div>
             </aside>

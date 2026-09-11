@@ -22,6 +22,7 @@ export function CoachHomePageContent({
     athleteOptions,
     rosterRows,
     pendingCoach,
+    loadThresholdsByAthleteId,
   } = coachHome
 
   const totalAthletes = rosterRows.length
@@ -39,6 +40,7 @@ export function CoachHomePageContent({
           planningLeadDays={planningLeadDays}
           activityRows={activityTableRows}
           athleteOptions={athleteOptions}
+          loadThresholdsByAthleteId={loadThresholdsByAthleteId}
           totalAthletes={totalAthletes}
           coachingCode={pendingCoach.coachingCode}
         />

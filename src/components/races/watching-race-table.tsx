@@ -90,6 +90,7 @@ export function WatchingRaceTable({ races, className }: WatchingRaceTableProps) 
                         <td className={cn('whitespace-nowrap', DATA_NUM, DATA_CELL_SECONDARY)}>
                           {raceDistanceLabel(race.type, {
                             triathlonDistance: race.triathlonDistance,
+                            hyroxDivision: race.hyroxDivision,
                             customDistanceKm: race.customDistanceKm,
                             legs: race.legs,
                           })}

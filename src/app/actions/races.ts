@@ -17,6 +17,7 @@ import type {
   RaceCourseType,
   RacePriority,
   RaceType,
+  HyroxDivision,
   TriathlonDistance,
   WorkoutType,
 } from '@prisma/client'
@@ -32,6 +33,7 @@ const SEASON_RACE_SELECT = {
   sport: true,
   courseType: true,
   triathlonDistance: true,
+  hyroxDivision: true,
   customDistanceKm: true,
   priority: true,
   intent: true,
@@ -57,6 +59,7 @@ export type CoachRecentRace = {
   sport: WorkoutType
   courseType: RaceCourseType | null
   triathlonDistance: TriathlonDistance | null
+  hyroxDivision: HyroxDivision | null
   customDistanceKm: number | null
   priority: RacePriority
   goal: string | null
@@ -88,6 +91,7 @@ export async function listCoachRecentRaces(): Promise<CoachRecentRace[]> {
       sport: true,
       courseType: true,
       triathlonDistance: true,
+      hyroxDivision: true,
       customDistanceKm: true,
       priority: true,
       goal: true,
@@ -124,6 +128,7 @@ export async function listCoachRecentRaces(): Promise<CoachRecentRace[]> {
     sport: row.sport,
     courseType: row.courseType,
     triathlonDistance: row.triathlonDistance,
+    hyroxDivision: row.hyroxDivision,
     customDistanceKm: row.customDistanceKm,
     priority: row.priority,
     goal: row.goal,

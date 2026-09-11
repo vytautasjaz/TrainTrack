@@ -119,7 +119,7 @@ Ship in layers so mockups don’t drift and shared chrome lands once.
    - [x] Upcoming: calendar date + sport + title/prescription rows (mock list card)
    - [x] Right rail: next-races carousel, week stats chrome, training load chart (volume stand-in)
    - [x] **Activity feed** below upcoming: coach-style day groups, sport rail, map/metrics; inline feedback + 1–10 feeling picker on completed/skipped workouts
-   - [ ] Real TSS on training load when metric exists
+   - [x] Real TSS on training load when metric exists (approx: power/pace/HR/structure)
 2. Coach Home command center (`/dashboard` coach view).
    - [x] **Needs attention** table (filters, mark handled, action panel)
    - [x] Sidebar: **coaching requests** + planning coverage (or attention action panel when row selected)
