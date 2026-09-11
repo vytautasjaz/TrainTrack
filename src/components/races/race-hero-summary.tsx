@@ -1,51 +1,20 @@
 'use client'
 
-import { RaceIntent, RacePriority } from '@prisma/client'
-import { Calendar, Flag, MapPin, MoreHorizontal } from 'lucide-react'
+import { RaceIntent } from '@prisma/client'
+import { Calendar, Flag, MapPin } from 'lucide-react'
 import {
   distanceSummaryLabel,
   raceFormSportFamily,
   raceFormSportLabel,
-  resolveWorkoutSport,
   runDistanceFromRaceType,
   sportIdFromRace,
 } from '@/lib/race-form'
 import { RACE_INTENT_LABELS, RACE_PRIORITY_LABELS } from '@/lib/constants'
-import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
+import { resolveRaceHeroImageUrl } from '@/lib/race-hero'
+import { SIDEBAR_HERO_STYLE } from '@/lib/sidebar-hero'
 import { cn } from '@/lib/utils'
 import type { SeasonRace } from '@/lib/season-races'
 import { TriathlonDistance } from '@prisma/client'
-
-const HERO_GRADIENT: Record<RacePriority, string> = {
-  A: 'from-white to-red-100',
-  B: 'from-white to-blue-100',
-  C: 'from-white to-emerald-100',
-}
-
-const HERO_ICON: Record<RacePriority, string> = {
-  A: 'bg-red-500/15 text-red-700',
-  B: 'bg-blue-500/15 text-blue-700',
-  C: 'bg-emerald-500/15 text-emerald-800',
-}
-
-const HERO_BADGE: Record<RacePriority, string> = {
-  A: 'bg-red-500 text-white',
-  B: 'bg-blue-500 text-white',
-  C: 'bg-emerald-500 text-white',
-}
-
-const HERO_MUTED: Record<RacePriority, string> = {
-  A: 'text-red-800/55',
-  B: 'text-blue-800/55',
-  C: 'text-emerald-900/50',
-}
-
-const HERO_WATCHING = {
-  gradient: 'from-white to-zinc-100',
-  icon: 'bg-zinc-500/15 text-zinc-700',
-  badge: 'bg-zinc-500 text-white',
-  muted: 'text-zinc-700/55',
-} as const
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString('en-GB', {
@@ -56,14 +25,7 @@ function formatDate(date: Date): string {
   })
 }
 
-type RaceHeroSummaryProps = {
-  race: SeasonRace
-  /** Flush to modal top edge. */
-  flush?: boolean
-  className?: string
-}
-
-export function RaceHeroSummary({ race, flush = true, className }: RaceHeroSummaryProps) {
+export function raceSummaryMeta(race: SeasonRace) {
   const isWatching = race.intent === RaceIntent.WATCHING
   const sportId = sportIdFromRace({
     sport: race.sport ?? 'RUN',
@@ -93,97 +55,79 @@ export function RaceHeroSummary({ race, flush = true, className }: RaceHeroSumma
     customBikeKm: legs.find((l) => l.kind === 'BIKE')?.plannedDistanceKm,
     customRunKm: legs.find((l) => l.kind === 'RUN')?.plannedDistanceKm,
   })
-  const SportIcon =
-    sportId === 'OTHER'
-      ? MoreHorizontal
-      : WORKOUT_TYPE_ICONS[resolveWorkoutSport(sportId)]
 
-  const gradient = isWatching ? HERO_WATCHING.gradient : HERO_GRADIENT[race.priority]
-  const iconBox = isWatching ? HERO_WATCHING.icon : HERO_ICON[race.priority]
-  const muted = isWatching ? HERO_WATCHING.muted : HERO_MUTED[race.priority]
-  const badge = isWatching ? HERO_WATCHING.badge : HERO_BADGE[race.priority]
+  return {
+    isWatching,
+    sportId,
+    sportLabel: raceFormSportLabel(sportId),
+    distLabel,
+    priorityLabel: isWatching
+      ? RACE_INTENT_LABELS.WATCHING
+      : RACE_PRIORITY_LABELS[race.priority],
+  }
+}
+
+type RaceHeroSummaryProps = {
+  race: SeasonRace
+  /** Flush to modal top edge. */
+  flush?: boolean
+  className?: string
+}
+
+export function RaceHeroSummary({ race, flush = true, className }: RaceHeroSummaryProps) {
+  const { isWatching } = raceSummaryMeta(race)
+  const heroImageUrl = resolveRaceHeroImageUrl({
+    coverImageUrl: race.coverImageUrl,
+  })
 
   return (
     <div
       className={cn(
-        'relative bg-gradient-to-b',
+        'relative isolate flex aspect-[3/1] flex-col justify-end overflow-hidden',
         flush
-          ? 'rounded-none border-0 border-b border-black/20 pb-5 pl-5 pr-20 pt-5 sm:pl-6'
-          : 'overflow-hidden rounded-[10px] border border-black/10 px-4 pb-4 pt-4 sm:px-5',
-        gradient,
+          ? 'rounded-none border-0 border-b border-white/10 px-5 pb-5 pt-5 sm:px-6 sm:pb-6'
+          : 'rounded-[10px] border border-white/10 px-4 pb-4 pt-4 sm:px-5',
         className,
       )}
+      style={heroImageUrl ? undefined : SIDEBAR_HERO_STYLE}
     >
-      <div className="flex items-start gap-3">
-        <div
-          className={cn(
-            'mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px]',
-            iconBox,
-          )}
-        >
+      {heroImageUrl ? (
+        <>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={heroImageUrl}
+            alt=""
+            className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover object-[72%_center]"
+          />
+          <div
+            className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-[#151827]/90 via-[#151827]/45 to-[#151827]/20"
+            aria-hidden
+          />
+        </>
+      ) : null}
+
+      <div className="relative z-[1] flex items-start gap-3">
+        <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-white/10 text-white backdrop-blur-[2px]">
           <Flag className="h-5 w-5" strokeWidth={2} />
         </div>
 
-        <div className="min-w-0 flex-1 pr-10">
-          <p className={cn('mb-1 text-[10px] font-semibold uppercase tracking-wider', muted)}>
-            Race
+        <div className="min-w-0 flex-1">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-white/65">
+            {isWatching ? 'Watching' : 'Race'}
           </p>
-          <p className="truncate text-[17px] font-semibold leading-snug text-[#111827]">
+          <p className="truncate text-[17px] font-semibold leading-snug text-white">
             {race.name}
           </p>
-          <p className="mt-1.5 flex items-center gap-1.5 text-[13px] leading-snug text-[#6B7280]">
-            <Calendar className="h-3.5 w-3.5 shrink-0 opacity-70" />
-            {formatDate(race.date)}
-          </p>
-          <p className={cn('mt-1 flex items-center gap-1.5 text-[13px] leading-snug', muted)}>
-            <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" />
-            <span className="truncate">{race.location?.trim() || 'No location'}</span>
-          </p>
-        </div>
-
-        <div
-          className={cn(
-            'absolute flex flex-col items-center gap-0.5',
-            flush ? 'right-12 top-4 sm:right-14 sm:top-5' : 'right-3 top-3',
-          )}
-        >
-          <span
-            className={cn(
-              'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-sm',
-              badge,
-            )}
-          >
-            {isWatching ? 'W' : race.priority}
-          </span>
-          <span className={cn('text-[10px]', muted)}>
-            {isWatching ? RACE_INTENT_LABELS.WATCHING : RACE_PRIORITY_LABELS[race.priority]}
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-4 flex min-w-0 items-stretch overflow-hidden border-t border-black/10 pt-3">
-        <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center px-1.5 text-center">
-          <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Sport
-          </span>
-          <div className="mt-1.5 flex h-8 w-full items-center justify-center">
-            <div className="inline-flex max-w-full items-center gap-1">
-              <SportIcon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
-              <span className="truncate text-sm font-semibold">
-                {raceFormSportLabel(sportId)}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="w-px shrink-0 self-stretch bg-foreground/20" />
-
-        <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center px-1.5 text-center">
-          <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Distance
-          </span>
-          <div className="mt-1.5 flex h-8 w-full items-center justify-center">
-            <span className="truncate text-sm font-semibold">{distLabel || '—'}</span>
+          <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] leading-snug text-white/80">
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+              <span className="truncate">{formatDate(race.date)}</span>
+            </span>
+            <span className="hidden h-3 w-px shrink-0 bg-white/25 sm:block" aria-hidden />
+            <span className="inline-flex min-w-0 items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+              <span className="truncate">{race.location?.trim() || 'No location'}</span>
+            </span>
           </div>
         </div>
       </div>

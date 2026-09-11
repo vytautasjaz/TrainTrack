@@ -6,6 +6,7 @@ import {
   raceUsesLegs,
   TRIATHLON_LEG_ORDER,
 } from '@/lib/race-legs'
+import { racePlaceLines } from '@/lib/season-races'
 
 export type RaceFeedbackReportLeg = {
   kind: RaceLegKind
@@ -18,6 +19,8 @@ export type RaceFeedbackReportSource = {
   outcome: RaceOutcome | null
   resultTime?: string | null
   resultPlace?: string | null
+  resultPlaceGender?: string | null
+  resultPlaceAg?: string | null
   resultNotes?: string | null
   type: RaceType
   legs?: RaceFeedbackReportLeg[] | null
@@ -54,9 +57,16 @@ export function formatRaceFeedbackReportBody(race: RaceFeedbackReportSource): st
     lines.push(`Finish time: ${finishTime}`)
   }
 
-  const place = race.resultPlace?.trim()
-  if (place && race.outcome === RaceOutcome.FINISHED) {
-    lines.push(`Place: ${place}`)
+  if (race.outcome === RaceOutcome.FINISHED) {
+    const places = racePlaceLines(race)
+    if (places.length === 1) {
+      lines.push(`Place: ${places[0]!.value}`)
+    } else if (places.length > 1) {
+      lines.push(
+        'Place:',
+        ...places.map((p) => `  ${p.label}: ${p.value}`),
+      )
+    }
   }
 
   const legLines = formatLegLines(race)
@@ -66,7 +76,7 @@ export function formatRaceFeedbackReportBody(race: RaceFeedbackReportSource): st
 
   const notes = race.resultNotes?.trim()
   if (notes) {
-    lines.push('', 'Notes:', notes)
+    lines.push('', 'Feedback:', notes)
   }
 
   return lines.join('\n').trim()
@@ -82,13 +92,11 @@ export const RACE_RESULT_LOGGED_MESSAGE = 'Logged race result.'
 /** True when the chat bubble would only repeat what's already on the race card. */
 export function isRaceReportCardDuplicateMessage(
   body: string,
-  race?: { resultNotes?: string | null } | null,
+  _race?: { resultNotes?: string | null } | null,
 ): boolean {
   const trimmed = body.trim()
   if (!trimmed) return true
   if (trimmed === RACE_RESULT_LOGGED_MESSAGE) return true
   if (trimmed.startsWith('Outcome:')) return true
-  const notes = race?.resultNotes?.trim()
-  if (notes && trimmed === notes) return true
   return false
 }

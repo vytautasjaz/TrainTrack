@@ -27,6 +27,30 @@ import { sportSlug } from '@/lib/workout-library/config'
 import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-athlete-preferences'
 import { resolveLibraryTemplateMetricsForAthlete } from '@/lib/workout-library/template-metrics'
 import { syncApproxTagsFromSources } from '@/lib/workout-metric-source'
+import { putRaceCoverFile } from '@/lib/race-cover-storage'
+
+const RACE_COVER_MAX_BYTES = 3 * 1024 * 1024
+const RACE_COVER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+/** Returns new URL, null to clear, or undefined when unchanged. */
+async function resolveRaceCoverUpdate(
+  raceId: string,
+  formData: FormData,
+): Promise<string | null | undefined> {
+  if (formData.get('clearCover') === '1') return null
+  const file = formData.get('cover')
+  if (!(file instanceof File) || file.size === 0) return undefined
+  if (!RACE_COVER_TYPES.has(file.type)) {
+    throw new Error('Use a JPEG, PNG, or WebP image for the cover.')
+  }
+  if (file.size > RACE_COVER_MAX_BYTES) {
+    throw new Error('Cover image must be 3 MB or smaller.')
+  }
+  const buffer = Buffer.from(await file.arrayBuffer())
+  const filename = `${raceId}.jpg`
+  await putRaceCoverFile(filename, buffer, 'image/jpeg')
+  return `/uploads/race-covers/${filename}?v=${Date.now()}`
+}
 
 function parseOptionalFloat(value: FormDataEntryValue | null) {
   if (!value || value === '') return undefined
@@ -810,6 +834,14 @@ export async function createRace(formData: FormData) {
     select: { id: true },
   })
 
+  const coverUrl = await resolveRaceCoverUpdate(created.id, formData)
+  if (coverUrl) {
+    await prisma.race.update({
+      where: { id: created.id },
+      data: { coverImageUrl: coverUrl },
+    })
+  }
+
   // Optional planned split times from the add form (triathlon).
   if (raceUsesLegs(raceType)) {
     await saveRaceLegPlanFields(created.id, formData, { persistDistances: isTriCustom })
@@ -1384,6 +1416,8 @@ export async function updateRace(formData: FormData) {
   const raceName = String(formData.get('name') ?? '').trim()
   if (!raceName) throw new Error('Race name is required.')
 
+  const coverUrl = await resolveRaceCoverUpdate(raceId, formData)
+
   const race = await prisma.race.update({
     where: { id: raceId },
     data: {
@@ -1401,6 +1435,7 @@ export async function updateRace(formData: FormData) {
       goal: parseOptionalString(formData.get('goal')),
       url: parseOptionalString(formData.get('url')),
       preparationWeeks,
+      ...(coverUrl !== undefined ? { coverImageUrl: coverUrl } : {}),
     },
     select: { id: true, athleteId: true },
   })
@@ -1483,6 +1518,14 @@ export async function logRaceOutcome(formData: FormData) {
     outcomeRaw === RaceOutcome.FINISHED
       ? parseOptionalString(formData.get('resultPlace'))
       : null
+  const resultPlaceGender =
+    outcomeRaw === RaceOutcome.FINISHED
+      ? parseOptionalString(formData.get('resultPlaceGender'))
+      : null
+  const resultPlaceAg =
+    outcomeRaw === RaceOutcome.FINISHED
+      ? parseOptionalString(formData.get('resultPlaceAg'))
+      : null
   const resultNotes =
     outcomeRaw === RaceOutcome.DISMISSED
       ? null
@@ -1499,6 +1542,8 @@ export async function logRaceOutcome(formData: FormData) {
       outcome: outcomeRaw,
       resultTime,
       resultPlace,
+      resultPlaceGender,
+      resultPlaceAg,
       resultNotes,
       resultLoggedAt: new Date(),
       resultDismissedAt:
@@ -1523,6 +1568,8 @@ export async function logRaceOutcome(formData: FormData) {
         outcome: true,
         resultTime: true,
         resultPlace: true,
+        resultPlaceGender: true,
+        resultPlaceAg: true,
         resultNotes: true,
         type: true,
         legs: {
@@ -1538,7 +1585,7 @@ export async function logRaceOutcome(formData: FormData) {
     })
     const hasReport = updated ? Boolean(formatRaceFeedbackReportBody(updated)) : false
     if (hasReport) {
-      // Structured result + notes live on the race card; keep a short placeholder for the thread.
+      // Structured result lives on the race card; keep a short placeholder for the thread.
       const noteForm = new FormData()
       noteForm.set('raceId', raceId)
       noteForm.set('body', RACE_RESULT_LOGGED_MESSAGE)
@@ -1546,6 +1593,16 @@ export async function logRaceOutcome(formData: FormData) {
         await askOrCommentOnRace(noteForm)
       } catch {
         // No connected coach or other soft failure — race result still saved
+      }
+      try {
+        const { syncRaceFeedbackToThread } = await import('@/app/actions/coaching-inbox')
+        await syncRaceFeedbackToThread({
+          raceId,
+          athleteId: existing.athleteId,
+          resultNotes: updated?.resultNotes ?? null,
+        })
+      } catch {
+        // Soft-fail — result still saved
       }
     }
   }

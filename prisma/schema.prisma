@@ -480,11 +480,17 @@ model Race {
   url       String?
   /** Athlete override; null uses default weeks for race type. */
   preparationWeeks Int?
+  /** Optional custom hero/cover photo (uploaded); falls back to sport default art. */
+  coverImageUrl String?
   /** Set when athlete logs how the race went (or dismisses the prompt). */
   outcome      RaceOutcome?
   resultTime   String?
   /** Overall place / ranking (e.g. "12th", "3/240") — optional. */
   resultPlace  String?
+  /** Place among same gender — optional. */
+  resultPlaceGender String?
+  /** Age-group place — optional. */
+  resultPlaceAg String?
   resultNotes  String?
   resultLoggedAt DateTime?
   /** Cleared when athlete logs a result; set when coach dismisses the dashboard alert. */
@@ -603,6 +609,8 @@ model SeasonEvent {
   /** Local clock `HH:mm` on endDate. Ignored when allDay. */
   endTime   String?
   location  String?
+  /** Optional custom hero cover (3:1). */
+  coverImageUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -106,6 +106,8 @@ export type CoachingThreadWithMessages = CoachingThread & {
     | 'outcome'
     | 'resultTime'
     | 'resultPlace'
+    | 'resultPlaceGender'
+    | 'resultPlaceAg'
     | 'resultNotes'
   > & {
     legs: Array<{
@@ -133,6 +135,8 @@ const threadInclude = {
       outcome: true,
       resultTime: true,
       resultPlace: true,
+      resultPlaceGender: true,
+      resultPlaceAg: true,
       resultNotes: true,
       legs: {
         select: {
@@ -413,6 +417,8 @@ export function serializeInboxThread(
           outcome: thread.race.outcome as RaceOutcome | null,
           resultTime: thread.race.resultTime,
           resultPlace: thread.race.resultPlace,
+          resultPlaceGender: thread.race.resultPlaceGender,
+          resultPlaceAg: thread.race.resultPlaceAg,
           resultNotes: thread.race.resultNotes,
           type: thread.race.type,
           legs: thread.race.legs,
@@ -457,6 +463,8 @@ export function serializeInboxThread(
           outcome: thread.race.outcome,
           resultTime: thread.race.resultTime,
           resultPlace: thread.race.resultPlace,
+          resultPlaceGender: thread.race.resultPlaceGender,
+          resultPlaceAg: thread.race.resultPlaceAg,
           resultNotes: thread.race.resultNotes,
           legs: thread.race.legs,
         }
@@ -477,29 +485,60 @@ export function toCoachingThreadView(thread: {
     createdAt: Date
   }>
   workout?: { result?: { feeling?: number | null } | null } | null
+  race?: { resultNotes?: string | null } | null
 }) {
   const feeling = parseWorkoutFeeling(thread.workout?.result?.feeling)
+  const raceNotes = thread.race?.resultNotes?.trim() || ''
   const firstAthleteId = thread.messages.find(
     (m) => m.authorRole === CoachingAuthorRole.ATHLETE,
   )?.id
+  const messages = thread.messages.map((m) => {
+    const isAthleteFeedback =
+      m.authorRole === CoachingAuthorRole.ATHLETE &&
+      (m.kind === CoachingMessageKind.FEEDBACK ||
+        (thread.kind === CoachingThreadKind.FEEDBACK && m.id === firstAthleteId) ||
+        (thread.kind === CoachingThreadKind.RACE_REPORT &&
+          Boolean(raceNotes) &&
+          m.body.trim() === raceNotes))
+    return {
+      id: m.id,
+      authorRole: m.authorRole,
+      kind: isAthleteFeedback ? CoachingMessageKind.FEEDBACK : m.kind,
+      body: m.body,
+      feeling: isAthleteFeedback ? feeling : null,
+      createdAt: m.createdAt.toISOString(),
+    }
+  })
+
+  // Race feedback lives on Race.resultNotes — surface it as a Feedback bubble
+  // when the thread doesn't already have one (avoids a slow sync on open).
+  if (
+    thread.kind === CoachingThreadKind.RACE_REPORT &&
+    raceNotes &&
+    !messages.some(
+      (m) =>
+        m.authorRole === CoachingAuthorRole.ATHLETE &&
+        m.kind === CoachingMessageKind.FEEDBACK,
+    )
+  ) {
+    const stamp =
+      thread.messages[thread.messages.length - 1]?.createdAt.toISOString() ??
+      new Date().toISOString()
+    messages.push({
+      id: `race-feedback:${thread.id}`,
+      authorRole: CoachingAuthorRole.ATHLETE,
+      kind: CoachingMessageKind.FEEDBACK,
+      body: raceNotes,
+      feeling: null,
+      createdAt: stamp,
+    })
+  }
+
   return {
     id: thread.id,
     status: thread.status,
     kind: thread.kind,
-    messages: thread.messages.map((m) => {
-      const isAthleteFeedback =
-        m.authorRole === CoachingAuthorRole.ATHLETE &&
-        (m.kind === CoachingMessageKind.FEEDBACK ||
-          (thread.kind === CoachingThreadKind.FEEDBACK && m.id === firstAthleteId))
-      return {
-        id: m.id,
-        authorRole: m.authorRole,
-        kind: isAthleteFeedback ? CoachingMessageKind.FEEDBACK : m.kind,
-        body: m.body,
-        feeling: isAthleteFeedback ? feeling : null,
-        createdAt: m.createdAt.toISOString(),
-      }
-    }),
+    messages,
   }
 }
 

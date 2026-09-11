@@ -593,6 +593,7 @@ export type SeasonEventData = {
   startTime?: string | null
   endTime?: string | null
   location?: string | null
+  coverImageUrl?: string | null
 }
 
 /** Display label for season events (title only). */

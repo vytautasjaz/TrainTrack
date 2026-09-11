@@ -17,6 +17,7 @@ import {
 } from '@/lib/dates'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import type { CoachingThreadView } from '@/components/inbox/coaching-thread-panel'
+import { racePlaceSummary } from '@/lib/season-races'
 import {
   type CoachHomeActivityFeedItem,
   type CoachHomeNeedsReplyThread,
@@ -94,6 +95,8 @@ export type CoachHomeRaceFeedData = {
   outcome: RaceOutcome | null
   resultTime: string | null
   resultPlace: string | null
+  resultPlaceGender: string | null
+  resultPlaceAg: string | null
   resultNotes: string | null
   stravaActivityUrl: string | null
   stravaActivityName: string | null
@@ -170,6 +173,8 @@ export type CoachHomeRaceFeedSource = {
   outcome: RaceOutcome | null
   resultTime: string | null
   resultPlace: string | null
+  resultPlaceGender: string | null
+  resultPlaceAg: string | null
   resultNotes: string | null
   resultLoggedAt: Date | null
   stravaActivityUrl: string | null
@@ -1060,6 +1065,8 @@ export function buildCoachHomeRaceActivityRows(
         outcome: race.outcome,
         resultTime: race.resultTime,
         resultPlace: race.resultPlace,
+        resultPlaceGender: race.resultPlaceGender,
+        resultPlaceAg: race.resultPlaceAg,
         resultNotes: race.resultNotes,
         stravaActivityUrl: race.stravaActivityUrl,
         stravaActivityName: race.stravaActivityName,

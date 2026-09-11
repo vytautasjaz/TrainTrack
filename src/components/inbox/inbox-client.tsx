@@ -88,6 +88,8 @@ export type InboxThreadListItem = {
     outcome: string | null
     resultTime: string | null
     resultPlace: string | null
+    resultPlaceGender: string | null
+    resultPlaceAg: string | null
     resultNotes: string | null
     legs?: InboxRaceReportLeg[]
   } | null
@@ -362,6 +364,7 @@ function InboxThreadDetail({
           (m) =>
             !(
               m.authorRole === CoachingAuthorRole.ATHLETE &&
+              m.kind !== 'FEEDBACK' &&
               isRaceReportCardDuplicateMessage(m.body, selected.race)
             ),
         )

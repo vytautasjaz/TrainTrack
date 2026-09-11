@@ -1,36 +1,42 @@
-import { RaceLegKind, RaceOutcome, type RacePriority } from '@prisma/client'
+import { RaceOutcome, type RacePriority, type RaceType } from '@prisma/client'
 import { Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { PriorityBadge } from '@/components/races/priority-badge'
-import { RACE_OUTCOME_LABELS, RACE_TYPE_LABELS } from '@/lib/constants'
 import {
-  formatRaceLegResult,
-  RACE_LEG_LABELS,
-  raceUsesLegs,
-  TRIATHLON_LEG_ORDER,
-} from '@/lib/race-legs'
+  RaceReportPanel,
+  raceHasReportContent,
+  type RaceReportPanelData,
+} from '@/components/races/race-report-panel'
+import { RACE_OUTCOME_LABELS, RACE_TYPE_LABELS } from '@/lib/constants'
 import { PLANNER_PRIORITY_CARD } from '@/lib/season-planner'
 import { cn } from '@/lib/utils'
+import type { RaceLegView } from '@/lib/race-legs'
 
 export type InboxRaceReportLeg = {
   id: string
-  kind: RaceLegKind
+  kind: RaceLegView['kind']
   sortOrder: number
   resultTime: string | null
   plannedTime: string | null
   stravaActivityUrl: string | null
+  stravaActivityName?: string | null
+  actualDurationMin?: number | null
 }
 
 export type InboxRaceReportSummaryData = {
   name: string
   dateKey: string
-  type: keyof typeof RACE_TYPE_LABELS
+  type: RaceType | keyof typeof RACE_TYPE_LABELS
   priority?: RacePriority | null
   outcome: RaceOutcome | string | null
   resultTime: string | null
   resultPlace: string | null
+  resultPlaceGender: string | null
+  resultPlaceAg: string | null
   resultNotes: string | null
   legs?: InboxRaceReportLeg[]
+  stravaActivityUrl?: string | null
+  stravaActivityName?: string | null
 }
 
 function inboxRaceResultLabel(race: InboxRaceReportSummaryData): string {
@@ -66,62 +72,6 @@ function outcomeBadgeClass(outcome: RaceOutcome | string | null): string {
 const headerTagClass =
   'inline-flex items-center rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase leading-tight tracking-[0.06em]'
 
-function StatTile({
-  label,
-  value,
-  emphasize = false,
-}: {
-  label: string
-  value: string
-  emphasize?: boolean
-}) {
-  return (
-    <div className="min-w-0 rounded-[8px] border border-black/5 bg-background/80 px-3 py-2.5 backdrop-blur-[2px]">
-      <p className="title-eyebrow text-[var(--tt-ink-faint)]">{label}</p>
-      <p
-        className={cn(
-          'mt-1 truncate tabular-nums tracking-tight text-foreground',
-          emphasize ? 'text-xl font-semibold' : 'text-sm font-semibold',
-        )}
-      >
-        {value}
-      </p>
-    </div>
-  )
-}
-
-function InboxRaceSplits({ legs }: { legs: InboxRaceReportLeg[] }) {
-  const byKind = new Map(legs.map((leg) => [leg.kind, leg]))
-  const items = TRIATHLON_LEG_ORDER.map((kind) => {
-    const leg = byKind.get(kind)
-    if (!leg) return null
-    const time = formatRaceLegResult(leg)
-    if (time === '—') return null
-    return { kind, time }
-  }).filter(Boolean) as Array<{ kind: RaceLegKind; time: string }>
-
-  if (items.length === 0) return null
-
-  return (
-    <div>
-      <p className="title-eyebrow mb-2 text-[var(--tt-ink-faint)]">Splits</p>
-      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
-        {items.map(({ kind, time }) => (
-          <div
-            key={kind}
-            className="min-w-0 rounded-[6px] border border-black/5 bg-background/70 px-2 py-1.5 text-center"
-          >
-            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
-              {RACE_LEG_LABELS[kind]}
-            </p>
-            <p className="mt-0.5 text-xs font-semibold tabular-nums text-foreground">{time}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
 type InboxRaceReportSummaryProps = {
   race: InboxRaceReportSummaryData
   dateLabel: string
@@ -137,18 +87,19 @@ export function InboxRaceReportSummary({
 }: InboxRaceReportSummaryProps) {
   const outcome = race.outcome as RaceOutcome | null
   const hasResult = outcome && outcome !== RaceOutcome.DISMISSED
-  const showLegs = raceUsesLegs(race.type) && Boolean(race.legs?.length)
-  const place = race.resultPlace?.trim() || null
-  const notes = race.resultNotes?.trim() || null
-  const resultValue = hasResult ? inboxRaceResultLabel(race) : null
-  const showFinishTile =
-    hasResult &&
-    Boolean(
-      race.resultTime?.trim() ||
-        outcome === RaceOutcome.FINISHED ||
-        outcome === RaceOutcome.DNF ||
-        outcome === RaceOutcome.DID_NOT_START,
-    )
+  const reportRace: RaceReportPanelData = {
+    type: race.type as RaceType,
+    outcome: race.outcome,
+    resultTime: race.resultTime,
+    resultPlace: race.resultPlace,
+    resultPlaceGender: race.resultPlaceGender,
+    resultPlaceAg: race.resultPlaceAg,
+    resultNotes: race.resultNotes,
+    stravaActivityUrl: race.stravaActivityUrl,
+    stravaActivityName: race.stravaActivityName,
+    legs: race.legs,
+  }
+  const hasReport = raceHasReportContent(reportRace)
   const prioritySurface = race.priority
     ? PLANNER_PRIORITY_CARD[race.priority]
     : 'border-border bg-background'
@@ -169,14 +120,19 @@ export function InboxRaceReportSummary({
               <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
               <span>{dateLabel}</span>
               <span aria-hidden>·</span>
-              <span>{RACE_TYPE_LABELS[race.type]}</span>
+              <span>{RACE_TYPE_LABELS[race.type as keyof typeof RACE_TYPE_LABELS]}</span>
             </p>
           </div>
           <div className="flex max-w-[55%] shrink-0 flex-wrap items-center justify-end gap-1.5">
             {race.priority ? (
               <PriorityBadge priority={race.priority} />
             ) : (
-              <span className={cn(headerTagClass, 'border-black/10 bg-background/70 text-muted-foreground')}>
+              <span
+                className={cn(
+                  headerTagClass,
+                  'border-black/10 bg-background/70 text-muted-foreground',
+                )}
+              >
                 Race
               </span>
             )}
@@ -200,48 +156,13 @@ export function InboxRaceReportSummary({
         </div>
       </div>
 
-      <div className="space-y-3.5 px-3.5 py-3.5">
-        {hasResult ? (
-          <>
-            {(showFinishTile || place) && (
-              <div
-                className={cn(
-                  'grid gap-2',
-                  showFinishTile && place ? 'grid-cols-2' : 'grid-cols-1',
-                )}
-              >
-                {showFinishTile ? (
-                  <StatTile
-                    label={
-                      outcome === RaceOutcome.FINISHED
-                        ? 'Finish time'
-                        : outcome === RaceOutcome.DNF
-                          ? 'Time'
-                          : 'Result'
-                    }
-                    value={resultValue!}
-                    emphasize={Boolean(race.resultTime?.trim())}
-                  />
-                ) : null}
-                {place ? <StatTile label="Place" value={place} /> : null}
-              </div>
-            )}
-
-            {showLegs ? <InboxRaceSplits legs={race.legs!} /> : null}
-
-            {notes ? (
-              <div className="rounded-[8px] border border-black/5 bg-background/70 px-3 py-2.5">
-                <p className="title-eyebrow text-[var(--tt-ink-faint)]">Notes</p>
-                <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                  {notes}
-                </p>
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <p className="text-xs text-muted-foreground">No race result logged yet.</p>
-        )}
-      </div>
+      {hasReport ? (
+        <RaceReportPanel race={reportRace} showPlan={false} />
+      ) : (
+        <p className="px-3.5 py-3.5 text-xs text-muted-foreground">
+          No race result logged yet.
+        </p>
+      )}
     </div>
   )
 }

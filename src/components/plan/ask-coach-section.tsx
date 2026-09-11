@@ -35,6 +35,7 @@ import { parseWorkoutFeeling, workoutFeelingLabel } from '@/lib/workout-feeling'
 import { cn } from '@/lib/utils'
 import { EmojiPickerButton, insertEmojiAtCursor } from '@/components/inbox/emoji-picker-button'
 import { WorkoutFeelingPicker } from '@/components/plan/workout-feeling-picker'
+import { ExpandShell } from '@/components/ui/expand-shell'
 
 type CoachMessageSectionProps = {
   workout: PlanWorkoutDetail
@@ -45,9 +46,18 @@ type CoachMessageSectionProps = {
 
 type FooterPanel = 'ask' | 'feedback' | 'chat'
 
+function workoutHasSavedFeedback(workout: PlanWorkoutDetail): boolean {
+  return (
+    parseWorkoutFeeling(workout.result?.feeling) != null ||
+    Boolean(workout.result?.athleteNotes?.trim())
+  )
+}
+
 function initialAskCoachPanel(workout: PlanWorkoutDetail): FooterPanel | null {
   const canAsk = athleteCanAskCoachAboutWorkout(workout)
   const canFeedback = athleteCanLeaveWorkoutComment(workout, false)
+  // Saved feedback wins over chat so the report modal opens on Feedback first.
+  if (canFeedback && workoutHasSavedFeedback(workout)) return 'feedback'
   if (workoutHasCoachingChat(workout)) {
     return canFeedback && !canAsk ? 'chat' : 'ask'
   }
@@ -183,6 +193,11 @@ function AskCoachSectionInner({ workout, onClose, onDirtyChange, saveRef }: Coac
 
   useEffect(() => {
     if (autoExpandedChatRef.current) return
+    // Keep Feedback open when the athlete already left notes/feeling.
+    if (canFeedback && (hasSavedFeedback || workoutHasSavedFeedback(workout))) {
+      autoExpandedChatRef.current = true
+      return
+    }
     if (workoutHasCoachingChat(workout)) {
       autoExpandedChatRef.current = true
       setPanel(chatPanel)
@@ -192,7 +207,7 @@ function AskCoachSectionInner({ workout, onClose, onDirtyChange, saveRef }: Coac
       autoExpandedChatRef.current = true
       setPanel(chatPanel)
     }
-  }, [thread, chatPanel, workout])
+  }, [thread, chatPanel, workout, canFeedback, hasSavedFeedback])
 
   // Refresh committed values from server without interrupting an in-progress edit.
   useEffect(() => {
@@ -383,154 +398,157 @@ function AskCoachSectionInner({ workout, onClose, onDirtyChange, saveRef }: Coac
         />
       )}
 
-      {panel === 'feedback' ? (
-        <div className="mt-1 space-y-3 border-t border-border/30 px-2 pt-3">
-          {showLockedFeedback ? (
-            <div className="space-y-3">
-              <div className="rounded-[8px] border border-border/60 bg-muted/30 px-3 py-2.5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  How you felt
-                </p>
-                {lockedFeeling != null ? (
-                  <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
-                    {lockedFeeling}/10 · {workoutFeelingLabel(lockedFeeling)}
+      {canFeedback ? (
+        <ExpandShell open={panel === 'feedback'}>
+          <div className="mt-1 space-y-3 border-t border-border/30 px-2 pt-3">
+            {showLockedFeedback ? (
+              <div className="space-y-3">
+                <div className="rounded-[8px] border border-border/60 bg-muted/30 px-3 py-2.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    How you felt
                   </p>
-                ) : (
-                  <p className="mt-1 text-sm text-muted-foreground">No effort rating</p>
-                )}
-                {savedNotes ? (
-                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
-                    {savedNotes}
-                  </p>
-                ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">No note added.</p>
-                )}
-              </div>
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  onClick={beginEditFeedback}
-                >
-                  Edit feedback
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={saveFeedback} className="space-y-3">
-              <WorkoutFeelingPicker
-                value={feeling}
-                onChange={setFeeling}
-                disabled={feedbackSaving}
-              />
-              <Textarea
-                ref={feedbackRef}
-                value={feedbackBody}
-                onChange={(e) => setFeedbackBody(e.target.value)}
-                rows={3}
-                placeholder="How did your session go?"
-                disabled={feedbackSaving}
-              />
-              {feedbackError ? (
-                <p className="text-sm text-destructive">{feedbackError}</p>
-              ) : null}
-              <div className="flex flex-wrap items-center gap-2">
-                <EmojiPickerButton
-                  disabled={feedbackSaving}
-                  onSelect={(emoji) =>
-                    setFeedbackBody((prev) =>
-                      insertEmojiAtCursor(feedbackRef.current, prev, emoji),
-                    )
-                  }
-                />
-                <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                  {hasSavedFeedback ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={feedbackSaving}
-                      onClick={cancelEditFeedback}
-                    >
-                      Cancel
-                    </Button>
-                  ) : null}
-                  {stravaDescription && feedbackBody !== stravaDescription ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      disabled={feedbackSaving}
-                      onClick={() => setFeedbackBody(stravaDescription)}
-                    >
-                      Use Strava description
-                    </Button>
-                  ) : null}
-                  <Button type="submit" size="sm" variant="secondary" disabled={feedbackSaving}>
-                    {feedbackSaving ? 'Saving…' : 'Save feedback'}
+                  {lockedFeeling != null ? (
+                    <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                      {lockedFeeling}/10 · {workoutFeelingLabel(lockedFeeling)}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-sm text-muted-foreground">No effort rating</p>
+                  )}
+                  {savedNotes ? (
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                      {savedNotes}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">No note added.</p>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={beginEditFeedback}
+                  >
+                    Edit feedback
                   </Button>
-                  {onClose ? (
-                    <Button
-                      type="button"
-                      size="sm"
-                      disabled={feedbackSaving}
-                      onClick={() => {
-                        void runFeedbackSave()
-                          .then(() => onClose())
-                          .catch(() => {
-                            /* keep draft */
-                          })
-                      }}
-                    >
-                      {feedbackSaving ? 'Saving…' : 'Save and close'}
-                    </Button>
-                  ) : null}
                 </div>
               </div>
-            </form>
-          )}
-        </div>
+            ) : (
+              <form onSubmit={saveFeedback} className="space-y-3">
+                <WorkoutFeelingPicker
+                  value={feeling}
+                  onChange={setFeeling}
+                  disabled={feedbackSaving}
+                />
+                <Textarea
+                  ref={feedbackRef}
+                  value={feedbackBody}
+                  onChange={(e) => setFeedbackBody(e.target.value)}
+                  rows={3}
+                  placeholder="How did your session go?"
+                  disabled={feedbackSaving}
+                />
+                {feedbackError ? (
+                  <p className="text-sm text-destructive">{feedbackError}</p>
+                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                  <EmojiPickerButton
+                    disabled={feedbackSaving}
+                    onSelect={(emoji) =>
+                      setFeedbackBody((prev) =>
+                        insertEmojiAtCursor(feedbackRef.current, prev, emoji),
+                      )
+                    }
+                  />
+                  <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                    {hasSavedFeedback ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={feedbackSaving}
+                        onClick={cancelEditFeedback}
+                      >
+                        Cancel
+                      </Button>
+                    ) : null}
+                    {stravaDescription && feedbackBody !== stravaDescription ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={feedbackSaving}
+                        onClick={() => setFeedbackBody(stravaDescription)}
+                      >
+                        Use Strava description
+                      </Button>
+                    ) : null}
+                    <Button type="submit" size="sm" variant="secondary" disabled={feedbackSaving}>
+                      {feedbackSaving ? 'Saving…' : 'Save feedback'}
+                    </Button>
+                    {onClose ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={feedbackSaving}
+                        onClick={() => {
+                          void runFeedbackSave()
+                            .then(() => onClose())
+                            .catch(() => {
+                              /* keep draft */
+                            })
+                        }}
+                      >
+                        {feedbackSaving ? 'Saving…' : 'Save and close'}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+              </form>
+            )}
+          </div>
+        </ExpandShell>
       ) : null}
 
-      {panel === 'ask' || panel === 'chat' ? (
-        <div className="mt-1 space-y-3 border-t border-border/30 px-2 pt-3">
-          {!threadReady ? (
-            <CoachingThreadSkeleton compact />
-          ) : thread ? (
-            <CoachingThreadPanel thread={thread} role="athlete" compact onUpdated={reload} />
-          ) : (
-            <form onSubmit={sendChat} className="space-y-2">
-              <FormField label="Message about this workout">
-                <Textarea
-                  ref={chatRef}
-                  value={chatBody}
-                  onChange={(e) => setChatBody(e.target.value)}
-                  rows={3}
-                  placeholder="Ask about pacing, equipment, swaps…"
-                  disabled={isPending}
-                  autoFocus
-                />
-              </FormField>
-              <div className="flex flex-wrap items-center gap-2">
-                <EmojiPickerButton
-                  disabled={isPending}
-                  onSelect={(emoji) =>
-                    setChatBody((prev) => insertEmojiAtCursor(chatRef.current, prev, emoji))
-                  }
-                />
-                <Button
-                  type="submit"
-                  size="sm"
-                  variant="secondary"
-                  disabled={isPending || !chatBody.trim()}
-                >
-                  {isPending ? 'Sending…' : 'Send to coach'}
-                </Button>
-              </div>
-            </form>
-          )}
-        </div>
+      {showChat || canAsk ? (
+        <ExpandShell open={panel === 'ask' || panel === 'chat'}>
+          <div className="mt-1 space-y-3 border-t border-border/30 px-2 pt-3">
+            {!threadReady ? (
+              <CoachingThreadSkeleton compact />
+            ) : thread ? (
+              <CoachingThreadPanel thread={thread} role="athlete" compact onUpdated={reload} />
+            ) : (
+              <form onSubmit={sendChat} className="space-y-2">
+                <FormField label="Message about this workout">
+                  <Textarea
+                    ref={chatRef}
+                    value={chatBody}
+                    onChange={(e) => setChatBody(e.target.value)}
+                    rows={3}
+                    placeholder="Ask about pacing, equipment, swaps…"
+                    disabled={isPending}
+                  />
+                </FormField>
+                <div className="flex flex-wrap items-center gap-2">
+                  <EmojiPickerButton
+                    disabled={isPending}
+                    onSelect={(emoji) =>
+                      setChatBody((prev) => insertEmojiAtCursor(chatRef.current, prev, emoji))
+                    }
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="secondary"
+                    disabled={isPending || !chatBody.trim()}
+                  >
+                    {isPending ? 'Sending…' : 'Send to coach'}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </ExpandShell>
       ) : null}
     </div>
   )

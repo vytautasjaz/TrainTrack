@@ -5431,9 +5431,9 @@ input[type='number'] {
   font-weight: 600;
 }
 
-/* ─── Season Plan page (editorial canvas — visual only) ─────────────────── */
+/* ─── Season Plan page ──────────────────────────────────────────────────── */
 .tt-season-page {
-  background: #fafaf8;
+  background: #ffffff;
   min-height: 100%;
 }
 

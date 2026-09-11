@@ -33,6 +33,8 @@ export type RaceResultRow = {
   outcome: RaceOutcome
   resultTime: string | null
   resultPlace: string | null
+  resultPlaceGender: string | null
+  resultPlaceAg: string | null
   resultNotes: string | null
   resultsLogOnly: boolean
   /** Swim / bike / run clock times when logged on triathlon legs. */
@@ -93,6 +95,8 @@ export function serializeRaceResult(race: {
   outcome: RaceOutcome | null
   resultTime: string | null
   resultPlace: string | null
+  resultPlaceGender?: string | null
+  resultPlaceAg?: string | null
   resultNotes: string | null
   resultsLogOnly: boolean
   legs?: Array<{
@@ -116,6 +120,8 @@ export function serializeRaceResult(race: {
     outcome: race.outcome,
     resultTime: race.resultTime,
     resultPlace: race.resultPlace,
+    resultPlaceGender: race.resultPlaceGender ?? null,
+    resultPlaceAg: race.resultPlaceAg ?? null,
     resultNotes: race.resultNotes,
     resultsLogOnly: race.resultsLogOnly,
     legSplits: raceResultLegSplits(race),

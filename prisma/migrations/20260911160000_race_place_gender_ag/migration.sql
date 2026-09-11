@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Race" ADD COLUMN IF NOT EXISTS "resultPlaceGender" TEXT;
+ALTER TABLE "Race" ADD COLUMN IF NOT EXISTS "resultPlaceAg" TEXT;

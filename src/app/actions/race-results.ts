@@ -64,6 +64,8 @@ export async function getAthleteRaceResults(athleteId: string): Promise<RaceResu
       outcome: true,
       resultTime: true,
       resultPlace: true,
+      resultPlaceGender: true,
+      resultPlaceAg: true,
       resultNotes: true,
       resultsLogOnly: true,
       legs: {
@@ -159,6 +161,14 @@ export async function createManualRaceResult(formData: FormData): Promise<{
     outcome === RaceOutcome.FINISHED
       ? String(formData.get('resultPlace') ?? '').trim() || null
       : null
+  const resultPlaceGender =
+    outcome === RaceOutcome.FINISHED
+      ? String(formData.get('resultPlaceGender') ?? '').trim() || null
+      : null
+  const resultPlaceAg =
+    outcome === RaceOutcome.FINISHED
+      ? String(formData.get('resultPlaceAg') ?? '').trim() || null
+      : null
 
   const location = String(formData.get('location') ?? '').trim() || null
   const resultNotes = String(formData.get('resultNotes') ?? '').trim() || null
@@ -193,6 +203,8 @@ export async function createManualRaceResult(formData: FormData): Promise<{
       outcome,
       resultTime,
       resultPlace,
+      resultPlaceGender,
+      resultPlaceAg,
       resultNotes,
       resultLoggedAt: new Date(),
       resultsLogOnly: true,

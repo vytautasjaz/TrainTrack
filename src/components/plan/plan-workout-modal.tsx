@@ -26,6 +26,7 @@ export function PlanWorkoutModal({
         workout={workout}
         open={open}
         onOpenChange={onOpenChange}
+        isCoach={isCoach}
       />
     )
   }

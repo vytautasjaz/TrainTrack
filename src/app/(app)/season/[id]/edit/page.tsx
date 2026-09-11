@@ -85,6 +85,7 @@ export default async function EditRacePage({
           triathlonDistance: race.triathlonDistance,
           hyroxDivision: race.hyroxDivision,
           customDistanceKm: race.customDistanceKm,
+          coverImageUrl: race.coverImageUrl,
           legs: race.legs,
           raceId: race.id,
         }}
@@ -129,6 +130,8 @@ export default async function EditRacePage({
           outcome={race.outcome}
           resultTime={race.resultTime}
           resultPlace={race.resultPlace}
+          resultPlaceGender={race.resultPlaceGender}
+          resultPlaceAg={race.resultPlaceAg}
           resultNotes={race.resultNotes}
           legs={race.legs}
           allowStravaLink={session.hasAthlete}

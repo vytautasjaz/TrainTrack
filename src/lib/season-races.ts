@@ -27,14 +27,56 @@ export type SeasonRace = {
   intent: RaceIntent
   goal: string | null
   url: string | null
+  coverImageUrl?: string | null
   preparationWeeks?: number | null
   outcome?: RaceOutcome | null
   resultTime?: string | null
   resultPlace?: string | null
+  resultPlaceGender?: string | null
+  resultPlaceAg?: string | null
   resultNotes?: string | null
   stravaActivityUrl?: string | null
   stravaActivityName?: string | null
   legs?: RaceLegView[]
+}
+
+/** Athlete may leave race feedback on race day or after (mirrors workout date gate). */
+export function athleteCanLeaveRaceFeedback(
+  race: { date: Date },
+  isCoach = false,
+): boolean {
+  if (isCoach) return false
+  return daysUntil(race.date) <= 0
+}
+
+export type RacePlaceLine = { label: string; value: string }
+
+/** Non-empty place fields for report / summary display. */
+export function racePlaceLines(race: {
+  resultPlace?: string | null
+  resultPlaceGender?: string | null
+  resultPlaceAg?: string | null
+}): RacePlaceLine[] {
+  const lines: RacePlaceLine[] = []
+  const overall = race.resultPlace?.trim()
+  const gender = race.resultPlaceGender?.trim()
+  const ag = race.resultPlaceAg?.trim()
+  if (overall) lines.push({ label: 'Overall', value: overall })
+  if (gender) lines.push({ label: 'Gender', value: gender })
+  if (ag) lines.push({ label: 'AG', value: ag })
+  return lines
+}
+
+/** Compact one-line place summary (lists / feeds). */
+export function racePlaceSummary(race: {
+  resultPlace?: string | null
+  resultPlaceGender?: string | null
+  resultPlaceAg?: string | null
+}): string | null {
+  const lines = racePlaceLines(race)
+  if (lines.length === 0) return null
+  if (lines.length === 1) return lines[0]!.value
+  return lines.map((l) => `${l.label} ${l.value}`).join(' · ')
 }
 
 export const MONTH_LABELS = [

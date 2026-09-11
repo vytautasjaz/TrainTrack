@@ -10,8 +10,32 @@ import {
   resolveAthleteId,
 } from '@/lib/session'
 
+import { putEventCoverFile } from '@/lib/event-cover-storage'
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const RECENT_EVENTS_TAKE = 25
+const EVENT_COVER_MAX_BYTES = 3 * 1024 * 1024
+const EVENT_COVER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+/** Returns new URL, null to clear, or undefined when unchanged. */
+async function resolveEventCoverUpdate(
+  eventId: string,
+  formData: FormData,
+): Promise<string | null | undefined> {
+  if (formData.get('clearCover') === '1') return null
+  const file = formData.get('cover')
+  if (!(file instanceof File) || file.size === 0) return undefined
+  if (!EVENT_COVER_TYPES.has(file.type)) {
+    throw new Error('Use a JPEG, PNG, or WebP image for the cover.')
+  }
+  if (file.size > EVENT_COVER_MAX_BYTES) {
+    throw new Error('Cover image must be 3 MB or smaller.')
+  }
+  const buffer = Buffer.from(await file.arrayBuffer())
+  const filename = `${eventId}.jpg`
+  await putEventCoverFile(filename, buffer, 'image/jpeg')
+  return `/uploads/event-covers/${filename}?v=${Date.now()}`
+}
 
 export type CoachRecentSeasonEvent = {
   id: string
@@ -153,7 +177,7 @@ export async function createSeasonEvent(formData: FormData) {
   const startTime = allDay ? null : parseOptionalTime(formData.get('startTime'))
   const endTime = allDay ? null : parseOptionalTime(formData.get('endTime'))
 
-  await prisma.seasonEvent.create({
+  const created = await prisma.seasonEvent.create({
     data: {
       athleteId,
       title,
@@ -166,7 +190,17 @@ export async function createSeasonEvent(formData: FormData) {
       endTime,
       location,
     },
+    select: { id: true },
   })
+
+  const coverUrl = await resolveEventCoverUpdate(created.id, formData)
+  if (coverUrl) {
+    await prisma.seasonEvent.update({
+      where: { id: created.id },
+      data: { coverImageUrl: coverUrl },
+    })
+  }
+
   revalidatePath('/season')
   revalidatePath('/training')
 }
@@ -192,6 +226,7 @@ export async function updateSeasonEvent(formData: FormData) {
   const location = parseLocation(formData.get('location'))
   const startTime = allDay ? null : parseOptionalTime(formData.get('startTime'))
   const endTime = allDay ? null : parseOptionalTime(formData.get('endTime'))
+  const coverUrl = await resolveEventCoverUpdate(id, formData)
 
   await prisma.seasonEvent.update({
     where: { id },
@@ -205,6 +240,7 @@ export async function updateSeasonEvent(formData: FormData) {
       startTime,
       endTime,
       location,
+      ...(coverUrl !== undefined ? { coverImageUrl: coverUrl } : {}),
     },
   })
   revalidatePath('/season')

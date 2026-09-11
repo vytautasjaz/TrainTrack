@@ -16,11 +16,12 @@ import {
   type RaceFormInitialValues,
 } from '@/components/races/race-details-fields'
 import type { SeasonRace } from '@/lib/season-races'
+import { toDateKey } from '@/lib/dates'
 
 function raceToInitial(race: SeasonRace): RaceFormInitialValues {
   return {
     name: race.name,
-    date: race.date.toISOString().slice(0, 10),
+    date: toDateKey(race.date),
     location: race.location,
     goal: race.goal,
     url: race.url,
@@ -33,6 +34,7 @@ function raceToInitial(race: SeasonRace): RaceFormInitialValues {
     triathlonDistance: race.triathlonDistance,
     hyroxDivision: race.hyroxDivision,
     customDistanceKm: race.customDistanceKm,
+    coverImageUrl: race.coverImageUrl,
     legs: race.legs,
     raceId: race.id,
   }
@@ -66,7 +68,7 @@ export function RaceEditModal({
         onOpenChange(next)
       }}
     >
-      <DialogContent className="flex max-h-[min(92vh,52rem)] w-[calc(100%-1.5rem)] max-w-[42rem] flex-col gap-0 overflow-hidden p-0">
+      <DialogContent className="flex max-h-[min(92vh,52rem)] w-[calc(100%-1.5rem)] max-w-[44rem] flex-col gap-0 overflow-hidden p-0">
         <DialogTitle className="sr-only">Edit race</DialogTitle>
         <DialogDescription className="sr-only">
           Edit {race.name}
@@ -97,7 +99,6 @@ export function RaceEditModal({
               <RaceDetailsFields
                 key={race.id}
                 initial={raceToInitial(race)}
-                showIntent={false}
                 showSummary
                 heroFlush
               />

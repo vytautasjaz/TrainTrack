@@ -42,7 +42,6 @@ export function EditRaceDetailsForm({
       <input type="hidden" name="returnTo" value={returnTo} />
       <RaceDetailsFields
         initial={initial}
-        showIntent={false}
         showSummary
         heroFlush
       />

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Calendar, Lock } from 'lucide-react'
 import { formatSeasonEventLabel, formatSeasonEventWhenLine, type SeasonEventData } from '@/lib/season-planner'
+import { SeasonEventDetailSheet } from '@/components/plan/season-event-detail-sheet'
 import { SeasonEventModal } from '@/components/plan/season-event-modal'
 import {
   WeekAddPlusMark,
@@ -72,7 +73,7 @@ export function SeasonEventChips({
   dateKey,
   isCoach = false,
 }: SeasonEventChipsProps) {
-  const [editing, setEditing] = useState<SeasonEventData | null>(null)
+  const [preview, setPreview] = useState<SeasonEventData | null>(null)
   const [creating, setCreating] = useState(false)
 
   const noteStyle = variant === 'note'
@@ -224,7 +225,7 @@ export function SeasonEventChips({
               <li key={event.id}>
                 <button
                   type="button"
-                  onClick={() => setEditing(event)}
+                  onClick={() => setPreview(event)}
                   className={cn(
                     cardClass,
                     'cursor-pointer',
@@ -243,7 +244,7 @@ export function SeasonEventChips({
             <li key={event.id}>
               <button
                 type="button"
-                onClick={() => setEditing(event)}
+                onClick={() => setPreview(event)}
                 className={cn(cardClass, 'cursor-pointer transition hover:opacity-80')}
                 title={event.notes?.trim() || 'View event'}
               >
@@ -253,13 +254,13 @@ export function SeasonEventChips({
           )
         })}
       </ul>
-      <SeasonEventModal
-        open={Boolean(editing)}
+      <SeasonEventDetailSheet
+        event={preview}
+        open={Boolean(preview)}
         onOpenChange={(open) => {
-          if (!open) setEditing(null)
+          if (!open) setPreview(null)
         }}
-        event={editing}
-        readOnly={!editable}
+        editable={editable}
         isCoach={isCoach}
       />
     </>

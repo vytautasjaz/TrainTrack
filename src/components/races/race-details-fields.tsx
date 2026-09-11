@@ -5,12 +5,11 @@ import {
   RacePriority,
   TriathlonDistance,
 } from '@prisma/client'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Flag, MapPin, MoreHorizontal } from 'lucide-react'
+import { Calendar, Flag, ImagePlus, MapPin, Trash2 } from 'lucide-react'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { RACE_INTENT_LABELS, RACE_PRIORITY_LABELS } from '@/lib/constants'
+import { RACE_PRIORITY_LABELS } from '@/lib/constants'
 import {
   RACE_FORM_SPORT_GROUPS,
   courseTypeForSportId,
@@ -29,47 +28,56 @@ import {
   type RunDistancePreset,
 } from '@/lib/race-form'
 import { raceUsesLegs } from '@/lib/race-legs'
-import { toDateKeyOrEmpty } from '@/lib/dates'
+import { parseDateOnly, toDateKeyOrEmpty } from '@/lib/dates'
 import { DateField } from '@/components/ui/date-field'
 import { RaceLegsPlanFields } from '@/components/races/race-legs-fields'
-import { PLANNER_PRIORITY_DOT } from '@/lib/season-planner'
-import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
+import { RaceCoverCropDialog } from '@/components/races/race-cover-crop-dialog'
+import { resolveRaceHeroImageUrl } from '@/lib/race-hero'
+import { SIDEBAR_HERO_STYLE } from '@/lib/sidebar-hero'
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RaceLegView } from '@/lib/race-legs'
 import type { RaceCourseType, RaceType, WorkoutType } from '@prisma/client'
 
 const RACE_PRIORITIES = Object.keys(RACE_PRIORITY_LABELS) as RacePriority[]
 
-const HERO_GRADIENT: Record<RacePriority, string> = {
-  A: 'from-white to-red-100',
-  B: 'from-white to-blue-100',
-  C: 'from-white to-emerald-100',
+const PREP_WEEK_OPTIONS = Array.from({ length: 52 }, (_, i) => i + 1)
+
+function formatHeroDate(dateKey: string): string {
+  if (!dateKey) return 'Add date'
+  try {
+    return parseDateOnly(dateKey).toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      timeZone: 'UTC',
+    })
+  } catch {
+    return 'Add date'
+  }
 }
 
-const HERO_ICON: Record<RacePriority, string> = {
-  A: 'bg-red-500/15 text-red-700',
-  B: 'bg-blue-500/15 text-blue-700',
-  C: 'bg-emerald-500/15 text-emerald-800',
+const PRIORITY_SEGMENT: Record<
+  RacePriority,
+  { active: string; idle: string }
+> = {
+  A: {
+    active: 'border-red-400 bg-red-50 text-red-600',
+    idle: 'border-border bg-background text-foreground hover:bg-muted/40',
+  },
+  B: {
+    active: 'border-blue-400 bg-blue-50 text-blue-700',
+    idle: 'border-border bg-background text-foreground hover:bg-muted/40',
+  },
+  C: {
+    active: 'border-emerald-400 bg-emerald-50 text-emerald-800',
+    idle: 'border-border bg-background text-foreground hover:bg-muted/40',
+  },
 }
 
-const HERO_BADGE: Record<RacePriority, string> = {
-  A: 'bg-red-500 text-white',
-  B: 'bg-blue-500 text-white',
-  C: 'bg-emerald-500 text-white',
-}
-
-const HERO_MUTED: Record<RacePriority, string> = {
-  A: 'text-red-800/55',
-  B: 'text-blue-800/55',
-  C: 'text-emerald-900/50',
-}
-
-const HERO_WATCHING = {
-  gradient: 'from-white to-zinc-100',
-  icon: 'bg-zinc-500/15 text-zinc-700',
-  badge: 'bg-zinc-500 text-white',
-  muted: 'text-zinc-700/55',
+const WATCHING_SEGMENT = {
+  active: 'border-zinc-400 bg-zinc-100 text-zinc-700',
+  idle: 'border-border bg-background text-foreground hover:bg-muted/40',
 } as const
 
 export type RaceFormInitialValues = {
@@ -87,6 +95,7 @@ export type RaceFormInitialValues = {
   triathlonDistance?: TriathlonDistance | null
   hyroxDivision?: HyroxDivisionId | null
   customDistanceKm?: number | null
+  coverImageUrl?: string | null
   legs?: RaceLegView[]
   raceId?: string
 }
@@ -94,8 +103,7 @@ export type RaceFormInitialValues = {
 type RaceDetailsFieldsProps = {
   initial?: RaceFormInitialValues
   lockedIntent?: RaceIntent
-  showIntent?: boolean
-  /** Hero card + Sport/Distance metrics row. */
+  /** Editable hero (name/date/location) + labeled form fields below. */
   showSummary?: boolean
   /** Seamless modal top (no frame); use in Add Race dialog. */
   heroFlush?: boolean
@@ -105,7 +113,6 @@ type RaceDetailsFieldsProps = {
 export function RaceDetailsFields({
   initial,
   lockedIntent,
-  showIntent = true,
   showSummary = true,
   heroFlush = false,
   className,
@@ -161,15 +168,68 @@ export function RaceDetailsFields({
   const [customKm, setCustomKm] = useState(
     initial?.customDistanceKm != null ? String(initial.customDistanceKm) : '',
   )
+  const [goal, setGoal] = useState(initial?.goal ?? '')
+  const [url, setUrl] = useState(initial?.url ?? '')
+  const [prepWeeks, setPrepWeeks] = useState(
+    initial?.preparationWeeks != null ? String(initial.preparationWeeks) : '',
+  )
+  const coverInputRef = useRef<HTMLInputElement>(null)
+  const pickInputRef = useRef<HTMLInputElement>(null)
+  const savedCoverUrl = initial?.coverImageUrl ?? null
+  const [clearCover, setClearCover] = useState(false)
+  const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null)
+  const [cropFile, setCropFile] = useState<File | null>(null)
+  const [coverError, setCoverError] = useState<string | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl)
+    }
+  }, [pendingPreviewUrl])
 
   const sportFamily = raceFormSportFamily(sportId)
   const courseType = courseTypeForSportId(sportId)
   const isWatching = intent === RaceIntent.WATCHING
-  const headerPriority = priority
-  const heroGradient = isWatching ? HERO_WATCHING.gradient : HERO_GRADIENT[headerPriority]
-  const heroIcon = isWatching ? HERO_WATCHING.icon : HERO_ICON[headerPriority]
-  const heroMuted = isWatching ? HERO_WATCHING.muted : HERO_MUTED[headerPriority]
-  const heroBadge = isWatching ? HERO_WATCHING.badge : HERO_BADGE[headerPriority]
+  const heroImageUrl = resolveRaceHeroImageUrl({
+    coverImageUrl: clearCover ? null : savedCoverUrl,
+    pendingPreviewUrl,
+  })
+  const hasHeroImage = Boolean(heroImageUrl)
+  const hasCustomCover =
+    Boolean(pendingPreviewUrl) || (Boolean(savedCoverUrl) && !clearCover)
+
+  function assignCoverFile(file: File) {
+    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl)
+    const url = URL.createObjectURL(file)
+    setPendingPreviewUrl(url)
+    setClearCover(false)
+    setCoverError(null)
+    if (coverInputRef.current) {
+      const dt = new DataTransfer()
+      dt.items.add(file)
+      coverInputRef.current.files = dt.files
+    }
+  }
+
+  function clearCustomCover() {
+    if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl)
+    setPendingPreviewUrl(null)
+    setClearCover(Boolean(savedCoverUrl))
+    setCoverError(null)
+    if (coverInputRef.current) coverInputRef.current.value = ''
+  }
+
+  function onCoverPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setCoverError('Use a JPEG, PNG, or WebP image.')
+      return
+    }
+    setCoverError(null)
+    setCropFile(file)
+  }
   const raceType = resolveRaceType({
     sportId,
     runDistance:
@@ -232,22 +292,10 @@ export function RaceDetailsFields({
     setRunDistance(value === 'CUSTOM' ? 'CUSTOM' : null)
   }
 
-  const metricSelectClass =
-    'h-8 w-full max-w-full cursor-pointer appearance-none border-0 bg-transparent bg-none px-0 text-center text-sm font-semibold text-foreground outline-none focus:ring-0'
-
-  const SportIcon = !sportId
-    ? null
-    : sportId === 'OTHER'
-      ? MoreHorizontal
-      : WORKOUT_TYPE_ICONS[sport]
-
   return (
     <div className={cn(heroFlush ? 'space-y-0' : 'space-y-4', className)}>
       <input type="hidden" name="type" value={raceType} />
       <input type="hidden" name="sport" value={sportId ? sport : ''} />
-      <input type="hidden" name="name" value={name} required />
-      <input type="hidden" name="date" value={date} required />
-      <input type="hidden" name="location" value={location} />
       {courseType ? (
         <input type="hidden" name="courseType" value={courseType} />
       ) : (
@@ -268,326 +316,326 @@ export function RaceDetailsFields({
       ) : (
         <input type="hidden" name="customDistanceKm" value="" />
       )}
-      {!isWatching ? (
-        <input type="hidden" name="priority" value={priority} />
-      ) : (
-        <input type="hidden" name="priority" value={RacePriority.C} />
-      )}
-      {showIntent && !lockedIntent ? null : (
-        <input type="hidden" name="intent" value={intent} />
-      )}
+      <input type="hidden" name="priority" value={priority} />
+      <input type="hidden" name="intent" value={intent} />
 
       {showSummary ? (
-        <div
-          className={cn(
-            'relative bg-gradient-to-b',
-            heroFlush
-              ? 'rounded-none border-0 border-b border-black/20 pb-5 pl-5 pr-20 pt-5 sm:pl-6'
-              : 'overflow-hidden rounded-[10px] border border-black/10 px-4 pb-4 pt-4 sm:px-5',
-            heroGradient,
-          )}
-        >
-          <div className="flex items-start gap-3">
+        <>
+          <input
+            ref={coverInputRef}
+            type="file"
+            name="cover"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden
+          />
+          {clearCover ? <input type="hidden" name="clearCover" value="1" /> : null}
+          <input
+            ref={pickInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={onCoverPick}
+          />
+          <div
+            className={cn(
+              'relative isolate flex aspect-[3/1] flex-col justify-end overflow-hidden',
+              heroFlush
+                ? 'rounded-none border-0 border-b border-white/10 px-5 pb-5 pt-5 sm:px-6 sm:pb-6'
+                : 'rounded-[10px] border border-white/10 px-4 pb-4 pt-4 sm:px-5',
+            )}
+            style={hasHeroImage ? undefined : SIDEBAR_HERO_STYLE}
+          >
+            {heroImageUrl ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={heroImageUrl}
+                  alt=""
+                  className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover object-[72%_center]"
+                />
+                <div
+                  className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-t from-[#151827]/90 via-[#151827]/45 to-[#151827]/20"
+                  aria-hidden
+                />
+              </>
+            ) : null}
+
             <div
               className={cn(
-                'mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px]',
-                heroIcon,
+                'absolute z-10 flex items-center gap-1',
+                heroFlush
+                  ? 'right-11 top-3 sm:right-12'
+                  : 'right-3 top-3 sm:right-4 sm:top-4',
               )}
             >
-              <Flag className="h-5 w-5" strokeWidth={2} />
-            </div>
-
-            <div className="min-w-0 flex-1 pr-10">
-              <p
-                className={cn(
-                  'mb-1 text-[10px] font-semibold uppercase tracking-wider',
-                  heroMuted,
-                )}
+              {hasCustomCover ? (
+                <button
+                  type="button"
+                  onClick={clearCustomCover}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md bg-black/35 text-white transition-colors hover:bg-black/50"
+                  aria-label="Remove cover photo"
+                  title="Remove cover photo"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => pickInputRef.current?.click()}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md bg-black/35 px-2.5 text-[11px] font-medium text-white transition-colors hover:bg-black/50"
               >
-                Race
-              </p>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                aria-label="Race name"
-                required
-                autoFocus={!initial?.name}
-                placeholder="Race name"
-                className="w-full bg-transparent text-[17px] font-semibold leading-snug text-[#111827] outline-none placeholder:text-muted-foreground/45"
-              />
-
-              <div className={cn('mt-1.5', date ? 'text-[#6B7280]' : heroMuted)}>
-                <DateField
-                  value={date}
-                  onChange={setDate}
-                  variant="ghost"
-                  placeholder="Add date"
-                  required
-                />
-              </div>
-
-              <div className="mt-1 flex items-center gap-1.5">
-                <MapPin
-                  className={cn('h-3.5 w-3.5 shrink-0 opacity-70', heroMuted)}
-                />
-                <input
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  aria-label="Location"
-                  placeholder="Add location"
-                  className="min-w-0 flex-1 bg-transparent text-[13px] leading-snug text-[#6B7280] outline-none placeholder:text-muted-foreground/40"
-                />
-              </div>
+                <ImagePlus className="h-3.5 w-3.5" />
+                Cover
+              </button>
             </div>
 
-            <div
-              className={cn(
-                'absolute',
-                heroFlush ? 'right-12 top-4 sm:right-14 sm:top-5' : 'right-3 top-3',
-              )}
-            >
-              <DropdownMenu.Root>
-                <DropdownMenu.Trigger asChild>
-                  <button
-                    type="button"
-                    className="flex flex-col items-center gap-0.5 rounded-[8px] px-1 py-0.5 outline-none transition hover:bg-black/[0.04]"
-                    title={isWatching ? 'Change status' : 'Change priority'}
-                    aria-label={isWatching ? 'Change status' : 'Change priority'}
-                  >
-                    <span
-                      className={cn(
-                        'flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-sm',
-                        heroBadge,
-                      )}
-                    >
-                      {isWatching ? 'W' : priority}
+            <div className="relative z-[1] flex items-start gap-3 pr-20 sm:pr-24">
+              <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-white/10 text-white backdrop-blur-[2px]">
+                <Flag className="h-5 w-5" strokeWidth={2} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-white/65">
+                  {isWatching ? 'Watching' : 'Race'}
+                </p>
+                <p
+                  className={cn(
+                    'truncate text-[17px] font-semibold leading-snug text-white',
+                    !name.trim() && 'opacity-45',
+                  )}
+                >
+                  {name.trim() || 'Race name'}
+                </p>
+                <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] leading-snug text-white/80">
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <Calendar className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+                    <span className={cn('truncate', !date && 'opacity-55')}>
+                      {formatHeroDate(date)}
                     </span>
-                    <span className={cn('text-[10px]', heroMuted)}>
-                      {isWatching ? 'Watching' : 'Priority'}
+                  </span>
+                  <span className="hidden h-3 w-px shrink-0 bg-white/25 sm:block" aria-hidden />
+                  <span className="inline-flex min-w-0 items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+                    <span className={cn('truncate', !location.trim() && 'opacity-55')}>
+                      {location.trim() || 'No location'}
                     </span>
-                  </button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content
-                    align="end"
-                    sideOffset={4}
-                    className="z-[220] min-w-[9.5rem] overflow-hidden rounded-[8px] border border-border/70 bg-white py-1 shadow-md"
-                  >
-                    {RACE_PRIORITIES.map((p) => (
-                      <DropdownMenu.Item
-                        key={p}
-                        onSelect={() => {
-                          setIntent(RaceIntent.PLANNED)
-                          setPriority(p)
-                        }}
-                        className={cn(
-                          'flex cursor-pointer items-center gap-2 px-3 py-1.5 text-xs outline-none data-[highlighted]:bg-muted/60',
-                          !isWatching && priority === p && 'bg-muted/40 font-semibold',
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white',
-                            PLANNER_PRIORITY_DOT[p],
-                          )}
-                        >
-                          {p}
-                        </span>
-                        {RACE_PRIORITY_LABELS[p]}
-                      </DropdownMenu.Item>
-                    ))}
-                    <DropdownMenu.Item
-                      onSelect={() => setIntent(RaceIntent.WATCHING)}
-                      className={cn(
-                        'flex cursor-pointer items-center gap-2 border-t border-border/50 px-3 py-1.5 text-xs outline-none data-[highlighted]:bg-muted/60',
-                        isWatching && 'bg-muted/40 font-semibold',
-                      )}
-                    >
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-500 text-[10px] font-bold text-white">
-                        W
-                      </span>
-                      {RACE_INTENT_LABELS.WATCHING}
-                    </DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
-            </div>
-          </div>
-
-          {/* Sport / Distance — workout-style metrics row */}
-          <div className="mt-4 flex min-w-0 items-stretch overflow-hidden border-t border-black/10 pt-3">
-            <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center px-1.5 text-center">
-              <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Sport
-              </span>
-              <div className="mt-1.5 flex h-8 w-full items-center justify-center">
-                <div className="inline-flex max-w-full items-center gap-1">
-                  {SportIcon ? (
-                    <SportIcon
-                      className="pointer-events-none h-3.5 w-3.5 shrink-0 text-foreground"
-                      strokeWidth={2}
-                      aria-hidden
-                    />
-                  ) : null}
-                  <select
-                    aria-label="Sport"
-                    required
-                    value={sportId ?? ''}
-                    onChange={(e) => {
-                      const v = e.target.value
-                      selectSport(v ? (v as RaceFormSportId) : null)
-                    }}
-                    className={cn(
-                      metricSelectClass,
-                      'w-auto min-w-0',
-                      !sportId && 'font-medium text-muted-foreground',
-                    )}
-                  >
-                    <option value="">Select</option>
-                    {RACE_FORM_SPORT_GROUPS.map((group) =>
-                      group.label ? (
-                        <optgroup key={group.label} label={group.label}>
-                          {group.options.map((s) => (
-                            <option key={s.id} value={s.id}>
-                              {s.label}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ) : (
-                        group.options.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.label}
-                          </option>
-                        ))
-                      ),
-                    )}
-                  </select>
+                  </span>
                 </div>
               </div>
             </div>
-
-            <div className="w-px shrink-0 self-stretch bg-foreground/20" />
-
-            <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center px-1.5 text-center">
-              <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Distance
-              </span>
-              <div className="mt-1.5 flex h-8 w-full flex-col items-center justify-center gap-1">
-                <select
-                  aria-label="Distance"
-                  disabled={!sportId}
-                  required={
-                    sportFamily === 'HYROX' ||
-                    sportFamily === 'RUN' ||
-                    sportFamily === 'TRIATHLON'
-                  }
-                  value={distanceSelectValue}
-                  onChange={(e) => onDistanceChange(e.target.value)}
-                  className={cn(
-                    metricSelectClass,
-                    !distanceSelectValue && 'font-medium text-muted-foreground',
-                  )}
-                >
-                  <option value="">Select</option>
-                  {distanceGroups
-                    ? distanceGroups.map((group) => (
-                        <optgroup key={group.label} label={group.label}>
-                          {group.options.map((opt) => (
-                            <option key={opt.id} value={opt.id}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </optgroup>
-                      ))
-                    : distanceOptions.map((opt) => (
-                        <option key={opt.id} value={opt.id}>
-                          {opt.label}
-                        </option>
-                      ))}
-                </select>
-              </div>
-              {showCustomKm ? (
-                <input
-                  type="number"
-                  min={0.1}
-                  step="0.1"
-                  value={customKm}
-                  onChange={(e) => setCustomKm(e.target.value)}
-                  placeholder="km"
-                  aria-label="Custom distance km"
-                  className="mt-1 w-full max-w-[5.5rem] border-0 border-b border-foreground/20 bg-transparent pb-0.5 text-center text-xs tabular-nums outline-none placeholder:text-muted-foreground/40 focus:border-foreground/40"
-                />
-              ) : null}
-            </div>
+            {coverError ? (
+              <p className="relative z-[1] mt-2 text-xs text-red-200">{coverError}</p>
+            ) : null}
           </div>
-        </div>
+          <RaceCoverCropDialog
+            file={cropFile}
+            open={Boolean(cropFile)}
+            onOpenChange={(open) => {
+              if (!open) setCropFile(null)
+            }}
+            onConfirm={(file) => {
+              setCropFile(null)
+              assignCoverFile(file)
+            }}
+          />
+        </>
       ) : null}
 
       <div
         className={cn(
           'space-y-4',
-          heroFlush && showSummary && 'px-5 py-4 sm:px-6 sm:py-5',
-          !showSummary && heroFlush && 'px-5 py-4 sm:px-6',
+          heroFlush && 'px-5 py-4 sm:px-6 sm:py-5',
         )}
       >
-        {showIntent && !lockedIntent ? (
-          <FormField label="Intent">
-            <Select
-              name="intent"
+        <FormField label="Race name">
+          <Input
+            name="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            autoFocus={!initial?.name}
+            placeholder="Race name"
+            autoComplete="off"
+          />
+        </FormField>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Date">
+            <DateField
+              name="date"
+              value={date}
+              onChange={setDate}
               required
-              value={intent}
-              onChange={(e) => setIntent(e.target.value as RaceIntent)}
+              placeholder="Pick a date"
+            />
+          </FormField>
+          <FormField label="Location">
+            <Input
+              name="location"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="City, country"
+              autoComplete="off"
+            />
+          </FormField>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Sport">
+            <Select
+              aria-label="Sport"
+              required
+              value={sportId ?? ''}
+              onChange={(e) => {
+                const v = e.target.value
+                selectSport(v ? (v as RaceFormSportId) : null)
+              }}
             >
-              <option value={RaceIntent.PLANNED}>{RACE_INTENT_LABELS.PLANNED}</option>
-              <option value={RaceIntent.WATCHING}>{RACE_INTENT_LABELS.WATCHING}</option>
+              <option value="">Select</option>
+              {RACE_FORM_SPORT_GROUPS.map((group) =>
+                group.label ? (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.options.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : (
+                  group.options.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))
+                ),
+              )}
             </Select>
           </FormField>
-        ) : null}
 
-        {!isWatching ? (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <FormField label="Goal (optional)">
+          <FormField label="Distance">
+            <Select
+              aria-label="Distance"
+              disabled={!sportId}
+              required={
+                sportFamily === 'HYROX' ||
+                sportFamily === 'RUN' ||
+                sportFamily === 'TRIATHLON'
+              }
+              value={distanceSelectValue}
+              onChange={(e) => onDistanceChange(e.target.value)}
+            >
+              <option value="">Select</option>
+              {distanceGroups
+                ? distanceGroups.map((group) => (
+                    <optgroup key={group.label} label={group.label}>
+                      {group.options.map((opt) => (
+                        <option key={opt.id} value={opt.id}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))
+                : distanceOptions.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.label}
+                    </option>
+                  ))}
+            </Select>
+            {showCustomKm ? (
               <Input
-                name="goal"
-                placeholder="e.g. Sub 3:30"
-                defaultValue={initial?.goal ?? ''}
-              />
-            </FormField>
-            <FormField label="Preparation (weeks, optional)">
-              <Input
-                name="preparationWeeks"
                 type="number"
-                min={1}
-                max={52}
-                placeholder="e.g. 12"
-                defaultValue={
-                  initial?.preparationWeeks != null
-                    ? String(initial.preparationWeeks)
-                    : ''
-                }
+                min={0.1}
+                step="0.1"
+                value={customKm}
+                onChange={(e) => setCustomKm(e.target.value)}
+                placeholder="Distance (km)"
+                aria-label="Custom distance km"
+                className="mt-2"
               />
-            </FormField>
-            <FormField label="Link (optional)">
-              <Input
-                name="url"
-                type="url"
-                placeholder="https://"
-                defaultValue={initial?.url ?? ''}
-              />
-            </FormField>
+            ) : null}
+          </FormField>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1">
+            <p className="text-caption font-medium text-text-secondary">Priority</p>
+            <div className="grid grid-cols-4 gap-2">
+              {RACE_PRIORITIES.map((p) => {
+                const active = !isWatching && priority === p
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => {
+                      setIntent(RaceIntent.PLANNED)
+                      setPriority(p)
+                    }}
+                    className={cn(
+                      'flex h-10 items-center justify-center rounded-[8px] border text-sm font-semibold transition',
+                      active ? PRIORITY_SEGMENT[p].active : PRIORITY_SEGMENT[p].idle,
+                    )}
+                    aria-pressed={active}
+                    aria-label={`Priority ${p} — ${RACE_PRIORITY_LABELS[p]}`}
+                  >
+                    {p}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                onClick={() => setIntent(RaceIntent.WATCHING)}
+                className={cn(
+                  'flex h-10 items-center justify-center rounded-[8px] border px-1 text-[11px] font-semibold leading-tight transition sm:text-xs',
+                  isWatching ? WATCHING_SEGMENT.active : WATCHING_SEGMENT.idle,
+                )}
+                aria-pressed={isWatching}
+                aria-label="Watching"
+              >
+                Watching
+              </button>
+            </div>
           </div>
-        ) : (
-          <FormField label="Link" hint="Registration or race info URL">
+
+          <FormField label="Goal">
+            <Input
+              name="goal"
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              placeholder="e.g. Sub 3:30"
+              autoComplete="off"
+            />
+          </FormField>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <FormField label="Preparation time">
+            <Select
+              name="preparationWeeks"
+              value={prepWeeks}
+              onChange={(e) => setPrepWeeks(e.target.value)}
+            >
+              <option value="">Not set</option>
+              {PREP_WEEK_OPTIONS.map((w) => (
+                <option key={w} value={w}>
+                  {w} {w === 1 ? 'week' : 'weeks'}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+
+          <FormField label="Link">
             <Input
               name="url"
               type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
               placeholder="https://"
-              defaultValue={initial?.url ?? ''}
+              autoComplete="off"
             />
           </FormField>
-        )}
+        </div>
 
-        {!isWatching && raceUsesLegs(raceType) ? (
+        {raceUsesLegs(raceType) ? (
           <RaceLegsPlanFields
             key={`tri-legs-${showTriLegDistances ? 'custom' : 'preset'}`}
             raceId={initial?.raceId}

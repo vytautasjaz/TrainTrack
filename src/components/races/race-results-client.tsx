@@ -44,6 +44,7 @@ import {
   raceResultYear,
   type RaceResultRow,
 } from '@/lib/race-results'
+import { racePlaceSummary } from '@/lib/season-races'
 import { RACE_OUTCOME_LABELS, WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import type { PersonalBestSuggestion } from '@/lib/personal-bests'
 import { cn } from '@/lib/utils'
@@ -116,7 +117,8 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
         if (key !== distance) return false
       }
       if (q) {
-        const hay = `${row.name} ${row.location ?? ''} ${row.resultPlace ?? ''} ${row.resultNotes ?? ''}`.toLowerCase()
+        const placeSummary = racePlaceSummary(row)
+        const hay = `${row.name} ${row.location ?? ''} ${placeSummary ?? ''} ${row.resultNotes ?? ''}`.toLowerCase()
         if (!hay.includes(q)) return false
       }
       return true
@@ -287,6 +289,7 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
                     row.type === RaceType.TRIATHLON && hasRaceResultLegSplits(splits)
                   const hasTimes = Boolean(row.resultTime || showSplits)
                   const isFinished = row.outcome === RaceOutcome.FINISHED
+                  const placeSummary = isFinished ? racePlaceSummary(row) : null
                   return (
                     <tr key={row.id}>
                       <td>
@@ -340,17 +343,17 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
                               {row.resultTime}
                             </p>
                           ) : null}
-                          {isFinished && row.resultPlace ? (
+                          {isFinished && placeSummary ? (
                             <p
                               className={cn(
                                 'text-xs font-medium tabular-nums text-muted-foreground',
                                 row.resultTime || showSplits ? 'mt-1' : undefined,
                               )}
                             >
-                              {row.resultPlace}
+                              {placeSummary}
                             </p>
                           ) : null}
-                          {isFinished && !hasTimes && !row.resultPlace ? (
+                          {isFinished && !hasTimes && !placeSummary ? (
                             <span className="tabular-nums text-muted-foreground">—</span>
                           ) : null}
                           {showSplits && splits ? (
@@ -640,28 +643,42 @@ function LogPastResultDialog({
 
           {outcome === RaceOutcome.FINISHED || outcome === RaceOutcome.DNF ? (
             <>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <FormField
-                  label={sportId === 'TRIATHLON' ? 'Finish time' : 'Finish time'}
-                  hint="e.g. 1:25:00"
-                >
-                  <Input
-                    name="resultTime"
-                    placeholder="1:25:00"
-                    inputMode="numeric"
-                    autoComplete="off"
-                  />
-                </FormField>
-                {outcome === RaceOutcome.FINISHED ? (
-                  <FormField label="Place" hint="Optional">
+              <FormField
+                label={sportId === 'TRIATHLON' ? 'Finish time' : 'Finish time'}
+                hint="e.g. 1:25:00"
+              >
+                <Input
+                  name="resultTime"
+                  placeholder="1:25:00"
+                  inputMode="numeric"
+                  autoComplete="off"
+                />
+              </FormField>
+              {outcome === RaceOutcome.FINISHED ? (
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <FormField label="Place overall" hint="Optional">
                     <Input
                       name="resultPlace"
                       placeholder="12th"
                       autoComplete="off"
                     />
                   </FormField>
-                ) : null}
-              </div>
+                  <FormField label="Place by gender" hint="Optional">
+                    <Input
+                      name="resultPlaceGender"
+                      placeholder="4th"
+                      autoComplete="off"
+                    />
+                  </FormField>
+                  <FormField label="Place AG" hint="Optional">
+                    <Input
+                      name="resultPlaceAg"
+                      placeholder="2nd"
+                      autoComplete="off"
+                    />
+                  </FormField>
+                </div>
+              ) : null}
               {sportId === 'TRIATHLON' ? (
                 <div className="grid grid-cols-3 gap-2">
                   <FormField label="Swim">
@@ -693,7 +710,7 @@ function LogPastResultDialog({
             </>
           ) : null}
 
-          <FormField label="Notes" hint="Optional">
+          <FormField label="Feedback" hint="Optional">
             <Textarea name="resultNotes" rows={2} placeholder="Conditions, how it felt…" />
           </FormField>
 

@@ -47,6 +47,7 @@ import { formatDateKeyCompact } from '@/lib/dates'
 import { daysUntil } from '@/lib/utils'
 import { getWorkoutCardHero, getWorkoutCardSubtitle } from '@/lib/workout-card'
 import { formatInboxRaceResultLabel } from '@/components/inbox/inbox-race-report-summary'
+import { racePlaceSummary } from '@/lib/season-races'
 import type { RaceLegView } from '@/lib/race-legs'
 import {
   athleteOptionsFromRoster,
@@ -112,7 +113,7 @@ function rosterChatThreadContext(
     return {
       contextTitle: row.race.name,
       contextSubtitle: formatInboxRaceResultLabel(row.race),
-      contextMetric: row.race.resultPlace?.trim() || null,
+      contextMetric: racePlaceSummary(row.race),
       contextDateKey: row.race.dateKey,
     }
   }
@@ -1091,6 +1092,8 @@ export async function getCoachHomeData(coachId: string) {
           outcome: race.outcome,
           resultTime: race.resultTime,
           resultPlace: race.resultPlace,
+          resultPlaceGender: race.resultPlaceGender,
+          resultPlaceAg: race.resultPlaceAg,
           resultNotes: race.resultNotes,
           resultLoggedAt: race.resultLoggedAt,
           stravaActivityUrl: race.stravaActivityUrl,
@@ -1291,6 +1294,7 @@ const SEASON_EVENT_SELECT = {
   startTime: true,
   endTime: true,
   location: true,
+  coverImageUrl: true,
 } as const
 
 export async function getSeasonEventsForRange(

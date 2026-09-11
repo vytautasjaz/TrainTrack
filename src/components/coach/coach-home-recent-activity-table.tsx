@@ -36,6 +36,7 @@ import {
   type CoachHomeRaceActivityRow,
   type CoachHomeTimeRange,
 } from '@/lib/coach-home'
+import { racePlaceSummary } from '@/lib/season-races'
 import type { SessionLoadThresholds } from '@/lib/training-load/session-tss'
 import { cn } from '@/lib/utils'
 
@@ -585,6 +586,7 @@ function RaceFeedCard({
   const router = useRouter()
   const { race } = row
   const resultLabel = coachHomeRaceResultLabel(race)
+  const placeSummary = racePlaceSummary(race)
   const timeLabel =
     row.racePhase === 'report' ? format(new Date(row.activityAt), 'HH:mm') : null
   const statusLabel =
@@ -669,9 +671,9 @@ function RaceFeedCard({
             {race.hasReport ? (
               <div className="space-y-1.5">
                 <PrimaryMetric metric={{ label: 'Result', value: resultLabel }} />
-                {race.resultPlace?.trim() ? (
+                {placeSummary ? (
                   <p className="text-[11px] tabular-nums text-[var(--tt-ink-soft)]">
-                    <span className="font-semibold text-[var(--tt-ink)]">{race.resultPlace.trim()}</span>{' '}
+                    <span className="font-semibold text-[var(--tt-ink)]">{placeSummary}</span>{' '}
                     <span className="text-[var(--tt-ink-faint)]">Place</span>
                   </p>
                 ) : null}

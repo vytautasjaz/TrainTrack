@@ -39,10 +39,13 @@ const SEASON_RACE_SELECT = {
   intent: true,
   goal: true,
   url: true,
+  coverImageUrl: true,
   preparationWeeks: true,
   outcome: true,
   resultTime: true,
   resultPlace: true,
+  resultPlaceGender: true,
+  resultPlaceAg: true,
   resultNotes: true,
   stravaActivityUrl: true,
   stravaActivityName: true,
@@ -166,3 +169,56 @@ export async function getSeasonRaceDetail(
   const { athleteId: _, ...rest } = race
   return rest as SeasonRace
 }
+
+/** Athlete-only: update race feedback notes after the race (does not change outcome). */
+export async function updateRaceFeedback(formData: FormData) {
+  const session = await requireSession()
+  if (!session.hasAthlete || isCoachView(session)) {
+    throw new Error('Athlete only')
+  }
+  const raceId = String(formData.get('raceId') ?? '').trim()
+  if (!raceId) throw new Error('Race required')
+
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete profile')
+
+  const race = await prisma.race.findFirst({
+    where: { id: raceId, athleteId },
+    select: { id: true, date: true, athleteId: true },
+  })
+  if (!race) throw new Error('Race not found')
+
+  const { athleteCanLeaveRaceFeedback } = await import('@/lib/season-races')
+  if (!athleteCanLeaveRaceFeedback(race, false)) {
+    throw new Error('Feedback is available on or after race day')
+  }
+
+  const raw = formData.get('resultNotes')
+  const resultNotes =
+    typeof raw === 'string' && raw.trim() ? raw.trim() : null
+
+  await prisma.race.update({
+    where: { id: raceId },
+    data: { resultNotes },
+  })
+
+  try {
+    const { syncRaceFeedbackToThread } = await import('@/app/actions/coaching-inbox')
+    await syncRaceFeedbackToThread({
+      raceId,
+      athleteId,
+      resultNotes,
+    })
+  } catch {
+    // Soft-fail: notes still saved on the race
+  }
+
+  const { revalidatePath } = await import('next/cache')
+  revalidatePath('/dashboard')
+  revalidatePath('/season')
+  revalidatePath('/inbox')
+  revalidatePath('/inbox', 'layout')
+  revalidatePath('/', 'layout')
+  revalidatePath(`/athletes/${race.athleteId}`)
+}
+

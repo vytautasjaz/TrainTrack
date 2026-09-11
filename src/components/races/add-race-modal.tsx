@@ -132,7 +132,7 @@ export function AddRaceModal({
         onOpenChange(next)
       }}
     >
-      <DialogContent className="flex max-h-[min(92vh,52rem)] w-[calc(100%-1.5rem)] max-w-[42rem] flex-col gap-0 overflow-hidden p-0">
+      <DialogContent className="flex max-h-[min(92vh,52rem)] w-[calc(100%-1.5rem)] max-w-[44rem] flex-col gap-0 overflow-hidden p-0">
         <DialogTitle className="sr-only">
           {isWatching ? 'Add to watchlist' : 'Add race'}
         </DialogTitle>
@@ -175,7 +175,6 @@ export function AddRaceModal({
                 key={`${defaultIntent}-${formKey}`}
                 initial={formInitial}
                 lockedIntent={defaultIntent}
-                showIntent={false}
                 showSummary
                 heroFlush
               />

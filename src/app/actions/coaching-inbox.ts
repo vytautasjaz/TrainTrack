@@ -412,6 +412,107 @@ export async function askOrCommentOnRace(formData: FormData) {
   })
 }
 
+/**
+ * Keep race feedback (`Race.resultNotes`) mirrored as a distinguished FEEDBACK
+ * bubble in the race coaching thread (same pattern as workout feedback).
+ */
+export async function syncRaceFeedbackToThread(opts: {
+  raceId: string
+  athleteId: string
+  resultNotes: string | null
+}) {
+  const { raceId, athleteId, resultNotes } = opts
+  if (!(await athleteHasConnectedCoach(athleteId))) return
+
+  const notes = resultNotes?.trim() || ''
+  let thread = await prisma.coachingThread.findUnique({ where: { raceId } })
+
+  if (!thread) {
+    if (!notes) return
+    thread = await prisma.coachingThread.create({
+      data: {
+        athleteId,
+        kind: CoachingThreadKind.RACE_REPORT,
+        raceId,
+        status: CoachingThreadStatus.OPEN,
+        athleteLastReadAt: new Date(),
+      },
+    })
+  }
+
+  const messages = await prisma.coachingMessage.findMany({
+    where: { threadId: thread.id },
+    orderBy: { createdAt: 'asc' },
+  })
+
+  const { isRaceReportCardDuplicateMessage } = await import('@/lib/race-feedback-report')
+  const existingFeedback = messages.find(
+    (m) =>
+      m.authorRole === CoachingAuthorRole.ATHLETE &&
+      m.kind === CoachingMessageKind.FEEDBACK,
+  )
+  const onlyPlaceholder =
+    messages.length === 1 &&
+    messages[0]?.authorRole === CoachingAuthorRole.ATHLETE &&
+    isRaceReportCardDuplicateMessage(messages[0].body)
+
+  if (!notes) {
+    if (existingFeedback) {
+      await prisma.coachingMessage.delete({ where: { id: existingFeedback.id } })
+    }
+    revalidateInboxPaths({ raceId, athleteId })
+    return
+  }
+
+  if (existingFeedback) {
+    await prisma.coachingMessage.update({
+      where: { id: existingFeedback.id },
+      data: { body: notes, kind: CoachingMessageKind.FEEDBACK },
+    })
+    await prisma.coachingThread.update({
+      where: { id: thread.id },
+      data: {
+        lastMessageAt: new Date(),
+        status: CoachingThreadStatus.OPEN,
+        athleteLastReadAt: new Date(),
+        coachLastReadAt: null,
+      },
+    })
+  } else if (onlyPlaceholder && messages[0]) {
+    await prisma.coachingMessage.update({
+      where: { id: messages[0].id },
+      data: { body: notes, kind: CoachingMessageKind.FEEDBACK },
+    })
+    await prisma.coachingThread.update({
+      where: { id: thread.id },
+      data: {
+        lastMessageAt: new Date(),
+        status: CoachingThreadStatus.OPEN,
+        athleteLastReadAt: new Date(),
+        coachLastReadAt: null,
+      },
+    })
+  } else {
+    await appendMessage({
+      threadId: thread.id,
+      authorRole: CoachingAuthorRole.ATHLETE,
+      kind: CoachingMessageKind.FEEDBACK,
+      body: notes,
+      raceId,
+      athleteId,
+    })
+    return
+  }
+
+  await sendInboxPushNotifications({
+    threadId: thread.id,
+    athleteId,
+    authorRole: CoachingAuthorRole.ATHLETE,
+    body: notes,
+  })
+  revalidateInboxPaths({ raceId, athleteId })
+}
+
 export async function replyToCoachingThread(formData: FormData) {
   const threadId = formData.get('threadId') as string
   const raw = (formData.get('body') as string) ?? ''

@@ -18,6 +18,7 @@ type RaceDetailModalProps = {
   workout: PlanWorkoutDetail
   open: boolean
   onOpenChange: (open: boolean) => void
+  isCoach?: boolean
 }
 
 function reviveSeasonRace(raw: SeasonRace): SeasonRace {
@@ -31,7 +32,12 @@ function reviveSeasonRace(raw: SeasonRace): SeasonRace {
  * Opens the shared RaceDetailSheet from a plan/training race card.
  * Loads full SeasonRace by raceId so Training matches the Races modal.
  */
-export function RaceDetailModal({ workout, open, onOpenChange }: RaceDetailModalProps) {
+export function RaceDetailModal({
+  workout,
+  open,
+  onOpenChange,
+  isCoach = false,
+}: RaceDetailModalProps) {
   const router = useRouter()
   const pathname = usePathname()
   const raceId = workout.isRace ? workout.raceId : null
@@ -102,6 +108,7 @@ export function RaceDetailModal({ workout, open, onOpenChange }: RaceDetailModal
       onOpenChange={onOpenChange}
       returnTo={pathname || '/training'}
       onChanged={() => router.refresh()}
+      isCoach={isCoach}
     />
   )
 }

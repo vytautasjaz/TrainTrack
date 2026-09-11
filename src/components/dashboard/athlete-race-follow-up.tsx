@@ -247,49 +247,80 @@ function RaceFollowUpCard({
         <input type="hidden" name="outcome" value={choice} />
 
         {choice === 'FINISHED' ? (
-          <div className="tt-follow-fields grid grid-cols-1 gap-0 overflow-hidden rounded-[6px] border border-border/60 sm:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)_1px_minmax(0,3fr)]">
-            <label className="flex min-w-0 flex-col gap-0.5 px-3 py-2 sm:self-start">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Finish time
-              </span>
-              <Input
-                name="resultTime"
-                placeholder="3:27:16"
-                autoComplete="off"
-                variant="ghost"
-                className="h-8 min-h-0 px-0 py-0 text-base font-bold tabular-nums tracking-tight"
-                aria-label="Finish time"
-              />
-            </label>
-            <div className="hidden bg-border/70 sm:block" aria-hidden />
-            <label className="flex min-w-0 flex-col gap-0.5 border-t border-border/50 px-3 py-2 sm:self-start sm:border-t-0">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Place
-              </span>
-              <Input
-                name="resultPlace"
-                placeholder="12th"
-                autoComplete="off"
-                variant="ghost"
-                className="h-8 min-h-0 px-0 py-0 text-sm font-semibold tabular-nums"
-                aria-label="Finish place"
-              />
-            </label>
-            <div className="hidden bg-border/70 sm:block" aria-hidden />
-            <label className="flex min-w-0 flex-col gap-0.5 border-t border-border/50 px-3 py-2 sm:border-t-0">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Notes
-              </span>
-              <Textarea
-                name="resultNotes"
-                placeholder="Optional…"
-                autoComplete="off"
-                variant="ghost"
-                rows={2}
-                className="min-h-[2.5rem] resize-y text-sm leading-snug"
-                aria-label="Race notes"
-              />
-            </label>
+          <div className="tt-follow-fields space-y-0 overflow-hidden rounded-[6px] border border-border/60">
+            <div className="grid grid-cols-1 gap-0 sm:grid-cols-[minmax(0,1fr)_1px_minmax(0,2fr)]">
+              <label className="flex min-w-0 flex-col gap-0.5 px-3 py-2 sm:self-start">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Finish time
+                </span>
+                <Input
+                  name="resultTime"
+                  placeholder="3:27:16"
+                  autoComplete="off"
+                  variant="ghost"
+                  className="h-8 min-h-0 px-0 py-0 text-base font-bold tabular-nums tracking-tight"
+                  aria-label="Finish time"
+                />
+              </label>
+              <div className="hidden bg-border/70 sm:block" aria-hidden />
+              <label className="flex min-w-0 flex-col gap-0.5 border-t border-border/50 px-3 py-2 sm:border-t-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Feedback
+                </span>
+                <Textarea
+                  name="resultNotes"
+                  placeholder="Optional…"
+                  autoComplete="off"
+                  variant="ghost"
+                  rows={2}
+                  className="min-h-[2.5rem] resize-y text-sm leading-snug"
+                  aria-label="Race feedback"
+                />
+              </label>
+            </div>
+            <div className="grid grid-cols-1 gap-0 border-t border-border/50 sm:grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)_1px_minmax(0,1fr)]">
+              <label className="flex min-w-0 flex-col gap-0.5 px-3 py-2 sm:self-start">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Place overall
+                </span>
+                <Input
+                  name="resultPlace"
+                  placeholder="12th"
+                  autoComplete="off"
+                  variant="ghost"
+                  className="h-8 min-h-0 px-0 py-0 text-sm font-semibold tabular-nums"
+                  aria-label="Place overall"
+                />
+              </label>
+              <div className="hidden bg-border/70 sm:block" aria-hidden />
+              <label className="flex min-w-0 flex-col gap-0.5 border-t border-border/50 px-3 py-2 sm:self-start sm:border-t-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Place by gender
+                </span>
+                <Input
+                  name="resultPlaceGender"
+                  placeholder="4th"
+                  autoComplete="off"
+                  variant="ghost"
+                  className="h-8 min-h-0 px-0 py-0 text-sm font-semibold tabular-nums"
+                  aria-label="Place by gender"
+                />
+              </label>
+              <div className="hidden bg-border/70 sm:block" aria-hidden />
+              <label className="flex min-w-0 flex-col gap-0.5 border-t border-border/50 px-3 py-2 sm:self-start sm:border-t-0">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Place AG
+                </span>
+                <Input
+                  name="resultPlaceAg"
+                  placeholder="2nd"
+                  autoComplete="off"
+                  variant="ghost"
+                  className="h-8 min-h-0 px-0 py-0 text-sm font-semibold tabular-nums"
+                  aria-label="Place AG"
+                />
+              </label>
+            </div>
           </div>
         ) : null}
 
@@ -311,7 +342,7 @@ function RaceFollowUpCard({
         {choice === 'DNF' ? (
           <label className="tt-follow-fields flex min-w-0 flex-col gap-0.5 rounded-[6px] border border-border/60 px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Notes
+              Feedback
             </span>
             <Textarea
               name="resultNotes"
@@ -327,7 +358,7 @@ function RaceFollowUpCard({
         {choice === 'DID_NOT_START' ? (
           <label className="tt-follow-fields flex min-w-0 flex-col gap-0.5 rounded-[6px] border border-border/60 px-3 py-2">
             <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Notes
+              Feedback
             </span>
             <Textarea
               name="resultNotes"

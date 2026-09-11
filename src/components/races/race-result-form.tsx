@@ -18,6 +18,8 @@ type RaceResultFormProps = {
   outcome: RaceOutcome | null
   resultTime: string | null
   resultPlace: string | null
+  resultPlaceGender: string | null
+  resultPlaceAg: string | null
   resultNotes: string | null
   legs: RaceLegView[]
   allowStravaLink: boolean
@@ -29,6 +31,8 @@ export function RaceResultForm({
   outcome,
   resultTime,
   resultPlace,
+  resultPlaceGender,
+  resultPlaceAg,
   resultNotes,
   legs,
   allowStravaLink,
@@ -64,20 +68,36 @@ export function RaceResultForm({
             <option value={RaceOutcome.DNF}>DNF</option>
           </Select>
         </FormField>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <FormField label="Finish time" hint="e.g. 3:27:16">
-            <Input
-              name="resultTime"
-              defaultValue={resultTime ?? ''}
-              placeholder="3:27:16"
-              autoComplete="off"
-            />
-          </FormField>
-          <FormField label="Place" hint="Optional">
+        <FormField label="Finish time" hint="e.g. 3:27:16">
+          <Input
+            name="resultTime"
+            defaultValue={resultTime ?? ''}
+            placeholder="3:27:16"
+            autoComplete="off"
+          />
+        </FormField>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <FormField label="Place overall" hint="Optional">
             <Input
               name="resultPlace"
               defaultValue={resultPlace ?? ''}
               placeholder="12th"
+              autoComplete="off"
+            />
+          </FormField>
+          <FormField label="Place by gender" hint="Optional">
+            <Input
+              name="resultPlaceGender"
+              defaultValue={resultPlaceGender ?? ''}
+              placeholder="4th"
+              autoComplete="off"
+            />
+          </FormField>
+          <FormField label="Place AG" hint="Optional">
+            <Input
+              name="resultPlaceAg"
+              defaultValue={resultPlaceAg ?? ''}
+              placeholder="2nd"
               autoComplete="off"
             />
           </FormField>
@@ -89,11 +109,11 @@ export function RaceResultForm({
             allowStravaLink={allowStravaLink}
           />
         ) : null}
-        <FormField label="Notes" hint="Optional">
+        <FormField label="Feedback" hint="Optional">
           <Input
             name="resultNotes"
             defaultValue={resultNotes ?? ''}
-            placeholder="How did it go?"
+            placeholder="How did the race go?"
           />
         </FormField>
         <Button type="submit" variant="secondary" size="sm" disabled={pending}>

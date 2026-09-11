@@ -16,6 +16,7 @@ import {
   Plus,
   Minus,
   Lock,
+  ListFilter,
 } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { RaceIntent, RacePriority, SeasonPhase } from '@prisma/client'
@@ -36,7 +37,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
 import { PriorityBadge } from '@/components/races/priority-badge'
 import { StatusPill } from '@/components/ui/status-pill'
-import { AddRaceButton, WatchRaceButton } from '@/components/races/add-race-modal'
+import { AddRaceButton, AddRaceModal, WatchRaceButton } from '@/components/races/add-race-modal'
 import { RaceDetailSheet } from '@/components/races/race-detail-sheet'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import { deleteRace } from '@/app/actions/workouts'
@@ -45,6 +46,7 @@ import {
   deleteSeasonPhaseBlock,
   updateSeasonPhaseBlock,
 } from '@/app/actions/season-phases'
+import { SeasonEventDetailSheet } from '@/components/plan/season-event-detail-sheet'
 import { SeasonEventModal } from '@/components/plan/season-event-modal'
 import { raceOutcomeSummary, raceDistanceLabel, type SeasonRace } from '@/lib/season-races'
 import { daysUntil } from '@/lib/utils'
@@ -163,7 +165,7 @@ export function RacesPageClient({
         athleteId={athleteId}
         isCoach={isCoach}
       />
-      <AllRacesTable races={allRaces} athleteId={athleteId} />
+      <AllRacesTable races={allRaces} athleteId={athleteId} isCoach={isCoach} />
     </div>
   )
 }
@@ -207,11 +209,9 @@ function SeasonPlannerView({
     | { mode: 'edit'; block: SeasonPhaseBlockData }
     | null
   >(null)
-  const [eventModal, setEventModal] = useState<
-    | { mode: 'create' }
-    | { mode: 'edit'; event: SeasonEventData }
-    | null
-  >(null)
+  const [eventCreateOpen, setEventCreateOpen] = useState(false)
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
+  const [addRaceOpen, setAddRaceOpen] = useState(false)
 
   const weeks = useMemo(() => {
     const { start, end } = buildPlannerScrollRange(today)
@@ -312,53 +312,231 @@ function SeasonPlannerView({
     return sportFilter[r.sport as PlannerSport]
   })
   const selected = boardRaces.find((r) => r.id === selectedId) ?? null
+  const selectedEvent =
+    seasonEvents.find((e) => e.id === selectedEventId) ?? null
+
+  const plannerFiltersActive =
+    !(priorityFilter.A && priorityFilter.B && priorityFilter.C) ||
+    !(showWatching && showEvents) ||
+    PLANNER_SPORTS.some((s) => !sportFilter[s])
 
   return (
     <div className="space-y-6">
       <div className="flex flex-nowrap items-center gap-x-2 overflow-x-auto pb-0.5">
-        <SegmentedControl aria-label="Board layout" className="shrink-0">
-          {(
-            [
-              ['priority', 'Priority'],
-              ['sport', 'Sport'],
-            ] as const
-          ).map(([id, label]) => (
-            <SegmentedControlItem
-              key={id}
-              active={laneMode === id}
-              className="px-3 text-xs"
-              onClick={() => setLaneMode(id)}
-            >
-              {label}
-            </SegmentedControlItem>
-          ))}
-        </SegmentedControl>
-
         <div className="flex shrink-0 items-center gap-2">
-          <AddRaceButton
-            variant="secondary"
-            size="sm"
-            athleteId={athleteId}
-            className={SEASON_CTA_CLASS}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setEventModal({ mode: 'create' })}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add event
-          </Button>
+          <SegmentedControl aria-label="Board layout" className="shrink-0">
+            {(
+              [
+                ['priority', 'Priority'],
+                ['sport', 'Sport'],
+              ] as const
+            ).map(([id, label]) => (
+              <SegmentedControlItem
+                key={id}
+                active={laneMode === id}
+                className="px-3 text-xs"
+                onClick={() => setLaneMode(id)}
+              >
+                {label}
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+
+          <DropdownMenu.Root modal={false}>
+            <DropdownMenu.Trigger asChild>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className={cn(
+                  'gap-1.5',
+                  plannerFiltersActive && 'border-foreground/25 text-foreground',
+                )}
+                aria-label="Calendar filters"
+              >
+                <ListFilter className="h-3.5 w-3.5" />
+                Filters
+                {plannerFiltersActive ? (
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+                ) : null}
+              </Button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="start"
+                sideOffset={8}
+                className="z-[200] w-[min(calc(100vw-2rem),22rem)] overflow-hidden rounded-[12px] border border-border bg-card p-3 shadow-lg"
+                onCloseAutoFocus={(e) => e.preventDefault()}
+              >
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <p className="px-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Priority
+                    </p>
+                    <div
+                      className="flex flex-wrap items-center gap-1.5 rounded-[10px] border border-[#E1E3E6] bg-white px-1.5 py-1.5"
+                      role="group"
+                      aria-label="Priority filters"
+                    >
+                      {PLANNER_PRIORITY_LANES.map(({ priority }) => (
+                        <FilterChip
+                          key={priority}
+                          active={priorityFilter[priority]}
+                          onClick={() =>
+                            setPriorityFilter((prev) => ({
+                              ...prev,
+                              [priority]: !prev[priority],
+                            }))
+                          }
+                          dotClass={PLANNER_PRIORITY_DOT[priority]}
+                          label={priority}
+                          nested
+                        />
+                      ))}
+                      <FilterGroupAllNone
+                        allSelected={
+                          priorityFilter.A && priorityFilter.B && priorityFilter.C
+                        }
+                        noneSelected={
+                          !priorityFilter.A && !priorityFilter.B && !priorityFilter.C
+                        }
+                        onAll={() => setPriorityFilter({ A: true, B: true, C: true })}
+                        onNone={() =>
+                          setPriorityFilter({ A: false, B: false, C: false })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="px-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Lanes
+                    </p>
+                    <div
+                      className="flex flex-wrap items-center gap-1.5 rounded-[10px] border border-[#E1E3E6] bg-white px-1.5 py-1.5"
+                      role="group"
+                      aria-label="Lane filters"
+                    >
+                      <FilterChip
+                        active={showWatching}
+                        onClick={() => setShowWatching((prev) => !prev)}
+                        label="Watching"
+                        nested
+                      />
+                      <FilterChip
+                        active={showEvents}
+                        onClick={() => setShowEvents((prev) => !prev)}
+                        label="Events"
+                        nested
+                      />
+                      <FilterGroupAllNone
+                        allSelected={showWatching && showEvents}
+                        noneSelected={!showWatching && !showEvents}
+                        onAll={() => {
+                          setShowWatching(true)
+                          setShowEvents(true)
+                        }}
+                        onNone={() => {
+                          setShowWatching(false)
+                          setShowEvents(false)
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="px-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                      Sport
+                    </p>
+                    <div
+                      className="flex flex-wrap items-center gap-1.5 rounded-[10px] border border-[#E1E3E6] bg-white px-1.5 py-1.5"
+                      role="group"
+                      aria-label="Sport filters"
+                    >
+                      {PLANNER_SPORTS.map((sport) => (
+                        <FilterChip
+                          key={sport}
+                          active={sportFilter[sport]}
+                          onClick={() =>
+                            setSportFilter((prev) => ({
+                              ...prev,
+                              [sport]: !prev[sport],
+                            }))
+                          }
+                          dotClass={WORKOUT_TYPE_DOT_CLASS[sport]}
+                          label={PLANNER_SPORT_LABELS[sport]}
+                          nested
+                        />
+                      ))}
+                      <FilterGroupAllNone
+                        allSelected={PLANNER_SPORTS.every((s) => sportFilter[s])}
+                        noneSelected={PLANNER_SPORTS.every((s) => !sportFilter[s])}
+                        onAll={() =>
+                          setSportFilter(
+                            Object.fromEntries(
+                              PLANNER_SPORTS.map((s) => [s, true]),
+                            ) as Record<PlannerSport, boolean>,
+                          )
+                        }
+                        onNone={() =>
+                          setSportFilter(
+                            Object.fromEntries(
+                              PLANNER_SPORTS.map((s) => [s, false]),
+                            ) as Record<PlannerSport, boolean>,
+                          )
+                        }
+                      />
+                    </div>
+                  </div>
+                </div>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </div>
 
-        <PlannerToolbar
-          zoom={zoom}
-          onZoomChange={handleZoomChange}
-          onToday={() => scrollPlannerToColumn(scale.todayIdx, colW, labelW)}
-          onPrev={() => nudgePlannerScroll(-viewportColumns * colW)}
-          onNext={() => nudgePlannerScroll(viewportColumns * colW)}
-        />
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <PlannerToolbar
+            zoom={zoom}
+            onZoomChange={handleZoomChange}
+            onToday={() => scrollPlannerToColumn(scale.todayIdx, colW, labelW)}
+            onPrev={() => nudgePlannerScroll(-viewportColumns * colW)}
+            onNext={() => nudgePlannerScroll(viewportColumns * colW)}
+          />
+
+          <DropdownMenu.Root modal={false}>
+            <DropdownMenu.Trigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                className={cn(SEASON_CTA_CLASS, 'gap-1.5')}
+                aria-label="Add race or event"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add
+              </Button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="end"
+                sideOffset={8}
+                className="z-[200] min-w-[9.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
+              >
+                <DropdownMenu.Item
+                  className="cursor-pointer rounded-[6px] px-2.5 py-1.5 text-sm outline-none data-[highlighted]:bg-muted/60"
+                  onSelect={() => setAddRaceOpen(true)}
+                >
+                  Race
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className="cursor-pointer rounded-[6px] px-2.5 py-1.5 text-sm outline-none data-[highlighted]:bg-muted/60"
+                  onSelect={() => setEventCreateOpen(true)}
+                >
+                  Event
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        </div>
       </div>
 
       <SeasonPlannerBoard
@@ -380,114 +558,15 @@ function SeasonPlannerView({
         onSelectRace={setSelectedId}
         onAddPhase={(sport) => setPhaseModal({ mode: 'create', sport })}
         onEditPhase={(block) => setPhaseModal({ mode: 'edit', block })}
-        onEditEvent={(event) => setEventModal({ mode: 'edit', event })}
+        onSelectEvent={(event) => setSelectedEventId(event.id)}
       />
 
-      <div className="tt-season-filters flex flex-nowrap items-center gap-3 overflow-x-auto pb-0.5 pt-1">
-        <div
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#E1E3E6] bg-white px-1.5 py-1"
-          role="group"
-          aria-label="Priority filters"
-        >
-          <span className="hidden pl-1.5 pr-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground sm:inline">
-            Priority
-          </span>
-          {PLANNER_PRIORITY_LANES.map(({ priority }) => (
-            <FilterChip
-              key={priority}
-              active={priorityFilter[priority]}
-              onClick={() =>
-                setPriorityFilter((prev) => ({ ...prev, [priority]: !prev[priority] }))
-              }
-              dotClass={PLANNER_PRIORITY_DOT[priority]}
-              label={priority}
-              nested
-            />
-          ))}
-          <FilterGroupAllNone
-            allSelected={priorityFilter.A && priorityFilter.B && priorityFilter.C}
-            noneSelected={!priorityFilter.A && !priorityFilter.B && !priorityFilter.C}
-            onAll={() => setPriorityFilter({ A: true, B: true, C: true })}
-            onNone={() => setPriorityFilter({ A: false, B: false, C: false })}
-          />
-        </div>
-
-        <div
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#E1E3E6] bg-white px-1.5 py-1"
-          role="group"
-          aria-label="Lane filters"
-        >
-          <span className="hidden pl-1.5 pr-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground sm:inline">
-            Lanes
-          </span>
-          <FilterChip
-            active={showWatching}
-            onClick={() => setShowWatching((prev) => !prev)}
-            label="Watching"
-            nested
-          />
-          <FilterChip
-            active={showEvents}
-            onClick={() => setShowEvents((prev) => !prev)}
-            label="Events"
-            nested
-          />
-          <FilterGroupAllNone
-            allSelected={showWatching && showEvents}
-            noneSelected={!showWatching && !showEvents}
-            onAll={() => {
-              setShowWatching(true)
-              setShowEvents(true)
-            }}
-            onNone={() => {
-              setShowWatching(false)
-              setShowEvents(false)
-            }}
-          />
-        </div>
-
-        <div
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-[#E1E3E6] bg-white px-1.5 py-1"
-          role="group"
-          aria-label="Sport filters"
-        >
-          <span className="hidden pl-1.5 pr-0.5 text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground sm:inline">
-            Sport
-          </span>
-          {PLANNER_SPORTS.map((sport) => (
-            <FilterChip
-              key={sport}
-              active={sportFilter[sport]}
-              onClick={() =>
-                setSportFilter((prev) => ({ ...prev, [sport]: !prev[sport] }))
-              }
-              dotClass={WORKOUT_TYPE_DOT_CLASS[sport]}
-              label={PLANNER_SPORT_LABELS[sport]}
-              nested
-            />
-          ))}
-          <FilterGroupAllNone
-            allSelected={PLANNER_SPORTS.every((s) => sportFilter[s])}
-            noneSelected={PLANNER_SPORTS.every((s) => !sportFilter[s])}
-            onAll={() =>
-              setSportFilter(
-                Object.fromEntries(PLANNER_SPORTS.map((s) => [s, true])) as Record<
-                  PlannerSport,
-                  boolean
-                >,
-              )
-            }
-            onNone={() =>
-              setSportFilter(
-                Object.fromEntries(PLANNER_SPORTS.map((s) => [s, false])) as Record<
-                  PlannerSport,
-                  boolean
-                >,
-              )
-            }
-          />
-        </div>
-      </div>
+      <AddRaceModal
+        open={addRaceOpen}
+        onOpenChange={setAddRaceOpen}
+        athleteId={athleteId}
+        defaultIntent={RaceIntent.PLANNED}
+      />
 
       <RaceDetailSheet
         race={selected}
@@ -496,6 +575,7 @@ function SeasonPlannerView({
           if (!open) setSelectedId(null)
         }}
         onChanged={() => router.refresh()}
+        isCoach={isCoach}
       />
 
       <PhaseBlockModal
@@ -506,12 +586,20 @@ function SeasonPlannerView({
       />
 
       <SeasonEventModal
-        open={Boolean(eventModal)}
-        onOpenChange={(open) => {
-          if (!open) setEventModal(null)
-        }}
-        event={eventModal?.mode === 'edit' ? eventModal.event : null}
+        open={eventCreateOpen}
+        onOpenChange={setEventCreateOpen}
         isCoach={isCoach}
+        onSaved={() => router.refresh()}
+      />
+
+      <SeasonEventDetailSheet
+        event={selectedEvent}
+        open={Boolean(selectedEvent)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedEventId(null)
+        }}
+        isCoach={isCoach}
+        onChanged={() => router.refresh()}
       />
     </div>
   )
@@ -808,7 +896,7 @@ function SeasonPlannerBoard({
   onSelectRace,
   onAddPhase,
   onEditPhase,
-  onEditEvent,
+  onSelectEvent,
 }: {
   scale: PlannerBoardScale
   weeks: PlannerWeekColumn[]
@@ -828,7 +916,7 @@ function SeasonPlannerBoard({
   onSelectRace: (id: string) => void
   onAddPhase: (sport: PlannerSport) => void
   onEditPhase: (block: SeasonPhaseBlockData) => void
-  onEditEvent: (event: SeasonEventData) => void
+  onSelectEvent: (event: SeasonEventData) => void
 }) {
   const { months, todayIdx, colCount, unit } = scale
   const gridW = colCount * colW
@@ -1175,7 +1263,7 @@ function SeasonPlannerBoard({
               events={seasonEvents}
               scale={scale}
               colW={colW}
-              onEditEvent={onEditEvent}
+              onSelectEvent={onSelectEvent}
             />
           </PlannerLane>
         ) : null}
@@ -1242,7 +1330,7 @@ function SeasonPlannerBoard({
               events={seasonEvents}
               scale={scale}
               colW={colW}
-              onEditEvent={onEditEvent}
+              onSelectEvent={onSelectEvent}
             />
           </PlannerLane>
         ) : null}
@@ -1431,12 +1519,12 @@ function StackedEventCards({
   events,
   scale,
   colW,
-  onEditEvent,
+  onSelectEvent,
 }: {
   events: SeasonEventData[]
   scale: PlannerBoardScale
   colW: number
-  onEditEvent: (event: SeasonEventData) => void
+  onSelectEvent: (event: SeasonEventData) => void
 }) {
   const { items } = layoutStackedEvents(events, scale, colW)
   const cardH = eventCardHeight(colW)
@@ -1465,7 +1553,7 @@ function StackedEventCards({
           <button
             key={event.id}
             type="button"
-            onClick={() => onEditEvent(event)}
+            onClick={() => onSelectEvent(event)}
             onMouseEnter={(e) => follow.show(tip, e)}
             onMouseMove={follow.move}
             onMouseLeave={follow.hide}
@@ -1866,7 +1954,15 @@ function RaceSearchField({
   )
 }
 
-function AllRacesTable({ races, athleteId }: { races: SeasonRace[]; athleteId: string }) {
+function AllRacesTable({
+  races,
+  athleteId,
+  isCoach = false,
+}: {
+  races: SeasonRace[]
+  athleteId: string
+  isCoach?: boolean
+}) {
   const router = useRouter()
   const today = useMemo(() => new Date(), [])
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -1935,6 +2031,7 @@ function AllRacesTable({ races, athleteId }: { races: SeasonRace[]; athleteId: s
           if (!open) setSelectedId(null)
         }}
         onChanged={() => router.refresh()}
+        isCoach={isCoach}
       />
     </div>
   )
