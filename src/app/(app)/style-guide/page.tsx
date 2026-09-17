@@ -195,6 +195,13 @@ export default function StyleGuidePage() {
             </Link>{' '}
             for component lab samples,{' '}
             <Link
+              href="/admin/todos"
+              className="font-semibold text-[#111111] underline-offset-2 hover:underline"
+            >
+              /admin/todos
+            </Link>{' '}
+            for the product backlog,{' '}
+            <Link
               href="/style-guide/athlete-cards"
               className="font-semibold text-[#111111] underline-offset-2 hover:underline"
             >

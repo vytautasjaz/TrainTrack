@@ -385,6 +385,9 @@ export async function getAthleteDashboard(athleteId: string) {
           paceThresholdMinPerKm: true,
           hrMax: true,
           hrResting: true,
+          hrZone1Max: true,
+          hrZone2Max: true,
+          hrZone3Max: true,
           hrZone4Max: true,
         },
       }),
@@ -491,6 +494,9 @@ export async function getAthleteDashboard(athleteId: string) {
       swimCssSecPer100m: athletePlan?.swimCssSecPer100m ?? null,
       hrMax: athletePlan?.hrMax ?? null,
       hrResting: athletePlan?.hrResting ?? null,
+      hrZone1Max: athletePlan?.hrZone1Max ?? null,
+      hrZone2Max: athletePlan?.hrZone2Max ?? null,
+      hrZone3Max: athletePlan?.hrZone3Max ?? null,
       hrZone4Max: athletePlan?.hrZone4Max ?? null,
     },
   }
@@ -790,6 +796,7 @@ async function getCoachInboxAthleteStats(coachUserId: string) {
       threadKind: thread.kind,
       workoutType: row.workoutDetail?.type ?? null,
       thread: view,
+      race: row.race,
     })
 
     const existing = summaryMap.get(athleteId)
@@ -1088,6 +1095,7 @@ export async function getCoachHomeData(coachId: string) {
           location: race.location,
           type: race.type,
           sport: race.sport,
+          triathlonDistance: race.triathlonDistance,
           priority: race.priority,
           outcome: race.outcome,
           resultTime: race.resultTime,
@@ -1116,6 +1124,9 @@ export async function getCoachHomeData(coachId: string) {
           swimCssSecPer100m: athlete.swimCssSecPer100m ?? null,
           hrMax: athlete.hrMax ?? null,
           hrResting: athlete.hrResting ?? null,
+          hrZone1Max: athlete.hrZone1Max ?? null,
+          hrZone2Max: athlete.hrZone2Max ?? null,
+          hrZone3Max: athlete.hrZone3Max ?? null,
           hrZone4Max: athlete.hrZone4Max ?? null,
         },
       ]),

@@ -27,7 +27,7 @@ Replace single `athleteNotes` / `coachReply` on `WorkoutResult` with a real mess
 ### Training block planning (season phases)
 
 **Status:** idea  
-**Related:** Season planner UX; Training plan library  
+**Related:** Season planner UX; Training season blackboard; Training plan library; Week intensity / load pattern  
 **UI placement:** undecided — may live in **training plan creation**, **season planner**, or both (decide later)
 
 Split the training year / season into named **phases / blocks**, e.g.:
@@ -41,15 +41,33 @@ Split the training year / season into named **phases / blocks**, e.g.:
 Coach defines: name, phase type, purpose/intent, date range (or week count), optional notes/color.
 
 - Workouts in that range belong to / are tagged with the block (or the block is a calendar overlay)
-- Athlete can **see** the active (and upcoming) block — name, purpose, dates — so plan context is visible, not only individual sessions
 - Calendar / week / month / season views could show block chrome (label, tint, or header strip)
 
-Open questions when designing: create/edit surface (plan builder vs season board); one block at a time vs overlapping; reusable block templates; how rescheduling interacts with block boundaries.
+**Nested / stacked blocks (program + phase)**
+
+Support **two levels at once**, not only a single active phase. Example: a **16-week marathon prep program** that contains inner phases (Build, Race-specific, Taper, …).
+
+- Outer block = full assigned program (e.g. 16 weeks)
+- Inner block = current phase inside that program (e.g. Build = weeks 3–8 → 6 weeks)
+- Athlete can be in both at once: “week **3/16** of Marathon prep” and “week **3/6** of Build”
+- Later: optional deeper nesting only if needed; v1 = program + one active child phase is enough
+
+**Athlete visibility & progress (incl. Home)**
+
+When a coach **assigns a block / program** to an athlete, the athlete should see where they are — ideally on **Home**, not only deep in the plan:
+
+- Active program name + current phase name
+- Progress as weeks: e.g. **3/16** overall, **3/6** in current phase
+- Optional **% of program completed** (by weeks and/or by completed sessions vs planned — decide formula)
+- Short purpose/intent of the current phase so context is clear without opening the full calendar
+- Upcoming phase peek (“next: Race-specific”) later
+
+Open questions when designing: create/edit surface (plan builder vs season board); assign flow (library plan → athlete calendar); how rescheduling interacts with block boundaries; whether % is week-based, session-based, or both; Home card vs eyebrow under Today.
 
 ### Week intensity / load pattern
 
 **Status:** idea  
-**Related:** Training block planning; Training plan library; Workout Progression
+**Related:** Training block planning; Training plan library; Workout Progression; Weekly intensity breakdown
 
 Mark or prescribe **week-level intensity / load**, not only session difficulty — e.g. a hard / high-load week followed by a recovery / deload week (or 3:1, 2:1 patterns).
 
@@ -59,9 +77,34 @@ Mark or prescribe **week-level intensity / load**, not only session difficulty �
 
 Exact model and UI TBD — park the concept so it isn’t lost when building blocks / plans.
 
+### Weekly intensity breakdown
+
+**Status:** idea  
+**Related:** Week intensity / load pattern; TSS; Workout builder / session structure; Training plan calendar
+
+See **how much intensity is planned in a week**, split by intensity type — not only total volume or a single “hard week” label.
+
+**Intensity buckets (examples)**
+
+- Threshold  
+- VO2max / speed  
+- Tempo / steady  
+- Easy / endurance  
+- Recovery  
+- (sport-specific zones later: Z1–Z5, power zones, etc.)
+
+**Surfaces**
+
+- Week view / plan header: stacked bar or chips — e.g. “42' threshold · 24' VO2 · 3h easy · 40' recovery”
+- Optional planned vs actual once sessions are logged / Strava-synced
+- Helps coaches balance hard days and keep easy/recovery volume visible, not only the quality sessions
+
+Open when designing: derive from structured workout blocks vs coach tags vs pace/power targets; time vs distance vs TSS per bucket; multi-sport weeks (run vs bike swim separately or combined); athlete-visible summary.
+
 ### Season planner UX (Excel-style)
 
 **Status:** idea  
+**Related:** Training block planning; Training season blackboard  
 **Reference:** coach Excel season grid (months × week columns; rows for run / 70.3 / LTT / federation / bike / other / swim; colored week spans; race cells; week-to-race countdown numbers)  
 **Existing surface:** [`SeasonOverview`](src/components/races/season-overview.tsx) / season timeline — improve rather than invent a third calendar.
 
@@ -74,6 +117,159 @@ Clearer season view + ability to **paint / create training blocks by color** acr
 - Ties into **Training block planning** data model (blocks drive the colored spans)
 
 Goal: replace the Excel screenshot workflow with an in-app season board that is scannable at a glance.
+
+### Training season blackboard
+
+**Status:** idea  
+**Related:** Season planner UX (Excel-style); Training block planning; Training plan library; athlete Events / races
+
+A **spatial, multi-track season planning surface** that lets coaches see and shape an athlete’s entire season at a glance. It should feel closer to a modern planning canvas or timeline tool than a spreadsheet or traditional calendar — while remaining fully grounded in structured training data.
+
+The goal is to let a coach **sketch the season visually first, then turn that sketch into real training-plan data**.
+
+#### Core concept
+
+The season is represented as a shared horizontal time axis with multiple independent **tracks**. Each track represents a different planning dimension, while all tracks remain aligned to the same calendar.
+
+Example tracks:
+
+- Running
+- Cycling
+- Swimming
+- Strength
+- Skills
+- Competitions
+- Testing
+- Camps / Travel
+- Notes
+
+Tracks should be configurable so different sports and coaching workflows can use different combinations.
+
+#### Training blocks
+
+Coaches can create structured blocks directly on a track by selecting a date range or dragging across the timeline.
+
+A block is a real data object, not just visual decoration:
+
+- Name / type
+- Start and end dates
+- Description / intent
+- Key focus
+- Volume or intensity notes
+- Assigned athlete(s)
+- Optional relationship to an event or race
+
+For example:
+
+**Build — Mar 17 → May 11**
+
+> Increase threshold volume and race-specific intensity.  
+> Longer sessions, progressive load, 2 quality sessions/week.
+
+Blocks can be moved, resized, extended, split, duplicated, or reordered through direct manipulation.
+
+#### Events as anchors
+
+Competitions, races, tests, camps, travel and other important dates live on the same shared timeline.
+
+Events should act as **planning anchors** around which training blocks can be positioned.
+
+Example:
+
+`BASE → BUILD → PEAK → TAPER → 🏆 A-RACE → RECOVERY`
+
+A race can therefore visually explain *why* the surrounding blocks exist.
+
+#### Notes and planning ideas
+
+The canvas can also contain lightweight planning notes, but these should remain visually clean and secondary to structured data.
+
+Examples:
+
+- “Increase long-run volume here”
+- “Test 5K before Build”
+- “Athlete travelling”
+- “Possible second race”
+- “Need more strength work”
+
+Notes can later be converted into structured objects where appropriate.
+
+#### Direct manipulation
+
+The main interaction should be **drag-and-compose**, rather than form-first data entry.
+
+Possible interactions:
+
+- Drag across dates → create a block
+- Drag block edges → resize
+- Drag block → move
+- Multi-select dates / blocks
+- Split or extend blocks
+- Duplicate blocks
+- Drag events onto the timeline
+- Add notes directly to the canvas
+- Reorder tracks
+- Show / hide tracks
+
+The interface should feel inspired by tools such as Miro, Figma or modern timeline/roadmap applications, but **without becoming a freeform drawing tool**.
+
+The canvas should remain structured, aligned and data-driven.
+
+#### Timeline views
+
+The same season data should support multiple visualizations:
+
+**Timeline / Canvas** — continuous horizontal time axis optimized for big-picture season planning.
+
+**Calendar** — conventional month/week calendar for more precise date-based planning.
+
+Both views should operate on the **same underlying data model**.
+
+#### Track management
+
+Coaches should be able to:
+
+- Add custom tracks
+- Rename tracks
+- Reorder tracks
+- Hide / show tracks
+- Define track type and appearance
+- Potentially save commonly used track configurations
+
+This allows the same planner to work for running, cycling, triathlon, HYROX, team sports, etc.
+
+#### From sketch to plan
+
+The most important concept is that the canvas is not just a visualization.
+
+A coach should be able to build something like:
+
+`BASE → BUILD → PEAK → TAPER → 🏆 RACE → RECOVERY`
+
+and then use those blocks as the foundation for actual training-plan generation.
+
+**Sketch → Structure → Training Plan → Execution**
+
+The season canvas becomes the high-level planning layer on top of TrainTrack’s existing training data.
+
+#### Product principles
+
+- **Spatial, not spreadsheet-like**
+- **Structured, not freeform**
+- **Visual, but data-driven**
+- **Direct manipulation over forms**
+- **One shared data model across planner and calendar**
+- **Events provide context for training blocks**
+- **Simple enough to understand in seconds**
+- **Powerful enough to plan an entire season**
+
+The visual language should stay **minimal and professional** — clean grids, subtle colors, restrained UI, clear typography and structured timelines. Avoid a literal “whiteboard” aesthetic with excessive sticky notes, hand-drawn arrows or comic-like annotations.
+
+The intended feeling is:
+
+> **“I can see the entire season, understand the strategy, and change it with my hands.”**
+
+**Open when designing:** shared data model with Excel-style season planner (one backend, two UIs?); undo/history; touch vs desktop; athlete read-only board vs coach-only edit; how blocks feed Training plan library / assign flow.
 
 ### Training plan library
 
@@ -214,6 +410,76 @@ Introduce an **admin** user type and a protected **admin panel** for platform op
 - Usage or quota views if product adds limits
 
 **Open when designing:** who can grant `ADMIN` (DB seed / super-admin only); coach+admin vs admin-only accounts; whether admin can see athlete health/training data or only account metadata; GDPR/support workflow for account deletion.
+
+### Plan vs Execution view modes
+
+**Status:** idea  
+**Related:** Strava sync of unplanned activities; Off-day planned-workout matching; Training calendar / week views
+
+Add calendar (and related plan surfaces) **view modes**:
+
+- **Plan** — show only the **original coach plan** as prescribed (what was scheduled), without overlaying execution noise
+- **Execution** — show **all completed workouts** (logged / Strava-synced), whether or not they matched a planned session that day
+
+Open when designing: default mode per role (coach vs athlete); how reschedules / skipped sessions appear in Plan; whether Execution replaces planned slots or sits as a parallel layer; week vs month consistency.
+
+### Strava sync of unplanned activities
+
+**Status:** idea · **high priority** (completeness of plan + stats)  
+**Related:** Plan vs Execution view modes; Off-day planned-workout matching; Cross-day Strava link & complete; Stats / TSS; Activity feed
+
+Sync **all** relevant Strava activities into TrainTrack — not only those that map onto an existing planned workout.
+
+- If the athlete trains on a day with **nothing planned**, still create / attach an activity in TrainTrack as **athlete self-added** (`selfLogged`)
+- Unplanned synced sessions must appear on the **plan/calendar** and count in **overall stats** (volume, load, compliance denominators TBD)
+- Keep clear distinction: coach-planned vs athlete-executed-but-unplanned
+- Later / together with matching: if an unplanned Strava activity **looks like** a skipped / unfinished planned session, offer to **associate** instead of leaving both (self-added + skipped)
+
+Open when designing: auto-create `Workout` vs attach-only result; sport/type mapping from Strava; duplicate detection with manual logs; which activities to exclude (commutes, very short); coach visibility and edit rights.
+
+### Cross-day Strava link & complete (rescheduled)
+
+**Status:** idea · **high priority** (athlete completion friction)  
+**Related:** Off-day planned-workout matching; Strava sync of unplanned activities; existing reschedule / ghost workout model
+
+Today an athlete can only link a Strava activity from **the same calendar day** as the planned workout. Reality: e.g. strength planned **yesterday**, completed **today** — they still need to mark it done and attach Strava.
+
+**Desired athlete flow**
+
+1. Open the planned workout (even if its plan date has passed)
+2. Choose **Link Strava activity** and pick from activities on **other days** (not only that plan date)
+3. Confirm → workout is marked **completed** and treated as **rescheduled** to the activity’s day (reuse / align with existing reschedule semantics: original slot + completed-on-new-date)
+4. Stats, activity feed, and coach views should show it as completed (with reschedule context), not stuck as missed/unlinked
+
+Open when designing: UI for multi-day Strava picker (date filter / recent list); whether linking auto-moves the plan card vs keeps ghost + completed copy; conflict if that day already has another session; coach notification.
+
+### Off-day planned-workout matching
+
+**Status:** idea  
+**Related:** Strava sync of unplanned activities; Cross-day Strava link & complete; Plan vs Execution view modes
+
+Detect when the athlete completed a workout **similar to a planned session**, but on a **different day** than scheduled — including matching a **self-added / synced** Strava activity to a **skipped or unfinished** planned slot.
+
+- Suggest / auto-link: “this Strava run looks like Tuesday’s planned intervals”
+- Manual path covered by **Cross-day Strava link & complete**; this item is the smarter suggest/match layer
+- Surfaces: Plan mode still shows original date; Execution / linking UI shows the match and optional reschedule or “done as X”
+- Helps compliance and coach review when athletes shift days without manually moving the plan
+
+Open when designing: similarity signals (sport, distance, duration, structure, TSS); confidence threshold vs manual confirm; interaction with explicit reschedule flow; what happens to the original planned slot (completed-elsewhere vs still due).
+
+### Past unfinished workouts as muted / skipped-style
+
+**Status:** idea  
+**Related:** Plan vs Execution view modes; Strava sync of unplanned activities; Off-day planned-workout matching
+
+In training plan / calendar views, sessions that are **in the past** and were **never completed** (not Strava-synced, not manually marked done) should render **greyer / muted**, same visual language as **skipped**.
+
+- Past + no completion → skipped-style (dimmed card, muted sport rail, etc.)
+- Still distinguishable from an explicit “Skipped” mark if needed (label vs mute-only), but look should match
+- Future / today planned sessions stay full color until done or skipped
+- Ties into Execution view: unfinished past slots stay visible but de-emphasized next to completed work
+
+Open when designing: cutoff (end of day vs athlete timezone); auto-skip vs visual-only; whether coach must confirm; interaction with off-day matching (don’t mute if linked as done elsewhere).
 
 ### Privacy, cookies & EU compliance (go-live)
 

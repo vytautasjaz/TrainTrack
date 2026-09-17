@@ -135,6 +135,57 @@ export async function fetchStravaActivity(
   return response.json()
 }
 
+type StravaStreamSeries = {
+  data?: number[]
+  series_type?: string
+  original_size?: number
+}
+
+export type StravaActivityStreams = {
+  heartrate: number[] | null
+  time: number[] | null
+}
+
+/** HR (+ time) streams for zone-based load. Missing streams return null series. */
+export async function fetchStravaActivityStreams(
+  accessToken: string,
+  activityId: number,
+): Promise<StravaActivityStreams> {
+  const params = new URLSearchParams({
+    keys: 'heartrate,time',
+    key_by_type: 'true',
+  })
+  const response = await fetch(
+    `${STRAVA_API}/activities/${activityId}/streams?${params.toString()}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      next: { revalidate: 0 },
+    },
+  )
+
+  if (!response.ok) {
+    // Many activities have no HR stream — treat as empty rather than failing sync.
+    if (response.status === 404 || response.status === 400) {
+      return { heartrate: null, time: null }
+    }
+    const body = await response.text()
+    throw new Error(`Strava streams fetch failed: ${body}`)
+  }
+
+  const payload = (await response.json()) as Record<string, StravaStreamSeries>
+  const heartrate = Array.isArray(payload.heartrate?.data)
+    ? payload.heartrate!.data!.filter((n) => Number.isFinite(n))
+    : null
+  const time = Array.isArray(payload.time?.data)
+    ? payload.time!.data!.filter((n) => Number.isFinite(n))
+    : null
+
+  return {
+    heartrate: heartrate && heartrate.length > 0 ? heartrate : null,
+    time: time && time.length > 0 ? time : null,
+  }
+}
+
 export async function fetchAllRecentActivities(
   accessToken: string,
   options: { afterUnix: number; beforeUnix?: number },

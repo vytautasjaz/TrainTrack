@@ -23,7 +23,7 @@ export function StravaAutoSync() {
       try {
         const result = await maybeAutoSyncStravaActivities()
         if (cancelled) return
-        if (result.status === 'synced' && result.matched > 0) {
+        if (result.status === 'synced' && (result.matched > 0 || result.imported > 0)) {
           router.refresh()
         }
       } catch {

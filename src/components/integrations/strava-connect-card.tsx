@@ -56,8 +56,18 @@ export function StravaConnectCard({
     startTransition(async () => {
       try {
         const result = await syncStravaActivities()
+        const parts = [
+          result.matched > 0
+            ? `${result.matched} matched`
+            : null,
+          result.imported > 0
+            ? `${result.imported} added as self-logged`
+            : null,
+        ].filter(Boolean)
         setSyncResult(
-          `Synced ${result.matched} workout${result.matched === 1 ? '' : 's'} from ${result.scanned} Strava activities.`,
+          parts.length > 0
+            ? `Synced ${parts.join(', ')} from ${result.scanned} Strava activities.`
+            : `Scanned ${result.scanned} Strava activities — nothing new to sync.`,
         )
       } catch (err) {
         setActionError(err instanceof Error ? err.message : 'Sync failed')
@@ -73,8 +83,14 @@ export function StravaConnectCard({
         const result = await syncStravaActivitiesForDateRange(fromKey, toKey)
         const rangeLabel =
           fromKey === toKey ? fromKey : `${fromKey} → ${toKey}`
+        const parts = [
+          result.matched > 0 ? `${result.matched} matched` : null,
+          result.imported > 0 ? `${result.imported} added as self-logged` : null,
+        ].filter(Boolean)
         setSyncResult(
-          `Synced ${result.matched} workout${result.matched === 1 ? '' : 's'} from ${result.scanned} Strava activities (${rangeLabel}).`,
+          parts.length > 0
+            ? `Synced ${parts.join(', ')} from ${result.scanned} Strava activities (${rangeLabel}).`
+            : `Scanned ${result.scanned} Strava activities (${rangeLabel}) — nothing new to sync.`,
         )
       } catch (err) {
         setActionError(err instanceof Error ? err.message : 'Sync failed')
@@ -309,8 +325,8 @@ export function StravaConnectCard({
 
       <p className="text-xs text-muted-foreground">
         Requires scopes <code>read</code>, <code>activity:read_all</code>, and{' '}
-        <code>profile:read_all</code>. Activities are matched to planned workouts on the same day
-        with a compatible sport type.
+        <code>profile:read_all</code>. Activities are matched to planned workouts (same day or
+        nearby), and unmatched ones are added as self-logged sessions.
       </p>
     </div>
   )

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { RaceLegKind, RaceOutcome, type RaceType } from '@prisma/client'
+import { RaceLegKind, RaceOutcome, type RaceType, type TriathlonDistance } from '@prisma/client'
 import { RaceStatCell } from '@/components/races/race-stat-cell'
 import { RACE_OUTCOME_LABELS } from '@/lib/constants'
 import {
@@ -21,6 +21,7 @@ import {
   TRIATHLON_LEG_ORDER,
   type RaceLegView,
 } from '@/lib/race-legs'
+import { raceLegSplitMetrics } from '@/lib/race-leg-metrics'
 import { racePlaceLines } from '@/lib/season-races'
 import { cn } from '@/lib/utils'
 
@@ -34,6 +35,7 @@ const LEG_ICON: Record<RaceLegKind, LucideIcon> = {
 
 export type RaceReportPanelData = {
   type: RaceType
+  triathlonDistance?: TriathlonDistance | null
   outcome?: RaceOutcome | string | null
   resultTime?: string | null
   resultPlace?: string | null
@@ -53,7 +55,13 @@ export type RaceReportPanelData = {
       | 'stravaActivityUrl'
     > &
       Partial<
-        Pick<RaceLegView, 'actualDurationMin' | 'stravaActivityName' | 'plannedTime'>
+        Pick<
+          RaceLegView,
+          | 'plannedDistanceKm'
+          | 'actualDistanceKm'
+          | 'actualDurationMin'
+          | 'stravaActivityName'
+        >
       >
   > | null
 }
@@ -120,11 +128,17 @@ export function RaceReportPanel({
       ? TRIATHLON_LEG_ORDER.map((kind) => {
           const leg = race.legs!.find((row) => row.kind === kind)
           if (!leg) return null
+          const metrics = raceLegSplitMetrics(leg, {
+            type: race.type,
+            triathlonDistance: race.triathlonDistance,
+          })
           return {
             leg,
             time: formatRaceLegResult(leg),
             plan: leg.plannedTime?.trim() || null,
             hasStrava: Boolean(leg.stravaActivityUrl?.trim()),
+            distanceLabel: metrics?.distanceLabel ?? null,
+            paceLabel: metrics?.paceLabel ?? null,
           }
         }).filter((item): item is NonNullable<typeof item> => Boolean(item))
       : []
@@ -229,7 +243,7 @@ export function RaceReportPanel({
             gridTemplateColumns: `repeat(${splitsForRow.length}, minmax(0, 1fr))`,
           }}
         >
-          {splitsForRow.map(({ leg, time, plan, hasStrava }) => {
+          {splitsForRow.map(({ leg, time, plan, hasStrava, distanceLabel, paceLabel }) => {
             const Icon = LEG_ICON[leg.kind]
             return (
               <RaceStatCell
@@ -239,6 +253,11 @@ export function RaceReportPanel({
                 className="flex-col items-start gap-1 px-2 py-3 sm:gap-1.5 sm:px-3 sm:py-3.5 [&_svg]:mt-0"
               >
                 <span className="tabular-nums">{time}</span>
+                {distanceLabel || paceLabel ? (
+                  <span className="mt-0.5 block text-[10px] font-medium tabular-nums text-muted-foreground sm:text-xs">
+                    {[distanceLabel, paceLabel].filter(Boolean).join(' · ')}
+                  </span>
+                ) : null}
                 {showPlan && plan ? (
                   <span className="mt-0.5 block text-[10px] font-medium text-muted-foreground sm:text-xs">
                     Plan {plan}

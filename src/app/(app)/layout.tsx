@@ -1,6 +1,8 @@
+import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { AppShell } from '@/components/layout/app-shell'
 import { getSession, isAdminOnly } from '@/lib/session'
+import { isAdminInternalAppPath } from '@/lib/admin-internal-paths'
 import {
   clearCoachInviteCookie,
   coachInvitePath,
@@ -18,9 +20,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const session = await getSession()
   if (!session) redirect('/')
 
-  // Pure admin accounts use the admin shell, not athlete/coach chrome.
-  if (isAdminOnly(session)) {
+  const pathname = (await headers()).get('x-pathname') ?? ''
+  const allowAdminInternal = isAdminInternalAppPath(pathname)
+
+  // Pure admin accounts use the admin shell, not athlete/coach chrome —
+  // except design/system tools linked from Admin → Tools.
+  if (isAdminOnly(session) && !allowAdminInternal) {
     redirect('/admin')
+  }
+
+  // Skip onboarding / invite resume for admin-only design tool visits.
+  if (isAdminOnly(session) && allowAdminInternal) {
+    return <AppShell>{children}</AppShell>
   }
 
   let invite = null

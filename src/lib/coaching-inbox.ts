@@ -110,13 +110,20 @@ export type CoachingThreadWithMessages = CoachingThread & {
     | 'resultPlaceAg'
     | 'resultNotes'
   > & {
+    triathlonDistance: import('@prisma/client').TriathlonDistance | null
+    stravaActivityUrl: string | null
+    stravaActivityName: string | null
     legs: Array<{
       id: string
       kind: import('@prisma/client').RaceLegKind
       sortOrder: number
       resultTime: string | null
       plannedTime: string | null
+      plannedDistanceKm: number | null
+      actualDistanceKm: number | null
+      actualDurationMin: number | null
       stravaActivityUrl: string | null
+      stravaActivityName: string | null
     }>
   } | null
   athlete?: { id: string; name: string; avatarUrl: string | null }
@@ -138,6 +145,9 @@ const threadInclude = {
       resultPlaceGender: true,
       resultPlaceAg: true,
       resultNotes: true,
+      triathlonDistance: true,
+      stravaActivityUrl: true,
+      stravaActivityName: true,
       legs: {
         select: {
           id: true,
@@ -145,7 +155,11 @@ const threadInclude = {
           sortOrder: true,
           resultTime: true,
           plannedTime: true,
+          plannedDistanceKm: true,
+          actualDistanceKm: true,
+          actualDurationMin: true,
           stravaActivityUrl: true,
+          stravaActivityName: true,
         },
         orderBy: { sortOrder: 'asc' as const },
       },
@@ -466,6 +480,9 @@ export function serializeInboxThread(
           resultPlaceGender: thread.race.resultPlaceGender,
           resultPlaceAg: thread.race.resultPlaceAg,
           resultNotes: thread.race.resultNotes,
+          triathlonDistance: thread.race.triathlonDistance,
+          stravaActivityUrl: thread.race.stravaActivityUrl,
+          stravaActivityName: thread.race.stravaActivityName,
           legs: thread.race.legs,
         }
       : null,

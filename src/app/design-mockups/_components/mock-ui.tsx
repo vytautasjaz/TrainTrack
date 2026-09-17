@@ -1,3 +1,4 @@
+import { MOCK_SCREENS } from '@/lib/design-mockup-screens'
 import type { ReactNode } from 'react'
 import {
   Bike,
@@ -27,29 +28,7 @@ import { cn } from '@/lib/utils'
 export type MockStatus = 'Draft' | 'Review' | 'Locked'
 export type MockRole = 'athlete' | 'coach'
 
-export const MOCK_SCREENS = [
-  { href: '/design-mockups', label: 'Index' },
-  { href: '/design-mockups/kit', label: 'UI Kit' },
-  { href: '/design-mockups/shell', label: 'App Shell' },
-  { href: '/design-mockups/athlete-home', label: 'Athlete Home' },
-  { href: '/design-mockups/athlete-home-mobile', label: 'Athlete Home · Mobile' },
-  { href: '/design-mockups/coach-home', label: 'Coach Home' },
-  { href: '/design-mockups/coach-home-empty', label: 'Coach Home · Empty (no athletes)' },
-  { href: '/design-mockups/coach-home-mobile', label: 'Coach Home · Mobile' },
-  { href: '/design-mockups/training-list', label: 'Training List' },
-  { href: '/design-mockups/training-list-mobile', label: 'Training List · Mobile' },
-  { href: '/design-mockups/training-week', label: 'Training Week' },
-  { href: '/design-mockups/training-week-mobile', label: 'Training Week · Mobile' },
-  { href: '/design-mockups/training-month', label: 'Training Month' },
-  { href: '/design-mockups/workout-detail', label: 'Workout Cards · Detail Modals' },
-  { href: '/design-mockups/workout-builder', label: 'Workout Builder' },
-  { href: '/design-mockups/inbox', label: 'Inbox' },
-  { href: '/design-mockups/season', label: 'Season' },
-  { href: '/design-mockups/stats', label: 'Stats' },
-  { href: '/design-mockups/library', label: 'Library' },
-  { href: '/design-mockups/settings', label: 'Settings' },
-  { href: '/design-mockups/tools', label: 'Tools · Calculators' },
-] as const
+export { MOCK_SCREENS }
 
 const athleteNav = [
   { label: 'Training', icon: CalendarDays, active: false },

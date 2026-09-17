@@ -13,6 +13,7 @@ export function countsTowardCompliance(workout: {
 }
 
 import type { CoachingThreadView } from '@/components/inbox/coaching-thread-panel'
+import type { InboxRaceReportSummaryData } from '@/components/inbox/inbox-race-report-summary'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 
 export type CoachNeedsReplySummary = {
@@ -84,6 +85,7 @@ export type CoachHomeNeedsReplyThread = {
   threadKind: string
   workoutType: WorkoutType | null
   thread: CoachingThreadView
+  race: InboxRaceReportSummaryData | null
 }
 
 export type CoachHomeTodayAthlete = {

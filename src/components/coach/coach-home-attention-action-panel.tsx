@@ -3,18 +3,21 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { CoachingAuthorRole } from '@prisma/client'
 import { CalendarRange, X } from 'lucide-react'
 import { respondCoachRequest } from '@/app/actions/auth'
 import { selectAthleteForTraining } from '@/app/actions/athletes'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { CoachingThreadPanel } from '@/components/inbox/coaching-thread-panel'
+import { InboxRaceReportSummary } from '@/components/inbox/inbox-race-report-summary'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import { Button } from '@/components/ui/button'
 import { FormError } from '@/components/ui/form-error'
 import { CoachHomeMarkHandledButton } from '@/components/coach/coach-home-panel'
 import { DATA_TABLE_SHELL } from '@/lib/table-styles'
 import type { CoachHomeAttentionItem } from '@/lib/coach-home'
-import { formatDateKeyCompact } from '@/lib/dates'
+import { formatDateKeyCompact, parseDateOnly } from '@/lib/dates'
+import { isRaceReportCardDuplicateMessage } from '@/lib/race-feedback-report'
 import { cn } from '@/lib/utils'
 
 type CoachHomeAttentionActionPanelProps = {
@@ -76,16 +79,45 @@ function AttentionActionBody({
   const router = useRouter()
 
   switch (item.action.type) {
-    case 'reply':
+    case 'reply': {
+      const race = item.action.race ?? null
+      const replyThread = race
+        ? {
+            ...item.action.thread,
+            messages: item.action.thread.messages.filter(
+              (m) =>
+                !(
+                  m.authorRole === CoachingAuthorRole.ATHLETE &&
+                  m.kind !== 'FEEDBACK' &&
+                  isRaceReportCardDuplicateMessage(m.body, race)
+                ),
+            ),
+          }
+        : item.action.thread
+
       return (
         <div className="flex min-h-[18rem] flex-1 flex-col p-3">
           <p className="mb-2 text-[12px] text-[var(--tt-ink-soft)]">{item.action.headline}</p>
           <CoachingThreadPanel
-            thread={item.action.thread}
+            thread={replyThread}
             role="coach"
             compact
             dockComposer
             className="min-h-0 flex-1"
+            scrollPrefix={
+              race ? (
+                <InboxRaceReportSummary
+                  race={race}
+                  dateLabel={parseDateOnly(race.dateKey).toLocaleDateString(undefined, {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    timeZone: 'UTC',
+                  })}
+                  showSeasonLink={false}
+                />
+              ) : undefined
+            }
             onUpdated={() => router.refresh()}
           />
           <div className="mt-3 flex justify-end border-t border-[var(--tt-line)] pt-3">
@@ -93,6 +125,7 @@ function AttentionActionBody({
           </div>
         </div>
       )
+    }
     case 'join_request':
       return (
         <JoinRequestActions

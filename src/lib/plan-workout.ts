@@ -74,6 +74,8 @@ export type PlanWorkoutDetail = {
     stravaActivityDescription?: string | null
     averageHeartrate?: number | null
     maxHeartrate?: number | null
+    /** Seconds in HR zones 1–5 from Strava stream (`{ z1..z5 }`). */
+    hrZoneSeconds?: unknown
     averageSpeedMps?: number | null
     maxSpeedMps?: number | null
     elevationGainM?: number | null
@@ -137,6 +139,7 @@ export function toPlanWorkoutDetail(w: {
     stravaActivityDescription?: string | null
     averageHeartrate?: number | null
     maxHeartrate?: number | null
+    hrZoneSeconds?: unknown
     averageSpeedMps?: number | null
     maxSpeedMps?: number | null
     elevationGainM?: number | null
@@ -202,6 +205,7 @@ export function toPlanWorkoutDetail(w: {
           stravaActivityDescription: w.result.stravaActivityDescription ?? null,
           averageHeartrate: w.result.averageHeartrate ?? null,
           maxHeartrate: w.result.maxHeartrate ?? null,
+          hrZoneSeconds: w.result.hrZoneSeconds ?? null,
           averageSpeedMps: w.result.averageSpeedMps ?? null,
           maxSpeedMps: w.result.maxSpeedMps ?? null,
           elevationGainM: w.result.elevationGainM ?? null,

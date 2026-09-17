@@ -29,6 +29,12 @@ export default async function AdminLayout({
               <Link href="/admin" className="hover:text-[var(--tt-ink,#111)]">
                 Users
               </Link>
+              <Link href="/admin/tools" className="hover:text-[var(--tt-ink,#111)]">
+                Tools
+              </Link>
+              <Link href="/admin/todos" className="hover:text-[var(--tt-ink,#111)]">
+                Backlog
+              </Link>
               {showAppLink ? (
                 <Link href="/dashboard" className="hover:text-[var(--tt-ink,#111)]">
                   Back to app

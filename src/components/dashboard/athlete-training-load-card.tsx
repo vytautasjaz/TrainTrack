@@ -11,7 +11,8 @@ import {
 } from '@/lib/dates'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import {
-  daySessionLoad,
+  daySessionLoadActual,
+  daySessionLoadPlanned,
   type SessionLoadThresholds,
 } from '@/lib/training-load/session-tss'
 import {
@@ -44,64 +45,33 @@ type AthleteTrainingLoadCardProps = {
   className?: string
 }
 
+type MorphPair = { planned: number[]; actual: number[] }
+
 function weekDateKeys(weekStartKey: string): string[] {
   const start = parseDateOnly(weekStartKey)
   return Array.from({ length: 7 }, (_, i) => toDateKey(addDateOnlyDays(start, i)))
 }
 
-/** Daily duration minutes — same planned/actual rules as TSS series. */
-function dayLoadMinutes(
-  workouts: PlanWorkoutDetail[],
-  dateKey: string,
-  todayKey: string,
-  weekIsFullyFuture: boolean,
-): number {
+function dayMinutesPlanned(workouts: PlanWorkoutDetail[], dateKey: string): number {
   let sum = 0
   for (const w of workouts) {
     if (w.dateKey !== dateKey) continue
     if (w.type === 'REST' || w.isRescheduleGhost) continue
     if (w.status === 'SKIPPED') continue
-
-    const usePlanned =
-      weekIsFullyFuture ||
-      dateKey > todayKey ||
-      (dateKey === todayKey && w.status !== 'COMPLETED')
-
-    if (usePlanned) {
-      sum += w.plannedDuration ?? w.result?.actualDuration ?? 0
-      continue
-    }
-    if (w.status === 'COMPLETED') {
-      sum += w.result?.actualDuration ?? w.plannedDuration ?? 0
-    }
+    sum += w.plannedDuration ?? 0
   }
   return Math.max(0, Math.round(sum))
 }
 
-function formatDelta(
-  current: number,
-  previous: number,
-  metric: LoadMetric,
-): {
-  label: string
-  positive: boolean
-} {
-  if (previous <= 0 && current <= 0) {
-    return {
-      label: metric === 'tss' ? 'No load yet' : 'No volume yet',
-      positive: true,
-    }
+function dayMinutesActual(workouts: PlanWorkoutDetail[], dateKey: string): number {
+  let sum = 0
+  for (const w of workouts) {
+    if (w.dateKey !== dateKey) continue
+    if (w.type === 'REST' || w.isRescheduleGhost) continue
+    if (w.status !== 'COMPLETED') continue
+    sum += w.result?.actualDuration ?? 0
   }
-  if (previous <= 0) {
-    return { label: 'New week load', positive: true }
-  }
-  const pct = Math.round(((current - previous) / previous) * 100)
-  if (pct === 0) return { label: 'Same as prior week', positive: true }
-  const sign = pct > 0 ? '+' : '−'
-  return {
-    label: `${sign}${Math.abs(pct)}% vs prior week`,
-    positive: pct >= 0,
-  }
+  return Math.max(0, Math.round(sum))
 }
 
 function toPoints(daily: number[], yMax: number) {
@@ -134,19 +104,24 @@ function smoothPath(daily: number[], yMax: number): string {
 }
 
 function LoadChart({
-  daily,
+  plannedDaily,
+  actualDaily,
   yMax,
-  planned,
+  showActual,
   morphFrom,
 }: {
-  daily: number[]
+  plannedDaily: number[]
+  actualDaily: number[]
   yMax: number
-  planned: boolean
-  morphFrom: number[] | null
+  showActual: boolean
+  morphFrom: MorphPair | null
 }) {
-  const displayDaily = useMorphArray(daily, morphFrom)
-  const path = smoothPath(displayDaily, yMax)
-  const points = toPoints(displayDaily, yMax)
+  const displayPlanned = useMorphArray(plannedDaily, morphFrom?.planned ?? null)
+  const displayActual = useMorphArray(actualDaily, morphFrom?.actual ?? null)
+  const plannedPath = smoothPath(displayPlanned, yMax)
+  const actualPath = smoothPath(displayActual, yMax)
+  const plannedPoints = toPoints(displayPlanned, yMax)
+  const actualPoints = toPoints(displayActual, yMax)
 
   return (
     <div className="mt-4 w-full">
@@ -165,28 +140,49 @@ function LoadChart({
           stroke="var(--tt-line, #ebebeb)"
           strokeWidth="1"
         />
+        {/* Planned — muted baseline underneath */}
         <path
-          d={path}
+          d={plannedPath}
           fill="none"
-          stroke={
-            planned ? 'var(--tt-ink-faint, #9a9a9a)' : 'var(--tt-good, #1a9f5c)'
-          }
-          strokeWidth="1.75"
+          stroke="var(--tt-ink-faint, #9a9a9a)"
+          strokeWidth="1.35"
           strokeLinecap="round"
           strokeLinejoin="round"
-          strokeDasharray={planned ? '6 4' : undefined}
+          strokeDasharray="5 4"
+          opacity="0.55"
         />
-        {points.map((p, pi) => (
+        {plannedPoints.map((p, pi) => (
           <circle
-            key={pi}
+            key={`p-${pi}`}
             cx={p.x}
             cy={p.y}
-            r="2.25"
-            fill={
-              planned ? 'var(--tt-ink-faint, #9a9a9a)' : 'var(--tt-good, #1a9f5c)'
-            }
+            r="1.75"
+            fill="var(--tt-ink-faint, #9a9a9a)"
+            opacity="0.45"
           />
         ))}
+        {/* Real load — primary green on top */}
+        {showActual ? (
+          <>
+            <path
+              d={actualPath}
+              fill="none"
+              stroke="var(--tt-good, #1a9f5c)"
+              strokeWidth="2.1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {actualPoints.map((p, pi) => (
+              <circle
+                key={`a-${pi}`}
+                cx={p.x}
+                cy={p.y}
+                r="2.4"
+                fill="var(--tt-good, #1a9f5c)"
+              />
+            ))}
+          </>
+        ) : null}
       </svg>
       <div
         className="mt-1 flex justify-between text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]"
@@ -201,13 +197,31 @@ function LoadChart({
           </span>
         ))}
       </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-medium tracking-[0.02em] text-[var(--tt-ink-faint,#9a9a9a)]">
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="inline-block h-px w-3 border-t border-dashed border-[var(--tt-ink-faint,#9a9a9a)] opacity-70"
+            aria-hidden
+          />
+          Planned
+        </span>
+        {showActual ? (
+          <span className="inline-flex items-center gap-1.5 text-[var(--tt-good,#1a9f5c)]">
+            <span
+              className="inline-block h-0.5 w-3 rounded-full bg-[var(--tt-good,#1a9f5c)]"
+              aria-hidden
+            />
+            Real
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 }
 
 /**
- * Athlete Home rail — Training load chart (mock `/design-mockups` TrainingLoadMock).
- * Toggle between approximate session TSS and duration volume.
+ * Athlete Home rail — Training load chart.
+ * Planned (muted) + real (green) series; toggle TSS / time.
  */
 export function AthleteTrainingLoadCard({
   workouts,
@@ -220,7 +234,7 @@ export function AthleteTrainingLoadCard({
   /** Carousel track position — only moves on swipe (arrows morph in place). */
   const [paneActive, setPaneActive] = useState(CENTER_INDEX)
   const [metric, setMetric] = useState<LoadMetric>('tss')
-  const [dailyMorphFrom, setDailyMorphFrom] = useState<number[] | null>(null)
+  const [dailyMorphFrom, setDailyMorphFrom] = useState<MorphPair | null>(null)
   const [morphGen, setMorphGen] = useState(0)
   const todayKey = todayDateKey()
   const syncTimerRef = useRef<number | null>(null)
@@ -232,15 +246,19 @@ export function AthleteTrainingLoadCard({
       const keys = weekDateKeys(startKey)
       const end = parseDateOnly(keys[6]!)
       const start = parseDateOnly(keys[0]!)
-      const planned = keys.every((k) => k > todayKey)
-      const dailyTss = keys.map((k) =>
-        daySessionLoad(workouts, k, todayKey, planned, thresholds),
+      const plannedWeek = keys.every((k) => k > todayKey)
+      const dailyPlannedTss = keys.map((k) =>
+        daySessionLoadPlanned(workouts, k, thresholds),
       )
-      const dailyTime = keys.map((k) =>
-        dayLoadMinutes(workouts, k, todayKey, planned),
+      const dailyActualTss = keys.map((k) =>
+        daySessionLoadActual(workouts, k, thresholds),
       )
-      const daily = metric === 'tss' ? dailyTss : dailyTime
-      const total = daily.reduce((a, b) => a + b, 0)
+      const dailyPlannedTime = keys.map((k) => dayMinutesPlanned(workouts, k))
+      const dailyActualTime = keys.map((k) => dayMinutesActual(workouts, k))
+      const dailyPlanned = metric === 'tss' ? dailyPlannedTss : dailyPlannedTime
+      const dailyActual = metric === 'tss' ? dailyActualTss : dailyActualTime
+      const plannedTotal = dailyPlanned.reduce((a, b) => a + b, 0)
+      const actualTotal = dailyActual.reduce((a, b) => a + b, 0)
       const range =
         format(start, 'd') === format(end, 'd')
           ? format(start, 'd MMM')
@@ -253,34 +271,37 @@ export function AthleteTrainingLoadCard({
         off,
         startKey,
         keys,
-        daily,
-        dailyTss,
-        dailyTime,
-        total,
+        dailyPlanned,
+        dailyActual,
+        plannedTotal,
+        actualTotal,
         range,
         label,
-        planned,
+        plannedWeek,
       }
     })
   }, [anchorWeekStartKey, workouts, todayKey, thresholds, metric])
 
   const yMax = useMemo(
-    () => Math.max(...weeks.flatMap((w) => w.daily), 1),
+    () =>
+      Math.max(
+        ...weeks.flatMap((w) => [...w.dailyPlanned, ...w.dailyActual]),
+        1,
+      ),
     [weeks],
   )
 
   const week = weeks[active]!
-  const prior = weeks.find((w) => w.off === week.off - 1)
-  const delta = week.planned
-    ? { label: 'Planned week', positive: true }
-    : formatDelta(week.total, prior?.total ?? 0, metric)
-
   const unitLabel = metric === 'tss' ? 'TSS' : 'min'
 
   const switchMetric = useCallback(
     (next: LoadMetric) => {
       if (next === metric) return
-      setDailyMorphFrom([...weeks[active]!.daily])
+      const current = weeks[active]!
+      setDailyMorphFrom({
+        planned: [...current.dailyPlanned],
+        actual: [...current.dailyActual],
+      })
       setMorphGen((g) => g + 1)
       setMetric(next)
       window.setTimeout(() => setDailyMorphFrom(null), 500)
@@ -315,10 +336,13 @@ export function AthleteTrainingLoadCard({
         window.clearTimeout(syncTimerRef.current)
         syncTimerRef.current = null
       }
-      setDailyMorphFrom([...weeks[active]!.daily])
+      const current = weeks[active]!
+      setDailyMorphFrom({
+        planned: [...current.dailyPlanned],
+        actual: [...current.dailyActual],
+      })
       setMorphGen((g) => g + 1)
       setActive(next)
-      // Keep paneActive put — morph in place. Align track after morph (no slide).
       syncTimerRef.current = window.setTimeout(() => {
         syncTimerRef.current = null
         setDailyMorphFrom(null)
@@ -372,32 +396,31 @@ export function AthleteTrainingLoadCard({
         onGestureStart={syncPaneToActive}
       >
         {weeks.map((slide, i) => {
-          // While arrow-morphing, the visible pane slide shows the logical week.
           const data = i === paneActive ? weeks[active]! : slide
           const isVisible = i === paneActive
-          const slideDelta = isVisible
-            ? delta
-            : data.planned
-              ? { label: 'Planned week', positive: true }
-              : formatDelta(
-                  data.total,
-                  weeks.find((w) => w.off === data.off - 1)?.total ?? 0,
-                  metric,
-                )
+          const showActual = !data.plannedWeek
+          const headlineTotal = showActual ? data.actualTotal : data.plannedTotal
 
           return (
             <WeekSwipeSlide key={slide.startKey} active={isVisible}>
               <div className="flex items-end justify-between gap-2">
-                <p
-                  className="text-[1.875rem] uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)] tabular-nums"
-                  style={{ fontFamily: 'var(--font-display)' }}
-                >
-                  {data.total}{' '}
-                  <span className="text-base font-normal normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
-                    {unitLabel}
-                    {data.planned ? ' plan' : ''}
-                  </span>
-                </p>
+                <div className="min-w-0">
+                  <p
+                    className="text-[1.875rem] uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)] tabular-nums"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    {headlineTotal}{' '}
+                    <span className="text-base font-normal normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
+                      {unitLabel}
+                      {data.plannedWeek ? ' plan' : ''}
+                    </span>
+                  </p>
+                  {showActual && data.plannedTotal > 0 ? (
+                    <p className="mt-1 text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
+                      Planned {data.plannedTotal} {unitLabel}
+                    </p>
+                  ) : null}
+                </div>
                 {isVisible ? (
                   <div
                     className="mb-0.5 flex shrink-0 items-center gap-1 text-[10px] font-medium tracking-[0.02em]"
@@ -434,22 +457,13 @@ export function AthleteTrainingLoadCard({
                   </div>
                 ) : null}
               </div>
-              <p
-                className={cn(
-                  'mt-1 text-[12px] font-semibold',
-                  slideDelta.positive
-                    ? 'text-[var(--tt-good,#1a9f5c)]'
-                    : 'text-[var(--tt-ink-soft,#6b6b6b)]',
-                )}
-              >
-                {slideDelta.label}
-              </p>
 
               <LoadChart
                 key={`${slide.startKey}-${metric}-${isVisible ? morphGen : 'idle'}`}
-                daily={data.daily}
+                plannedDaily={data.dailyPlanned}
+                actualDaily={data.dailyActual}
                 yMax={yMax}
-                planned={data.planned}
+                showActual={showActual}
                 morphFrom={isVisible ? dailyMorphFrom : null}
               />
             </WeekSwipeSlide>

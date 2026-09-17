@@ -776,6 +776,11 @@ model WorkoutResult {
   averageHeartrate Float?
   /** Strava max heart rate (bpm). */
   maxHeartrate     Float?
+  /**
+   * Seconds in HR zones 1–5 from Strava heartrate stream
+   * (`{ z1, z2, z3, z4, z5 }`). Used for zone-based TSS.
+   */
+  hrZoneSeconds    Json?
   /** Strava average speed (m/s). */
   averageSpeedMps  Float?
   /** Strava max speed (m/s). */

@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
 import { MessageSquare } from 'lucide-react'
 import {
   workoutFeelingLabel,
@@ -6,24 +9,92 @@ import {
 } from '@/lib/workout-feeling'
 import { cn } from '@/lib/utils'
 
-function ActivityFeedNotes({ text }: { text: string }) {
-  const paragraphs = text
-    .split(/\n+/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
+const FEED_NOTES_PREVIEW_LINES = 3
 
-  if (paragraphs.length === 0) return null
+function notesLikelyOverflow(text: string): boolean {
+  const lines = text.split(/\n/).filter((line) => line.trim().length > 0)
+  if (lines.length > FEED_NOTES_PREVIEW_LINES) return true
+  // Long single paragraphs also need a clamp in the narrow feed column.
+  return text.length > 140
+}
+
+function ActivityFeedNotes({ text }: { text: string }) {
+  const trimmed = text.trim()
+  const ref = useRef<HTMLParagraphElement>(null)
+  const [expanded, setExpanded] = useState(false)
+  const [measuredOverflow, setMeasuredOverflow] = useState(false)
+  const heuristicOverflow = notesLikelyOverflow(trimmed)
+  const canExpand = heuristicOverflow || measuredOverflow
+
+  useEffect(() => {
+    setExpanded(false)
+    setMeasuredOverflow(false)
+  }, [trimmed])
+
+  useEffect(() => {
+    if (!trimmed || expanded) return
+
+    const el = ref.current
+    if (!el) return
+
+    const check = () => {
+      const prevClamp = el.style.webkitLineClamp
+      const prevDisplay = el.style.display
+      const prevOverflow = el.style.overflow
+      const prevOrient = el.style.webkitBoxOrient
+      el.style.webkitLineClamp = 'unset'
+      el.style.display = 'block'
+      el.style.overflow = 'visible'
+      const fullHeight = el.scrollHeight
+      el.style.webkitLineClamp = String(FEED_NOTES_PREVIEW_LINES)
+      el.style.display = '-webkit-box'
+      el.style.overflow = 'hidden'
+      el.style.webkitBoxOrient = 'vertical'
+      const clampedHeight = el.clientHeight
+      el.style.webkitLineClamp = prevClamp
+      el.style.display = prevDisplay
+      el.style.overflow = prevOverflow
+      el.style.webkitBoxOrient = prevOrient
+      setMeasuredOverflow(fullHeight > clampedHeight + 2)
+    }
+
+    check()
+    const raf = requestAnimationFrame(check)
+    const t = window.setTimeout(check, 50)
+    const observer = new ResizeObserver(check)
+    observer.observe(el)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.clearTimeout(t)
+      observer.disconnect()
+    }
+  }, [trimmed, expanded])
+
+  if (!trimmed) return null
 
   return (
     <div className="space-y-1">
-      {paragraphs.map((paragraph, index) => (
-        <p
-          key={index}
-          className="text-[12px] leading-snug text-[var(--tt-ink-soft,#6b6b6b)] md:text-[13px]"
+      <p
+        ref={ref}
+        className={cn(
+          'whitespace-pre-wrap text-[12px] leading-snug text-[var(--tt-ink-soft,#6b6b6b)] md:text-[13px]',
+          !expanded && canExpand && 'line-clamp-3',
+        )}
+      >
+        {trimmed}
+      </p>
+      {canExpand ? (
+        <button
+          type="button"
+          className="text-[11px] font-semibold text-[var(--tt-ink-soft,#6b6b6b)] transition hover:text-[var(--tt-ink)]"
+          onClick={(event) => {
+            event.stopPropagation()
+            setExpanded((value) => !value)
+          }}
         >
-          {paragraph}
-        </p>
-      ))}
+          {expanded ? 'Show less' : 'View more'}
+        </button>
+      ) : null}
     </div>
   )
 }

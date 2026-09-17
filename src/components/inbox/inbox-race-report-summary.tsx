@@ -1,4 +1,4 @@
-import { RaceOutcome, type RacePriority, type RaceType } from '@prisma/client'
+import { RaceOutcome, type RacePriority, type RaceType, type TriathlonDistance } from '@prisma/client'
 import { Calendar } from 'lucide-react'
 import Link from 'next/link'
 import { PriorityBadge } from '@/components/races/priority-badge'
@@ -18,15 +18,18 @@ export type InboxRaceReportLeg = {
   sortOrder: number
   resultTime: string | null
   plannedTime: string | null
+  plannedDistanceKm?: number | null
+  actualDistanceKm?: number | null
+  actualDurationMin?: number | null
   stravaActivityUrl: string | null
   stravaActivityName?: string | null
-  actualDurationMin?: number | null
 }
 
 export type InboxRaceReportSummaryData = {
   name: string
   dateKey: string
   type: RaceType | keyof typeof RACE_TYPE_LABELS
+  triathlonDistance?: TriathlonDistance | null
   priority?: RacePriority | null
   outcome: RaceOutcome | string | null
   resultTime: string | null
@@ -89,6 +92,7 @@ export function InboxRaceReportSummary({
   const hasResult = outcome && outcome !== RaceOutcome.DISMISSED
   const reportRace: RaceReportPanelData = {
     type: race.type as RaceType,
+    triathlonDistance: race.triathlonDistance,
     outcome: race.outcome,
     resultTime: race.resultTime,
     resultPlace: race.resultPlace,

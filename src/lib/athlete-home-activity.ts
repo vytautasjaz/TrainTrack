@@ -30,5 +30,15 @@ export function buildAthleteHomeActivityRows(
     }
   })
 
-  return buildCoachHomeActivityTableRows(items)
+  // Athlete feed always shows the athlete’s own notes (including private).
+  return buildCoachHomeActivityTableRows(items).map((row) => {
+    const ownNotes = row.workout.result?.athleteNotes?.trim() || null
+    return {
+      ...row,
+      feedbackNotes: ownNotes ?? row.feedbackNotes,
+      hasFeedback: Boolean(
+        row.feedbackFeeling != null || ownNotes || row.feedbackReply,
+      ),
+    }
+  })
 }

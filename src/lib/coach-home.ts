@@ -3,6 +3,7 @@ import {
   RaceOutcome,
   RacePriority,
   RaceType,
+  TriathlonDistance,
   WorkoutType,
   type AthleteStatus,
 } from '@prisma/client'
@@ -17,6 +18,7 @@ import {
 } from '@/lib/dates'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import type { CoachingThreadView } from '@/components/inbox/coaching-thread-panel'
+import type { InboxRaceReportSummaryData } from '@/components/inbox/inbox-race-report-summary'
 import { racePlaceSummary } from '@/lib/season-races'
 import {
   type CoachHomeActivityFeedItem,
@@ -61,7 +63,12 @@ export type CoachHomeAttentionItem = {
 }
 
 export type CoachHomeAttentionAction =
-  | { type: 'reply'; thread: CoachingThreadView; headline: string }
+  | {
+      type: 'reply'
+      thread: CoachingThreadView
+      headline: string
+      race?: InboxRaceReportSummaryData | null
+    }
   | { type: 'join_request'; linkId: string }
   | { type: 'open_plan'; lastPlannedKey: string | null }
   | { type: 'review_athlete' }
@@ -91,6 +98,7 @@ export type CoachHomeRaceFeedData = {
   raceDateKey: string
   location: string | null
   raceType: RaceType
+  triathlonDistance: TriathlonDistance | null
   priority: RacePriority
   outcome: RaceOutcome | null
   resultTime: string | null
@@ -169,6 +177,7 @@ export type CoachHomeRaceFeedSource = {
   location: string | null
   type: RaceType
   sport: WorkoutType
+  triathlonDistance: TriathlonDistance | null
   priority: RacePriority
   outcome: RaceOutcome | null
   resultTime: string | null
@@ -330,6 +339,7 @@ export function buildCoachHomeAttentionItems(input: {
         type: 'reply',
         thread: thread.thread,
         headline: attentionThreadHeadline(thread),
+        race: thread.race,
       },
     })
   }
@@ -1061,6 +1071,7 @@ export function buildCoachHomeRaceActivityRows(
         raceDateKey,
         location: race.location,
         raceType: race.type,
+        triathlonDistance: race.triathlonDistance,
         priority: race.priority,
         outcome: race.outcome,
         resultTime: race.resultTime,

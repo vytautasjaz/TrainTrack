@@ -8,25 +8,36 @@ import {
 
 /** Persist `?invite=` on the sign-in page so registration keeps coach context. */
 export function middleware(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', request.nextUrl.pathname)
+
   if (request.nextUrl.pathname !== '/') {
-    return NextResponse.next()
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    })
   }
 
   const invite = parseCoachInviteCode(request.nextUrl.searchParams.get('invite'))
   if (!invite) {
-    return NextResponse.next()
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    })
   }
 
   const existing = parseCoachInviteCode(request.cookies.get(COACH_INVITE_COOKIE)?.value)
   if (existing === invite) {
-    return NextResponse.next()
+    return NextResponse.next({
+      request: { headers: requestHeaders },
+    })
   }
 
-  const response = NextResponse.next()
+  const response = NextResponse.next({
+    request: { headers: requestHeaders },
+  })
   response.cookies.set(COACH_INVITE_COOKIE, invite, coachInviteCookieOptions())
   return response
 }
 
 export const config = {
-  matcher: '/',
+  matcher: ['/', '/style-guide', '/style-guide/:path*', '/design-preview', '/design-preview/:path*'],
 }

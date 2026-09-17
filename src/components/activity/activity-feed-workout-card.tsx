@@ -1,7 +1,20 @@
 'use client'
 
+import { createElement } from 'react'
 import { format, isToday, isYesterday } from 'date-fns'
-import { Check, Minus } from 'lucide-react'
+import {
+  Activity,
+  Check,
+  Clock,
+  Flame,
+  Gauge,
+  Heart,
+  Minus,
+  Mountain,
+  Route,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react'
 import { SessionType, WorkoutType } from '@prisma/client'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { ActivityRouteMap } from '@/components/plan/activity-route-map'
@@ -114,6 +127,7 @@ function feedMetricSlots(
   const distance = find('Distance')
   const time = find('Time', 'Duration')
   const pace = find('Avg pace', 'Avg speed')
+  const power = find('Avg power')
   const elev =
     result?.elevationGainM != null && result.elevationGainM >= 1
       ? `${Math.round(result.elevationGainM)} m`
@@ -124,37 +138,66 @@ function feedMetricSlots(
       : '—'
   const load = estimateSessionLoad(row.workout, thresholds)
   const tss = load ? String(Math.round(load.tss)) : '—'
+  const avgHr =
+    result?.averageHeartrate != null && result.averageHeartrate > 0
+      ? `${Math.round(result.averageHeartrate)} bpm`
+      : null
 
   const durationFallback =
     !time && result?.actualDuration != null && result.actualDuration > 0
       ? formatFeedClock(result.actualDuration)
       : null
 
-  if (row.activityType === WorkoutType.STRENGTH || row.activityType === WorkoutType.RECOVERY) {
-    return [
-      {
-        label: 'Duration',
-        value: formatMetric(time) !== '—' ? formatMetric(time) : durationFallback ?? '—',
-      },
+  const durationValue =
+    formatMetric(time) !== '—' ? formatMetric(time) : durationFallback ?? '—'
+
+  const slots: Array<{ label: string; value: string }> = []
+
+  if (row.activityType === WorkoutType.STRENGTH) {
+    slots.push(
+      { label: 'Duration', value: durationValue },
+      { label: 'Avg HR', value: avgHr ?? '—' },
+      { label: 'Calories', value: calories },
+      { label: 'TSS', value: tss },
+    )
+  } else if (row.activityType === WorkoutType.RECOVERY) {
+    slots.push(
+      { label: 'Duration', value: durationValue },
       { label: 'Distance', value: formatMetric(distance) },
       { label: 'Avg pace', value: formatMetric(pace) },
       { label: 'Elev gain', value: elev ?? '—' },
       { label: 'TSS', value: tss },
-      { label: 'Calories', value: calories },
-    ]
+    )
+  } else if (row.activityType === WorkoutType.BIKE) {
+    // No calories — max 5: distance, time, power/speed, elev, TSS.
+    slots.push(
+      { label: 'Distance', value: formatMetric(distance) },
+      { label: 'Time', value: durationValue },
+      power
+        ? { label: 'Avg power', value: formatMetric(power) }
+        : { label: 'Avg speed', value: formatMetric(pace) },
+      { label: 'Elev gain', value: elev ?? '—' },
+      { label: 'TSS', value: tss },
+    )
+  } else if (row.activityType === WorkoutType.SWIM) {
+    slots.push(
+      { label: 'Distance', value: formatMetric(distance) },
+      { label: 'Time', value: durationValue },
+      { label: 'Avg pace', value: formatMetric(pace) },
+      { label: 'TSS', value: tss },
+    )
+  } else {
+    // Run / default — no calories; max 5.
+    slots.push(
+      { label: 'Distance', value: formatMetric(distance) },
+      { label: 'Time', value: durationValue },
+      { label: 'Avg pace', value: formatMetric(pace) },
+      { label: 'Elev gain', value: elev ?? '—' },
+      { label: 'TSS', value: tss },
+    )
   }
 
-  return [
-    { label: 'Distance', value: formatMetric(distance) },
-    {
-      label: 'Time',
-      value: formatMetric(time) !== '—' ? formatMetric(time) : durationFallback ?? '—',
-    },
-    { label: 'Avg pace', value: formatMetric(pace) },
-    { label: 'Elev gain', value: elev ?? '—' },
-    { label: 'TSS', value: tss },
-    { label: 'Calories', value: calories },
-  ]
+  return slots.slice(0, 5)
 }
 
 function formatFeedClock(durationMin: number): string {
@@ -166,13 +209,47 @@ function formatFeedClock(durationMin: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function feedMetricIcon(label: string): LucideIcon | null {
+  switch (label.toLowerCase()) {
+    case 'distance':
+      return Route
+    case 'time':
+    case 'duration':
+      return Clock
+    case 'avg pace':
+    case 'avg speed':
+      return Gauge
+    case 'elev gain':
+    case 'elev':
+      return Mountain
+    case 'calories':
+      return Flame
+    case 'tss':
+      return Activity
+    case 'avg hr':
+      return Heart
+    case 'avg power':
+      return Zap
+    default:
+      return null
+  }
+}
+
 function FeedMetricCell({ metric }: { metric: { label: string; value: string } }) {
+  const icon = feedMetricIcon(metric.label)
   return (
-    <div className="min-w-0">
-      <p className="truncate text-[13px] font-semibold tabular-nums leading-none text-[var(--tt-ink)] sm:text-[15px]">
+    <div className="flex min-w-0 flex-col items-center px-1 text-center">
+      {icon
+        ? createElement(icon, {
+            className: 'mb-1.5 h-3.5 w-3.5 text-[var(--tt-ink-soft,#6b6b6b)] sm:h-4 sm:w-4',
+            strokeWidth: 1.75,
+            'aria-hidden': true,
+          })
+        : null}
+      <p className="w-full truncate text-[13px] font-semibold tabular-nums leading-none tracking-tight text-[var(--tt-ink)] sm:text-[14px]">
         {metric.value}
       </p>
-      <p className="mt-1 truncate text-[8px] font-semibold uppercase tracking-[0.05em] text-[var(--tt-ink-faint)] sm:text-[9px] sm:tracking-[0.06em]">
+      <p className="mt-1 w-full truncate text-[8px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint)] sm:text-[9px]">
         {metric.label}
       </p>
     </div>
@@ -373,9 +450,12 @@ export function ActivityFeedWorkoutCard({
             {!skipped ? (
               <div
                 className={cn(
-                  'grid gap-x-2 sm:gap-x-3',
-                  // Distance · Time · Pace · Elev · TSS · Calories
-                  'grid-cols-[minmax(0,1.05fr)_minmax(0,1.1fr)_minmax(0,1.45fr)_minmax(0,0.95fr)_minmax(0,0.65fr)_minmax(0,0.85fr)]',
+                  'grid divide-x divide-[var(--tt-line,#ebebeb)] py-1',
+                  metricSlots.length <= 4
+                    ? 'grid-cols-4'
+                    : metricSlots.length === 5
+                      ? 'grid-cols-5'
+                      : 'grid-cols-6',
                 )}
               >
                 {metricSlots.map((metric) => (

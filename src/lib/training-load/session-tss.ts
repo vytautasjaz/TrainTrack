@@ -1,22 +1,16 @@
 import { SessionType, WorkoutType } from '@prisma/client'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { buildStructureChart } from '@/lib/workout-builder/structure-chart'
-
-/** Athlete thresholds used for session load estimates. */
-export type SessionLoadThresholds = {
-  bikeFtpWatts?: number | null
-  paceThresholdMinPerKm?: number | null
-  swimCssSecPer100m?: number | null
-  hrMax?: number | null
-  hrResting?: number | null
-  /** Closest LTHR proxy we store today. */
-  hrZone4Max?: number | null
-}
+import {
+  estimateTssFromHrZoneSeconds,
+  parseHrZoneSeconds,
+} from '@/lib/training-load/hr-zone-tss'
 
 export type SessionLoadSource =
   | 'power'
   | 'pace'
   | 'hr'
+  | 'hr_zones'
   | 'rpe'
   | 'structure'
   | 'session'
@@ -27,6 +21,20 @@ export type SessionLoadEstimate = {
   tss: number
   source: SessionLoadSource
   intensityFactor: number
+}
+
+/** Athlete thresholds used for session load estimates. */
+export type SessionLoadThresholds = {
+  bikeFtpWatts?: number | null
+  paceThresholdMinPerKm?: number | null
+  swimCssSecPer100m?: number | null
+  hrMax?: number | null
+  hrResting?: number | null
+  /** Closest LTHR proxy we store today. */
+  hrZone4Max?: number | null
+  hrZone1Max?: number | null
+  hrZone2Max?: number | null
+  hrZone3Max?: number | null
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -242,6 +250,17 @@ export function estimateSessionLoad(
       }
     }
 
+    // Prefer time-in-zone TSS over average HR (avg HR underestimates intervals).
+    const zoneSeconds = parseHrZoneSeconds(result.hrZoneSeconds)
+    if (zoneSeconds) {
+      const fromZones = estimateTssFromHrZoneSeconds(zoneSeconds)
+      return {
+        tss: fromZones.tss,
+        intensityFactor: fromZones.intensityFactor,
+        source: 'hr_zones',
+      }
+    }
+
     if (
       result.averageHeartrate != null &&
       result.averageHeartrate > 0
@@ -288,6 +307,40 @@ export function daySessionLoad(
     const estimate = estimateSessionLoad(workout, thresholds, {
       preferPlanned: usePlanned,
     })
+    if (estimate) sum += estimate.tss
+  }
+  return Math.max(0, Math.round(sum))
+}
+
+/** Planned session load for a day (prescription only — ignores completion). */
+export function daySessionLoadPlanned(
+  workouts: PlanWorkoutDetail[],
+  dateKey: string,
+  thresholds: SessionLoadThresholds,
+): number {
+  let sum = 0
+  for (const workout of workouts) {
+    if (workout.dateKey !== dateKey) continue
+    if (workout.type === WorkoutType.REST || workout.isRescheduleGhost) continue
+    if (workout.status === 'SKIPPED') continue
+    const estimate = estimateSessionLoad(workout, thresholds, { preferPlanned: true })
+    if (estimate) sum += estimate.tss
+  }
+  return Math.max(0, Math.round(sum))
+}
+
+/** Actual / completed session load for a day (0 when nothing completed). */
+export function daySessionLoadActual(
+  workouts: PlanWorkoutDetail[],
+  dateKey: string,
+  thresholds: SessionLoadThresholds,
+): number {
+  let sum = 0
+  for (const workout of workouts) {
+    if (workout.dateKey !== dateKey) continue
+    if (workout.type === WorkoutType.REST || workout.isRescheduleGhost) continue
+    if (workout.status !== 'COMPLETED') continue
+    const estimate = estimateSessionLoad(workout, thresholds, { preferPlanned: false })
     if (estimate) sum += estimate.tss
   }
   return Math.max(0, Math.round(sum))

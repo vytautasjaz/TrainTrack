@@ -306,17 +306,21 @@ export function WeekPlanWorkoutCard({
     </>
   )
 
+  // Feedback wash bleeds to card edges (-mx). Match header inset (same as card pad)
+  // so notes align with the title — only a tiny clear past the 2px rail.
   const feedbackSectionPad =
     size === 'l'
-      ? 'px-2.5 pl-3'
+      ? 'px-2.5'
       : size === 'm'
-        ? 'px-2 pl-2.5'
-        : 'px-1.5 pl-2'
+        ? 'px-2'
+        : 'px-1.5'
   const feedbackSectionBleed =
     size === 'l' ? '-mx-2.5' : size === 'm' ? '-mx-2' : '-mx-1.5'
   const feedbackSectionBottomBleed =
     size === 'l' ? '-mb-2 pb-2' : '-mb-1.5 pb-1.5'
 
+  // Footer cards use p-0 — no parent pad to cancel. Skip left bleed and use a
+  // small left pad so text clears the rail without a large indent.
   const feedbackSection = (
     <WorkoutInlineFeedback
       workout={workout}
@@ -325,8 +329,13 @@ export function WeekPlanWorkoutCard({
       compact={size === 's'}
       onOpenWorkout={onOpenWorkout}
       className={cn(
-        feedbackSectionBleed,
-        footer ? pad : feedbackSectionPad,
+        footer
+          ? size === 'l'
+            ? 'pr-2.5 pl-2'
+            : size === 'm'
+              ? 'pr-2 pl-2'
+              : 'pr-1.5 pl-1.5'
+          : cn(feedbackSectionBleed, feedbackSectionPad),
         !footer && feedbackSectionBottomBleed,
       )}
     />

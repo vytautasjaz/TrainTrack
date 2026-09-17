@@ -10,7 +10,7 @@ import {
   useTransition,
   type ReactNode,
 } from 'react'
-import { CoachingAuthorRole, CoachingThreadKind, CoachingThreadStatus, type RacePriority } from '@prisma/client'
+import { CoachingAuthorRole, CoachingThreadKind, CoachingThreadStatus, type RacePriority, type TriathlonDistance } from '@prisma/client'
 import { Calendar, ChevronLeft, ChevronRight, MessageSquare } from 'lucide-react'
 import {
   PageHeader,
@@ -84,6 +84,7 @@ export type InboxThreadListItem = {
     name: string
     dateKey: string
     type: keyof typeof RACE_TYPE_LABELS
+    triathlonDistance?: TriathlonDistance | null
     priority?: RacePriority | null
     outcome: string | null
     resultTime: string | null
@@ -92,6 +93,8 @@ export type InboxThreadListItem = {
     resultPlaceAg: string | null
     resultNotes: string | null
     legs?: InboxRaceReportLeg[]
+    stravaActivityUrl?: string | null
+    stravaActivityName?: string | null
   } | null
   messageCount: number
   messages: CoachingThreadView['messages']
