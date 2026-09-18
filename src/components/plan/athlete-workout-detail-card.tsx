@@ -930,6 +930,23 @@ export function AthleteWorkoutDetailCard({
         </section>
       ) : null}
 
+      {workout.planSource ? (
+        <section className={cn("space-y-1 py-4", insetX)}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
+            Source
+          </p>
+          <p className="text-[14px] font-medium text-[var(--tt-ink)]">
+            {workout.planSource.title}
+          </p>
+          <p className="text-[13px] text-[var(--tt-ink-soft,#6b6b6b)]">
+            Week {workout.planSource.weekIndex + 1} ·{" "}
+            {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"][
+              workout.planSource.dayOfWeek
+            ] ?? "Day"}
+          </p>
+        </section>
+      ) : null}
+
       {coachNotes ? (
         <section className={cn("space-y-1.5 py-4", insetX)}>
           <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">

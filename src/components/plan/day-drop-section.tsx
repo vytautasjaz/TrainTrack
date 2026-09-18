@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { WorkoutType } from '@prisma/client'
 import { useDayDropTarget } from '@/components/plan/use-day-drop-target'
 import { cn } from '@/lib/utils'
@@ -11,6 +11,7 @@ type DayDropSectionProps = {
   sport?: WorkoutType
   enabled?: boolean
   className?: string
+  style?: CSSProperties
   id?: string
   children: ReactNode
 }
@@ -21,6 +22,7 @@ export function DayDropSection({
   sport,
   enabled = true,
   className,
+  style,
   id,
   children,
 }: DayDropSectionProps) {
@@ -35,6 +37,7 @@ export function DayDropSection({
       id={id}
       data-plan-day-section={dateKey}
       className={cn(className, dropHighlightClass)}
+      style={style}
       {...dropProps}
     >
       {children}

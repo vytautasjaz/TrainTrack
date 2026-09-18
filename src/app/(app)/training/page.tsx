@@ -63,6 +63,7 @@ import { TrainingPlanShell } from "@/components/training/training-plan-shell";
 import { TrainingDefaultViewRedirect } from "@/components/training/training-default-view-redirect";
 import { getYrWeatherSummaries } from "@/lib/weather/yr";
 import type { WeatherDaySummary } from "@/lib/weather/places";
+import { toTrainingPhaseBlock } from "@/lib/training-phase-context";
 
 type TrainingView = "week" | "list" | "calendar";
 
@@ -212,6 +213,24 @@ export default async function TrainingPage({
     rangeStart,
     rangeEnd,
   );
+
+  const phaseBlocksRaw = await prisma.seasonPhaseBlock.findMany({
+    where: {
+      athleteId,
+      startDate: { lte: rangeEnd },
+      endDate: { gte: rangeStart },
+    },
+    orderBy: [{ startDate: "asc" }, { endDate: "asc" }],
+    select: {
+      id: true,
+      sport: true,
+      phase: true,
+      label: true,
+      startDate: true,
+      endDate: true,
+    },
+  });
+  const phaseBlocks = phaseBlocksRaw.map(toTrainingPhaseBlock);
 
   const canLogWorkout = session.hasAthlete && Boolean(session.athleteId);
   const today = todayDateKey();
@@ -444,7 +463,7 @@ export default async function TrainingPage({
           </div>
           {/* Mobile only: compact filter icon + Add on title row */}
           <div className="tt-inbox-mobile-header-actions lg:hidden">
-            <TrainingListToolbar mobileOnly />
+            <TrainingListToolbar mobileOnly athleteId={athleteId} />
             {listAddMenu}
           </div>
           {/* Desktop: view switch + inline Filter · Layers · View + Add */}
@@ -452,7 +471,7 @@ export default async function TrainingPage({
             <div className="flex w-full min-w-0 flex-col items-end gap-2">
               {calendarControls}
               <div className="flex min-w-0 max-w-full items-end gap-2">
-                <TrainingListToolbar desktopOnly />
+                <TrainingListToolbar desktopOnly athleteId={athleteId} />
                 {listAddMenu}
               </div>
             </div>
@@ -597,6 +616,8 @@ export default async function TrainingPage({
       isCoach={isCoach}
       templates={libraryTemplates}
       folders={libraryFolders}
+      athleteId={athleteId}
+      athletes={coachAthletes.map((a) => ({ id: a.id, name: a.name }))}
     >
       {view === "calendar" ? (
         <CalendarMonthView
@@ -621,6 +642,7 @@ export default async function TrainingPage({
           viewControls={monthViewControls}
           canLogWorkout={canLogWorkout}
           canAddNote
+          phaseBlocks={phaseBlocks}
         />
       ) : view === "list" ? (
         <TrainingListFrame header={listPageHeader}>
@@ -646,6 +668,7 @@ export default async function TrainingPage({
           swimCssSecPer100m={swimCssSecPer100m}
           weatherLocation={activeWeatherLocation}
           weatherVisibleByDefault={athletePlanConfig?.showWeather ?? true}
+          phaseBlocks={phaseBlocks}
         />
       )}
     </TrainingPlanShell>

@@ -722,6 +722,8 @@ export async function createRace(formData: FormData) {
   const raceName = String(formData.get('name') ?? '').trim()
   if (!raceName) throw new Error('Race name is required.')
 
+  const daySortOrder = await getNextWorkoutSortOrder(athleteId, raceDate)
+
   const created = await prisma.race.create({
     data: {
       athleteId,
@@ -739,6 +741,7 @@ export async function createRace(formData: FormData) {
       goal: (formData.get('goal') as string) || undefined,
       url: parseOptionalString(formData.get('url')),
       preparationWeeks,
+      daySortOrder,
       ...(raceUsesLegs(raceType)
         ? { legs: { create: triathlonLegsCreateData() } }
         : {}),
@@ -923,6 +926,149 @@ export async function reorderDayWorkouts(dateKey: string, workoutIds: string[]) 
   revalidatePath('/training')
   revalidatePath('/dashboard')
   await onTrainingCalendarDataChanged(athleteId)
+}
+
+/**
+ * Place a workout or race before/after another same-day item, then reindex
+ * the full day (workouts + races) so warm-up / race / cool-down can interleave.
+ */
+export type DayPlanItemRef = {
+  kind: 'workout' | 'race'
+  id: string
+}
+
+function dayItemKey(item: DayPlanItemRef) {
+  return `${item.kind}:${item.id}`
+}
+
+function parsePlanItemId(rawId: string): DayPlanItemRef {
+  if (rawId.startsWith('race-')) {
+    // race-${id} or race-${id}-swim|bike|run
+    const rest = rawId.slice('race-'.length)
+    const sportSuffix = rest.match(/-(swim|bike|run)$/i)
+    const raceId = sportSuffix ? rest.slice(0, -sportSuffix[0].length) : rest
+    return { kind: 'race', id: raceId }
+  }
+  return { kind: 'workout', id: rawId }
+}
+
+export async function moveDayPlanItemRelative(args: {
+  dateKey: string
+  movedId: string
+  targetId: string
+  placement?: 'before' | 'after'
+}) {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Only coaches can reorder plan items')
+
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete selected')
+
+  const moved = parsePlanItemId(args.movedId)
+  const target = parsePlanItemId(args.targetId)
+  if (dayItemKey(moved) === dayItemKey(target)) return
+
+  const date = parseDateOnly(args.dateKey)
+  const placement = args.placement ?? 'before'
+
+  const [workouts, races] = await Promise.all([
+    prisma.workout.findMany({
+      where: { athleteId, date, isRescheduleGhost: false },
+      select: { id: true, sortOrder: true, title: true },
+    }),
+    prisma.race.findMany({
+      where: {
+        athleteId,
+        date,
+        resultsLogOnly: false,
+        intent: RaceIntent.PLANNED,
+      },
+      select: { id: true, daySortOrder: true, name: true },
+    }),
+  ])
+
+  type DayRow = DayPlanItemRef & { order: number; title: string }
+  const rows: DayRow[] = [
+    ...workouts.map((w) => ({
+      kind: 'workout' as const,
+      id: w.id,
+      order: w.sortOrder,
+      title: w.title,
+    })),
+    ...races.map((r) => ({
+      kind: 'race' as const,
+      id: r.id,
+      order: r.daySortOrder,
+      title: r.name,
+    })),
+  ].sort((a, b) => a.order - b.order || a.title.localeCompare(b.title))
+
+  const from = rows.findIndex(
+    (r) => r.kind === moved.kind && r.id === moved.id,
+  )
+  const targetIndex = rows.findIndex(
+    (r) => r.kind === target.kind && r.id === target.id,
+  )
+  if (from < 0 || targetIndex < 0) {
+    throw new Error('Item not found on this day')
+  }
+
+  const next = [...rows]
+  const [item] = next.splice(from, 1)
+  if (!item) return
+  let insertAt = placement === 'after' ? targetIndex + 1 : targetIndex
+  if (from < insertAt) insertAt -= 1
+  next.splice(insertAt, 0, item)
+
+  await prisma.$transaction(
+    next.map((row, index) =>
+      row.kind === 'workout'
+        ? prisma.workout.update({
+            where: { id: row.id },
+            data: { sortOrder: index },
+          })
+        : prisma.race.update({
+            where: { id: row.id },
+            data: { daySortOrder: index },
+          }),
+    ),
+  )
+
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
+  revalidatePath('/season')
+  await onTrainingCalendarDataChanged(athleteId)
+  await onRacesCalendarDataChanged(athleteId)
+}
+
+/** @deprecated Prefer moveDayPlanItemRelative. */
+export async function moveWorkoutRelativeInDay(
+  workoutId: string,
+  targetWorkoutId: string,
+  placement: 'before' | 'after' = 'before',
+) {
+  const session = await requireSession()
+  const athleteId = await resolveAthleteId(session)
+  if (!athleteId) throw new Error('No athlete selected')
+  const workout = await prisma.workout.findFirst({
+    where: { id: workoutId, athleteId },
+    select: { date: true },
+  })
+  if (!workout) throw new Error('Workout not found')
+  return moveDayPlanItemRelative({
+    dateKey: toDateKey(workout.date),
+    movedId: workoutId,
+    targetId: targetWorkoutId,
+    placement,
+  })
+}
+
+/** @deprecated Prefer moveDayPlanItemRelative. */
+export async function moveWorkoutBeforeInDay(
+  workoutId: string,
+  targetWorkoutId: string,
+) {
+  return moveWorkoutRelativeInDay(workoutId, targetWorkoutId, 'before')
 }
 
 export async function duplicateWorkout(formData: FormData) {

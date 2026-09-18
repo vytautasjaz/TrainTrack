@@ -22,6 +22,8 @@ export type DragPlanWorkout = {
   id: string
   sport: WorkoutType
   dateKey: string
+  /** Synthetic race row — same-day reorder only (not cross-day move). */
+  isRace?: boolean
 }
 
 export type DragLibraryTemplate = {
@@ -37,6 +39,7 @@ export type DragWorkout = {
   id: string
   sport: WorkoutType
   dateKey: string
+  isRace?: boolean
 }
 
 type PlanWeekDndMode = 'coach' | 'athlete'
@@ -94,6 +97,7 @@ function PlanWeekDndProviderInner({
             id: workout.id,
             sport: workout.sport,
             dateKey: workout.dateKey,
+            isRace: workout.isRace,
           }
         : null,
     )

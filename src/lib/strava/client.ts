@@ -143,16 +143,33 @@ type StravaStreamSeries = {
 
 export type StravaActivityStreams = {
   heartrate: number[] | null
+  watts: number[] | null
+  altitude: number[] | null
+  distance: number[] | null
   time: number[] | null
 }
 
-/** HR (+ time) streams for zone-based load. Missing streams return null series. */
+function streamSeries(
+  payload: Record<string, StravaStreamSeries>,
+  key: string,
+): number[] | null {
+  const raw = payload[key]?.data
+  if (!Array.isArray(raw) || raw.length === 0) return null
+  const values = raw.filter((n) => Number.isFinite(n))
+  return values.length > 0 ? values : null
+}
+
+/**
+ * Activity streams for charts + HR zone load.
+ * Missing keys return null series (common for indoor / no power meter).
+ */
 export async function fetchStravaActivityStreams(
   accessToken: string,
   activityId: number,
+  keys: string[] = ['heartrate', 'watts', 'altitude', 'distance', 'time'],
 ): Promise<StravaActivityStreams> {
   const params = new URLSearchParams({
-    keys: 'heartrate,time',
+    keys: keys.join(','),
     key_by_type: 'true',
   })
   const response = await fetch(
@@ -164,25 +181,27 @@ export async function fetchStravaActivityStreams(
   )
 
   if (!response.ok) {
-    // Many activities have no HR stream — treat as empty rather than failing sync.
+    // Many activities have no streams — treat as empty rather than failing sync.
     if (response.status === 404 || response.status === 400) {
-      return { heartrate: null, time: null }
+      return {
+        heartrate: null,
+        watts: null,
+        altitude: null,
+        distance: null,
+        time: null,
+      }
     }
     const body = await response.text()
     throw new Error(`Strava streams fetch failed: ${body}`)
   }
 
   const payload = (await response.json()) as Record<string, StravaStreamSeries>
-  const heartrate = Array.isArray(payload.heartrate?.data)
-    ? payload.heartrate!.data!.filter((n) => Number.isFinite(n))
-    : null
-  const time = Array.isArray(payload.time?.data)
-    ? payload.time!.data!.filter((n) => Number.isFinite(n))
-    : null
-
   return {
-    heartrate: heartrate && heartrate.length > 0 ? heartrate : null,
-    time: time && time.length > 0 ? time : null,
+    heartrate: streamSeries(payload, 'heartrate'),
+    watts: streamSeries(payload, 'watts'),
+    altitude: streamSeries(payload, 'altitude'),
+    distance: streamSeries(payload, 'distance'),
+    time: streamSeries(payload, 'time'),
   }
 }
 

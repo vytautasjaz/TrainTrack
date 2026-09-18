@@ -10,21 +10,27 @@ import {
   ToolbarTextToggle,
 } from '@/components/training/plan-sport-filter-bar'
 import { FeedbackLayerToggle } from '@/components/training/feedback-layer-toggle'
+import { TrainingPlansControls } from '@/components/training/training-plans-controls'
+import { useTrainingLibrary } from '@/components/training/training-library-context'
 import {
   SHOW_ALL_DAYS_STORAGE_KEY,
   SHOW_EVENTS_STORAGE_KEY,
   SHOW_NOTES_STORAGE_KEY,
 } from '@/lib/plan-calendar-layers'
 import { useStoredFlag } from '@/hooks/use-stored-flag'
+import { addDateOnlyDays, parseDateOnly, startOfWeekDateOnly, todayDateKey, toDateKey } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
 function TrainingListFilterGroups({
   layout = 'inline',
   className,
+  athleteId,
 }: {
   layout?: 'inline' | 'stack'
   className?: string
+  athleteId?: string
 }) {
+  const library = useTrainingLibrary()
   const [showNotes, setShowNotes] = useStoredFlag(SHOW_NOTES_STORAGE_KEY, true)
   const [showEvents, setShowEvents] = useStoredFlag(SHOW_EVENTS_STORAGE_KEY, true)
   const [showAllDays, setShowAllDays] = useStoredFlag(
@@ -32,6 +38,10 @@ function TrainingListFilterGroups({
     false,
   )
   const stacked = layout === 'stack'
+  const thisMonday = toDateKey(startOfWeekDateOnly(parseDateOnly(todayDateKey())))
+  const endMonday = toDateKey(
+    addDateOnlyDays(parseDateOnly(thisMonday), 7 * 3),
+  )
 
   return (
     <div
@@ -104,6 +114,26 @@ function TrainingListFilterGroups({
       >
         <PlanViewModeControl className="shrink-0" />
       </ToolbarFilterGroup>
+
+      {library ? (
+        <>
+          {stacked ? (
+            <div className="h-px w-full bg-[var(--tt-line,#ebebeb)]" aria-hidden />
+          ) : (
+            <ToolbarDivider className="mb-1.5 mx-0.5" />
+          )}
+          <ToolbarFilterGroup
+            label="Plans"
+            hint="Save weeks as a multi-week plan, or apply one from the library"
+          >
+            <TrainingPlansControls
+              defaultStartWeekKey={thisMonday}
+              defaultEndWeekKey={endMonday}
+              athleteId={athleteId}
+            />
+          </ToolbarFilterGroup>
+        </>
+      ) : null}
     </div>
   )
 }
@@ -113,18 +143,20 @@ export function TrainingListToolbar({
   className,
   mobileOnly,
   desktopOnly,
+  athleteId,
 }: {
   className?: string
   /** Render only the mobile filter icon + popover. */
   mobileOnly?: boolean
   /** Render only the desktop inline toolbar. */
   desktopOnly?: boolean
+  athleteId?: string
 }) {
   const [open, setOpen] = useState(false)
 
   const desktop = (
     <div className={cn('min-w-0 max-w-full overflow-x-auto pb-0.5', className)}>
-      <TrainingListFilterGroups />
+      <TrainingListFilterGroups athleteId={athleteId} />
     </div>
   )
 
@@ -151,9 +183,9 @@ export function TrainingListToolbar({
           <div
             role="dialog"
             aria-label="List filters"
-            className="absolute right-0 top-[calc(100%+0.35rem)] z-[33] w-[min(18.5rem,calc(100vw-1.5rem))] rounded-[8px] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] p-3 shadow-[var(--tt-shadow)]"
+            className="absolute right-0 top-[calc(100%+0.35rem)] z-[33] max-h-[min(70vh,32rem)] w-[min(18.5rem,calc(100vw-1.5rem))] overflow-y-auto rounded-[8px] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] p-3 shadow-[var(--tt-shadow)]"
           >
-            <TrainingListFilterGroups layout="stack" />
+            <TrainingListFilterGroups layout="stack" athleteId={athleteId} />
           </div>
         </>
       ) : null}

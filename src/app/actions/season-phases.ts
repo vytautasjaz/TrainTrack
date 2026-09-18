@@ -47,7 +47,12 @@ export async function createSeasonPhaseBlock(formData: FormData) {
   await prisma.seasonPhaseBlock.create({
     data: { athleteId, sport, phase, startDate, endDate, label },
   })
+  revalidatePhasePaths()
+}
+
+function revalidatePhasePaths() {
   revalidatePath('/season')
+  revalidatePath('/training')
 }
 
 export async function updateSeasonPhaseBlock(formData: FormData) {
@@ -74,7 +79,30 @@ export async function updateSeasonPhaseBlock(formData: FormData) {
     where: { id },
     data: { sport, phase, startDate, endDate, label },
   })
-  revalidatePath('/season')
+  revalidatePhasePaths()
+}
+
+/** Date-only update for paint / move / resize gestures. */
+export async function updateSeasonPhaseBlockRange(formData: FormData) {
+  const athleteId = await requireAthleteId()
+  const id = formData.get('id') as string
+  const existing = await prisma.seasonPhaseBlock.findFirst({
+    where: { id, athleteId },
+    select: { id: true },
+  })
+  if (!existing) throw new Error('Phase block not found')
+
+  const startDate = parseDateOnly(formData.get('startDate') as string)
+  const endDate = parseDateOnly(formData.get('endDate') as string)
+  if (endDate.getTime() < startDate.getTime()) {
+    throw new Error('End date must be on or after start date')
+  }
+
+  await prisma.seasonPhaseBlock.update({
+    where: { id },
+    data: { startDate, endDate },
+  })
+  revalidatePhasePaths()
 }
 
 export async function deleteSeasonPhaseBlock(formData: FormData) {
@@ -86,5 +114,5 @@ export async function deleteSeasonPhaseBlock(formData: FormData) {
   })
   if (!existing) throw new Error('Phase block not found')
   await prisma.seasonPhaseBlock.delete({ where: { id } })
-  revalidatePath('/season')
+  revalidatePhasePaths()
 }

@@ -185,8 +185,16 @@ export function WorkoutBlock({
     !workout.isRace && density !== 'xs'
       ? getWorkoutCardEssence(workout, durationNotation, {
           includeAllBlocks: density === 'md' || density === 'lg',
+          includeDescriptionPlan: density === 'lg',
         })
       : []
+  const showSubtitleLine =
+    Boolean(subtitle) &&
+    !(
+      cardEssence.length > 0 &&
+      subtitle != null &&
+      cardEssence.some((line) => line === subtitle || line.startsWith(subtitle))
+    )
   const SportIcon = workout.isRace ? Flag : WORKOUT_TYPE_ICONS[workout.type]
   const stravaSynced = isStravaSynced(workout)
   const completionPercent =
@@ -334,8 +342,8 @@ export function WorkoutBlock({
         unitClassName={styles.unit}
         durationClassName={styles.secondary}
         clockClassName={styles.clock}
-        heroPadClassName={subtitle ? 'pt-0.5' : null}
-        showSubtitle={styles.showSubtitle && !hideSubtitle}
+        heroPadClassName={showSubtitleLine ? 'pt-0.5' : null}
+        showSubtitle={showSubtitleLine}
         showDuration={styles.showSecondary}
         subtitle={subtitle}
         subtitleClassName={styles.subtitle}
@@ -349,7 +357,11 @@ export function WorkoutBlock({
     <div
       className={cn(
         'flex min-w-0 flex-1 flex-col',
-        subtitle || selfAddedRow ? styles.gap : hideSubtitle ? 'gap-1.5' : 'gap-0',
+        showSubtitleLine || selfAddedRow || cardEssence.length > 0
+          ? styles.gap
+          : hideSubtitle
+            ? 'gap-1.5'
+            : 'gap-0',
       )}
     >
       <div className="flex min-w-0 items-start gap-1">
@@ -378,7 +390,7 @@ export function WorkoutBlock({
 
       {selfAddedRow}
 
-      {subtitle ? (
+      {showSubtitleLine && subtitle ? (
         <p className={cn('truncate text-muted-foreground', styles.subtitle)}>
           {subtitle}
         </p>
@@ -411,7 +423,11 @@ export function WorkoutBlock({
       ) : null}
 
       {metricPrimary ? (
-        <div className={cn(subtitle || cardEssence.length > 0 ? 'pt-0.5' : null)}>
+        <div
+          className={cn(
+            showSubtitleLine || cardEssence.length > 0 ? 'pt-0.5' : null,
+          )}
+        >
           {metricPrimary}
         </div>
       ) : null}

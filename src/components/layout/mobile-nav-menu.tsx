@@ -16,6 +16,7 @@ import {
 import {
   CONNECT_COACH_NAV,
   getMainNav,
+  isNavActive,
   SETTINGS_ENTRY_HREF,
   SETTINGS_SUBNAV,
 } from '@/lib/nav-items'
@@ -98,11 +99,12 @@ export function MobileNavMenu({
           ) : null}
           <nav className="flex flex-col gap-0.5">
             {mainItems.map(({ href, label, icon: Icon, children, subnavAlwaysVisible }) => {
-              const childActive = children?.some(
-                (child) =>
-                  pathname === child.href || pathname.startsWith(`${child.href}/`),
+              const childActive = children?.some((child) =>
+                isNavActive(pathname, child.href),
               )
-              const active = pathname.startsWith(href) || Boolean(subnavAlwaysVisible && childActive)
+              const active =
+                isNavActive(pathname, href) ||
+                Boolean(subnavAlwaysVisible && childActive)
               const showBadge = href === '/inbox' && inboxBadge > 0
               const hasCollapsibleSubmenu = Boolean(children?.length && !subnavAlwaysVisible)
               const expanded = hasCollapsibleSubmenu && expandedHref === href
@@ -166,7 +168,7 @@ export function MobileNavMenu({
                           href === '/tools'
                             ? pathname.startsWith(href) &&
                               child.href.includes(`tab=${activeCalculatorTab}`)
-                            : pathname === child.href || pathname.startsWith(`${child.href}/`)
+                            : isNavActive(pathname, child.href)
                         return (
                           <Link
                             key={child.href}

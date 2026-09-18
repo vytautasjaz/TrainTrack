@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { SessionType, WorkoutType } from '@prisma/client'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
-import { ActivityRouteMap } from '@/components/plan/activity-route-map'
+import { ActivityFeedMediaCarousel } from '@/components/activity/activity-feed-media-carousel'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
 import { WorkoutChatIndicator } from '@/components/plan/workout-chat-indicator'
@@ -331,8 +331,13 @@ export function ActivityFeedWorkoutCard({
   const skipped = row.status === 'skipped'
   const hasChat = workoutHasCoachingChat(row.workout)
   const selfAdded = Boolean(row.workout.selfLogged)
-  const summaryPolyline = row.workout.result?.summaryPolyline?.trim() || null
-  const showMap = !skipped && Boolean(summaryPolyline)
+  const result = row.workout.result
+  const summaryPolyline = result?.summaryPolyline?.trim() || null
+  const stravaActivityId = result?.stravaActivityId?.trim() || null
+  const showMedia =
+    !skipped &&
+    (Boolean(summaryPolyline) ||
+      Boolean(stravaActivityId))
   const metricSlots = feedMetricSlots(row, loadThresholds)
   const subtitle = feedWorkoutSubtitle(row.activityType, row.workout.sessionType)
   const chatRole = isCoach ? 'coach' : 'athlete'
@@ -441,10 +446,23 @@ export function ActivityFeedWorkoutCard({
           </div>
 
           <div className="min-w-0 space-y-3">
-            {showMap && summaryPolyline ? (
-              <ActivityRouteMap
+            {showMedia ? (
+              <ActivityFeedMediaCarousel
+                workoutId={row.workout.id}
+                stravaActivityId={stravaActivityId}
                 summaryPolyline={summaryPolyline}
                 routeColor={sportRailColor(row.activityType, false)}
+                hasPowerHint={Boolean(
+                  (result?.averageWatts != null && result.averageWatts > 0) ||
+                    (result?.weightedAverageWatts != null &&
+                      result.weightedAverageWatts > 0),
+                )}
+                hasHrHint={Boolean(
+                  result?.averageHeartrate != null && result.averageHeartrate > 0,
+                )}
+                hasElevationHint={Boolean(
+                  result?.elevationGainM != null && result.elevationGainM >= 5,
+                )}
               />
             ) : null}
             {!skipped ? (

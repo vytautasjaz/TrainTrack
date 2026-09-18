@@ -14,6 +14,11 @@ import {
   normalizeIncludePlacement,
 } from './include-placement'
 import { parsePaceMinPerKm } from '@/lib/athlete-preferences'
+import {
+  ftpPercentToZoneId,
+  INTENSITY_ZONE_RANK,
+  resolveIntensityZones,
+} from '@/lib/intensity-zones'
 
 export type StructureChartSegmentKind =
   | 'warmup'
@@ -80,11 +85,14 @@ function intensityFromKeywords(raw: string): number | null {
   const value = raw.toLowerCase().trim()
   if (!value) return null
 
+  if (/\b(anaerobic|neuromuscular)\b/.test(value) || /\bz\s*6\b|zone\s*6/.test(value)) {
+    return 0.98
+  }
   if (/\b(vo\s*2|vo₂|v\.?o\.?\s*2|max|sprint|all[-\s]?out)\b/.test(value)) {
     return 0.96
   }
   if (/\bz\s*5\b|zone\s*5/.test(value)) return 0.95
-  if (/\b(hard|race|5k|10k|interval)\b/.test(value)) return 0.9
+  if (/\b(hard|race|5k|10k)\b/.test(value)) return 0.9
   if (/\bz\s*4\b|zone\s*4|\b(threshold|critical|css)\b/.test(value)) return 0.82
   if (/\bz\s*3\b|zone\s*3|\b(tempo|sweet\s*spot|moderate|marathon)\b/.test(value)) {
     return 0.64
@@ -102,12 +110,12 @@ function intensityFromSingleTarget(target: Target): number | null {
   const raw = (target.value ?? '').trim()
   const value = raw.toLowerCase()
 
-  // Explicit zones (Z1–Z5) — strongest signal for height.
-  const zoneMatch = value.match(/^z\s*([1-5])$/) ?? value.match(/^zone\s*([1-5])$/)
+  // Explicit zones (Z1–Z6) — strongest signal for height.
+  const zoneMatch = value.match(/^z\s*([1-6])$/) ?? value.match(/^zone\s*([1-6])$/)
   if (zoneMatch || target.type === 'heartRateZone') {
     const zone = parseInt((zoneMatch?.[1] ?? value.replace(/\D/g, '')).slice(0, 1), 10)
-    if (zone >= 1 && zone <= 5) {
-      return [0.26, 0.38, 0.64, 0.82, 0.95][zone - 1]!
+    if (zone >= 1 && zone <= 6) {
+      return [0.26, 0.38, 0.64, 0.82, 0.95, 0.98][zone - 1]!
     }
   }
 
@@ -145,16 +153,14 @@ function intensityFromSingleTarget(target: Target): number | null {
     }
   }
 
-  // % FTP
+  // % FTP — coach intensity zone bands (defaults: Recovery…Anaerobic)
   if (target.type === 'powerZone') {
     const pct = parseFloat(value.replace(/[^\d.]/g, ''))
     if (!Number.isNaN(pct) && pct > 0) {
-      if (pct >= 110) return 0.96
-      if (pct >= 100) return 0.9
-      if (pct >= 90) return 0.82
-      if (pct >= 75) return 0.64
-      if (pct >= 60) return 0.42
-      return 0.28
+      const zoneId = ftpPercentToZoneId(pct, resolveIntensityZones())
+      const rank = INTENSITY_ZONE_RANK[zoneId]
+      // Map rank 0–5 → chart height ~0.26–0.98
+      return 0.26 + (rank / 5) * 0.72
     }
   }
 

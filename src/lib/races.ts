@@ -32,6 +32,8 @@ export type RaceRecord = {
   triathlonDistance?: TriathlonDistance | null
   customDistanceKm?: number | null
   outcome?: RaceOutcome | null
+  /** Same-day order among workouts + races. */
+  daySortOrder?: number
   legs?: Array<{
     kind: RaceLegKind
     actualDistanceKm?: number | null
@@ -136,6 +138,7 @@ function baseRaceFields(race: RaceRecord) {
     coachNotes: race.goal,
     structure: null,
     swimStructure: null,
+    sortOrder: race.daySortOrder ?? 0,
     isRace: true as const,
     raceId: race.id,
     raceType: race.type,
@@ -226,6 +229,21 @@ export function mergeRacesIntoByDate(
       const list = merged.get(detail.dateKey) ?? []
       merged.set(detail.dateKey, [...list, detail])
     }
+  }
+  for (const [key, list] of merged) {
+    merged.set(
+      key,
+      [...list].sort((a, b) => {
+        const ao = a.sortOrder ?? 0
+        const bo = b.sortOrder ?? 0
+        if (ao !== bo) return ao - bo
+        // Keep triathlon split cards together after the race slot.
+        if (a.isRace && b.isRace && a.raceId === b.raceId) {
+          return a.type.localeCompare(b.type)
+        }
+        return a.title.localeCompare(b.title)
+      }),
+    )
   }
   return merged
 }

@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { WorkoutType } from '@prisma/client'
@@ -36,6 +36,12 @@ import {
 } from '@/components/ui/page-header'
 import { availableExtraPlanSports } from '@/lib/plan-sports'
 import {
+  currentPhaseIndicator,
+  phaseIndicatorFocusKey,
+  type TrainingPhaseBlock,
+} from '@/lib/training-phase-context'
+import { TrainingPhaseHeaderControls } from '@/components/training/training-phase-header-controls'
+import {
   SHOW_EVENTS_STORAGE_KEY,
   SHOW_NOTES_STORAGE_KEY,
   SHOW_WEATHER_SESSION_KEY,
@@ -46,8 +52,10 @@ import { useStoredFlag } from '@/hooks/use-stored-flag'
 import { setCalendarExpanded } from '@/lib/calendar-expand'
 import {
   addDateOnlyDays,
+  endOfWeekDateOnly,
   formatDateOnly,
   parseDateOnly,
+  toDateKey,
 } from '@/lib/dates'
 import type { PlanDay } from '@/lib/plan-week'
 import type { WeatherPlace } from '@/lib/weather/places'
@@ -103,6 +111,7 @@ type PlanMultiWeekTablesProps = {
   weatherLocation?: WeatherLocation | null
   /** Athlete preference: show forecast above workouts by default. */
   weatherVisibleByDefault?: boolean
+  phaseBlocks?: TrainingPhaseBlock[]
 }
 
 const WEATHER_OVERRIDE_STORAGE_KEY = 'tt-weather-location-override'
@@ -253,8 +262,19 @@ export function PlanMultiWeekTables({
   swimCssSecPer100m = null,
   weatherLocation = null,
   weatherVisibleByDefault = true,
+  phaseBlocks = [],
 }: PlanMultiWeekTablesProps) {
   const canCombine = weeks.length > 1
+  const phaseIndicator = useMemo(() => {
+    if (phaseBlocks.length === 0 || weeks.length === 0) return null
+    const startKey = weeks[0]!.weekStartKey
+    const lastWeek = weeks[weeks.length - 1]!
+    const endKey = toDateKey(
+      endOfWeekDateOnly(parseDateOnly(lastWeek.weekStartKey)),
+    )
+    const focus = phaseIndicatorFocusKey(startKey, endKey)
+    return currentPhaseIndicator(phaseBlocks, focus)
+  }, [phaseBlocks, weeks])
   const [combined, setCombined] = useState(true)
   const [showNotes, setShowNotes] = useStoredFlag(SHOW_NOTES_STORAGE_KEY, true)
   const [showEvents, setShowEvents] = useStoredFlag(
@@ -500,6 +520,9 @@ export function PlanMultiWeekTables({
     onToggleWeather: toggleShowWeather,
     expanded,
     onToggleExpanded: toggleExpanded,
+    planStartWeekKey: weeks[0]?.weekStartKey,
+    planEndWeekKey: weeks[weeks.length - 1]?.weekStartKey,
+    athleteId,
   }
 
   const weekAddMenu = (
@@ -548,27 +571,58 @@ export function PlanMultiWeekTables({
             </PageHeaderActions>
           </div>
           <div className="hidden min-w-0 [grid-area:period] lg:block">
-            <CalendarPeriodNav
-              label={weekLabel}
-              prevHref={prevWeekHref}
-              nextHref={nextWeekHref}
-              prevAriaLabel="Previous week"
-              nextAriaLabel="Next week"
-              align="start"
-              size="subtitle"
-              className="mb-0 mt-1 min-w-0"
-            />
+            <div className="mt-1 flex min-w-0 flex-wrap items-end justify-between gap-x-4 gap-y-1">
+              <CalendarPeriodNav
+                label={weekLabel}
+                prevHref={prevWeekHref}
+                nextHref={nextWeekHref}
+                prevAriaLabel="Previous week"
+                nextAriaLabel="Next week"
+                align="start"
+                size="subtitle"
+                className="mb-0 min-w-0"
+              />
+              <TrainingPhaseHeaderControls
+                indicator={phaseIndicator}
+                defaultStartKey={weeks[0]?.weekStartKey}
+                defaultEndKey={
+                  weeks.length
+                    ? toDateKey(
+                        endOfWeekDateOnly(
+                          parseDateOnly(weeks[weeks.length - 1]!.weekStartKey),
+                        ),
+                      )
+                    : undefined
+                }
+              />
+            </div>
           </div>
           <div className="min-w-0 [grid-area:period] lg:hidden">
-            <CalendarPeriodNav
-              label={weekNavLabel}
-              prevHref={prevWeekHref}
-              nextHref={nextWeekHref}
-              prevAriaLabel="Previous week"
-              nextAriaLabel="Next week"
-              align="start"
-              className="mb-0 -ml-1.5 shrink-0"
-            />
+            <div className="flex min-w-0 flex-col gap-1">
+              <CalendarPeriodNav
+                label={weekNavLabel}
+                prevHref={prevWeekHref}
+                nextHref={nextWeekHref}
+                prevAriaLabel="Previous week"
+                nextAriaLabel="Next week"
+                align="start"
+                className="mb-0 -ml-1.5 shrink-0"
+              />
+              <TrainingPhaseHeaderControls
+                indicator={phaseIndicator}
+                compact
+                defaultStartKey={weeks[0]?.weekStartKey}
+                defaultEndKey={
+                  weeks.length
+                    ? toDateKey(
+                        endOfWeekDateOnly(
+                          parseDateOnly(weeks[weeks.length - 1]!.weekStartKey),
+                        ),
+                      )
+                    : undefined
+                }
+              />
+            </div>
           </div>
         </div>
 

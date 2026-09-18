@@ -67,6 +67,11 @@ import {
   type WorkoutLibraryFolderPickerItem,
   type WorkoutTemplatePickerItem,
 } from "@/app/actions/workout-builder";
+import {
+  createTrainingPlanSession,
+  updateTrainingPlanSession,
+} from "@/app/actions/training-plans";
+import { formatPlanSlotLabel } from "@/lib/training-plan";
 import { SaveToLibraryDialog } from "@/components/workout-editor/save-to-library-dialog";
 import {
   createSwimWorkoutFromModal,
@@ -338,6 +343,10 @@ export function SharedWorkoutEditor({
   workout = null,
   entityId,
   athleteMode = false,
+  planId,
+  weekIndex,
+  dayOfWeek,
+  athletePreferences: athletePreferencesProp = null,
   onSaved,
   onCancel,
   embedded = false,
@@ -346,6 +355,7 @@ export function SharedWorkoutEditor({
   const durationNotation = useDurationNotation();
   const isEdit = Boolean(workout) || Boolean(entityId);
   const isTemplate = mode === "template";
+  const isTrainingPlan = mode === "training-plan";
   const [sportType, setSportType] = useState<WorkoutType>(
     workout?.type ?? initialSport,
   );
@@ -378,7 +388,7 @@ export function SharedWorkoutEditor({
     WorkoutLibraryFolderPickerItem[]
   >([]);
   const [preferences, setPreferences] = useState<AthletePreferences | null>(
-    null,
+    athletePreferencesProp ?? null,
   );
   const [builderPrefs, setBuilderPrefs] = useState<WorkoutBuilderPrefs | null>(
     null,
@@ -429,7 +439,7 @@ export function SharedWorkoutEditor({
   const structureHeroKeyRef = useRef<string | null>(null);
   /** Skip simple-metric re-estimation after hydrating a saved workout. */
   const simpleMetricsHydratedRef = useRef<string | null>(null);
-  const showChatTab = !athleteMode && !isTemplate && Boolean(workout?.id);
+  const showChatTab = !athleteMode && !isTemplate && !isTrainingPlan && Boolean(workout?.id);
   const {
     thread: coachingThread,
     ready: coachingThreadReady,
@@ -510,7 +520,11 @@ export function SharedWorkoutEditor({
   };
 
   useEffect(() => {
-    void getAthletePreferencesForWorkoutModal().then(setPreferences);
+    if (athletePreferencesProp) {
+      setPreferences(athletePreferencesProp);
+    } else {
+      void getAthletePreferencesForWorkoutModal().then(setPreferences);
+    }
     if (!athleteMode) {
       void getCoachEditorPrefsForModal()
         .then((prefs) => {
@@ -531,7 +545,7 @@ export function SharedWorkoutEditor({
         setTemplates([]);
         setLibraryFolders([]);
       });
-  }, [athleteMode]);
+  }, [athleteMode, athletePreferencesProp]);
 
   useEffect(() => {
     if (!workout?.id) return;
@@ -1790,6 +1804,39 @@ export function SharedWorkoutEditor({
           return;
         }
 
+        if (isTrainingPlan) {
+          if (planId == null || weekIndex == null || dayOfWeek == null) {
+            throw new Error("Plan slot required");
+          }
+          const sessionPayload = {
+            planId,
+            weekIndex,
+            dayOfWeek,
+            title: payload.title,
+            description: payload.description,
+            sportType: WorkoutType.SWIM,
+            sessionType: SessionType.CUSTOM,
+            plannedDuration: payload.plannedDuration,
+            plannedDistanceMeters: payload.plannedDistanceMeters,
+            coachNotes: payload.coachNotes,
+            coachNotesPrivate: payload.coachNotesPrivate,
+            swimEnvironment: swimForm.swimEnvironment ?? null,
+            swimStructure: payload.swimStructure,
+            tags: payload.tags,
+            sourceTemplateId: templateId ?? null,
+          };
+          if (isEdit && workout) {
+            await updateTrainingPlanSession({
+              ...sessionPayload,
+              sessionId: workout.id,
+            });
+          } else {
+            await createTrainingPlanSession(sessionPayload);
+          }
+          onSaved?.();
+          return;
+        }
+
         if (isEdit && workout) {
           await updateSwimWorkoutFromModal(workout.id, payload);
         } else {
@@ -1867,6 +1914,47 @@ export function SharedWorkoutEditor({
           await saveTemplateBuilder(payload, entityId);
         } else {
           await saveTemplateBuilder(payload);
+        }
+        onSaved?.();
+        return;
+      }
+
+      if (isTrainingPlan) {
+        if (planId == null || weekIndex == null || dayOfWeek == null) {
+          throw new Error("Plan slot required");
+        }
+        const sources = buildMetricSources();
+        const sessionPayload = {
+          planId,
+          weekIndex,
+          dayOfWeek,
+          title: resolvedTitle,
+          description: resolvedDescription || undefined,
+          sportType,
+          sessionType: resolvedSession,
+          plannedDuration: durationMin > 0 ? durationMin : null,
+          plannedDistance:
+            config.showDistance &&
+            config.distanceUnit === "km" &&
+            distanceKm > 0
+              ? distanceKm
+              : null,
+          plannedDistanceSource: sources.plannedDistanceSource ?? null,
+          plannedDurationSource: sources.plannedDurationSource ?? null,
+          coachNotes: coachNotes.trim() || null,
+          coachNotesPrivate,
+          structure:
+            persistDetails || persistInclude ? structureToSave : null,
+          tags: buildTags(),
+          sourceTemplateId: templateId ?? null,
+        };
+        if (isEdit && workout) {
+          await updateTrainingPlanSession({
+            ...sessionPayload,
+            sessionId: workout.id,
+          });
+        } else {
+          await createTrainingPlanSession(sessionPayload);
         }
         onSaved?.();
         return;
@@ -2096,18 +2184,20 @@ export function SharedWorkoutEditor({
     );
   }
 
-  const dateLabel = date
-    ? (() => {
-        const d = parseDateOnly(date);
-        return d.toLocaleDateString("en-GB", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-          timeZone: "UTC",
-        });
-      })()
-    : null;
+  const dateLabel = isTrainingPlan && weekIndex != null && dayOfWeek != null
+    ? formatPlanSlotLabel(weekIndex, dayOfWeek)
+    : date
+      ? (() => {
+          const d = parseDateOnly(date);
+          return d.toLocaleDateString("en-GB", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+            timeZone: "UTC",
+          });
+        })()
+      : null;
 
   const workoutTypeControl =
     !athleteMode && sportType !== WorkoutType.SWIM ? (

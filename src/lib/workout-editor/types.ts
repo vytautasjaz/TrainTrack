@@ -1,6 +1,7 @@
 import { WorkoutType } from '@prisma/client'
 import type { BuilderMode } from '@/lib/workout-builder/types'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import type { AthletePreferences } from '@/lib/athlete-preferences'
 import { sportSupportsWorkoutBuilder } from '@/lib/workout-builder/session-modes'
 import { sportUsesPlannedDistance } from '@/lib/plan-week-totals'
 
@@ -10,10 +11,10 @@ export type WorkoutPrimaryMetricState = WorkoutPrimaryMetric | null
 export type DurationUnit = 'min' | 'hours'
 export type DistanceUnit = 'km' | 'm'
 
-export type WorkoutEditorMode = BuilderMode | 'plan'
+export type WorkoutEditorMode = BuilderMode | 'plan' | 'training-plan'
 
 export type SharedWorkoutEditorProps = {
-  /** plan | workout (scheduled) | template (library) */
+  /** plan | workout (scheduled) | template (library) | training-plan (library plan session) */
   mode?: WorkoutEditorMode
   sportType: WorkoutType
   date: string
@@ -21,6 +22,15 @@ export type SharedWorkoutEditorProps = {
   /** Library template id when editing a template */
   entityId?: string
   athleteMode?: boolean
+  /** training-plan mode: parent plan + relative slot */
+  planId?: string
+  weekIndex?: number
+  dayOfWeek?: number
+  /**
+   * Prefer these prefs for distance/time estimates (plan level or tailored
+   * athlete). When set, skips the modal preference fetch.
+   */
+  athletePreferences?: AthletePreferences | null
   /** Called after successful save (dialog closes / page redirects) */
   onSaved?: () => void
   onCancel?: () => void

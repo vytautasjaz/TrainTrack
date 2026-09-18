@@ -1,4 +1,9 @@
 import { WorkoutType } from '@prisma/client'
+import {
+  parseIntensityZoneBounds,
+  sanitizeIntensityZoneBounds,
+  type IntensityZoneBounds,
+} from '@/lib/intensity-zones'
 import type { SegmentUnit, WorkoutBlock } from './types'
 import {
   PRESET_BLOCK_OPTIONS,
@@ -55,6 +60,8 @@ export type WorkoutBuilderPrefs = {
   BIKE?: SportBuilderPresetPrefs
   /** How minutes/seconds are written on cards and block summaries. */
   durationNotation?: DurationNotation
+  /** Coach overrides for % FTP intensity zone bands (Z1–Z6). */
+  intensityZones?: IntensityZoneBounds
 }
 
 export type EditablePresetRow = {
@@ -150,6 +157,11 @@ export function parseWorkoutBuilderPrefs(raw: unknown): WorkoutBuilderPrefs {
   if (durationNotation !== DEFAULT_DURATION_NOTATION) {
     result.durationNotation = durationNotation
   }
+
+  const intensityZones = sanitizeIntensityZoneBounds(
+    parseIntensityZoneBounds(root.intensityZones),
+  )
+  if (intensityZones) result.intensityZones = intensityZones
 
   for (const key of ['RUN', 'BIKE'] as const) {
     const sportRaw = root[key]

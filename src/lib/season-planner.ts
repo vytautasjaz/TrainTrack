@@ -30,6 +30,30 @@ export const SEASON_PHASE_LABELS: Record<SeasonPhase, string> = {
   MAINTENANCE: 'Maintenance',
 }
 
+/** Prefer a custom name; fall back to the phase type label. */
+export function displaySeasonPhaseName(
+  phase: SeasonPhase,
+  label?: string | null,
+): string {
+  const custom = label?.trim()
+  return custom || SEASON_PHASE_LABELS[phase]
+}
+
+/** Match a free-text name to a known SeasonPhase (case-insensitive). */
+export function seasonPhaseFromName(name: string): SeasonPhase | null {
+  const n = name.trim().toLowerCase()
+  if (!n) return null
+  for (const key of Object.keys(SEASON_PHASE_LABELS) as SeasonPhase[]) {
+    if (
+      SEASON_PHASE_LABELS[key].toLowerCase() === n ||
+      key.toLowerCase() === n
+    ) {
+      return key
+    }
+  }
+  return null
+}
+
 export const PLANNER_PRIORITY_LANES: {
   priority: RacePriority
   label: string

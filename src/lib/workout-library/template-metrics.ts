@@ -37,29 +37,93 @@ export function resolveLibraryTemplateMetricsForAthlete(
     | 'durationMin'
     | 'structure'
     | 'plannedDistanceMeters'
+    | 'plannedDistanceMetersSource'
     | 'distanceSource'
     | 'durationSource'
   >,
   preferences: AthletePreferences | null | undefined,
 ): LibraryTemplateAthleteMetrics {
   if (template.type === WorkoutType.SWIM) {
-    const distanceSource =
-      template.distanceSource ??
-      (template.distanceKm != null && template.distanceKm > 0
-        ? PlannedMetricSource.MANUAL
-        : null)
-    const durationSource =
-      template.durationSource ??
-      (template.durationMin != null && template.durationMin > 0
-        ? PlannedMetricSource.MANUAL
-        : null)
+    const legacy =
+      template.distanceSource == null && template.durationSource == null
+    let distanceKm =
+      template.plannedDistanceMeters && template.plannedDistanceMeters > 0
+        ? template.plannedDistanceMeters / 1000
+        : template.distanceKm
+    let durationMin = template.durationMin
+    let distanceSource: PlannedMetricSource | null =
+      distanceKm != null && distanceKm > 0
+        ? template.distanceSource ??
+          (template.plannedDistanceMetersSource ?? PlannedMetricSource.MANUAL)
+        : null
+    let durationSource: PlannedMetricSource | null =
+      durationMin != null && durationMin > 0
+        ? template.durationSource ?? PlannedMetricSource.MANUAL
+        : null
+
+    const needDurationCompanion =
+      distanceKm != null &&
+      distanceKm > 0 &&
+      !(durationMin && durationMin > 0) &&
+      (legacy ||
+        template.durationSource === PlannedMetricSource.COMPANION ||
+        template.durationSource == null)
+    const needDistanceCompanion =
+      durationMin != null &&
+      durationMin > 0 &&
+      !(distanceKm && distanceKm > 0) &&
+      (legacy ||
+        template.distanceSource === PlannedMetricSource.COMPANION ||
+        template.distanceSource == null)
+
+    if (needDurationCompanion) {
+      const derived = estimateDurationMinutesFromDistanceKm(
+        distanceKm!,
+        preferences,
+        template.sessionType,
+        WorkoutType.SWIM,
+      )
+      if (derived > 0) {
+        durationMin = derived
+        durationSource = PlannedMetricSource.COMPANION
+      }
+    } else if (needDistanceCompanion) {
+      const derived = estimateDistanceKmFromDurationMinutes(
+        durationMin!,
+        preferences,
+        template.sessionType,
+        WorkoutType.SWIM,
+      )
+      if (derived > 0) {
+        distanceKm = derived
+        distanceSource = PlannedMetricSource.COMPANION
+      }
+    }
+
+    if (template.distanceSource === PlannedMetricSource.MANUAL && template.distanceKm) {
+      distanceKm = template.distanceKm
+      distanceSource = PlannedMetricSource.MANUAL
+    }
+    if (
+      template.plannedDistanceMetersSource === PlannedMetricSource.MANUAL &&
+      template.plannedDistanceMeters &&
+      template.plannedDistanceMeters > 0
+    ) {
+      distanceKm = template.plannedDistanceMeters / 1000
+      distanceSource = PlannedMetricSource.MANUAL
+    }
+    if (template.durationSource === PlannedMetricSource.MANUAL && template.durationMin) {
+      durationMin = template.durationMin
+      durationSource = PlannedMetricSource.MANUAL
+    }
+
     return {
-      distanceKm: template.distanceKm,
-      durationMin: template.durationMin,
+      distanceKm: distanceKm && distanceKm > 0 ? distanceKm : null,
+      durationMin: durationMin && durationMin > 0 ? durationMin : null,
       distanceApprox: isAutomatedMetricSource(distanceSource),
       durationApprox: isAutomatedMetricSource(durationSource),
-      distanceSource,
-      durationSource,
+      distanceSource: distanceKm && distanceKm > 0 ? distanceSource : null,
+      durationSource: durationMin && durationMin > 0 ? durationSource : null,
     }
   }
 

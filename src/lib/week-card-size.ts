@@ -1,5 +1,6 @@
 export const WEEK_CARD_SIZE_STORAGE_KEY = 'tt-week-card-size'
 export const MONTH_CARD_SIZE_STORAGE_KEY = 'tt-month-card-size'
+export const PLAN_CANVAS_CARD_SIZE_STORAGE_KEY = 'tt-plan-canvas-card-size'
 
 export type WeekCardSize = 's' | 'm' | 'l'
 

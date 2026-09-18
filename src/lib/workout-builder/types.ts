@@ -135,9 +135,9 @@ export const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
 export const TARGET_TYPE_LABELS: Record<TargetType, string> = {
   pace: 'Pace',
   heartRate: 'Heart rate',
-  heartRateZone: 'HR zone',
+  heartRateZone: 'Zones',
   power: 'Power',
-  powerZone: 'Power zone',
+  powerZone: '% FTP',
   cadence: 'Cadence',
   rpe: 'RPE',
   speed: 'Speed',

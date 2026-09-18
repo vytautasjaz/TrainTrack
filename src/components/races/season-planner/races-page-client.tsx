@@ -19,7 +19,7 @@ import {
   ListFilter,
 } from 'lucide-react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { RaceIntent, RacePriority, SeasonPhase } from '@prisma/client'
+import { RaceIntent, RacePriority } from '@prisma/client'
 import {
   Dialog,
   DialogContent,
@@ -29,23 +29,23 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { FormError } from '@/components/ui/form-error'
-import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { DateField } from '@/components/ui/date-field'
 import { Select } from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SegmentedControl, SegmentedControlItem } from '@/components/ui/segmented-control'
+import { SeasonPhaseBlockModal } from '@/components/training/season-phase-block-modal'
+import {
+  SeasonPhaseInteractiveBar,
+  SeasonPhaseLanePaint,
+} from '@/components/training/season-phase-interactive-bar'
+import type { SeasonPhaseModalState } from '@/components/training/season-phase-block-modal'
 import { PriorityBadge } from '@/components/races/priority-badge'
 import { StatusPill } from '@/components/ui/status-pill'
 import { AddRaceButton, AddRaceModal, WatchRaceButton } from '@/components/races/add-race-modal'
+import { SeasonRacePlaceholderModal } from '@/components/races/season-race-placeholder-modal'
 import { RaceDetailSheet } from '@/components/races/race-detail-sheet'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import { deleteRace } from '@/app/actions/workouts'
-import {
-  createSeasonPhaseBlock,
-  deleteSeasonPhaseBlock,
-  updateSeasonPhaseBlock,
-} from '@/app/actions/season-phases'
 import { SeasonEventDetailSheet } from '@/components/plan/season-event-detail-sheet'
 import { SeasonEventModal } from '@/components/plan/season-event-modal'
 import { raceOutcomeSummary, raceDistanceLabel, type SeasonRace } from '@/lib/season-races'
@@ -204,14 +204,11 @@ function SeasonPlannerView({
     Object.fromEntries(PLANNER_SPORTS.map((s) => [s, true])) as Record<PlannerSport, boolean>,
   )
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [phaseModal, setPhaseModal] = useState<
-    | { mode: 'create'; sport: PlannerSport }
-    | { mode: 'edit'; block: SeasonPhaseBlockData }
-    | null
-  >(null)
+  const [phaseModal, setPhaseModal] = useState<SeasonPhaseModalState>(null)
   const [eventCreateOpen, setEventCreateOpen] = useState(false)
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
   const [addRaceOpen, setAddRaceOpen] = useState(false)
+  const [addRacePlaceholderOpen, setAddRacePlaceholderOpen] = useState(false)
 
   const weeks = useMemo(() => {
     const { start, end } = buildPlannerScrollRange(today)
@@ -529,6 +526,12 @@ function SeasonPlannerView({
                 </DropdownMenu.Item>
                 <DropdownMenu.Item
                   className="cursor-pointer rounded-[6px] px-2.5 py-1.5 text-sm outline-none data-[highlighted]:bg-muted/60"
+                  onSelect={() => setAddRacePlaceholderOpen(true)}
+                >
+                  Race placeholder
+                </DropdownMenu.Item>
+                <DropdownMenu.Item
+                  className="cursor-pointer rounded-[6px] px-2.5 py-1.5 text-sm outline-none data-[highlighted]:bg-muted/60"
                   onSelect={() => setEventCreateOpen(true)}
                 >
                   Event
@@ -558,6 +561,14 @@ function SeasonPlannerView({
         onSelectRace={setSelectedId}
         onAddPhase={(sport) => setPhaseModal({ mode: 'create', sport })}
         onEditPhase={(block) => setPhaseModal({ mode: 'edit', block })}
+        onPaintPhase={(range, sport) =>
+          setPhaseModal({
+            mode: 'create',
+            sport,
+            startKey: range.startKey,
+            endKey: range.endKey,
+          })
+        }
         onSelectEvent={(event) => setSelectedEventId(event.id)}
       />
 
@@ -566,6 +577,12 @@ function SeasonPlannerView({
         onOpenChange={setAddRaceOpen}
         athleteId={athleteId}
         defaultIntent={RaceIntent.PLANNED}
+      />
+
+      <SeasonRacePlaceholderModal
+        open={addRacePlaceholderOpen}
+        onOpenChange={setAddRacePlaceholderOpen}
+        athleteId={athleteId}
       />
 
       <RaceDetailSheet
@@ -578,7 +595,7 @@ function SeasonPlannerView({
         isCoach={isCoach}
       />
 
-      <PhaseBlockModal
+      <SeasonPhaseBlockModal
         state={phaseModal}
         onOpenChange={(open) => {
           if (!open) setPhaseModal(null)
@@ -896,6 +913,7 @@ function SeasonPlannerBoard({
   onSelectRace,
   onAddPhase,
   onEditPhase,
+  onPaintPhase,
   onSelectEvent,
 }: {
   scale: PlannerBoardScale
@@ -916,12 +934,19 @@ function SeasonPlannerBoard({
   onSelectRace: (id: string) => void
   onAddPhase: (sport: PlannerSport) => void
   onEditPhase: (block: SeasonPhaseBlockData) => void
+  onPaintPhase: (
+    range: { startKey: string; endKey: string },
+    sport: PlannerSport,
+  ) => void
   onSelectEvent: (event: SeasonEventData) => void
 }) {
   const { months, todayIdx, colCount, unit } = scale
   const gridW = colCount * colW
   const shortMonthLabels = plannerZoomLevel(zoom).viewportDays >= 365
   const headerSubTop = '2.125rem'
+  const dayKeys = scale.days.map((d) => d.key)
+  const weekStartKeys = weeks.map((w) => w.key)
+  const weekEndKeys = weeks.map((w) => w.end.toISOString().slice(0, 10))
 
   // Keep month names pinned beside the Season column while scrolling horizontally.
   // CSS position:sticky is unreliable here (nested sticky header + flex timeline).
@@ -1283,28 +1308,31 @@ function SeasonPlannerBoard({
               labelActionTitle="Add phase"
               contentMinHeight={Math.max(raceLayoutHeight, 40)}
             >
+              <SeasonPhaseLanePaint
+                sport={sport}
+                colW={colW}
+                colCount={colCount}
+                unit={unit}
+                dayKeys={dayKeys}
+                weekStartKeys={weekStartKeys}
+                weekEndKeys={weekEndKeys}
+                onPaint={onPaintPhase}
+              />
               {phaseBlocks
                 .filter((b) => b.sport === sport)
-                .map((block) => {
-                  const start = scale.indexForDate(block.startDate)
-                  const end = scale.indexForDate(block.endDate)
-                  const span = Math.max(1, end - start + 1)
-                  return (
-                    <button
+                .map((block) => (
+                    <SeasonPhaseInteractiveBar
                       key={block.id}
-                      type="button"
-                      onClick={() => onEditPhase(block)}
-                      className={cn(
-                        'absolute inset-y-1.5 z-[2] overflow-hidden rounded-[5px] border px-1.5 text-left text-[10px] font-semibold leading-tight',
-                        PLANNER_SPORT_TINT[sport],
-                      )}
-                      style={{ left: start * colW + 1, width: span * colW - 2 }}
-                      title={`${SEASON_PHASE_LABELS[block.phase]}${block.label ? ` — ${block.label}` : ''}`}
-                    >
-                      {block.label?.trim() || SEASON_PHASE_LABELS[block.phase]}
-                    </button>
-                  )
-                })}
+                      block={block}
+                      colW={colW}
+                      colCount={colCount}
+                      unit={unit}
+                      dayKeys={dayKeys}
+                      weekStartKeys={weekStartKeys}
+                      weekEndKeys={weekEndKeys}
+                      onEdit={onEditPhase}
+                    />
+                  ))}
               <StackedRaceCards
                 races={sportRaces}
                 weeks={weeks}
@@ -1823,12 +1851,13 @@ function RaceCard({
   return (
     <button
       type="button"
+      data-race-card
       onClick={onSelect}
       onMouseEnter={(e) => followTooltip.show(tip, e)}
       onMouseMove={followTooltip.move}
       onMouseLeave={followTooltip.hide}
       className={cn(
-        'absolute z-[2] overflow-hidden rounded-[6px] border px-1.5 py-0.5 text-left transition hover:brightness-[0.98]',
+        'absolute z-[3] overflow-hidden rounded-[6px] border px-1.5 py-0.5 text-left transition hover:brightness-[0.98]',
         isWatching
           ? 'border-dashed border-foreground/25 bg-muted/40 text-foreground shadow-none'
           : PLANNER_PRIORITY_CARD[race.priority],
@@ -2748,141 +2777,5 @@ function RaceRowMenu({ race }: { race: SeasonRace }) {
         {deleteError ? <FormError message={deleteError} className="mt-3" /> : null}
       </ConfirmDialog>
     </>
-  )
-}
-
-function PhaseBlockModal({
-  state,
-  onOpenChange,
-}: {
-  state:
-    | { mode: 'create'; sport: PlannerSport }
-    | { mode: 'edit'; block: SeasonPhaseBlockData }
-    | null
-  onOpenChange: (open: boolean) => void
-}) {
-  const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-  const open = Boolean(state)
-  const editing = state?.mode === 'edit' ? state.block : null
-  const defaultSport =
-    state?.mode === 'create' ? state.sport : (editing?.sport as PlannerSport | undefined)
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) setError(null)
-        onOpenChange(next)
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{editing ? 'Edit phase' : 'Add phase'}</DialogTitle>
-          <DialogDescription>
-            Planning blocks on sport lanes — they do not create workouts.
-          </DialogDescription>
-        </DialogHeader>
-        <form
-          className="space-y-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            setError(null)
-            const fd = new FormData(e.currentTarget)
-            startTransition(async () => {
-              try {
-                if (editing) {
-                  fd.set('id', editing.id)
-                  await updateSeasonPhaseBlock(fd)
-                } else {
-                  await createSeasonPhaseBlock(fd)
-                }
-                onOpenChange(false)
-              } catch (err) {
-                setError(err instanceof Error ? err.message : 'Could not save phase')
-              }
-            })
-          }}
-        >
-          <FormError message={error} />
-          <FormField label="Sport">
-            <Select name="sport" required defaultValue={defaultSport ?? 'RUN'}>
-              {PLANNER_SPORTS.map((s) => (
-                <option key={s} value={s}>
-                  {PLANNER_SPORT_LABELS[s]}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-          <FormField label="Phase">
-            <Select name="phase" required defaultValue={editing?.phase ?? SeasonPhase.BASE}>
-              {(Object.keys(SEASON_PHASE_LABELS) as SeasonPhase[]).map((p) => (
-                <option key={p} value={p}>
-                  {SEASON_PHASE_LABELS[p]}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-          <FormField label="Label (optional)">
-            <Input
-              name="label"
-              defaultValue={editing?.label ?? ''}
-              placeholder="e.g. Base 1"
-            />
-          </FormField>
-          <div className="grid grid-cols-2 gap-3">
-            <FormField label="Start">
-              <DateField
-                key={`${editing?.id ?? 'new'}-start`}
-                name="startDate"
-                required
-                defaultValue={
-                  editing ? editing.startDate.toISOString().slice(0, 10) : undefined
-                }
-              />
-            </FormField>
-            <FormField label="End">
-              <DateField
-                key={`${editing?.id ?? 'new'}-end`}
-                name="endDate"
-                required
-                defaultValue={
-                  editing ? editing.endDate.toISOString().slice(0, 10) : undefined
-                }
-              />
-            </FormField>
-          </div>
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Button type="submit" size="sm" disabled={pending}>
-              {pending ? 'Saving…' : editing ? 'Save' : 'Add phase'}
-            </Button>
-            {editing ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="text-destructive"
-                disabled={pending}
-                onClick={() => {
-                  setError(null)
-                  startTransition(async () => {
-                    try {
-                      const fd = new FormData()
-                      fd.set('id', editing.id)
-                      await deleteSeasonPhaseBlock(fd)
-                      onOpenChange(false)
-                    } catch (err) {
-                      setError(err instanceof Error ? err.message : 'Could not delete phase')
-                    }
-                  })
-                }}
-              >
-                Delete
-              </Button>
-            ) : null}
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }

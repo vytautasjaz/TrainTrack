@@ -21,6 +21,7 @@ import {
   WorkoutDetailView,
 } from "@/components/plan/workout-detail-view";
 import { DayDropSection } from "@/components/plan/day-drop-section";
+import { SameDayWorkoutStack } from "@/components/plan/same-day-workout-stack";
 import { DayNoteSection } from "@/components/plan/day-note-section";
 import { SeasonEventChips } from "@/components/plan/season-event-chips";
 import { usePlanWeekDnd } from "@/components/plan/plan-week-dnd";
@@ -776,21 +777,29 @@ export function TrainingTableView({
                             </div>
                           ) : null}
 
-                          {/* Workout rows */}
-                          {day.workouts.map((workout, i) => (
-                            <TrainingListWorkoutRow
-                              key={workout.id}
-                              workout={workout}
-                              isCoach={isCoach}
-                              last={i === day.workouts.length - 1}
-                              selected={
-                                showDesktopPanel &&
-                                panelWorkout?.id === workout.id
-                              }
-                              isToday={day.isToday}
-                              onOpen={() => setSelected(workout)}
-                            />
-                          ))}
+                          {/* Workout rows — coach can drop one onto another to reorder */}
+                          <SameDayWorkoutStack
+                            dateKey={day.dateKey}
+                            workouts={day.workouts}
+                            enabled={isCoach}
+                            renderItem={(workout, meta) => (
+                              <div
+                                className={cn(meta.isDragging && "opacity-50")}
+                              >
+                                <TrainingListWorkoutRow
+                                  workout={workout}
+                                  isCoach={isCoach}
+                                  last={meta.isLast}
+                                  selected={
+                                    showDesktopPanel &&
+                                    panelWorkout?.id === workout.id
+                                  }
+                                  isToday={day.isToday}
+                                  onOpen={() => setSelected(workout)}
+                                />
+                              </div>
+                            )}
+                          />
 
                           {/* Weather under workouts — skip empty slot wrappers (white gaps) */}
                           {day.weather &&

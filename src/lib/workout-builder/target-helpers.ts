@@ -1,5 +1,6 @@
 import { WorkoutType } from '@prisma/client'
 import { formatPaceMinPerKm, parsePaceMinPerKm } from '@/lib/athlete-preferences'
+import { INTENSITY_ZONE_PRESETS } from '@/lib/intensity-zones'
 import type { Segment, SegmentUnit, Target, TargetType } from './types'
 import { TARGET_TYPE_LABELS } from './types'
 
@@ -45,9 +46,11 @@ const BIKE_TARGET_TYPES: TargetType[] = [
   'cadence',
 ]
 
-/** Simplified intensity picker: Effort + Pace + HR (run) or Effort + Watts + % FTP (bike). */
+/** Simplified intensity picker: Zones + Effort + absolute (Pace/HR or Watts/% FTP). */
 export function simpleTargetTypesForSport(sport: WorkoutType): TargetType[] {
-  return isBikeSport(sport) ? ['rpe', 'power', 'powerZone'] : ['rpe', 'pace', 'heartRate']
+  return isBikeSport(sport)
+    ? ['heartRateZone', 'rpe', 'power', 'powerZone']
+    : ['heartRateZone', 'rpe', 'pace', 'heartRate']
 }
 
 export function simpleTargetTypeLabel(type: TargetType): string {
@@ -56,23 +59,23 @@ export function simpleTargetTypeLabel(type: TargetType): string {
   if (type === 'powerZone') return '% FTP'
   if (type === 'pace') return 'Pace'
   if (type === 'heartRate') return 'HR'
-  if (type === 'heartRateZone') return 'Zone'
+  if (type === 'heartRateZone') return 'Zones'
   return TARGET_TYPE_LABELS[type]
 }
 
 export function intensitySuggestions(type: TargetType, sport: WorkoutType): string[] {
-  const zones = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5']
+  const zones = [...INTENSITY_ZONE_PRESETS]
   if (type === 'rpe') {
-    return [...zones, 'Easy', 'Recovery', 'Tempo', 'Threshold', 'Hard', 'Max']
+    return ['Easy', 'Recovery', 'Tempo', 'Threshold', 'Hard', 'Max', ...zones]
   }
   if (type === 'pace') {
     return [...zones, 'Easy', 'Tempo', 'Threshold', '5:30', '4:30', '4:00', '3:45']
   }
   if (type === 'heartRate') {
-    return [...zones, '120', '130', '140', '150', '160', '170', '180']
+    return ['120', '130', '140', '150', '160', '170', '180']
   }
   if (type === 'heartRateZone') {
-    return zones
+    return [...zones]
   }
   if (type === 'power') {
     return [...zones, 'Easy', 'Tempo', 'Threshold', '180', '200', '220', '250']
@@ -205,6 +208,7 @@ export function formatTargetSummary(target: Target | undefined | null): string {
 export function formatIntensityDisplay(target: Target, _sport: WorkoutType): string {
   const value = target.value?.trim()
   if (target.type === 'rpe' && value) return value
+  if (target.type === 'heartRateZone' && value) return value.toUpperCase().startsWith('Z') ? value.toUpperCase() : value
   if (!value) return targetTypeLabel(target.type)
   if (target.type === 'power' || target.type === 'powerZone' || target.type === 'pace') {
     return formatTargetSummary(target)
@@ -214,7 +218,8 @@ export function formatIntensityDisplay(target: Target, _sport: WorkoutType): str
 
 export const RPE_PRESETS = ['Easy', 'Recovery', 'Moderate', 'Hard', 'Max'] as const
 
-export const HR_ZONE_PRESETS = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5'] as const
+/** Z1–Z6 — aligned with coach intensity zone prefs. */
+export const HR_ZONE_PRESETS = INTENSITY_ZONE_PRESETS
 
 export const SEGMENT_UNIT_LABELS: Record<SegmentUnit, string> = {
   sec: 'sec',

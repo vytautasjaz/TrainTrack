@@ -1,15 +1,19 @@
 import { WorkoutType } from '@prisma/client'
-import type { AthletePreferences } from '@/lib/athlete-preferences'
+import {
+  parseFtpPercent,
+  type AthletePreferences,
+} from '@/lib/athlete-preferences'
+import {
+  ftpPercentToZoneId,
+  toAthleteIntensityPrefZone,
+  zoneIdFromZIndex,
+  type AthleteIntensityPrefZone,
+} from '@/lib/intensity-zones'
 import type { Target, WorkoutBlock, WorkoutStructure } from '@/lib/workout-builder/types'
 import { flattenStructure } from '@/lib/workout-builder/structure-list'
 
 /** Zones that map to athlete pace / bike-speed preference fields. */
-export type IntensityPrefZone =
-  | 'recovery'
-  | 'easy'
-  | 'tempo'
-  | 'threshold'
-  | 'vo2max'
+export type IntensityPrefZone = AthleteIntensityPrefZone
 
 const ZONE_LABEL: Record<IntensityPrefZone, string> = {
   recovery: 'Recovery',
@@ -36,20 +40,8 @@ const BIKE_PREF_KEY: Record<IntensityPrefZone, keyof AthletePreferences> = {
 }
 
 function zoneFromHrNumber(zone: number): IntensityPrefZone | null {
-  switch (zone) {
-    case 1:
-      return 'recovery'
-    case 2:
-      return 'easy'
-    case 3:
-      return 'tempo'
-    case 4:
-      return 'threshold'
-    case 5:
-      return 'vo2max'
-    default:
-      return null
-  }
+  const id = zoneIdFromZIndex(zone)
+  return id ? toAthleteIntensityPrefZone(id) : null
 }
 
 function zoneFromRpeNumber(rpe: number): IntensityPrefZone {
@@ -84,7 +76,11 @@ export function intensityZonesFromText(value: string): IntensityPrefZone[] {
   ) {
     zones.add('tempo')
   }
-  if (v.includes('threshold') || /\bz\s*4\b/.test(v) || v.includes('hard')) {
+  if (
+    v.includes('threshold') ||
+    /\bz\s*4\b/.test(v) ||
+    v.includes('hard')
+  ) {
     zones.add('threshold')
   }
   if (
@@ -92,8 +88,9 @@ export function intensityZonesFromText(value: string): IntensityPrefZone[] {
     v.includes('vo₂') ||
     v.includes('5k') ||
     v.includes('sprint') ||
-    v.includes('interval') ||
-    /\bz\s*5\b/.test(v) ||
+    v.includes('anaerobic') ||
+    v.includes('neuromuscular') ||
+    /\bz\s*[56]\b/.test(v) ||
     v.includes('max')
   ) {
     zones.add('vo2max')
@@ -111,6 +108,15 @@ function addZonesFromTarget(target: Target | undefined, into: Set<IntensityPrefZ
     const zone = parseInt(value.replace(/\D/g, ''), 10)
     const mapped = zoneFromHrNumber(zone)
     if (mapped) into.add(mapped)
+    return
+  }
+
+  if (target.type === 'powerZone') {
+    const pct =
+      parseFtpPercent(value) ?? parseFloat(value.replace(/[^\d.]/g, ''))
+    if (Number.isFinite(pct) && pct > 0) {
+      into.add(toAthleteIntensityPrefZone(ftpPercentToZoneId(pct)))
+    }
     return
   }
 

@@ -20,6 +20,7 @@ import type { AppViewMode } from '@/lib/session'
 import {
   CONNECT_COACH_NAV,
   getMainNav,
+  isNavActive,
   SETTINGS_ENTRY_HREF,
   SETTINGS_SUBNAV,
   type NavItem,
@@ -33,14 +34,6 @@ export type SidebarAthleteProfile = {
 const SIDEBAR_COLLAPSED_KEY = 'tt-sidebar-rail-collapsed'
 /** Auto icon-rail below this width (still desktop lg+). Does not overwrite user preference. */
 const SIDEBAR_AUTO_COLLAPSE_MQ = '(max-width: 1279px)'
-
-function isNavActive(pathname: string, href: string) {
-  return (
-    pathname === href ||
-    pathname.startsWith(`${href}/`) ||
-    (href === '/workouts' && pathname.startsWith('/workouts/library'))
-  )
-}
 
 function syncSidebarCollapsedAttr(collapsed: boolean) {
   if (typeof document === 'undefined') return
@@ -215,7 +208,12 @@ export function AppNav({
               }}
             />
             {mainNav.map(({ href, label, icon: Icon, children, subnavAlwaysVisible }) => {
-              const active = isNavActive(pathname, href)
+              const childActive = children?.some((child) =>
+                isNavActive(pathname, child.href),
+              )
+              const active =
+                isNavActive(pathname, href) ||
+                Boolean(subnavAlwaysVisible && childActive)
               const showBadge = href === '/inbox' && inboxBadge > 0
               const showSubnav =
                 !effectiveCollapsed &&

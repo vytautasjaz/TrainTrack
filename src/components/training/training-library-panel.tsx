@@ -9,6 +9,7 @@ import {
   useTrainingLibrary,
   type TrainingLibraryTemplateItem,
 } from '@/components/training/training-library-context'
+import { TrainingPlansLibraryList } from '@/components/training/training-plans-library-list'
 import {
   LibraryFilterPicker,
   type LibraryFilterOption,
@@ -16,6 +17,7 @@ import {
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { LIBRARY_SPORTS } from '@/lib/workout-library/config'
 import { SESSION_TYPE_LABELS } from '@/lib/workout-builder/types'
+import { todayDateKey } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 
 type FolderFilter = 'all' | 'unfiled' | string
@@ -99,6 +101,7 @@ function LibraryTemplateRow({
 export function TrainingLibraryPanel() {
   const library = useTrainingLibrary()
   const dnd = usePlanWeekDnd()
+  const [panelMode, setPanelMode] = useState<'templates' | 'plans'>('templates')
   const [query, setQuery] = useState('')
   const [sport, setSport] = useState<WorkoutType | 'ALL'>('ALL')
   const [folderFilter, setFolderFilter] = useState<FolderFilter>('all')
@@ -275,7 +278,11 @@ export function TrainingLibraryPanel() {
             Library
           </p>
           <p className="text-[13px] font-semibold text-[var(--tt-ink,#111)]">
-            {showDropHint ? 'Drop workout to save' : 'Drop onto a day'}
+            {panelMode === 'plans'
+              ? 'Multi-week plans'
+              : showDropHint
+                ? 'Drop workout to save'
+                : 'Drop onto a day'}
           </p>
         </div>
         <button
@@ -288,6 +295,41 @@ export function TrainingLibraryPanel() {
         </button>
       </div>
 
+      <div className="flex gap-1 border-b border-[var(--tt-line,#ebebeb)] px-3 py-2">
+        <button
+          type="button"
+          className={cn(
+            'h-7 flex-1 rounded-[6px] text-[12px] font-semibold transition',
+            panelMode === 'templates'
+              ? 'bg-[var(--tt-ink,#111)] text-white'
+              : 'text-[var(--tt-ink-soft,#6b6b6b)] hover:bg-[var(--tt-sidebar,#f5f5f5)]',
+          )}
+          onClick={() => setPanelMode('templates')}
+        >
+          Templates
+        </button>
+        <button
+          type="button"
+          className={cn(
+            'h-7 flex-1 rounded-[6px] text-[12px] font-semibold transition',
+            panelMode === 'plans'
+              ? 'bg-[var(--tt-ink,#111)] text-white'
+              : 'text-[var(--tt-ink-soft,#6b6b6b)] hover:bg-[var(--tt-sidebar,#f5f5f5)]',
+          )}
+          onClick={() => setPanelMode('plans')}
+        >
+          Plans
+        </button>
+      </div>
+
+      {panelMode === 'plans' ? (
+        <TrainingPlansLibraryList
+          athleteId={library.athleteId}
+          defaultStartWeekKey={todayDateKey()}
+          athletes={library.athletes}
+        />
+      ) : (
+        <>
       <div className="space-y-2 border-b border-[var(--tt-line,#ebebeb)] px-3 py-2.5">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--tt-ink-faint,#9a9a9a)]" />
@@ -352,6 +394,8 @@ export function TrainingLibraryPanel() {
           ))
         )}
       </ul>
+        </>
+      )}
     </aside>
   )
 }

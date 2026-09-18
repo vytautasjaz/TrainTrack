@@ -480,6 +480,14 @@ export async function updateCoachWorkoutBuilderPrefs(prefs: WorkoutBuilderPrefs)
   } else {
     delete cleaned.durationNotation
   }
+  // Same for intensity zone bands when saving builder presets only.
+  if (!Object.prototype.hasOwnProperty.call(prefs, 'intensityZones')) {
+    if (existingParsed.intensityZones) {
+      cleaned.intensityZones = existingParsed.intensityZones
+    }
+  } else if (!prefs.intensityZones) {
+    delete cleaned.intensityZones
+  }
 
   await prisma.user.update({
     where: { id: session.userId },

@@ -5,6 +5,7 @@ import { PlanWeekDndProvider, PlanWeekDndErrorBanner } from '@/components/plan/p
 import {
   TrainingLibraryProvider,
   useTrainingLibrary,
+  type TrainingLibraryAthleteOption,
   type TrainingLibraryFolderItem,
   type TrainingLibraryTemplateItem,
 } from '@/components/training/training-library-context'
@@ -13,12 +14,18 @@ import { ShowFeedbackProvider } from '@/components/training/show-feedback-contex
 import { TrainingLibraryPanel } from '@/components/training/training-library-panel'
 import { cn } from '@/lib/utils'
 
-export type { TrainingLibraryTemplateItem, TrainingLibraryFolderItem }
+export type {
+  TrainingLibraryAthleteOption,
+  TrainingLibraryTemplateItem,
+  TrainingLibraryFolderItem,
+}
 
 type TrainingPlanShellProps = {
   isCoach: boolean
   templates: TrainingLibraryTemplateItem[]
   folders?: TrainingLibraryFolderItem[]
+  athleteId?: string
+  athletes?: TrainingLibraryAthleteOption[]
   children: ReactNode
 }
 
@@ -141,13 +148,20 @@ export function TrainingPlanShell({
   isCoach,
   templates,
   folders = [],
+  athleteId,
+  athletes = [],
   children,
 }: TrainingPlanShellProps) {
   const body = (
     <PlanWeekDndProvider mode={isCoach ? 'coach' : 'athlete'}>
       <PlanWeekDndErrorBanner className="mb-4" />
       {isCoach ? (
-        <TrainingLibraryProvider templates={templates} folders={folders}>
+        <TrainingLibraryProvider
+          templates={templates}
+          folders={folders}
+          athleteId={athleteId}
+          athletes={athletes}
+        >
           <TrainingPlanShellLayout>{children}</TrainingPlanShellLayout>
         </TrainingLibraryProvider>
       ) : (

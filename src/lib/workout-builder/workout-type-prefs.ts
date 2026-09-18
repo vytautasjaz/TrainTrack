@@ -14,14 +14,16 @@ export const HR_TARGET_OPTIONS = [
   { id: 'z3', label: 'Z3' },
   { id: 'z4', label: 'Z4' },
   { id: 'z5', label: 'Z5' },
+  { id: 'z6', label: 'Z6' },
 ] as const
 
 export const BIKE_INTENSITY_TARGET_OPTIONS = [
   { id: 'recovery', label: 'Recovery' },
   { id: 'easy', label: 'Easy / Endurance' },
-  { id: 'tempo', label: 'Tempo / Sweet Spot' },
+  { id: 'tempo', label: 'Tempo' },
   { id: 'threshold', label: 'Threshold' },
-  { id: 'vo2max', label: 'VO₂ max / Sprint' },
+  { id: 'vo2max', label: 'VO₂max' },
+  { id: 'anaerobic', label: 'Anaerobic' },
 ] as const
 
 export type PaceTargetId = (typeof PACE_ZONE_FIELDS)[number]['name']
@@ -109,9 +111,10 @@ function defaultHrForBikeKind(kind: BikeWorkoutKind): HrTargetId | null {
     case 'RACE':
       return 'z4'
     case 'VO2':
-    case 'SPRINT':
     case 'HILLS':
       return 'z5'
+    case 'SPRINT':
+      return 'z6'
     default:
       return null
   }
@@ -128,9 +131,10 @@ function defaultIntensityForBikeKind(kind: BikeWorkoutKind): BikeIntensityTarget
     case 'RACE':
       return 'threshold'
     case 'VO2':
-    case 'SPRINT':
     case 'HILLS':
       return 'vo2max'
+    case 'SPRINT':
+      return 'anaerobic'
     case 'CUSTOM':
       return null
     default:

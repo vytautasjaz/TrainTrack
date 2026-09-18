@@ -41,6 +41,7 @@ export function useDayDropTarget({
   const canDropPlan =
     enabled &&
     dragItem?.kind === 'plan' &&
+    !dragItem.isRace &&
     dragItem.dateKey !== dateKey &&
     sportMatches
 

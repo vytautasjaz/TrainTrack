@@ -1189,7 +1189,7 @@ export async function getRacesForRange(athleteId: string, start: Date, end: Date
       resultsLogOnly: false,
       date: { gte: start, lte: end },
     },
-    orderBy: [{ date: 'asc' }, { name: 'asc' }],
+    orderBy: [{ date: 'asc' }, { daySortOrder: 'asc' }, { name: 'asc' }],
     select: {
       id: true,
       name: true,
@@ -1206,6 +1206,7 @@ export async function getRacesForRange(athleteId: string, start: Date, end: Date
       customDistanceKm: true,
       outcome: true,
       resultTime: true,
+      daySortOrder: true,
       legs: {
         select: {
           kind: true,
@@ -1230,7 +1231,12 @@ export async function getPlanWorkouts(athleteId: string, anchor: Date) {
 export async function getPlanWorkoutsInRange(athleteId: string, start: Date, end: Date) {
   return prisma.workout.findMany({
     where: { athleteId, date: { gte: start, lte: end } },
-    include: { ...WORKOUT_PLAN_INCLUDE, template: true },
+    include: {
+      ...WORKOUT_PLAN_INCLUDE,
+      template: true,
+      plan: { select: { id: true, title: true } },
+      planSession: { select: { weekIndex: true, dayOfWeek: true } },
+    },
     orderBy: WORKOUT_LIST_ORDER_BY,
   })
 }

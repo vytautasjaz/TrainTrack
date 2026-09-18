@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { WorkoutType } from '@prisma/client'
 import { WorkoutEditorDialog } from '@/components/workout-editor/workout-editor-dialog'
 import { DraggableWorkoutItem } from '@/components/plan/draggable-workout-item'
+import { SameDayWorkoutStack } from '@/components/plan/same-day-workout-stack'
 import {
   WeekAddPlusMark,
   weekAddPlusButtonClass,
@@ -44,17 +45,20 @@ export function AddWorkoutCell({
   if (hasWorkouts) {
     return (
       <div className={cellClass}>
-        <div className="space-y-1">
-          {workouts.map((w) => (
+        <SameDayWorkoutStack
+          dateKey={date}
+          workouts={workouts}
+          enabled={Boolean(isCoach && dragEnabled)}
+          className="space-y-1"
+          renderItem={(w) => (
             <DraggableWorkoutItem
-              key={w.id}
               workout={w}
               isCoach={isCoach}
               draggable={dragEnabled}
               tableCell={tableCell}
             />
-          ))}
-        </div>
+          )}
+        />
       </div>
     )
   }

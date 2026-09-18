@@ -66,6 +66,27 @@ function includeLine(workout: PlanWorkoutDetail): string | null {
     .join(' · ')
 }
 
+function prescriptionLines(workout: PlanWorkoutDetail): string[] {
+  const description = workout.description?.trim()
+  if (description) {
+    const lines = description
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((line) => line.replace(/\s*·\s*Z[1-5]\s*$/i, '').trim())
+      .filter(Boolean)
+    if (lines.length > 0) return lines
+  }
+  const subtitle = getWorkoutCardSubtitle(workout)
+  if (subtitle) {
+    return [subtitle.replace(/\s*·\s*Z[1-5]\s*$/i, '').trim() || subtitle]
+  }
+  const metrics = getWorkoutPlanMetrics(workout)
+  const parts = [metrics.distance, metrics.duration].filter(Boolean) as string[]
+  if (parts.length) return [parts.join(' · ')]
+  return ['—']
+}
+
 function recoveryLine(workout: PlanWorkoutDetail): string | null {
   const description = workout.description?.trim()
   if (!description) return null
@@ -78,18 +99,6 @@ function recoveryLine(workout: PlanWorkoutDetail): string | null {
   const second = lines[1]!
   if (/^recover/i.test(second) || /^cd\b/i.test(second)) return second
   return null
-}
-
-function prescriptionText(workout: PlanWorkoutDetail): string {
-  const subtitle = getWorkoutCardSubtitle(workout)
-  if (subtitle) {
-    // Drop trailing " · Z2" when zone is shown separately
-    return subtitle.replace(/\s*·\s*Z[1-5]\s*$/i, '').trim() || subtitle
-  }
-  const metrics = getWorkoutPlanMetrics(workout)
-  const parts = [metrics.distance, metrics.duration].filter(Boolean)
-  if (parts.length) return parts.join(' · ')
-  return '—'
 }
 
 /**
@@ -122,12 +131,17 @@ export function HomePrescriptionWorkoutCard({
         : sportRailColor(workout.type)
 
   const title = workout.isRace ? `⚑ ${workout.title}` : workout.title
-  const prescription = prescriptionText(workout)
+  const prescription = prescriptionLines(workout)
   const recovery = recoveryLine(workout)
+  // When the full description is already shown as prescription lines, skip
+  // the separate recovery line so it isn't duplicated.
+  const showRecovery =
+    Boolean(recovery) &&
+    !(prescription.length > 1 && recovery != null && prescription.includes(recovery))
   const include = includeLine(workout)
   const zone =
     extractZone(workout.description) ??
-    extractZone(prescription) ??
+    extractZone(prescription.join(' ')) ??
     null
 
   const hero = getWorkoutCardHero(workout, status)
@@ -196,18 +210,20 @@ export function HomePrescriptionWorkoutCard({
           </div>
         ) : null}
 
-        <p
+        <div
           className={cn(
-            'mt-1 text-[0.9375rem] leading-snug text-[var(--tt-ink,#111)]',
+            'mt-1 space-y-0.5 text-[0.9375rem] leading-snug text-[var(--tt-ink,#111)]',
             done && !ghost && 'text-[var(--tt-good,#1a9f5c)]/85',
             skipped && !ghost && 'text-[var(--tt-red,#da2f36)]/80',
             ghost && 'text-[var(--tt-ink-faint,#9a9a9a)]',
           )}
         >
-          {prescription}
-        </p>
+          {prescription.map((line, index) => (
+            <p key={`${index}-${line}`}>{line}</p>
+          ))}
+        </div>
 
-        {recovery ? (
+        {showRecovery && recovery ? (
           <p className="mt-0.5 text-[12px] leading-snug text-[var(--tt-ink-soft,#6b6b6b)]">
             {recovery}
           </p>

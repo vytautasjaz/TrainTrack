@@ -51,6 +51,11 @@ export type PlanWorkoutDetail = {
   rescheduledToDateKey?: string | null
   /** Active workout id when this row is a ghost. */
   rescheduledCopyId?: string | null
+  /**
+   * Same-day order (Workout.sortOrder or Race.daySortOrder).
+   * Used to interleave warm-up / race / cool-down.
+   */
+  sortOrder?: number
   isRace?: boolean
   raceId?: string
   raceType?: RaceType
@@ -70,6 +75,7 @@ export type PlanWorkoutDetail = {
     coachReply: string | null
     coachReplyReadAt: string | null
     stravaActivityUrl: string | null
+    stravaActivityId?: string | null
     stravaActivityName?: string | null
     stravaActivityDescription?: string | null
     averageHeartrate?: number | null
@@ -90,6 +96,13 @@ export type PlanWorkoutDetail = {
   } | null
   /** Active coaching thread on this workout (plan cards). */
   coachingChat?: PlanWorkoutCoachingChat | null
+  /** Multi-week library plan provenance (copy-only apply). */
+  planSource?: {
+    planId: string
+    title: string
+    weekIndex: number
+    dayOfWeek: number
+  } | null
 }
 
 export type PlanWorkoutCoachingChat = {
@@ -122,6 +135,7 @@ export function toPlanWorkoutDetail(w: {
   plannedDistanceMeters?: number | null
   tags?: string[]
   selfLogged?: boolean
+  sortOrder?: number
   rescheduledFromDate?: Date | null
   isRescheduleGhost?: boolean
   rescheduledCopy?: { id: string; date: Date } | null
@@ -135,6 +149,7 @@ export function toPlanWorkoutDetail(w: {
     coachReply: string | null
     coachReplyReadAt?: Date | null
     stravaActivityUrl: string | null
+    stravaActivityId?: string | null
     stravaActivityName?: string | null
     stravaActivityDescription?: string | null
     averageHeartrate?: number | null
@@ -160,6 +175,8 @@ export function toPlanWorkoutDetail(w: {
     _count: { messages: number }
     messages: Array<{ authorRole: CoachingAuthorRole; kind: CoachingMessageKind }>
   } | null
+  plan?: { id: string; title: string } | null
+  planSession?: { weekIndex: number; dayOfWeek: number } | null
 }): PlanWorkoutDetail {
   return {
     id: w.id,
@@ -182,6 +199,7 @@ export function toPlanWorkoutDetail(w: {
     swimStructure: w.swimStructure ? parseSwimStructure(w.swimStructure) : null,
     tags: w.tags ?? [],
     selfLogged: w.selfLogged ?? false,
+    sortOrder: w.sortOrder ?? 0,
     rescheduledFromDateKey: w.rescheduledFromDate ? toDateKey(w.rescheduledFromDate) : null,
     isRescheduleGhost: Boolean(w.isRescheduleGhost),
     rescheduledToDateKey:
@@ -201,6 +219,7 @@ export function toPlanWorkoutDetail(w: {
           coachReply: w.result.coachReply ?? null,
           coachReplyReadAt: w.result.coachReplyReadAt?.toISOString() ?? null,
           stravaActivityUrl: w.result.stravaActivityUrl ?? null,
+          stravaActivityId: w.result.stravaActivityId ?? null,
           stravaActivityName: w.result.stravaActivityName ?? null,
           stravaActivityDescription: w.result.stravaActivityDescription ?? null,
           averageHeartrate: w.result.averageHeartrate ?? null,
@@ -220,6 +239,15 @@ export function toPlanWorkoutDetail(w: {
         }
       : null,
     coachingChat: mapCoachingChatFromThread(w.coachingThread),
+    planSource:
+      w.plan && w.planSession
+        ? {
+            planId: w.plan.id,
+            title: w.plan.title,
+            weekIndex: w.planSession.weekIndex,
+            dayOfWeek: w.planSession.dayOfWeek,
+          }
+        : null,
   }
 }
 
@@ -406,7 +434,7 @@ export function isStravaSynced(workout: PlanWorkoutDetail): boolean {
   return Boolean(workout.result?.stravaActivityUrl)
 }
 
-/** Plan DnD: completed (and race/ghost/rest) workouts stay fixed on their day. */
+/** Plan DnD: completed / ghost / rest stay fixed; races may reorder same-day. */
 export function canDragPlanWorkout(
   workout: Pick<
     PlanWorkoutDetail,
@@ -417,8 +445,8 @@ export function canDragPlanWorkout(
 ): boolean {
   const resolved = status ?? workout.status
   if (resolved === WorkoutStatus.COMPLETED) return false
-  if (workout.isRace) return false
   if (workout.isRescheduleGhost) return false
+  if (workout.isRace) return true
   if (workout.type === WorkoutType.REST || workout.type === WorkoutType.RECOVERY) {
     return false
   }

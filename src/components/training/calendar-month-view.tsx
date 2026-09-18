@@ -11,6 +11,7 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import { WorkoutType } from "@prisma/client";
 import { CalendarPeriodNav } from "@/components/plan/calendar-period-nav";
 import { DayDropSection } from "@/components/plan/day-drop-section";
+import { SameDayWorkoutStack } from "@/components/plan/same-day-workout-stack";
 import { DayNoteSection } from "@/components/plan/day-note-section";
 import { PlanDayAddMenu } from "@/components/plan/plan-day-add-menu";
 import {
@@ -31,6 +32,11 @@ import {
   workoutCardCornerSpacerClass,
 } from "@/components/plan/workout-card-corner-overlay";
 import { CalendarWeekStatsCell } from "@/components/training/calendar-week-stats-cell";
+import { TrainingPhaseHeaderControls } from "@/components/training/training-phase-header-controls";
+import {
+  SeasonPhaseBlockModal,
+  type SeasonPhaseModalState,
+} from "@/components/training/season-phase-block-modal";
 import { TrainingMonthToolbar } from "@/components/training/training-month-toolbar";
 import { TrainingListFrame } from "@/components/training/training-list-frame";
 import { TrainingListAddMenu } from "@/components/training/training-list-add-menu";
@@ -49,9 +55,19 @@ import {
 } from "@/lib/plan-workout";
 import { getRecoveryWorkout } from "@/lib/recovery-day";
 import type { SeasonEventData } from "@/lib/season-planner";
-import { parseDateOnly } from "@/lib/dates";
+import { displaySeasonPhaseName } from "@/lib/season-planner";
+import { parseDateOnly, toDateKey } from "@/lib/dates";
 import { setCalendarExpanded } from "@/lib/calendar-expand";
 import { MONTH_CARD_SIZE_STORAGE_KEY } from "@/lib/week-card-size";
+import {
+  currentPhaseIndicator,
+  isPhaseTransitionDay,
+  phaseForDate,
+  phaseIndicatorFocusKey,
+  previousDateKey,
+  TRAINING_PHASE_SURFACE,
+  type TrainingPhaseBlock,
+} from "@/lib/training-phase-context";
 import { cn } from "@/lib/utils";
 import { collapseTriathlonRaceWorkouts } from "@/lib/triathlon-race-summary";
 import {
@@ -122,6 +138,8 @@ type CalendarMonthViewProps = {
   viewControls?: ReactNode;
   canLogWorkout?: boolean;
   canAddNote?: boolean;
+  /** Season phases for subtle calendar chrome (strategy context). */
+  phaseBlocks?: TrainingPhaseBlock[];
 };
 
 function CalendarWorkoutCard({
@@ -134,7 +152,10 @@ function CalendarWorkoutCard({
   const dnd = usePlanWeekDnd();
   const [dragging, setDragging] = useState(false);
   const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout);
-  const canDrag = Boolean(dnd) && canDragPlanWorkout(workout, status);
+  const canDrag =
+    Boolean(dnd) &&
+    canDragPlanWorkout(workout, status) &&
+    (isCoach || !workout.isRace);
   const showQuickActions = athleteHasQuickLogActions(workout, isCoach);
   const showCoachMenu =
     isCoach && !workout.isRace && workout.type !== WorkoutType.RECOVERY;
@@ -165,6 +186,7 @@ function CalendarWorkoutCard({
             id: workout.id,
             sport: workout.type,
             dateKey: workout.dateKey,
+            isRace: Boolean(workout.isRace),
           });
           e.dataTransfer.effectAllowed = "copyMove";
           e.dataTransfer.setData("text/plain", workout.id);
@@ -239,6 +261,7 @@ export function CalendarMonthView({
   viewControls,
   canLogWorkout = false,
   canAddNote = false,
+  phaseBlocks = [],
 }: CalendarMonthViewProps) {
   const [showNotes, setShowNotes] = useStoredFlag(SHOW_NOTES_STORAGE_KEY, true);
   const [showEvents, setShowEvents] = useStoredFlag(
@@ -250,7 +273,41 @@ export function CalendarMonthView({
   const [mobilePhone, setMobilePhone] = useState(false);
   const [portraitPhone, setPortraitPhone] = useState(false);
   const landscapeAutoExpandRef = useRef(false);
+  const [phaseModal, setPhaseModal] = useState<SeasonPhaseModalState>(null);
   const filteredByDate = useFilteredWorkoutsByDate(workoutsByDate);
+
+  const monthInRangeKeys = useMemo(() => {
+    const inMonth = months.flatMap((m) => m.days).filter((d) => d.inMonth);
+    return {
+      startKey: inMonth[0]?.dateKey,
+      endKey: inMonth[inMonth.length - 1]?.dateKey,
+    };
+  }, [months]);
+
+  const phaseIndicator = useMemo(() => {
+    if (phaseBlocks.length === 0 || months.length === 0) return null;
+    const allDays = months.flatMap((m) => m.days);
+    const inMonth = allDays.filter((d) => d.inMonth);
+    if (inMonth.length === 0) return null;
+    const startKey = inMonth[0]!.dateKey;
+    const endKey = inMonth[inMonth.length - 1]!.dateKey;
+    const focus = phaseIndicatorFocusKey(startKey, endKey);
+    return currentPhaseIndicator(phaseBlocks, focus);
+  }, [phaseBlocks, months]);
+
+  function openEditPhase(block: TrainingPhaseBlock) {
+    setPhaseModal({
+      mode: "edit",
+      block: {
+        id: block.id,
+        sport: block.sport,
+        phase: block.phase,
+        label: block.label,
+        startDate: new Date(`${block.startKey}T00:00:00.000Z`),
+        endDate: new Date(`${block.endKey}T00:00:00.000Z`),
+      },
+    });
+  }
 
   function toggleShowNotes() {
     setShowNotes((prev) => !prev);
@@ -447,6 +504,9 @@ export function CalendarMonthView({
     onToggleStats: toggleShowStats,
     monthSpan,
     spanHrefs,
+    planStartWeekKey: monthInRangeKeys.startKey,
+    planEndWeekKey: monthInRangeKeys.endKey,
+    athleteId,
   };
 
   const expandToggleBtn = !expanded ? (
@@ -486,27 +546,54 @@ export function CalendarMonthView({
             </PageHeaderActions>
           </div>
           <div className="hidden min-w-0 [grid-area:period] lg:block">
-            <CalendarPeriodNav
-              label={desktopRangeLabel}
-              prevHref={prevMonthHref}
-              nextHref={nextMonthHref}
-              prevAriaLabel="Previous month"
-              nextAriaLabel="Next month"
-              align="start"
-              size="subtitle"
-              className="mb-0 mt-1 min-w-0"
-            />
+            <div className="mt-1 flex min-w-0 flex-wrap items-end justify-between gap-x-4 gap-y-1">
+              <CalendarPeriodNav
+                label={desktopRangeLabel}
+                prevHref={prevMonthHref}
+                nextHref={nextMonthHref}
+                prevAriaLabel="Previous month"
+                nextAriaLabel="Next month"
+                align="start"
+                size="subtitle"
+                className="mb-0 min-w-0"
+              />
+              <TrainingPhaseHeaderControls
+                indicator={phaseIndicator}
+                onAddPhase={() =>
+                  setPhaseModal({
+                    mode: "create",
+                    sport: "RUN",
+                    startKey: monthInRangeKeys.startKey,
+                    endKey: monthInRangeKeys.endKey,
+                  })
+                }
+              />
+            </div>
           </div>
           <div className="min-w-0 [grid-area:period] lg:hidden">
-            <CalendarPeriodNav
-              label={rangeLabel}
-              prevHref={prevMonthHref}
-              nextHref={nextMonthHref}
-              prevAriaLabel="Previous month"
-              nextAriaLabel="Next month"
-              align="start"
-              className="mb-0 -ml-1.5 shrink-0"
-            />
+            <div className="flex min-w-0 flex-col gap-1">
+              <CalendarPeriodNav
+                label={rangeLabel}
+                prevHref={prevMonthHref}
+                nextHref={nextMonthHref}
+                prevAriaLabel="Previous month"
+                nextAriaLabel="Next month"
+                align="start"
+                className="mb-0 -ml-1.5 shrink-0"
+              />
+              <TrainingPhaseHeaderControls
+                indicator={phaseIndicator}
+                compact
+                onAddPhase={() =>
+                  setPhaseModal({
+                    mode: "create",
+                    sport: "RUN",
+                    startKey: monthInRangeKeys.startKey,
+                    endKey: monthInRangeKeys.endKey,
+                  })
+                }
+              />
+            </div>
           </div>
         </div>
 
@@ -587,6 +674,8 @@ export function CalendarMonthView({
                     dayWorkouts={dayWorkouts}
                     dayNote={dayNote}
                     dayEvents={dayEvents}
+                    phaseBlocks={phaseBlocks}
+                    onEditPhase={openEditPhase}
                   />
                 ))}
               </div>
@@ -599,6 +688,12 @@ export function CalendarMonthView({
 
   return (
     <WeekCardSizeProvider storageKey={MONTH_CARD_SIZE_STORAGE_KEY}>
+      <SeasonPhaseBlockModal
+        state={phaseModal}
+        onOpenChange={(open) => {
+          if (!open) setPhaseModal(null);
+        }}
+      />
       {expanded ? (
         <button
           type="button"
@@ -655,6 +750,8 @@ function CalendarWeekRow({
   dayWorkouts,
   dayNote,
   dayEvents,
+  phaseBlocks,
+  onEditPhase,
 }: {
   week: CalendarDay[];
   weekIndex: number;
@@ -671,6 +768,8 @@ function CalendarWeekRow({
   dayWorkouts: (dateKey: string) => PlanWorkoutDetail[];
   dayNote: (dateKey: string) => DayNoteData | null;
   dayEvents: (dateKey: string) => SeasonEventData[];
+  phaseBlocks: TrainingPhaseBlock[];
+  onEditPhase: (block: TrainingPhaseBlock) => void;
 }) {
   return (
     <>
@@ -689,6 +788,12 @@ function CalendarWeekRow({
         const monthBoundary =
           !prevDay ||
           prevDay.dateKey.slice(0, 7) !== day.dateKey.slice(0, 7);
+        const phase = phaseForDate(phaseBlocks, day.dateKey);
+        const phaseTransition = isPhaseTransitionDay(
+          phaseBlocks,
+          day.dateKey,
+          prevDay?.dateKey ?? previousDateKey(day.dateKey),
+        );
 
         return (
           <CalendarDayCell
@@ -706,6 +811,9 @@ function CalendarWeekRow({
             canEditDayNotes={canEditDayNotes}
             athleteId={athleteId}
             workoutsByDate={workoutsByDate}
+            phase={phase}
+            phaseTransition={phaseTransition}
+            onEditPhase={onEditPhase}
           />
         );
       })}
@@ -727,6 +835,9 @@ function CalendarDayCell({
   canEditDayNotes,
   athleteId,
   workoutsByDate,
+  phase,
+  phaseTransition,
+  onEditPhase,
 }: {
   day: CalendarDay;
   dayIndex: number;
@@ -741,6 +852,9 @@ function CalendarDayCell({
   canEditDayNotes: boolean;
   athleteId?: string;
   workoutsByDate: Map<string, PlanWorkoutDetail[]>;
+  phase: TrainingPhaseBlock | null;
+  phaseTransition: boolean;
+  onEditPhase: (block: TrainingPhaseBlock) => void;
 }) {
   const monthLabel = monthBoundary
     ? parseDateOnly(day.dateKey).toLocaleDateString(undefined, {
@@ -752,6 +866,11 @@ function CalendarDayCell({
     filtered.length > 0 ||
     (showEvents && events.length > 0) ||
     (showNotes && dayNoteHasVisibleContent(note));
+
+  const phaseSurface = phase ? TRAINING_PHASE_SURFACE[phase.phase] : null;
+  const phaseName = phase
+    ? displaySeasonPhaseName(phase.phase, phase.label)
+    : null;
 
   const addMenu = (
     <PlanDayAddMenu
@@ -825,22 +944,46 @@ function CalendarDayCell({
           dayIndex > 0 &&
           "border-l-[3px] border-l-foreground/35",
         day.isToday && "ring-2 ring-inset ring-foreground/50",
+        phaseTransition && phaseSurface && "border-l-[3px]",
       )}
+      style={
+        phaseTransition && phaseSurface
+          ? { borderLeftColor: phaseSurface.border }
+          : undefined
+      }
     >
       {hasContent ? (
         <>
           <div className="relative z-10 flex items-start justify-between gap-0.5">
-            {dateHead}
+            <div className="min-w-0">
+              {dateHead}
+              {phase && phaseName ? (
+                <button
+                  type="button"
+                  className="mt-0.5 block max-w-full truncate px-1 text-left text-[8px] font-semibold uppercase tracking-[0.06em] hover:underline"
+                  style={{ color: phaseSurface?.label }}
+                  title={phase.label?.trim() || phaseName}
+                  onClick={() => onEditPhase(phase)}
+                >
+                  {phaseName}
+                </button>
+              ) : null}
+            </div>
             {addMenu}
           </div>
           <div className="flex min-h-0 flex-1 flex-col gap-1">
-            {filtered.map((workout) => (
-              <CalendarWorkoutCard
-                key={workout.id}
-                workout={workout}
-                isCoach={isCoach}
-              />
-            ))}
+            <SameDayWorkoutStack
+              dateKey={day.dateKey}
+              workouts={filtered}
+              enabled={isCoach}
+              className="flex min-h-0 flex-1 flex-col gap-1"
+              renderItem={(workout) => (
+                <CalendarWorkoutCard
+                  workout={workout}
+                  isCoach={isCoach}
+                />
+              )}
+            />
             {showEvents && events.length > 0 ? (
               <SeasonEventChips
                 events={events}
@@ -866,8 +1009,19 @@ function CalendarDayCell({
         </>
       ) : (
         <>
-          <div className="pointer-events-none relative z-10 flex items-start justify-between gap-0.5">
+          <div className="relative z-10 min-w-0">
             {dateHead}
+            {phase && phaseName ? (
+              <button
+                type="button"
+                className="mt-0.5 block max-w-full truncate px-1 text-left text-[8px] font-semibold uppercase tracking-[0.06em] hover:underline"
+                style={{ color: phaseSurface?.label }}
+                title={phase.label?.trim() || phaseName}
+                onClick={() => onEditPhase(phase)}
+              >
+                {phaseName}
+              </button>
+            ) : null}
           </div>
           {emptyAddMenu}
         </>

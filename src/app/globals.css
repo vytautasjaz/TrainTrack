@@ -4150,10 +4150,14 @@ html.tt-week-portrait-lock body {
   );
 }
 
-/* Completed week card — mock good-soft wash */
+/* Completed week card — opaque soft green (not alpha), so today/weekend washes don't tint it. */
 .tt-calendar-card-completion .tt-week-plan-card[data-status='completed'] {
-  background: rgb(26 159 92 / 0.08) !important;
-  border-color: rgb(26 159 92 / 0.28) !important;
+  background: var(--color-tt-completed-bg, #f0faf4) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--color-tt-completed-border, #86d39a) 70%,
+    var(--tt-line, #ebebeb)
+  ) !important;
 }
 
 .tt-calendar-card-completion .tt-week-plan-card[data-status='skipped']::before {

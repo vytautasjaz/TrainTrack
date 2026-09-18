@@ -44,7 +44,10 @@ export function TrainingWorkoutCard({
   const showQuickActions = athleteHasQuickLogActions(workout, isCoach)
   const showCoachDelete = isCoach && !workout.isRace
   const showReview = isCoach && needsCoachRescheduleReview(workout)
-  const canDrag = Boolean(dnd) && canDragPlanWorkout(workout, status)
+  const canDrag =
+    Boolean(dnd) &&
+    canDragPlanWorkout(workout, status) &&
+    (isCoach || !workout.isRace)
   const reserveActions = showCoachDelete || showQuickActions || isCoach
   const isDashboardToday = appearance === 'dashboard-today'
 
@@ -71,6 +74,7 @@ export function TrainingWorkoutCard({
               id: workout.id,
               sport: workout.type,
               dateKey: workout.dateKey,
+              isRace: Boolean(workout.isRace),
             })
             e.dataTransfer.effectAllowed = 'copyMove'
             e.dataTransfer.setData('text/plain', workout.id)

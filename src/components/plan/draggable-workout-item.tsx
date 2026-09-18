@@ -49,7 +49,13 @@ export function DraggableWorkoutItem({
 
   if (workout.isRace) {
     return (
-      <RacePlanItem workout={workout} isCoach={isCoach} compact tableCell={tableCell} />
+      <RacePlanItem
+        workout={workout}
+        isCoach={isCoach}
+        compact
+        tableCell={tableCell}
+        draggable={draggable}
+      />
     )
   }
 
@@ -73,7 +79,7 @@ export function DraggableWorkoutItem({
         title={
           canDrag
             ? isCoach
-              ? `${workout.title} — drag to move`
+              ? `${workout.title} — drag to another day, or onto another workout to reorder`
               : `${workout.title} — drag to reschedule`
             : undefined
         }
@@ -85,6 +91,7 @@ export function DraggableWorkoutItem({
             id: workout.id,
             sport: workout.type,
             dateKey: workout.dateKey,
+            isRace: false,
           })
           e.dataTransfer.effectAllowed = 'copyMove'
           e.dataTransfer.setData('text/plain', workout.id)

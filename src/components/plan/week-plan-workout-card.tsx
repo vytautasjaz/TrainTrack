@@ -100,6 +100,8 @@ export function WeekPlanWorkoutCard({
   const cardEssence = !workout.isRace
     ? getWorkoutCardEssence(workout, durationNotation, {
         includeAllBlocks: size === 'm' || size === 'l',
+        // Large cards should show the full gym / text session plan, not one line.
+        includeDescriptionPlan: size === 'l',
       })
     : []
   const showLoggedMetrics = !completed || workoutHasLoggedActuals(workout)
@@ -107,7 +109,15 @@ export function WeekPlanWorkoutCard({
     showLoggedMetrics && hero ? formatHeroPrimary(hero) : null
   const metricPlanned =
     showLoggedMetrics && hero ? formatHeroPlanned(hero) : null
-  const showSubtitle = size !== 's'
+  const showSubtitle =
+    size !== 's' &&
+    Boolean(subtitle) &&
+    // Avoid duplicating the first description line when essence already lists it.
+    !(
+      cardEssence.length > 0 &&
+      subtitle != null &&
+      cardEssence.some((line) => line === subtitle || line.startsWith(subtitle))
+    )
   const showSecondary = Boolean(secondary) && showLoggedMetrics
   const showEssence = cardEssence.length > 0
   const showStructure =
@@ -219,21 +229,25 @@ export function WeekPlanWorkoutCard({
     metric: { value: string; planned?: string | null },
   ) {
     return (
-      <p className="flex min-w-0 items-center gap-1 truncate">
+      <p className="flex min-w-0 items-center gap-1">
         <WorkoutCardMetricIcon
           kind={kind}
           className={cn(metricIconSize, metricValueClass)}
         />
-        <span className={metricValueClass}>{metric.value}</span>
-        {metric.planned ? (
-          <span className={metricFaintClass}>
-            {'\u00a0/\u00a0'}
-            {metric.planned}
-          </span>
-        ) : null}
+        <span className={cn(metricValueClass, 'min-w-0 break-words')}>
+          {metric.value}
+          {metric.planned ? (
+            <span className={metricFaintClass}>
+              {'\u00a0/\u00a0'}
+              {metric.planned}
+            </span>
+          ) : null}
+        </span>
       </p>
     )
   }
+
+  const bothMetrics = Boolean(distanceMetric && durationMetric)
 
   const blockStatus = workoutStatusToBlockStatus(status)
   // Mock skipped = white card (not pink); completed = green soft in completion mode.
@@ -279,8 +293,13 @@ export function WeekPlanWorkoutCard({
       {showMetrics ? (
         <div
           className={cn(
-            'flex items-center gap-3 text-[11px] tabular-nums',
-            showEssence ? 'mt-1.5 border-t border-[var(--tt-line,#ebebeb)] pt-1.5' : 'mt-1.5',
+            'text-[11px] tabular-nums',
+            bothMetrics
+              ? 'flex flex-col items-start gap-0.5'
+              : 'flex items-center gap-3',
+            showEssence
+              ? 'mt-1.5 border-t border-[var(--tt-line,#ebebeb)] pt-1.5'
+              : 'mt-1.5',
             size === 's' && !showEssence && 'mt-0.5',
           )}
         >

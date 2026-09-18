@@ -5,6 +5,9 @@ export const SHOW_EVENTS_STORAGE_KEY = 'tt-calendar-show-events'
 export const SHOW_WEATHER_STORAGE_KEY = 'tt-calendar-show-weather'
 export const SHOW_WEATHER_SESSION_KEY = 'tt-calendar-show-weather-session'
 export const SHOW_STATS_STORAGE_KEY = 'tt-calendar-show-stats'
+/** Training plan canvas: minimized (true) vs full weekly stats column. */
+export const PLAN_CANVAS_STATS_COLLAPSED_STORAGE_KEY =
+  'tt-plan-canvas-stats-collapsed'
 export const SHOW_FEEDBACK_STORAGE_KEY = 'tt-calendar-show-feedback'
 /** List view: include days with no workouts / notes / events. */
 export const SHOW_ALL_DAYS_STORAGE_KEY = 'tt-list-show-all-days'

@@ -661,7 +661,7 @@ function ActivityRouteMapCanvas({
       ) : null}
 
       <div
-        className="absolute right-1.5 top-1.5 flex flex-col overflow-hidden rounded-[6px] border border-black/10 bg-white/90 shadow-sm backdrop-blur-[2px]"
+        className="absolute right-1.5 top-1.5 flex flex-col overflow-hidden rounded-[5px] border border-black/10 bg-white/90 shadow-sm backdrop-blur-[2px]"
         onPointerDown={(event) => event.stopPropagation()}
       >
         {onCollapse ? (
@@ -672,9 +672,9 @@ function ActivityRouteMapCanvas({
               event.stopPropagation()
               onCollapse()
             }}
-            className="inline-flex h-7 w-7 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5"
+            className="inline-flex h-6 w-6 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5"
           >
-            <X className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+            <X className="h-3 w-3" strokeWidth={2.25} aria-hidden />
           </button>
         ) : null}
         <button
@@ -686,11 +686,11 @@ function ActivityRouteMapCanvas({
             animateZoomBy(1)
           }}
           className={cn(
-            'inline-flex h-7 w-7 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5 disabled:opacity-35',
+            'inline-flex h-6 w-6 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5 disabled:opacity-35',
             onCollapse && 'border-t border-black/10',
           )}
         >
-          <Plus className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+          <Plus className="h-3 w-3" strokeWidth={2.25} aria-hidden />
         </button>
         <button
           type="button"
@@ -700,9 +700,9 @@ function ActivityRouteMapCanvas({
             event.stopPropagation()
             animateZoomBy(-1)
           }}
-          className="inline-flex h-7 w-7 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5 disabled:opacity-35"
+          className="inline-flex h-6 w-6 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5 disabled:opacity-35"
         >
-          <Minus className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+          <Minus className="h-3 w-3" strokeWidth={2.25} aria-hidden />
         </button>
         {onExpand ? (
           <button
@@ -712,9 +712,9 @@ function ActivityRouteMapCanvas({
               event.stopPropagation()
               onExpand()
             }}
-            className="inline-flex h-7 w-7 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5"
+            className="inline-flex h-6 w-6 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5"
           >
-            <Maximize2 className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+            <Maximize2 className="h-3 w-3" strokeWidth={2.25} aria-hidden />
           </button>
         ) : null}
         {!isFit ? (
@@ -725,9 +725,9 @@ function ActivityRouteMapCanvas({
               event.stopPropagation()
               resetView()
             }}
-            className="inline-flex h-7 w-7 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5"
+            className="inline-flex h-6 w-6 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5"
           >
-            <RotateCcw className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+            <RotateCcw className="h-3 w-3" strokeWidth={2.25} aria-hidden />
           </button>
         ) : null}
       </div>

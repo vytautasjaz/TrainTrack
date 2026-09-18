@@ -25,6 +25,7 @@ import { useWeekPortraitZoom } from '@/components/plan/week-portrait-zoom-contex
 import { WEEK_PORTRAIT_ZOOM_LABEL } from '@/lib/week-portrait-zoom'
 import { useTrainingLibrary } from '@/components/training/training-library-context'
 import { TrainingLibraryToolbarToggle } from '@/components/training/training-library-toolbar-toggle'
+import { TrainingPlansControls } from '@/components/training/training-plans-controls'
 import { cn } from '@/lib/utils'
 
 type TrainingWeekFilterGroupsProps = {
@@ -36,6 +37,10 @@ type TrainingWeekFilterGroupsProps = {
   onToggleWeather: () => void
   expanded: boolean
   onToggleExpanded: () => void
+  /** Coach plan library save/apply defaults (Monday keys). */
+  planStartWeekKey?: string
+  planEndWeekKey?: string
+  athleteId?: string
   layout?: 'inline' | 'stack'
   className?: string
 }
@@ -87,6 +92,9 @@ export function TrainingWeekFilterGroups({
   onToggleWeather,
   expanded,
   onToggleExpanded,
+  planStartWeekKey,
+  planEndWeekKey,
+  athleteId,
   layout = 'inline',
   className,
 }: TrainingWeekFilterGroupsProps) {
@@ -211,9 +219,16 @@ export function TrainingWeekFilterGroups({
           )}
           <ToolbarFilterGroup
             label="Library"
-            hint="Open or close the workout library panel"
+            hint="Open workout templates, or save / apply multi-week plans"
           >
-            <TrainingLibraryToolbarToggle />
+            <div className="flex items-center gap-0.5">
+              <TrainingLibraryToolbarToggle />
+              <TrainingPlansControls
+                defaultStartWeekKey={planStartWeekKey}
+                defaultEndWeekKey={planEndWeekKey}
+                athleteId={athleteId}
+              />
+            </div>
           </ToolbarFilterGroup>
         </>
       ) : null}
@@ -231,6 +246,9 @@ export function TrainingWeekToolbar({
   onToggleWeather,
   expanded,
   onToggleExpanded,
+  planStartWeekKey,
+  planEndWeekKey,
+  athleteId,
   className,
   mobileOnly,
   desktopOnly,
@@ -248,6 +266,9 @@ export function TrainingWeekToolbar({
     onToggleWeather,
     expanded,
     onToggleExpanded,
+    planStartWeekKey,
+    planEndWeekKey,
+    athleteId,
   }
 
   const desktop = (

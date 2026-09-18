@@ -64,13 +64,13 @@ function progressiveIntensityOptions(sportType: WorkoutType): IntensityOption[] 
         { value: 'power', label: 'Watts', targetType: 'power' },
         { value: 'powerZone', label: '% FTP', targetType: 'powerZone' },
         { value: 'heartRate', label: 'HR', targetType: 'heartRate' },
-        { value: 'heartRateZone', label: 'Zone', targetType: 'heartRateZone' },
+        { value: 'heartRateZone', label: 'Zones', targetType: 'heartRateZone' },
         { value: 'rpe', label: 'Effort', targetType: 'rpe' },
       ]
     : [
         { value: 'pace', label: 'Pace', targetType: 'pace' },
         { value: 'heartRate', label: 'HR', targetType: 'heartRate' },
-        { value: 'heartRateZone', label: 'Zone', targetType: 'heartRateZone' },
+        { value: 'heartRateZone', label: 'Zones', targetType: 'heartRateZone' },
         { value: 'rpe', label: 'Effort', targetType: 'rpe' },
       ]
 }

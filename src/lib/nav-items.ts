@@ -61,7 +61,32 @@ const COACH_ATHLETES_NAV: NavItem = {
   children: COACH_ATHLETE_SUBNAV,
 }
 
+const COACH_LIBRARY_NAV: NavItem = {
+  href: '/workouts',
+  label: 'Library',
+  icon: Library,
+  subnavAlwaysVisible: true,
+  children: [
+    { href: '/workouts', label: 'Workouts' },
+    { href: '/workouts/plans', label: 'Training plans' },
+  ],
+}
+
 const HOME_NAV: NavItem = { href: '/dashboard', label: 'Home', icon: Home }
+
+/**
+ * Active match for sidebar / mobile nav.
+ * `/workouts` must not match `/workouts/plans` so Workouts vs Training plans stay distinct.
+ */
+export function isNavActive(pathname: string, href: string) {
+  if (href === '/workouts') {
+    return (
+      pathname === '/workouts' ||
+      (pathname.startsWith('/workouts/') && !pathname.startsWith('/workouts/plans'))
+    )
+  }
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
 
 /** Home is also reachable via the app logo → /dashboard. */
 export const MAIN_NAV: NavItem[] = [
@@ -79,7 +104,7 @@ export function getMainNav(isCoach: boolean): NavItem[] {
       HOME_NAV,
       { href: '/inbox', label: 'Inbox', icon: MessageSquare },
       COACH_ATHLETES_NAV,
-      { href: '/workouts', label: 'Library', icon: Library },
+      COACH_LIBRARY_NAV,
       TOOLS_NAV,
     ]
   }

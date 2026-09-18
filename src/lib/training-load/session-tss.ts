@@ -104,6 +104,25 @@ function structureIntensityFactor(
   return clamp(weighted / totalWeight, 0.4, 1.15)
 }
 
+/**
+ * Planned intensity factor (≈ IF, 0–1+) from structure when present, else session type.
+ * Used by plan-canvas week stats (no athlete thresholds required).
+ */
+export function plannedSessionIntensityFactor(args: {
+  type: WorkoutType
+  sessionType: SessionType
+  structure?: PlanWorkoutDetail['structure']
+  plannedDuration?: number | null
+}): number | null {
+  if (args.type === WorkoutType.REST) return null
+  const fromStructure = structureIntensityFactor({
+    structure: args.structure ?? null,
+    plannedDuration: args.plannedDuration ?? null,
+  })
+  if (fromStructure != null) return fromStructure
+  return sessionTypeIntensityFactor(args.sessionType, args.type)
+}
+
 function paceMinPerKmFromResult(
   result: NonNullable<PlanWorkoutDetail['result']>,
 ): number | null {

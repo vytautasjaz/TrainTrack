@@ -156,17 +156,14 @@ export function PlanMobileDayStack({
   return (
     <div className={cn("space-y-4", trainingMode && "space-y-3", className)}>
       {days.map((day, dayIndex) => {
-        const trainingWorkouts = day.workouts.filter(
-          (w) =>
-            w.type !== WorkoutType.REST &&
-            w.type !== WorkoutType.RECOVERY &&
-            !w.isRace,
+        const listWorkouts = collapseTriathlonRaceWorkouts(
+          day.workouts.filter(
+            (w) =>
+              w.type !== WorkoutType.REST &&
+              w.type !== WorkoutType.RECOVERY,
+          ),
         );
-        const raceWorkouts = collapseTriathlonRaceWorkouts(
-          day.workouts.filter((w) => w.isRace),
-        );
-        const hasListWorkouts =
-          trainingWorkouts.length > 0 || raceWorkouts.length > 0;
+        const hasListWorkouts = listWorkouts.length > 0;
         const hasWorkoutContent =
           hasListWorkouts || dayHasRecovery(day.workouts);
 
@@ -367,10 +364,9 @@ export function PlanMobileDayStack({
             {trainingMode && !coachEditable ? (
               hasListWorkouts && (
                 <TrainingDayWorkoutList
-                  key={`${day.dateKey}-${trainingWorkouts.map((w) => w.id).join(",")}`}
+                  key={`${day.dateKey}-${listWorkouts.map((w) => w.id).join(",")}`}
                   dateKey={day.dateKey}
-                  workouts={trainingWorkouts}
-                  raceWorkouts={raceWorkouts}
+                  workouts={listWorkouts}
                   isCoach={isCoach}
                   reorderEnabled={isCoach}
                 />

@@ -34,12 +34,19 @@ export type TrainingLibraryFolderItem = {
   name: string
 }
 
+export type TrainingLibraryAthleteOption = {
+  id: string
+  name: string
+}
+
 type TrainingLibraryContextValue = {
   open: boolean
   setOpen: (open: boolean) => void
   toggle: () => void
   templates: TrainingLibraryTemplateItem[]
   folders: TrainingLibraryFolderItem[]
+  athleteId?: string
+  athletes: TrainingLibraryAthleteOption[]
 }
 
 const TrainingLibraryContext = createContext<TrainingLibraryContextValue | null>(null)
@@ -51,12 +58,16 @@ export function useTrainingLibrary() {
 type TrainingLibraryProviderProps = {
   templates: TrainingLibraryTemplateItem[]
   folders?: TrainingLibraryFolderItem[]
+  athleteId?: string
+  athletes?: TrainingLibraryAthleteOption[]
   children: ReactNode
 }
 
 export function TrainingLibraryProvider({
   templates,
   folders = [],
+  athleteId,
+  athletes = [],
   children,
 }: TrainingLibraryProviderProps) {
   const [open, setOpenState] = useState(false)
@@ -100,8 +111,10 @@ export function TrainingLibraryProvider({
       toggle,
       templates,
       folders,
+      athleteId,
+      athletes,
     }),
-    [hydrated, open, setOpen, toggle, templates, folders],
+    [hydrated, open, setOpen, toggle, templates, folders, athleteId, athletes],
   )
 
   return (

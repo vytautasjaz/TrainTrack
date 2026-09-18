@@ -820,6 +820,14 @@ export function formatBlockEssenceLines(
   if (block.type === 'INTERVAL') {
     return formatIntervalBlockEssenceLines(block, sportType, notation)
   }
+  if (block.type === 'FREE_TEXT') {
+    const text = block.text?.trim()
+    if (!text) return []
+    return text
+      .split(/\n+/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+  }
   const summary = formatBlockSummary(block, sportType ?? 'RUN', notation)
   return summary ? [summary] : []
 }

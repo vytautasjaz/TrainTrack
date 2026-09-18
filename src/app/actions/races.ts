@@ -222,3 +222,99 @@ export async function updateRaceFeedback(formData: FormData) {
   revalidatePath(`/athletes/${race.athleteId}`)
 }
 
+export type CreateSeasonRacePlaceholderInput = {
+  athleteId?: string
+  name: string
+  date: string
+  type: RaceType
+  sport?: WorkoutType
+  priority?: RacePriority
+  location?: string | null
+  goal?: string | null
+  /** Defaults to WATCHING — a light marker until promoted to Planned. */
+  intent?: 'PLANNED' | 'WATCHING'
+}
+
+/** Lightweight race chip for Season Plan (name / date / type / priority). */
+export async function createSeasonRacePlaceholder(
+  input: CreateSeasonRacePlaceholderInput,
+) {
+  const session = await requireSession()
+  const { RaceIntent, RacePriority, RaceType, HyroxDivision } = await import(
+    '@prisma/client'
+  )
+  const { parseDateOnly } = await import('@/lib/dates')
+  const { defaultSportForRaceType } = await import('@/lib/races')
+  const {
+    raceUsesLegs,
+    triathlonLegsCreateData,
+  } = await import('@/lib/race-legs')
+  const { onRacesCalendarDataChanged } = await import(
+    '@/lib/calendar-invalidation'
+  )
+  const { revalidatePath } = await import('next/cache')
+
+  let athleteId = input.athleteId?.trim() || null
+  if (isCoach(session) && athleteId) {
+    const owned = await prisma.athlete.findFirst({
+      where: { id: athleteId, ...athleteOwnedByCoachWhere(session.userId) },
+      select: { id: true },
+    })
+    if (!owned) throw new Error('Athlete not found')
+  } else if (isCoach(session)) {
+    athleteId = await resolveAthleteId(session)
+    if (athleteId) {
+      const owned = await prisma.athlete.findFirst({
+        where: { id: athleteId, ...athleteOwnedByCoachWhere(session.userId) },
+        select: { id: true },
+      })
+      if (!owned) throw new Error('Athlete not found')
+    }
+  } else {
+    athleteId = await resolveAthleteId(session)
+  }
+  if (!athleteId) throw new Error('No athlete selected')
+
+  const name = input.name.trim()
+  if (!name) throw new Error('Race name is required')
+  const date = parseDateOnly(input.date)
+  if (!date || Number.isNaN(date.getTime())) {
+    throw new Error('Pick a race date')
+  }
+
+  const type = input.type
+  const sport = input.sport ?? defaultSportForRaceType(type)
+  const intent =
+    input.intent === 'PLANNED' ? RaceIntent.PLANNED : RaceIntent.WATCHING
+
+  const { getNextWorkoutSortOrder } = await import('@/lib/workout-sort')
+  const daySortOrder = await getNextWorkoutSortOrder(athleteId, date)
+
+  const created = await prisma.race.create({
+    data: {
+      athleteId,
+      name,
+      date,
+      location: input.location?.trim() || null,
+      type,
+      sport,
+      priority: input.priority ?? RacePriority.C,
+      intent,
+      goal: input.goal?.trim() || null,
+      hyroxDivision: type === RaceType.HYROX ? HyroxDivision.MEN : null,
+      daySortOrder,
+      ...(raceUsesLegs(type)
+        ? { legs: { create: triathlonLegsCreateData() } }
+        : {}),
+    },
+    select: { id: true },
+  })
+
+  revalidatePath('/season')
+  revalidatePath('/dashboard')
+  revalidatePath('/training')
+  revalidatePath(`/athletes/${athleteId}`)
+  await onRacesCalendarDataChanged(athleteId)
+  return created
+}
+

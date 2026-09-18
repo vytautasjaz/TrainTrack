@@ -189,7 +189,10 @@ export function TrainingListWorkoutRow({
   const showQuickActions = athleteHasQuickLogActions(workout, isCoach)
   const showCoachActions = isCoach && !isRace
   const showReview = isCoach && needsCoachRescheduleReview(workout)
-  const canDrag = Boolean(dnd) && canDragPlanWorkout(workout, status)
+  const canDrag =
+    Boolean(dnd) &&
+    canDragPlanWorkout(workout, status) &&
+    (isCoach || !isRace)
   const stravaSynced = isStravaSynced(workout)
   const isDashboard = appearance === 'dashboard'
 
@@ -314,6 +317,7 @@ export function TrainingListWorkoutRow({
           id: workout.id,
           sport: workout.type,
           dateKey: workout.dateKey,
+          isRace: Boolean(workout.isRace),
         })
         e.dataTransfer.effectAllowed = 'copyMove'
         e.dataTransfer.setData('text/plain', workout.id)
@@ -603,6 +607,7 @@ function DashboardListRow({
           id: workout.id,
           sport: workout.type,
           dateKey: workout.dateKey,
+          isRace: Boolean(workout.isRace),
         })
         e.dataTransfer.effectAllowed = 'copyMove'
         e.dataTransfer.setData('text/plain', workout.id)

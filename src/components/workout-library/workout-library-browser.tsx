@@ -439,7 +439,7 @@ export function WorkoutLibraryBrowser({
       <PageHeader className="mb-1 items-end">
         <div className="min-w-0">
           <PageHeaderEyebrow>Coach · Library</PageHeaderEyebrow>
-          <PageHeaderTitle className="mt-1">Library</PageHeaderTitle>
+          <PageHeaderTitle className="mt-1">Workouts</PageHeaderTitle>
           <PageHeaderDescription>
             {sportConfig
               ? sportConfig.description

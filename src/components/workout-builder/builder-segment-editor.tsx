@@ -92,9 +92,10 @@ export function DurationFieldGroup({
   )
 }
 
-function intensityValueMode(type: TargetType): 'text' | 'rpe' | 'zone' {
+function intensityValueMode(type: TargetType): 'text' | 'rpe' | 'zone' | 'ftp' {
   if (type === 'rpe') return 'rpe'
-  if (type === 'heartRateZone' || type === 'powerZone') return 'zone'
+  if (type === 'heartRateZone') return 'zone'
+  if (type === 'powerZone') return 'ftp'
   return 'text'
 }
 
@@ -157,6 +158,41 @@ export function IntensityFieldGroup({
         : []
 
   function renderValueControl() {
+    // Choice modes: Zones (Z1–Z6) and Effort — never free text.
+    if (mode === 'zone' || mode === 'rpe') {
+      return (
+        <FillSelect
+          value={target.value ?? ''}
+          onValueChange={(value) => onChange({ type: effectiveType, value })}
+          options={valueOptions}
+          placeholder={mode === 'zone' ? 'Select zone' : 'Select effort'}
+        />
+      )
+    }
+
+    // % FTP — numeric only.
+    if (mode === 'ftp') {
+      return (
+        <NumberInput
+          value={parseFloat((target.value ?? '').replace(/[^\d.]/g, '')) || 0}
+          onChange={(next) =>
+            onChange({
+              type: effectiveType,
+              value: next > 0 ? String(Math.round(next)) : '',
+            })
+          }
+          min={0}
+          integer
+          inputMode="numeric"
+          className={cn(
+            'h-7 w-full rounded-none border-0 bg-transparent shadow-none outline-none focus:ring-0',
+            embeddedInputClass,
+          )}
+          aria-label="% FTP"
+        />
+      )
+    }
+
     if (simple) {
       if (effectiveType === 'pace') {
         return (
@@ -179,17 +215,6 @@ export function IntensityFieldGroup({
           placeholder={targetPlaceholder(effectiveType, sportType)}
           aria-label="Intensity value"
           className="h-7 w-full rounded-none border-0 bg-transparent px-2 text-xs font-medium"
-        />
-      )
-    }
-
-    if (mode === 'zone' || mode === 'rpe') {
-      return (
-        <FillSelect
-          value={target.value ?? ''}
-          onValueChange={(value) => onChange({ ...target, value })}
-          options={valueOptions}
-          placeholder={mode === 'zone' ? 'Select zone' : 'Select effort'}
         />
       )
     }
@@ -399,13 +424,13 @@ export function ProgressiveBlockRow({
         { value: 'power', label: 'Watts', targetType: 'power' },
         { value: 'powerZone', label: '% FTP', targetType: 'powerZone' },
         { value: 'heartRate', label: 'HR', targetType: 'heartRate' },
-        { value: 'heartRateZone', label: 'Zone', targetType: 'heartRateZone' },
+        { value: 'heartRateZone', label: 'Zones', targetType: 'heartRateZone' },
         { value: 'rpe', label: 'Effort', targetType: 'rpe' },
       ]
     : [
         { value: 'pace', label: 'Pace', targetType: 'pace' },
         { value: 'heartRate', label: 'HR', targetType: 'heartRate' },
-        { value: 'heartRateZone', label: 'Zone', targetType: 'heartRateZone' },
+        { value: 'heartRateZone', label: 'Zones', targetType: 'heartRateZone' },
         { value: 'rpe', label: 'Effort', targetType: 'rpe' },
       ]
 

@@ -15,7 +15,15 @@ export function WorkoutCardEssenceLine({
   const { core, detail } = splitWorkoutCardEssenceLine(line)
   return (
     <p className={cn('min-w-0 break-words leading-snug', className)}>
-      <span className={cn('font-medium', coreClassName)}>{core}</span>
+      <span
+        className={cn(
+          // Quantity @ intensity keeps the core medium; plain gym / free-text lines stay regular.
+          detail ? 'font-medium' : 'font-normal',
+          coreClassName,
+        )}
+      >
+        {core}
+      </span>
       {detail ? (
         <>
           {' '}

@@ -2,7 +2,11 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
-import { requireAthleteSession } from '@/lib/session'
+import {
+  coachCanAccessAthlete,
+  requireAthleteSession,
+  requireSession,
+} from '@/lib/session'
 import {
   attachStravaActivityToWorkoutForAthlete,
   attachStravaActivityToRaceForAthlete,
@@ -19,6 +23,11 @@ import {
   unlinkStravaFromRaceForAthlete,
   unlinkStravaFromRaceLegForAthlete,
 } from '@/lib/strava/sync'
+import {
+  fetchStravaActivityStreams,
+  getValidAccessToken,
+} from '@/lib/strava/client'
+import { downsampleStreamSeries } from '@/lib/strava/stream-chart'
 
 function revalidateStravaPaths() {
   revalidatePath('/dashboard')
@@ -206,4 +215,76 @@ export async function unlinkStravaFromRaceLeg(legId: string) {
 /** Ensure triathlon legs exist (used after type changes). */
 export async function ensureRaceLegs(raceId: string, type: Parameters<typeof ensureTriathlonLegsForRace>[1]) {
   await ensureTriathlonLegsForRace(raceId, type)
+}
+
+export type WorkoutStravaStreamsResult = {
+  heartrate: { values: number[]; time: number[]; distance: number[] | null } | null
+  watts: { values: number[]; time: number[]; distance: number[] | null } | null
+  altitude: { values: number[]; time: number[]; distance: number[] | null } | null
+}
+
+/**
+ * On-demand Strava streams for feed charts (power / HR / elevation).
+ * Uses the athlete's Strava connection — coaches can load linked athletes.
+ */
+export async function getWorkoutStravaStreams(
+  workoutId: string,
+): Promise<WorkoutStravaStreamsResult | null> {
+  const session = await requireSession()
+  const workout = await prisma.workout.findFirst({
+    where: { id: workoutId },
+    select: {
+      athleteId: true,
+      athlete: { select: { userId: true } },
+      result: { select: { stravaActivityId: true } },
+    },
+  })
+  if (!workout?.result?.stravaActivityId) return null
+
+  const isOwner = Boolean(
+    session.hasAthlete &&
+      (await prisma.athlete.findFirst({
+        where: { id: workout.athleteId, userId: session.userId },
+        select: { id: true },
+      })),
+  )
+  const isCoach =
+    !isOwner && (await coachCanAccessAthlete(session.userId, workout.athleteId))
+  if (!isOwner && !isCoach) throw new Error('Unauthorized')
+
+  const activityId = Number(workout.result.stravaActivityId)
+  if (!Number.isFinite(activityId)) return null
+
+  const athleteUserId = workout.athlete.userId
+  if (!athleteUserId) return null
+
+  let accessToken: string
+  try {
+    accessToken = await getValidAccessToken(athleteUserId)
+  } catch {
+    return null
+  }
+
+  const streams = await fetchStravaActivityStreams(accessToken, activityId)
+  const pack = (values: number[] | null, withDistance = false) => {
+    if (!values || values.length < 2) return null
+    const down = downsampleStreamSeries(
+      values,
+      streams.time,
+      140,
+      withDistance ? streams.distance : null,
+    )
+    if (down.values.length < 2) return null
+    return {
+      values: down.values,
+      time: down.time,
+      distance: down.companion,
+    }
+  }
+
+  return {
+    heartrate: pack(streams.heartrate),
+    watts: pack(streams.watts),
+    altitude: pack(streams.altitude, true),
+  }
 }

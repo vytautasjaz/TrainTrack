@@ -2,23 +2,18 @@
 
 Product ideas and deferred work. Not committed for the current sprint unless pulled into an active plan.
 
-## Deferred
+## Done
 
 ### Workout chat (athlete ↔ coach)
 
-**Status:** deferred  
-**Plan draft:** `.cursor/plans/workout_chat_thread_1737cf09.plan.md`
+**Status:** done (shipped)  
+Athlete ↔ coach messaging lives on workouts / inbox; no longer deferred.
 
-Replace single `athleteNotes` / `coachReply` on `WorkoutResult` with a real message thread on each **workout**, so:
+---
 
-- Athlete can ask about a session **before** training
-- Coach can reply; athlete can follow up (multi-turn)
-- Same thread visible in workout detail for both roles
-- Dashboard inbox shows unread threads (instead of one-shot feedback)
+## Deferred
 
-**Suggested model:** `WorkoutMessage` (`workoutId`, `authorRole` ATHLETE|COACH, `body`, `createdAt`, `readAt`), migrate existing notes/replies into the first messages.
-
-**Out of scope for v1:** realtime/websockets, push, global DMs outside a workout.
+*(empty — moved completed items to Done)*
 
 ---
 
@@ -26,9 +21,9 @@ Replace single `athleteNotes` / `coachReply` on `WorkoutResult` with a real mess
 
 ### Training block planning (season phases)
 
-**Status:** idea  
-**Related:** Season planner UX; Training season blackboard; Training plan library; Week intensity / load pattern  
-**UI placement:** undecided — may live in **training plan creation**, **season planner**, or both (decide later)
+**Status:** done (Milestone A–B shipped; calendar drag-paint deferred)  
+**Related:** Season planner UX; Training plan library  
+**Principle:** **Phase = strategy/context.** Not a reusable plan and not a workout.
 
 Split the training year / season into named **phases / blocks**, e.g.:
 
@@ -36,34 +31,15 @@ Split the training year / season into named **phases / blocks**, e.g.:
 - Build  
 - Race-specific / race prep  
 - Recovery / deload  
-- (custom types later)
 
-Coach defines: name, phase type, purpose/intent, date range (or week count), optional notes/color.
+Coach defines: name, phase type, purpose/intent, date range, optional notes/color.
 
-- Workouts in that range belong to / are tagged with the block (or the block is a calendar overlay)
-- Calendar / week / month / season views could show block chrome (label, tint, or header strip)
+- Visible as subtle chrome on Training month/week (labels + transition; no full-cell wash)
+- Editable on season board (paint / move / resize) and Training (Add phase + click label → shared modal)
+- Current-phase header e.g. `BUILD · 3 / 6`
 
-**Nested / stacked blocks (program + phase)**
-
-Support **two levels at once**, not only a single active phase. Example: a **16-week marathon prep program** that contains inner phases (Build, Race-specific, Taper, …).
-
-- Outer block = full assigned program (e.g. 16 weeks)
-- Inner block = current phase inside that program (e.g. Build = weeks 3–8 → 6 weeks)
-- Athlete can be in both at once: “week **3/16** of Marathon prep” and “week **3/6** of Build”
-- Later: optional deeper nesting only if needed; v1 = program + one active child phase is enough
-
-**Athlete visibility & progress (incl. Home)**
-
-When a coach **assigns a block / program** to an athlete, the athlete should see where they are — ideally on **Home**, not only deep in the plan:
-
-- Active program name + current phase name
-- Progress as weeks: e.g. **3/16** overall, **3/6** in current phase
-- Optional **% of program completed** (by weeks and/or by completed sessions vs planned — decide formula)
-- Short purpose/intent of the current phase so context is clear without opening the full calendar
-- Upcoming phase peek (“next: Race-specific”) later
-
-Open questions when designing: create/edit surface (plan builder vs season board); assign flow (library plan → athlete calendar); how rescheduling interacts with block boundaries; whether % is week-based, session-based, or both; Home card vs eyebrow under Today.
-
+**Nested / stacked blocks (program + phase)** — **wanted** (Home progress / multi-layer season chrome).
+**Follow-up:** quieter drag-edit on Training calendar if needed.
 ### Week intensity / load pattern
 
 **Status:** idea  
@@ -103,191 +79,54 @@ Open when designing: derive from structured workout blocks vs coach tags vs pace
 
 ### Season planner UX (Excel-style)
 
-**Status:** idea  
-**Related:** Training block planning; Training season blackboard  
-**Reference:** coach Excel season grid (months × week columns; rows for run / 70.3 / LTT / federation / bike / other / swim; colored week spans; race cells; week-to-race countdown numbers)  
-**Existing surface:** [`SeasonOverview`](src/components/races/season-overview.tsx) / season timeline — improve rather than invent a third calendar.
+**Status:** done for phases (A–B); blackboard wanted  
+**Related:** Training block planning; Training plan library  
+**Existing surface:** `/season` + Training month/week phase chrome  
 
-Clearer season view + ability to **paint / create training blocks by color** across weeks, like marking phases in Excel:
-
-- Stronger visual hierarchy: month headers, week ticks, sport/event rows or lanes
-- Select a week range → assign a **named + color-coded block** (base / build / taper / race week, custom)
-- Race markers on the grid (distance/name chips) with optional countdown in phase cells
-- Athlete-visible read-only version of the same season picture
-- Ties into **Training block planning** data model (blocks drive the colored spans)
-
-Goal: replace the Excel screenshot workflow with an in-app season board that is scannable at a glance.
+Phases on the season board and Training calendar share one `SeasonPhaseBlock` model. Season board: paint/move/resize. Training: modal create/edit. Full blackboard tracks/notes remain a wanted follow-on.
 
 ### Training season blackboard
 
-**Status:** idea  
-**Related:** Season planner UX (Excel-style); Training block planning; Training plan library; athlete Events / races
+**Status:** wanted (product priority — after A–C)  
+**Related:** Season planner UX; Training block planning; Training plan library
 
-A **spatial, multi-track season planning surface** that lets coaches see and shape an athlete’s entire season at a glance. It should feel closer to a modern planning canvas or timeline tool than a spreadsheet or traditional calendar — while remaining fully grounded in structured training data.
-
-The goal is to let a coach **sketch the season visually first, then turn that sketch into real training-plan data**.
-
-#### Core concept
-
-The season is represented as a shared horizontal time axis with multiple independent **tracks**. Each track represents a different planning dimension, while all tracks remain aligned to the same calendar.
-
-Example tracks:
-
-- Running
-- Cycling
-- Swimming
-- Strength
-- Skills
-- Competitions
-- Testing
-- Camps / Travel
-- Notes
-
-Tracks should be configurable so different sports and coaching workflows can use different combinations.
-
-#### Training blocks
-
-Coaches can create structured blocks directly on a track by selecting a date range or dragging across the timeline.
-
-A block is a real data object, not just visual decoration:
-
-- Name / type
-- Start and end dates
-- Description / intent
-- Key focus
-- Volume or intensity notes
-- Assigned athlete(s)
-- Optional relationship to an event or race
-
-For example:
-
-**Build — Mar 17 → May 11**
-
-> Increase threshold volume and race-specific intensity.  
-> Longer sessions, progressive load, 2 quality sessions/week.
-
-Blocks can be moved, resized, extended, split, duplicated, or reordered through direct manipulation.
-
-#### Events as anchors
-
-Competitions, races, tests, camps, travel and other important dates live on the same shared timeline.
-
-Events should act as **planning anchors** around which training blocks can be positioned.
-
-Example:
-
-`BASE → BUILD → PEAK → TAPER → 🏆 A-RACE → RECOVERY`
-
-A race can therefore visually explain *why* the surrounding blocks exist.
-
-#### Notes and planning ideas
-
-The canvas can also contain lightweight planning notes, but these should remain visually clean and secondary to structured data.
-
-Examples:
-
-- “Increase long-run volume here”
-- “Test 5K before Build”
-- “Athlete travelling”
-- “Possible second race”
-- “Need more strength work”
-
-Notes can later be converted into structured objects where appropriate.
-
-#### Direct manipulation
-
-The main interaction should be **drag-and-compose**, rather than form-first data entry.
-
-Possible interactions:
-
-- Drag across dates → create a block
-- Drag block edges → resize
-- Drag block → move
-- Multi-select dates / blocks
-- Split or extend blocks
-- Duplicate blocks
-- Drag events onto the timeline
-- Add notes directly to the canvas
-- Reorder tracks
-- Show / hide tracks
-
-The interface should feel inspired by tools such as Miro, Figma or modern timeline/roadmap applications, but **without becoming a freeform drawing tool**.
-
-The canvas should remain structured, aligned and data-driven.
-
-#### Timeline views
-
-The same season data should support multiple visualizations:
-
-**Timeline / Canvas** — continuous horizontal time axis optimized for big-picture season planning.
-
-**Calendar** — conventional month/week calendar for more precise date-based planning.
-
-Both views should operate on the **same underlying data model**.
-
-#### Track management
-
-Coaches should be able to:
-
-- Add custom tracks
-- Rename tracks
-- Reorder tracks
-- Hide / show tracks
-- Define track type and appearance
-- Potentially save commonly used track configurations
-
-This allows the same planner to work for running, cycling, triathlon, HYROX, team sports, etc.
-
-#### From sketch to plan
-
-The most important concept is that the canvas is not just a visualization.
-
-A coach should be able to build something like:
-
-`BASE → BUILD → PEAK → TAPER → 🏆 RACE → RECOVERY`
-
-and then use those blocks as the foundation for actual training-plan generation.
-
-**Sketch → Structure → Training Plan → Execution**
-
-The season canvas becomes the high-level planning layer on top of TrainTrack’s existing training data.
-
-#### Product principles
-
-- **Spatial, not spreadsheet-like**
-- **Structured, not freeform**
-- **Visual, but data-driven**
-- **Direct manipulation over forms**
-- **One shared data model across planner and calendar**
-- **Events provide context for training blocks**
-- **Simple enough to understand in seconds**
-- **Powerful enough to plan an entire season**
-
-The visual language should stay **minimal and professional** — clean grids, subtle colors, restrained UI, clear typography and structured timelines. Avoid a literal “whiteboard” aesthetic with excessive sticky notes, hand-drawn arrows or comic-like annotations.
-
-The intended feeling is:
-
-> **“I can see the entire season, understand the strategy, and change it with my hands.”**
-
-**Open when designing:** shared data model with Excel-style season planner (one backend, two UIs?); undo/history; touch vs desktop; athlete read-only board vs coach-only edit; how blocks feed Training plan library / assign flow.
+A spatial multi-track season canvas (custom tracks, notes, sketch→plan). Season board today stays strategy-level (phases, races, events); blackboard is the fuller canvas.
 
 ### Training plan library
 
-**Status:** idea · **high priority** (core future goal)  
-**Related:** Workout Templates; Workout Progression; Training block planning
+**Status:** done (Milestone C v1)  
+**Related:** Training block planning; Season planner UX  
+**Principle:** **Plan = reusable week-based template.** Calendar workouts are independent copies.
 
-Reusable **multi-week training plans** (mesocycles / programs) in the library — not just single workouts — that coaches build once, then **adapt and assign** to different athletes.
+Reusable **multi-week training plans** in the library — coaches build once, then apply to athletes by **start week**.
 
-- Library: create / edit / duplicate full plans independent of a live calendar (ordered weeks, sessions per day, optional named blocks / purpose)
-- Assign to athlete(s): pick start date, map plan weeks onto their calendar
-- Adaptation per athlete: tweak volume, intensity, rest days, drop or swap sessions — **without changing the source plan**
-- Clear link assigned plan → source (for “update from template?” later)
-- Can compose **parameterized workouts**, **progressions**, and **blocks** from the related backlog items
+- Unit = week (Mon–Sun); sessions keyed by weekIndex + dayOfWeek
+- Save week range from calendar (workouts ± optional relative phase structure) — **Save plan** in Training toolbar
+- Apply with preview, workout conflict skip/replace; race days always skipped — **Apply plan**
+- Library nav: **Workouts** + **Training plans** (`/workouts`, `/workouts/plans`); dock also has Plans tab
+- **Plan canvas editor** (`/workouts/plans/[id]`): create from scratch (week count presets) or open to edit — Week 1…N × Mon–Sun grid, library drag-drop, weekly planned stats, relative phases; same surface for create + edit
+- Metadata: title, description, sportFocus, weekCount, target, level, …
+- Plan source on applied workouts (`planId` / `planSessionId`) on detail
 
-**Goal:** coaches maintain a library of proven training plans and roll them out customized per runner, instead of rebuilding each athlete’s calendar from scratch.
+Distinct from today’s single-workout Library (`WorkoutTemplate`).
 
-Distinct from today’s workout Library (single fixed templates) and from **Training block planning** (blocks = lived calendar periods; plans = reusable definitions that often *create* those blocks when applied).
+**Follow-up:** richer plan browser, level/target UI; phase paint/resize on canvas.  
+**Wanted — live-link / update-from-template:** push library plan changes into previously applied calendar copies (opt-in; not default apply behavior).
 
+### Plan intelligence (Milestone D)
+
+**Status:** wanted (not started — depends on A–C model)  
+**Related:** Training plan library; Training block planning; Week intensity / load pattern; Workout Progression
+
+Adapt library plans using athlete context — fitness, races, load, current phase — so apply is not a flat drop.
+
+Examples:
+
+- Shift volume/intensity in recovery vs build
+- Soften or skip sessions around race week
+- Suggest progression (reps/distance/week) instead of a flat template
+
+A→B→C establishes the Phase / Plan / Workout model this layer consumes.
 ### Workout Templates (parameterized)
 
 **Status:** idea  

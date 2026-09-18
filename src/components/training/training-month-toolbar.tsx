@@ -20,6 +20,7 @@ import { WeekCardSizeSwitch } from '@/components/plan/week-card-size-switch'
 import { useWeekCardSize } from '@/components/plan/week-card-size-context'
 import { useTrainingLibrary } from '@/components/training/training-library-context'
 import { TrainingLibraryToolbarToggle } from '@/components/training/training-library-toolbar-toggle'
+import { TrainingPlansControls } from '@/components/training/training-plans-controls'
 import { cn } from '@/lib/utils'
 
 type TrainingMonthFilterGroupsProps = {
@@ -33,6 +34,9 @@ type TrainingMonthFilterGroupsProps = {
   spanHrefs: Record<1 | 2 | 3, string>
   /** Extra control after Cards (e.g. desktop expand lives next to view switch instead). */
   trailing?: ReactNode
+  planStartWeekKey?: string
+  planEndWeekKey?: string
+  athleteId?: string
   layout?: 'inline' | 'stack'
   className?: string
 }
@@ -52,6 +56,9 @@ export function TrainingMonthFilterGroups({
   monthSpan,
   spanHrefs,
   trailing,
+  planStartWeekKey,
+  planEndWeekKey,
+  athleteId,
   layout = 'inline',
   className,
 }: TrainingMonthFilterGroupsProps) {
@@ -184,9 +191,16 @@ export function TrainingMonthFilterGroups({
           )}
           <ToolbarFilterGroup
             label="Library"
-            hint="Open or close the workout library panel"
+            hint="Open workout templates, or save / apply multi-week plans"
           >
-            <TrainingLibraryToolbarToggle />
+            <div className="flex items-center gap-0.5">
+              <TrainingLibraryToolbarToggle />
+              <TrainingPlansControls
+                defaultStartWeekKey={planStartWeekKey}
+                defaultEndWeekKey={planEndWeekKey}
+                athleteId={athleteId}
+              />
+            </div>
           </ToolbarFilterGroup>
         </>
       ) : null}
@@ -205,6 +219,9 @@ export function TrainingMonthToolbar({
   monthSpan,
   spanHrefs,
   trailing,
+  planStartWeekKey,
+  planEndWeekKey,
+  athleteId,
   className,
   mobileOnly,
   desktopOnly,
@@ -223,6 +240,9 @@ export function TrainingMonthToolbar({
     monthSpan,
     spanHrefs,
     trailing,
+    planStartWeekKey,
+    planEndWeekKey,
+    athleteId,
   }
 
   const desktop = (
