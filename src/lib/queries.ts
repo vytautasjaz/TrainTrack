@@ -14,7 +14,7 @@ import {
 } from '@/lib/dates'
 import type { DayNoteData, DayNoteViewer } from '@/lib/day-notes'
 import { redactDayNoteForViewer } from '@/lib/day-notes'
-import { AthleteStatus, RaceIntent, WorkoutStatus, WorkoutType, CoachingAuthorRole, CoachingMessageKind, CoachingThreadStatus } from '@prisma/client'
+import { AthleteStatus, RaceIntent, WorkoutStatus, WorkoutType, CoachingAuthorRole, CoachingMessageKind, CoachingThreadStatus, Prisma } from '@prisma/client'
 import { buildProgressStats } from '@/lib/progress-stats'
 import {
   resolveRaceDistancesBySport,
@@ -1645,8 +1645,8 @@ export async function getPlanWorkoutsInRange(athleteId: string, start: Date, end
   const endKey = toDateKey(end)
   return unstable_cache(
     () => getPlanWorkoutsInRangeUncached(athleteId, start, end),
-    // v3: slim select + structureDiagram snapshot
-    ['plan-range-v3', athleteId, startKey, endKey],
+    // v4: slim select + hasBuilderDetail flag (skip empty detail fetches)
+    ['plan-range-v4', athleteId, startKey, endKey],
     { tags: [cacheTags.athletePlan(athleteId)], revalidate: 60 },
   )()
 }
@@ -1656,10 +1656,40 @@ async function getPlanWorkoutsInRangeUncached(
   start: Date,
   end: Date,
 ) {
-  return prisma.workout.findMany({
-    where: { athleteId, date: { gte: start, lte: end } },
-    select: WORKOUT_PLAN_RANGE_SELECT,
-    orderBy: WORKOUT_LIST_ORDER_BY,
+  const [rows, withBuilder] = await Promise.all([
+    prisma.workout.findMany({
+      where: { athleteId, date: { gte: start, lte: end } },
+      select: WORKOUT_PLAN_RANGE_SELECT,
+      orderBy: WORKOUT_LIST_ORDER_BY,
+    }),
+    prisma.workout.findMany({
+      where: {
+        athleteId,
+        date: { gte: start, lte: end },
+        OR: [
+          { NOT: { structure: { equals: Prisma.DbNull } } },
+          { NOT: { swimStructure: { equals: Prisma.DbNull } } },
+        ],
+      },
+      select: { id: true },
+    }),
+  ])
+  const builderIds = new Set(withBuilder.map((row) => row.id))
+  return rows.map((row) => ({
+    ...row,
+    hasBuilderDetail: builderIds.has(row.id),
+  }))
+}
+
+/** Full workout row for modal/editor (includes structure JSON). */
+export async function getPlanWorkoutById(workoutId: string) {
+  return prisma.workout.findUnique({
+    where: { id: workoutId },
+    include: {
+      ...WORKOUT_PLAN_INCLUDE,
+      plan: { select: { id: true, title: true } },
+      planSession: { select: { weekIndex: true, dayOfWeek: true } },
+    },
   })
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useImperativeHandle, useRef, useState, useTransition, type ReactNode, type Ref } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useRef, useState, useTransition, type ReactNode, type Ref } from 'react'
 import { X } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
 import { Badge } from '@/components/ui/badge'
@@ -23,9 +23,15 @@ import { WorkoutResultFeedbackSummary } from '@/components/plan/workout-inline-f
 import { UnsavedChangesDialog } from '@/components/ui/unsaved-changes-dialog'
 import {
   athleteCanLeaveWorkoutComment,
+  workoutNeedsDetailFetch,
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
 import { coachOpensPlanWorkoutEditor } from '@/lib/plan-workout-modal'
+import {
+  invalidatePlanWorkoutDetailCache,
+  prefetchPlanWorkoutDetail,
+  readPlanWorkoutDetailCache,
+} from '@/lib/plan-workout-detail-prefetch'
 import { parseDateOnly } from '@/lib/dates'
 import { useCurrentPath } from '@/hooks/use-current-path'
 import { useResolvedPlanColorMode } from '@/components/training/plan-sport-filter-context'
@@ -70,7 +76,7 @@ type WorkoutDetailViewProps = {
  * Shared workout detail body for modal and list-view side panel.
  */
 export function WorkoutDetailView({
-  workout,
+  workout: workoutProp,
   isCoach,
   active = true,
   onClose,
@@ -85,6 +91,8 @@ export function WorkoutDetailView({
 }: WorkoutDetailViewProps) {
   const currentPath = useCurrentPath()
   const colorMode = useResolvedPlanColorMode()
+  const [workout, setWorkout] = useState(workoutProp)
+  const [detailLoading, setDetailLoading] = useState(false)
   const result = workout.result
   const [exportOpen, setExportOpen] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
@@ -94,6 +102,34 @@ export function WorkoutDetailView({
   const feedbackDirtyRef = useRef(false)
   const saveFeedbackRef = useRef<(() => Promise<void>) | null>(null)
 
+  useEffect(() => {
+    setWorkout(workoutProp)
+  }, [workoutProp])
+
+  useEffect(() => {
+    if (!active || workoutProp.isRace) return
+
+    const cached = readPlanWorkoutDetailCache(workoutProp.id)
+    if (cached) {
+      setWorkout(cached)
+      return
+    }
+
+    if (!workoutNeedsDetailFetch(workoutProp)) return
+
+    let cancelled = false
+    setDetailLoading(true)
+    void prefetchPlanWorkoutDetail(workoutProp.id).then((detail) => {
+      if (cancelled) return
+      if (detail) setWorkout(detail)
+      setDetailLoading(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [active, workoutProp])
+
   const handleFeedbackDirtyChange = useCallback((dirty: boolean) => {
     feedbackDirtyRef.current = dirty
   }, [])
@@ -101,6 +137,7 @@ export function WorkoutDetailView({
   function finishClose() {
     setLeaveOpen(false)
     feedbackDirtyRef.current = false
+    invalidatePlanWorkoutDetailCache(workoutProp.id)
     onClose()
   }
 
@@ -312,6 +349,16 @@ export function WorkoutDetailView({
             onRescheduleDone={requestClose}
             onClose={showCloseButton ? undefined : requestClose}
           />
+          {detailLoading ? (
+            <p
+              className={cn(
+                'py-4 text-center text-xs text-muted-foreground',
+                insetX,
+              )}
+            >
+              Loading session details…
+            </p>
+          ) : null}
           {isCoach && !workout.isRescheduleGhost ? (
             <div className={cn('flex justify-end pb-3', insetX)}>
               <CoachRescheduleReviewActions

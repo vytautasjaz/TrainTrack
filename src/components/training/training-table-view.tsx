@@ -16,6 +16,8 @@ import {
   type TrainingTableDayDto,
 } from "@/app/actions/training-table";
 import { PlanWorkoutModal } from "@/components/plan/plan-workout-modal";
+import { prefetchPlanWorkoutDetail } from "@/lib/plan-workout-detail-prefetch";
+import { workoutNeedsDetailFetch } from "@/lib/plan-workout";
 import {
   planWorkoutUsesListDetailPanel,
   WorkoutDetailView,
@@ -795,7 +797,12 @@ export function TrainingTableView({
                                     panelWorkout?.id === workout.id
                                   }
                                   isToday={day.isToday}
-                                  onOpen={() => setSelected(workout)}
+                                  onOpen={() => {
+                                    if (workoutNeedsDetailFetch(workout)) {
+                                      prefetchPlanWorkoutDetail(workout.id);
+                                    }
+                                    setSelected(workout);
+                                  }}
                                 />
                               </div>
                             )}

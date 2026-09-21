@@ -45,6 +45,11 @@ export type PlanWorkoutDetail = {
   swimStructure: SwimWorkoutStructure | null
   /** Compact Training-card silhouette (preferred over full structure on calendar). */
   structureDiagram?: import('@/lib/workout-builder/structure-diagram').StructureDiagramSnapshot | null
+  /**
+   * True when DB has structure and/or swimStructure JSON.
+   * List/calendar set this without loading the JSON — skip detail fetch when false.
+   */
+  hasBuilderDetail?: boolean
   tags?: string[]
   selfLogged?: boolean
   rescheduledFromDateKey?: string | null
@@ -136,6 +141,8 @@ export function toPlanWorkoutDetail(w: {
   swimEnvironment?: SwimEnvironment | null
   swimStructure?: unknown
   structureDiagram?: unknown
+  /** Set by range queries without loading structure JSON. */
+  hasBuilderDetail?: boolean
   plannedDistanceMeters?: number | null
   tags?: string[]
   selfLogged?: boolean
@@ -202,6 +209,9 @@ export function toPlanWorkoutDetail(w: {
     structure: w.structure ? parseStructure(w.structure) : null,
     swimStructure: w.swimStructure ? parseSwimStructure(w.swimStructure) : null,
     structureDiagram: readStructureDiagramSnapshot(w.structureDiagram),
+    hasBuilderDetail:
+      w.hasBuilderDetail ??
+      (Boolean(w.structure) || Boolean(w.swimStructure)),
     tags: w.tags ?? [],
     selfLogged: w.selfLogged ?? false,
     sortOrder: w.sortOrder ?? 0,
@@ -254,6 +264,14 @@ export function toPlanWorkoutDetail(w: {
           }
         : null,
   }
+}
+
+/** Whether opening this workout should fetch full structure / swim JSON. */
+export function workoutNeedsDetailFetch(workout: PlanWorkoutDetail): boolean {
+  if (workout.isRace) return false
+  if (workout.structure != null || workout.swimStructure != null) return false
+  if (workout.hasBuilderDetail === false) return false
+  return true
 }
 
 export function mapCoachingChatFromThread(

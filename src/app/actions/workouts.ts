@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
-import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, isCoachView, coachCanAccessAthlete, requireCoachOwnsAthlete } from '@/lib/session'
+import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, isCoachView, coachCanAccessAthlete, requireCoachOwnsAthlete, isAthleteRole } from '@/lib/session'
 import { parseDateOnly, requireDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
 import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, HyroxDivision, CoachAthleteLinkStatus, PlannedMetricSource, Prisma } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
@@ -33,9 +33,42 @@ import {
   type RacePrepBlock,
 } from '@/lib/race-preparation'
 import { structureDiagramPrismaValue } from '@/lib/workout-builder/structure-diagram'
+import { getPlanWorkoutById } from '@/lib/queries'
+import {
+  toPlanWorkoutDetail,
+  redactPlanWorkoutNotesForViewer,
+  type PlanWorkoutDetail,
+} from '@/lib/plan-workout'
 
 const RACE_COVER_MAX_BYTES = 3 * 1024 * 1024
 const RACE_COVER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+/**
+ * Full plan workout for Training modals (includes builder structure).
+ * Calendar/list paint stays slim; this loads on open.
+ */
+export async function getPlanWorkoutDetail(
+  workoutId: string,
+): Promise<PlanWorkoutDetail | null> {
+  const session = await requireSession()
+  if (!workoutId.trim()) return null
+
+  const row = await getPlanWorkoutById(workoutId)
+  if (!row) return null
+
+  let allowed = false
+  if (isAthleteRole(session) && session.hasAthlete) {
+    const ownId = await resolveAthleteId(session)
+    if (ownId && row.athleteId === ownId) allowed = true
+  }
+  if (!allowed && isCoach(session)) {
+    allowed = await coachCanAccessAthlete(session.userId, row.athleteId)
+  }
+  if (!allowed) return null
+
+  const viewer = isCoachView(session) ? 'coach' : 'athlete'
+  return redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(row), viewer)
+}
 
 function parseRacePreparationFields(formData: FormData): {
   preparationWeeks: number | null
