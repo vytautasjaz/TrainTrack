@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from 'react'
 import { format, isToday, isYesterday } from 'date-fns'
 import { useRouter } from 'next/navigation'
 import {
@@ -12,16 +12,14 @@ import {
   MapPin,
 } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
+import { loadMoreCoachHomeActivity } from '@/app/actions/coach-home'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import {
   ActivityDayHeading,
   ActivityFeedWorkoutCard,
   sportRailColor,
 } from '@/components/activity/activity-feed-workout-card'
-import {
-  CoachHomeTablePagination,
-  CoachHomeMobileAccordionBody,
-} from '@/components/coach/coach-home-panel'
+import { CoachHomeMobileAccordionBody } from '@/components/coach/coach-home-panel'
 import { StravaWordmark } from '@/components/plan/strava-mark'
 import { PriorityBadge } from '@/components/races/priority-badge'
 import { RaceDetailSheet } from '@/components/races/race-detail-sheet'
@@ -47,6 +45,7 @@ import {
   type CoachHomeRaceActivityRow,
   type CoachHomeTimeRange,
 } from '@/lib/coach-home'
+import type { CoachHomeActivityFeedCursor } from '@/lib/queries'
 import { racePlaceLines, raceDistanceLabel, type SeasonRace } from '@/lib/season-races'
 import type { SessionLoadThresholds } from '@/lib/training-load/session-tss'
 import { cn } from '@/lib/utils'
@@ -62,9 +61,6 @@ const STATUS_FILTERS: Array<{ id: StatusFilter; label: string }> = [
   { id: 'races', label: 'Races' },
 ]
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 'all'] as const
-type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number]
-
 const TIME_RANGE_OPTIONS: Array<{ id: CoachHomeTimeRange; label: string }> = [
   { id: 'last_7d', label: 'Last 7 days' },
   { id: 'this_week', label: 'This week' },
@@ -75,25 +71,58 @@ const TIME_RANGE_OPTIONS: Array<{ id: CoachHomeTimeRange; label: string }> = [
 type CoachHomeRecentActivityTableProps = {
   className?: string
   rows: CoachHomeActivityTableRow[]
+  initialCursor: CoachHomeActivityFeedCursor | null
+  initialHasMore: boolean
   athleteOptions: Array<{ id: string; name: string }>
   loadThresholdsByAthleteId?: Record<string, SessionLoadThresholds>
 }
 
+function mergeActivityRows(
+  existing: CoachHomeActivityTableRow[],
+  incoming: CoachHomeActivityTableRow[],
+): CoachHomeActivityTableRow[] {
+  if (incoming.length === 0) return existing
+  const seen = new Set(existing.map((row) => row.id))
+  const next = [...existing]
+  for (const row of incoming) {
+    if (seen.has(row.id)) continue
+    seen.add(row.id)
+    next.push(row)
+  }
+  return next
+}
+
 export function CoachHomeRecentActivityTable({
   className,
-  rows,
+  rows: initialRows,
+  initialCursor,
+  initialHasMore,
   athleteOptions,
   loadThresholdsByAthleteId = {},
 }: CoachHomeRecentActivityTableProps) {
+  const [rows, setRows] = useState(initialRows)
+  const [cursor, setCursor] = useState(initialCursor)
+  const [hasMore, setHasMore] = useState(initialHasMore)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [isLoadingMore, startLoadMore] = useTransition()
+  const loadMoreLock = useRef(false)
+  const sentinelRef = useRef<HTMLDivElement | null>(null)
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('activity')
   const [sportFilter, setSportFilter] = useState<SportFilter>('all')
   const [athleteFilter, setAthleteFilter] = useState<string>('all')
   const [timeRange, setTimeRange] = useState<CoachHomeTimeRange>('last_7d')
-  const [pageSize, setPageSize] = useState<PageSizeOption>(20)
-  const [page, setPage] = useState(0)
   const [mobileOpen, setMobileOpen] = useState(true)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false)
+
+  useEffect(() => {
+    setRows(initialRows)
+    setCursor(initialCursor)
+    setHasMore(initialHasMore)
+    setLoadError(null)
+    loadMoreLock.current = false
+  }, [initialRows, initialCursor, initialHasMore])
 
   const timeFilteredRows = useMemo(
     () => filterActivityByTimeRange(rows, timeRange),
@@ -132,30 +161,33 @@ export function CoachHomeRecentActivityTable({
     })
   }, [timeFilteredRows, athleteFilter, statusFilter, sportFilter])
 
-  const effectivePageSize = pageSize === 'all' ? Math.max(filtered.length, 1) : pageSize
-  const pageCount = Math.max(1, Math.ceil(filtered.length / effectivePageSize))
-
-  const visibleRows = useMemo(() => {
-    if (pageSize === 'all') return filtered
-    const start = page * effectivePageSize
-    return filtered.slice(start, start + effectivePageSize)
-  }, [filtered, page, pageSize, effectivePageSize])
-
-  const groups = useMemo(() => groupActivityRowsByDay(visibleRows), [visibleRows])
+  const groups = useMemo(() => groupActivityRowsByDay(filtered), [filtered])
 
   const filtersActive =
     statusFilter !== 'activity' ||
     sportFilter !== 'all' ||
     athleteFilter !== 'all' ||
-    timeRange !== 'last_7d' ||
-    pageSize !== 20
+    timeRange !== 'last_7d'
 
-  const moreFiltersActive =
-    statusFilter !== 'activity' || sportFilter !== 'all' || pageSize !== 20
+  const moreFiltersActive = statusFilter !== 'activity' || sportFilter !== 'all'
 
-  useEffect(() => {
-    setPage(0)
-  }, [rows, athleteFilter, timeRange, statusFilter, sportFilter, pageSize])
+  function requestLoadMore() {
+    if (!hasMore || !cursor || isLoadingMore || loadMoreLock.current) return
+    loadMoreLock.current = true
+    setLoadError(null)
+    startLoadMore(async () => {
+      try {
+        const page = await loadMoreCoachHomeActivity(cursor)
+        setRows((prev) => mergeActivityRows(prev, page.rows))
+        setCursor(page.nextCursor)
+        setHasMore(page.hasMore)
+      } catch {
+        setLoadError('Could not load more activity.')
+      } finally {
+        loadMoreLock.current = false
+      }
+    })
+  }
 
   useEffect(() => {
     if (
@@ -173,10 +205,6 @@ export function CoachHomeRecentActivityTable({
   }, [sportFilter, sportOptions])
 
   useEffect(() => {
-    setPage((current) => Math.min(current, pageCount - 1))
-  }, [pageCount])
-
-  useEffect(() => {
     if (!moreFiltersOpen) return
     function onPointerDown(event: PointerEvent) {
       const target = event.target
@@ -188,18 +216,42 @@ export function CoachHomeRecentActivityTable({
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [moreFiltersOpen])
 
+  useEffect(() => {
+    const node = sentinelRef.current
+    if (!node || !hasMore) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          requestLoadMore()
+        }
+      },
+      { rootMargin: '240px 0px' },
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+    // requestLoadMore closes over latest cursor/hasMore/isLoadingMore
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMore, cursor, isLoadingMore])
+
+  // When filters hide everything but more pages exist, keep fetching.
+  useEffect(() => {
+    if (filtered.length === 0 && hasMore && cursor && !isLoadingMore) {
+      requestLoadMore()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtered.length, hasMore, cursor, isLoadingMore])
+
   function resetFilters() {
     setStatusFilter('activity')
     setSportFilter('all')
     setAthleteFilter('all')
     setTimeRange('last_7d')
-    setPageSize(20)
   }
 
   function resetMoreFilters() {
     setStatusFilter('activity')
     setSportFilter('all')
-    setPageSize(20)
   }
 
   const selectClassName =
@@ -279,32 +331,6 @@ export function CoachHomeRecentActivityTable({
           </select>
         </label>
       ) : null}
-      <div className="flex items-center gap-1.5">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--tt-ink-faint)]">
-          Show
-        </span>
-        <div className="flex gap-0.5 rounded-full border border-[var(--tt-line)] p-0.5">
-          {PAGE_SIZE_OPTIONS.map((option) => {
-            const active = pageSize === option
-            const label = option === 'all' ? 'All' : String(option)
-            return (
-              <button
-                key={label}
-                type="button"
-                onClick={() => setPageSize(option)}
-                className={cn(
-                  'rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums transition',
-                  active
-                    ? 'bg-[var(--tt-ink)] text-white'
-                    : 'text-[var(--tt-ink-soft)] hover:text-[var(--tt-ink)]',
-                )}
-              >
-                {label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
     </>
   )
 
@@ -351,7 +377,7 @@ export function CoachHomeRecentActivityTable({
           <ListFilter className="h-3.5 w-3.5" strokeWidth={1.75} />
         </button>
 
-        {/* Desktop — athlete + time first; status/sport/page size under Filters */}
+        {/* Desktop — athlete + time first; status/sport under Filters */}
         <div
           className="relative hidden shrink-0 items-center gap-2 md:flex"
           data-activity-more-filters
@@ -423,13 +449,15 @@ export function CoachHomeRecentActivityTable({
       <CoachHomeMobileAccordionBody expanded={mobileOpen} className="space-y-3 md:space-y-4">
         {filtered.length === 0 ? (
           <p className="px-1 py-8 text-center text-[13px] text-[var(--tt-ink-faint)] md:border md:border-[var(--tt-line)] md:px-4 md:py-10">
-            No activity matches this filter.
+            {hasMore || isLoadingMore
+              ? 'Loading more activity…'
+              : 'No activity matches this filter.'}
           </p>
         ) : (
           <>
             {/* Mobile — feed items as same-width bubbles under the header */}
             <ul className="space-y-3 md:hidden">
-              {visibleRows.map((row) => (
+              {filtered.map((row) => (
                 <li
                   key={row.id}
                   className="overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] shadow-[var(--tt-shadow)]"
@@ -469,25 +497,36 @@ export function CoachHomeRecentActivityTable({
                 </div>
               ))}
             </div>
-
-            {pageSize !== 'all' ? (
-              <div className="md:px-0">
-                <CoachHomeTablePagination
-                  page={page}
-                  pageCount={pageCount}
-                  total={filtered.length}
-                  pageSize={effectivePageSize}
-                  onPrevious={() => setPage((p) => Math.max(0, p - 1))}
-                  onNext={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                />
-              </div>
-            ) : filtered.length > 0 ? (
-              <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint)]">
-                Showing all {filtered.length}
-              </p>
-            ) : null}
           </>
         )}
+
+        <div ref={sentinelRef} className="h-1 w-full" aria-hidden />
+
+        {isLoadingMore ? (
+          <p className="px-1 py-2 text-center text-[12px] text-[var(--tt-ink-faint)]">
+            Loading more…
+          </p>
+        ) : null}
+
+        {loadError ? (
+          <div className="flex flex-col items-center gap-2 px-1 py-2">
+            <p className="text-[12px] text-[var(--tt-ink-soft)]">{loadError}</p>
+            <button
+              type="button"
+              onClick={requestLoadMore}
+              className="text-[11px] font-semibold text-[var(--tt-ink)] underline-offset-2 hover:underline"
+            >
+              Try again
+            </button>
+          </div>
+        ) : null}
+
+        {!hasMore && filtered.length > 0 ? (
+          <p className="text-center text-[11px] tabular-nums text-[var(--tt-ink-faint)]">
+            Showing {filtered.length}
+            {filtered.length !== rows.length ? ` of ${rows.length} loaded` : null}
+          </p>
+        ) : null}
       </CoachHomeMobileAccordionBody>
     </section>
   )

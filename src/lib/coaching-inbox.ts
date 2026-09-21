@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import {
   CoachingAuthorRole,
   CoachingMessageKind,
@@ -256,36 +257,61 @@ export async function listCoachInboxThreads(coachUserId: string, opts: ListOpts 
   return applyListFilters(threads, 'coach', opts).slice(0, opts.take ?? INBOX_LIST_MAX)
 }
 
-export async function getAthleteInboxUnreadCount(athleteId: string): Promise<number> {
+export const getAthleteInboxUnreadCount = cache(async function getAthleteInboxUnreadCount(
+  athleteId: string,
+): Promise<number> {
   await ensureLegacyWorkoutFeedbackMigrated(athleteId)
   const threads = await prisma.coachingThread.findMany({
     where: { athleteId },
-    include: {
-      messages: { select: { authorRole: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
+    select: {
+      lastMessageAt: true,
+      coachLastReadAt: true,
+      athleteLastReadAt: true,
+      messages: {
+        select: { authorRole: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
     },
     orderBy: { lastMessageAt: 'desc' },
     take: INBOX_LIST_MAX,
   })
-  return applyListFilters(threads, 'athlete', { filter: 'all' }).filter((t) =>
-    isThreadUnreadForRole(t, 'athlete'),
-  ).length
-}
+  return threads
+    .map((t) => ({
+      ...t,
+      // isThreadUnreadForRole reads messages.at(-1); normalize to one-item asc.
+      messages: [...t.messages].reverse(),
+    }))
+    .filter((t) => isThreadUnreadForRole(t, 'athlete')).length
+})
 
-export async function getCoachInboxUnreadCount(coachUserId: string): Promise<number> {
+export const getCoachInboxUnreadCount = cache(async function getCoachInboxUnreadCount(
+  coachUserId: string,
+): Promise<number> {
   const threads = await prisma.coachingThread.findMany({
     where: {
       athlete: athleteOwnedByCoachWhere(coachUserId),
     },
-    include: {
-      messages: { select: { authorRole: true, createdAt: true }, orderBy: { createdAt: 'asc' } },
+    select: {
+      lastMessageAt: true,
+      coachLastReadAt: true,
+      athleteLastReadAt: true,
+      messages: {
+        select: { authorRole: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
     },
     orderBy: { lastMessageAt: 'desc' },
     take: INBOX_LIST_MAX,
   })
-  return applyListFilters(threads, 'coach', { filter: 'all' }).filter((t) =>
-    isThreadUnreadForRole(t, 'coach'),
-  ).length
-}
+  return threads
+    .map((t) => ({
+      ...t,
+      messages: [...t.messages].reverse(),
+    }))
+    .filter((t) => isThreadUnreadForRole(t, 'coach')).length
+})
 
 /** Migrate legacy WorkoutResult notes/replies into FEEDBACK threads (idempotent). */
 export async function ensureLegacyWorkoutFeedbackMigrated(athleteId: string) {

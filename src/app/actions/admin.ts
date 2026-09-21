@@ -10,6 +10,7 @@ import {
   assertCanMutateTarget,
   countAdmins,
 } from '@/lib/admin'
+import { revalidateAppSettings } from '@/lib/cache-tags'
 import { UserRole } from '@prisma/client'
 
 const generateTempPassword = customAlphabet(
@@ -98,4 +99,32 @@ export async function adminDeleteUser(formData: FormData): Promise<void> {
   await prisma.user.delete({ where: { id: userId } })
   logAdminAction(admin.userId, 'USER_DELETED', userId)
   revalidatePath('/admin')
+}
+
+export async function adminUpdateActivityFeedSettings(input: {
+  coachActivityFeedEnabled: boolean
+  athleteActivityFeedEnabled: boolean
+}): Promise<void> {
+  const admin = await requireAdmin()
+
+  await prisma.appSettings.upsert({
+    where: { id: 1 },
+    create: {
+      id: 1,
+      coachActivityFeedEnabled: input.coachActivityFeedEnabled,
+      athleteActivityFeedEnabled: input.athleteActivityFeedEnabled,
+    },
+    update: {
+      coachActivityFeedEnabled: input.coachActivityFeedEnabled,
+      athleteActivityFeedEnabled: input.athleteActivityFeedEnabled,
+    },
+  })
+
+  logAdminAction(
+    admin.userId,
+    'ACTIVITY_FEED_SETTINGS',
+    'site',
+    `coach=${input.coachActivityFeedEnabled} athlete=${input.athleteActivityFeedEnabled}`,
+  )
+  revalidateAppSettings()
 }

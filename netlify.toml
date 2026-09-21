@@ -11,3 +11,6 @@
 [build.environment]
   NODE_VERSION = "22"
   AUTH_TRUST_HOST = "true"
+
+[functions]
+  directory = "netlify/functions"

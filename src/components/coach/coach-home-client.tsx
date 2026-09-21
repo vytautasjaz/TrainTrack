@@ -20,6 +20,7 @@ import {
   CoachHomePlanningCoverageRow,
   coachHomeAttentionContextAt,
 } from '@/lib/coach-home'
+import type { CoachHomeActivityFeedCursor } from '@/lib/queries'
 import type { SessionLoadThresholds } from '@/lib/training-load/session-tss'
 import { cn } from '@/lib/utils'
 
@@ -35,6 +36,9 @@ type CoachHomeClientProps = {
   needsPlanCount: number
   planningLeadDays: number
   activityRows: CoachHomeActivityTableRow[]
+  activityFeedCursor: CoachHomeActivityFeedCursor | null
+  activityFeedHasMore: boolean
+  activityFeedEnabled?: boolean
   athleteOptions: Array<{ id: string; name: string }>
   loadThresholdsByAthleteId?: Record<string, SessionLoadThresholds>
   totalAthletes: number
@@ -50,6 +54,9 @@ export function CoachHomeClient({
   needsPlanCount,
   planningLeadDays,
   activityRows,
+  activityFeedCursor,
+  activityFeedHasMore,
+  activityFeedEnabled = true,
   athleteOptions,
   loadThresholdsByAthleteId = {},
   totalAthletes,
@@ -247,15 +254,19 @@ export function CoachHomeClient({
               />
             )}
           </div>
-          <CoachHomeRecentActivityTable
-            className={cn(
-              'order-2 md:order-none xl:col-start-1',
-              showNeedsAttention ? 'xl:row-start-2' : 'xl:row-start-1',
-            )}
-            rows={activityRows}
-            athleteOptions={athleteOptions}
-            loadThresholdsByAthleteId={loadThresholdsByAthleteId}
-          />
+          {activityFeedEnabled ? (
+            <CoachHomeRecentActivityTable
+              className={cn(
+                'order-2 md:order-none xl:col-start-1',
+                showNeedsAttention ? 'xl:row-start-2' : 'xl:row-start-1',
+              )}
+              rows={activityRows}
+              initialCursor={activityFeedCursor}
+              initialHasMore={activityFeedHasMore}
+              athleteOptions={athleteOptions}
+              loadThresholdsByAthleteId={loadThresholdsByAthleteId}
+            />
+          ) : null}
         </div>
       </div>
     </div>

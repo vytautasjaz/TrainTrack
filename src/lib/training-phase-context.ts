@@ -86,8 +86,8 @@ export function toTrainingPhaseBlock(raw: {
   sport: WorkoutType
   phase: SeasonPhase
   label: string | null
-  startDate: Date
-  endDate: Date
+  startDate: Date | string
+  endDate: Date | string
 }): TrainingPhaseBlock {
   return {
     id: raw.id,

@@ -1,14 +1,22 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import dynamic from 'next/dynamic'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ActivityRouteMap } from '@/components/plan/activity-route-map'
-import { ActivityStreamChart } from '@/components/activity/activity-stream-chart'
 import {
   getWorkoutStravaStreams,
   type WorkoutStravaStreamsResult,
 } from '@/app/actions/strava'
 import { cn } from '@/lib/utils'
+
+const ActivityStreamChart = dynamic(
+  () =>
+    import('@/components/activity/activity-stream-chart').then(
+      (m) => m.ActivityStreamChart,
+    ),
+  { ssr: false },
+)
 
 export type FeedMediaPane = 'map' | 'power' | 'hr' | 'elevation'
 

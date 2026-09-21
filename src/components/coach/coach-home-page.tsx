@@ -19,6 +19,9 @@ export function CoachHomePageContent({
     needsPlanCount,
     planningLeadDays,
     activityTableRows,
+    activityFeedCursor,
+    activityFeedHasMore,
+    activityFeedEnabled,
     athleteOptions,
     rosterRows,
     pendingCoach,
@@ -39,6 +42,9 @@ export function CoachHomePageContent({
           needsPlanCount={needsPlanCount}
           planningLeadDays={planningLeadDays}
           activityRows={activityTableRows}
+          activityFeedCursor={activityFeedCursor}
+          activityFeedHasMore={activityFeedHasMore}
+          activityFeedEnabled={activityFeedEnabled}
           athleteOptions={athleteOptions}
           loadThresholdsByAthleteId={loadThresholdsByAthleteId}
           totalAthletes={totalAthletes}

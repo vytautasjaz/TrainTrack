@@ -70,9 +70,41 @@ export function addDateOnlyMonths(date: Date, months: number): Date {
   return target
 }
 
-/** Stable YYYY-MM-DD key for a DB date field returned by Prisma. */
-export function toDateKey(date: Date): string {
+/** Stable YYYY-MM-DD key for a DB date field returned by Prisma (or JSON-revived). */
+export function toDateKey(date: Date | string): string {
+  if (typeof date === 'string') {
+    const trimmed = date.trim()
+    const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/)
+    if (match) return match[1]!
+    const parsed = new Date(trimmed)
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10)
+    throw new Error(`Invalid date: ${date}`)
+  }
   return date.toISOString().slice(0, 10)
+}
+
+/**
+ * Revive a Date that may have been stringified by `unstable_cache` / JSON.
+ * Prefer this when comparing or formatting values from cached loaders.
+ */
+export function asDate(value: Date | string): Date {
+  if (value instanceof Date) return value
+  if (isDateOnlyKey(value)) return parseDateOnly(value)
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) throw new Error(`Invalid date: ${value}`)
+  return parsed
+}
+
+/** ISO datetime string; accepts Date or JSON-revived string from `unstable_cache`. */
+export function toIsoString(value: Date | string): string {
+  return typeof value === 'string' ? asDate(value).toISOString() : value.toISOString()
+}
+
+export function toIsoStringOrNull(
+  value: Date | string | null | undefined,
+): string | null {
+  if (value == null) return null
+  return toIsoString(value)
 }
 
 /**
@@ -80,7 +112,8 @@ export function toDateKey(date: Date): string {
  * UTC midnight (Prisma DATE) → ISO key; otherwise local calendar day
  * (avoids local midnight in UTC+ becoming the previous UTC day).
  */
-function toCalendarDateKey(date: Date): string {
+function toCalendarDateKey(date: Date | string): string {
+  if (typeof date === 'string') return toDateKey(date)
   const utcMidnight =
     date.getUTCHours() === 0 &&
     date.getUTCMinutes() === 0 &&
@@ -122,13 +155,13 @@ export function endOfMonthDateOnly(date: Date): Date {
 }
 
 /** Local Date for formatting labels from a UTC date-only value (no TZ drift). */
-export function labelDateFromDateOnly(date: Date): Date {
+export function labelDateFromDateOnly(date: Date | string): Date {
   const [y, m, d] = toDateKey(date).split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 
 /** date-fns format for a UTC date-only value. */
-export function formatDateOnly(date: Date, pattern: string): string {
+export function formatDateOnly(date: Date | string, pattern: string): string {
   return format(labelDateFromDateOnly(date), pattern)
 }
 

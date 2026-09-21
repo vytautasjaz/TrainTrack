@@ -139,7 +139,7 @@ async function fetchForecast(lat: number, lon: number): Promise<YrResponse> {
       'User-Agent': buildUserAgent(),
       Accept: 'application/json',
     },
-    cache: 'no-store',
+    next: { revalidate: 1200 },
   })
   if (!response.ok) {
     throw new Error(`Weather request failed (${response.status})`)
@@ -216,7 +216,7 @@ export async function searchYrLocations(query: string): Promise<WeatherPlace[]> 
       'User-Agent': buildUserAgent(),
       Accept: 'application/json',
     },
-    cache: 'no-store',
+    next: { revalidate: 1200 },
   })
   if (!response.ok) {
     throw new Error(`Location search failed (${response.status})`)

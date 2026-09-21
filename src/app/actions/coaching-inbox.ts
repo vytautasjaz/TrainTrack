@@ -1,6 +1,7 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
+import { after } from 'next/server'
 import {
   CoachingAuthorRole,
   CoachingMessageKind,
@@ -37,17 +38,37 @@ import {
 import { parseWorkoutFeeling } from '@/lib/workout-feeling'
 import { sendInboxPushNotifications } from '@/lib/push-notifications'
 
-function revalidateInboxPaths(opts?: { workoutId?: string; raceId?: string; athleteId?: string }) {
-  revalidatePath('/inbox', 'layout')
-  revalidatePath('/', 'layout')
-  revalidatePath('/inbox')
-  revalidatePath('/dashboard')
-  revalidatePath('/athletes')
+import { revalidateInboxSurfaces, cacheTags } from '@/lib/cache-tags'
+
+function revalidateInboxPaths(opts?: {
+  userId?: string
+  workoutId?: string
+  raceId?: string
+  athleteId?: string
+}) {
+  if (opts?.userId) {
+    revalidateInboxSurfaces(opts.userId, opts)
+  } else {
+    revalidatePath('/inbox', 'layout')
+    revalidatePath('/', 'layout')
+    revalidatePath('/inbox')
+    revalidatePath('/dashboard')
+    revalidatePath('/athletes')
+    if (opts?.workoutId) {
+      revalidateTag(cacheTags.workout(opts.workoutId))
+      revalidatePath(`/workouts/${opts.workoutId}`)
+    }
+    if (opts?.raceId) {
+      revalidatePath('/races')
+      revalidatePath('/season')
+    }
+    if (opts?.athleteId) {
+      revalidateTag(cacheTags.athleteHome(opts.athleteId))
+      revalidatePath(`/athletes/${opts.athleteId}`)
+    }
+  }
   revalidatePath('/training')
   revalidatePath('/season')
-  if (opts?.workoutId) revalidatePath(`/workouts/${opts.workoutId}`)
-  if (opts?.raceId) revalidatePath(`/races`)
-  if (opts?.athleteId) revalidatePath(`/athletes/${opts.athleteId}`)
 }
 
 async function requireAthleteOwnedWorkout(workoutId: string) {
@@ -134,12 +155,14 @@ async function appendMessage(opts: {
     await mirrorWorkoutResultFromThread(opts.workoutId)
   }
 
-  await sendInboxPushNotifications({
-    threadId: opts.threadId,
-    athleteId: opts.athleteId,
-    authorRole: opts.authorRole,
-    body,
-    messageId: message.id,
+  after(() => {
+    void sendInboxPushNotifications({
+      threadId: opts.threadId,
+      athleteId: opts.athleteId,
+      authorRole: opts.authorRole,
+      body,
+      messageId: message.id,
+    })
   })
 
   revalidateInboxPaths({
@@ -393,11 +416,13 @@ export async function askOrCommentOnRace(formData: FormData) {
         coachLastReadAt: null,
       },
     })
-    await sendInboxPushNotifications({
-      threadId,
-      athleteId,
-      authorRole: CoachingAuthorRole.ATHLETE,
-      body,
+    after(() => {
+      void sendInboxPushNotifications({
+        threadId,
+        athleteId,
+        authorRole: CoachingAuthorRole.ATHLETE,
+        body,
+      })
     })
     revalidateInboxPaths({ raceId, athleteId })
     return
@@ -504,11 +529,13 @@ export async function syncRaceFeedbackToThread(opts: {
     return
   }
 
-  await sendInboxPushNotifications({
-    threadId: thread.id,
-    athleteId,
-    authorRole: CoachingAuthorRole.ATHLETE,
-    body: notes,
+  after(() => {
+    void sendInboxPushNotifications({
+      threadId: thread.id,
+      athleteId,
+      authorRole: CoachingAuthorRole.ATHLETE,
+      body: notes,
+    })
   })
   revalidateInboxPaths({ raceId, athleteId })
 }

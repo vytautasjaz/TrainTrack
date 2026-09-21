@@ -1,10 +1,31 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidateCoachSurfaces } from '@/lib/cache-tags'
 import { prisma } from '@/lib/prisma'
-import { coachHomeAttentionContextAt } from '@/lib/coach-home'
+import { getAppSettings } from '@/lib/app-settings'
+import {
+  COACH_HOME_ACTIVITY_PAGE,
+  getCoachHomeActivityFeedPage,
+  type CoachHomeActivityFeedCursor,
+} from '@/lib/queries'
 import { isCoach, requireSession, athleteOwnedByCoachWhere } from '@/lib/session'
 import { markCoachingThreadRead } from '@/app/actions/coaching-inbox'
+
+export async function loadMoreCoachHomeActivity(cursor: CoachHomeActivityFeedCursor) {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Coach only')
+  if (!cursor?.activityAt || !cursor?.id) throw new Error('Cursor required')
+
+  const settings = await getAppSettings()
+  if (!settings.coachActivityFeedEnabled) {
+    return { rows: [], nextCursor: null, hasMore: false }
+  }
+
+  return getCoachHomeActivityFeedPage(session.userId, {
+    cursor,
+    limit: COACH_HOME_ACTIVITY_PAGE,
+  })
+}
 
 async function verifyCoachOwnsAttentionItem(coachUserId: string, itemKey: string) {
   if (itemKey.startsWith('join-')) {
@@ -80,7 +101,7 @@ export async function dismissCoachHomeAttentionItem(formData: FormData) {
   if (!itemKey) throw new Error('Item required')
 
   await dismissAttentionItemsForCoach(session.userId, [{ itemKey, contextAt }])
-  revalidatePath('/dashboard')
+  revalidateCoachSurfaces(session.userId)
 }
 
 export async function dismissCoachHomeAttentionItems(
@@ -91,7 +112,7 @@ export async function dismissCoachHomeAttentionItems(
   if (!items.length) return
 
   await dismissAttentionItemsForCoach(session.userId, items)
-  revalidatePath('/dashboard')
+  revalidateCoachSurfaces(session.userId)
 }
 
 async function dismissAttentionItemsForCoach(

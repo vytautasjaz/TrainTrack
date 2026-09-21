@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { CoachAthleteLinkStatus, UserRole, AthleteStatus } from '@prisma/client'
 import { cookies } from 'next/headers'
 import { auth } from '@/auth'
@@ -20,6 +21,14 @@ export type SessionContext = {
   viewMode: AppViewMode
   onboardingSkipped: boolean
   needsOnboarding: boolean
+}
+
+/** Slim athlete row for shell / athlete picker (avoid full Athlete payloads). */
+export type CoachAthleteListItem = {
+  id: string
+  name: string
+  status: AthleteStatus
+  avatarUrl: string | null
 }
 
 export function hasRole(roles: UserRole[], role: UserRole): boolean {
@@ -106,12 +115,14 @@ function rolesWithProfiles(
   return [...next]
 }
 
-export async function getSession(): Promise<SessionContext | null> {
+async function getSessionUncached(): Promise<SessionContext | null> {
   const cookieStore = await cookies()
 
   const session = await auth()
   if (session?.user?.id) {
     const athleteIdCookie = cookieStore.get('tt_athlete')?.value ?? null
+    // Prefer JWT profile flags when present to avoid a duplicate user round-trip
+    // on every layout/page. Re-check DB for disabled + authoritative profiles.
     const dbUser = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: {
@@ -171,6 +182,9 @@ export async function getSession(): Promise<SessionContext | null> {
   return null
 }
 
+/** Request-scoped: layout + page + shell share one session resolution. */
+export const getSession = cache(getSessionUncached)
+
 export async function requireSession(): Promise<SessionContext> {
   const session = await getSession()
   if (!session) throw new Error('Unauthorized')
@@ -198,7 +212,7 @@ export async function requireAthleteSession(): Promise<SessionContext & { athlet
   return { ...session, athleteId: own.id }
 }
 
-export async function coachCanAccessAthlete(
+async function coachCanAccessAthleteUncached(
   coachUserId: string,
   athleteId: string,
 ): Promise<boolean> {
@@ -218,12 +232,23 @@ export async function coachCanAccessAthlete(
   return Boolean(legacy)
 }
 
+export const coachCanAccessAthlete = cache(coachCanAccessAthleteUncached)
+
 export async function requireCoachOwnsAthlete(coachUserId: string, athleteId: string) {
   const ok = await coachCanAccessAthlete(coachUserId, athleteId)
   if (!ok) throw new Error('Athlete not found')
 }
 
-export async function getCoachAthletes(coachUserId: string) {
+const coachAthleteListSelect = {
+  id: true,
+  name: true,
+  status: true,
+  avatarUrl: true,
+} as const
+
+async function getCoachAthletesUncached(
+  coachUserId: string,
+): Promise<CoachAthleteListItem[]> {
   const fromLinks = await prisma.athlete.findMany({
     where: {
       OR: [
@@ -239,8 +264,8 @@ export async function getCoachAthletes(coachUserId: string) {
       ],
     },
     orderBy: { name: 'asc' },
+    select: coachAthleteListSelect,
   })
-  // Dedupe by id
   const seen = new Set<string>()
   return fromLinks.filter((a) => {
     if (seen.has(a.id)) return false
@@ -249,7 +274,12 @@ export async function getCoachAthletes(coachUserId: string) {
   })
 }
 
-export async function resolveAthleteId(session: SessionContext): Promise<string | null> {
+/** Request-scoped coach roster list (slim columns). */
+export const getCoachAthletes = cache(getCoachAthletesUncached)
+
+async function resolveAthleteIdUncached(
+  session: SessionContext,
+): Promise<string | null> {
   // Athlete workspace: always the signed-in user's own athlete profile.
   if (session.hasAthlete && session.viewMode === 'athlete') {
     const own = await prisma.athlete.findUnique({
@@ -284,6 +314,8 @@ export async function resolveAthleteId(session: SessionContext): Promise<string 
   return null
 }
 
+export const resolveAthleteId = cache(resolveAthleteIdUncached)
+
 /** Prisma where fragment: athletes this coach may access. */
 export function athleteOwnedByCoachWhere(coachUserId: string) {
   return {
@@ -301,8 +333,7 @@ export function athleteOwnedByCoachWhere(coachUserId: string) {
   }
 }
 
-/** True if the athlete has an accepted coach link (or legacy coachId). */
-export async function athleteHasConnectedCoach(athleteId: string): Promise<boolean> {
+async function athleteHasConnectedCoachUncached(athleteId: string): Promise<boolean> {
   const accepted = await prisma.coachAthleteLink.findFirst({
     where: {
       athleteId,
@@ -317,3 +348,5 @@ export async function athleteHasConnectedCoach(athleteId: string): Promise<boole
   })
   return Boolean(legacy)
 }
+
+export const athleteHasConnectedCoach = cache(athleteHasConnectedCoachUncached)

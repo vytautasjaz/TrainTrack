@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession, isCoachView } from '@/lib/session'
-import { getCoachHomeData } from '@/lib/queries'
+import { getCoachRosterPageData } from '@/lib/queries'
 import { CoachAthletesPageContent } from '@/components/coach/coach-athletes-page'
 
 export default async function AthletesPage() {
@@ -9,7 +9,7 @@ export default async function AthletesPage() {
 
   if (!isCoachView(session)) redirect('/dashboard')
 
-  const coachHome = await getCoachHomeData(session.userId)
+  const coachRoster = await getCoachRosterPageData(session.userId)
 
-  return <CoachAthletesPageContent coachHome={coachHome} />
+  return <CoachAthletesPageContent coachHome={coachRoster} />
 }

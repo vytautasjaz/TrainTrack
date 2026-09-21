@@ -111,8 +111,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user?.id) {
         token.sub = user.id
+        // Force a fresh profile read on sign-in.
+        token.profileRefreshedAt = 0
       }
       if (token.sub) {
+        const refreshedAt =
+          typeof token.profileRefreshedAt === 'number' ? token.profileRefreshedAt : 0
+        const stale = Date.now() - refreshedAt > 5 * 60 * 1000
+        // Throttle DB refresh — Auth.js calls jwt on every auth()/getSession.
+        if (!stale && token.roles != null) {
+          return token
+        }
         try {
           const dbUser = await prisma.user.findUnique({
             where: { id: token.sub },
@@ -146,6 +155,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             token.hasAthlete = Boolean(dbUser.athleteProfile)
             token.hasCoach = Boolean(dbUser.coachProfile)
             token.onboardingSkipped = Boolean(dbUser.onboardingSkippedAt)
+            token.profileRefreshedAt = Date.now()
           }
         } catch (err) {
           console.error('[auth] jwt user refresh failed', err)

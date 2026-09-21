@@ -1,5 +1,5 @@
 import type { WorkoutStatus, WorkoutType, SessionType, AthleteLogType } from '@prisma/client'
-import { toDateKey } from '@/lib/dates'
+import { toDateKey, toIsoStringOrNull } from '@/lib/dates'
 
 export type WorkoutCompletionSource = 'strava' | 'manual' | 'self_logged'
 
@@ -123,7 +123,7 @@ export function toWorkoutHistoryItem(w: {
       rpe: w.result.rpe,
       athleteNotes: w.result.athleteNotes,
       coachReply: w.result.coachReply ?? null,
-      coachReplyReadAt: w.result.coachReplyReadAt?.toISOString() ?? null,
+      coachReplyReadAt: toIsoStringOrNull(w.result.coachReplyReadAt),
       stravaActivityUrl: w.result.stravaActivityUrl,
       logType: w.result.logType ?? null,
       completedAt: w.result.completedAt,

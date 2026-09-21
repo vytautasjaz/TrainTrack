@@ -14,14 +14,13 @@ import { TrainingListAddMenu } from "@/components/training/training-list-add-men
 import { TrainingListFrame } from "@/components/training/training-list-frame";
 import { TrainingListToolbar } from "@/components/training/training-list-toolbar";
 import { TrainingTableView } from "@/components/training/training-table-view";
-import {
+  import {
   getDayNotesForRange,
   getPlanWorkoutsInRange,
   getRacesForRange,
   getSeasonEventsForRange,
   getWeekDays,
-  getWeekExtraPlanSportRows,
-  getWeekHiddenPlanSportRows,
+  getWeekPlanSportRowsForWeeks,
   groupDayNotesByDate,
   groupWorkoutsByDate,
 } from "@/lib/queries";
@@ -179,42 +178,23 @@ export default async function TrainingPage({
       ? listRangeEnd
       : weekEnd;
 
-  const rawWorkouts = await getPlanWorkoutsInRange(
+  const isCoach = userIsCoach(session);
+  const noteViewer = isCoach ? "coach" : "athlete";
+
+  const rawWorkoutsPromise = getPlanWorkoutsInRange(
     athleteId,
     rangeStart,
     rangeEnd,
   );
-
-  const byDateRaw = groupWorkoutsByDate(rawWorkouts);
-  const isCoach = userIsCoach(session);
-  const noteViewer = isCoach ? "coach" : "athlete";
-  const byDateWorkouts = new Map(
-    [...byDateRaw.entries()].map(([key, list]) => [
-      key,
-      list.map((w) =>
-        redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), noteViewer),
-      ),
-    ]),
-  );
-  const races = await getRacesForRange(athleteId, rangeStart, rangeEnd);
-  const byDate = mergeRacesIntoByDate(byDateWorkouts, races);
-
-  const dayNotes = await getDayNotesForRange(athleteId, rangeStart, rangeEnd);
-  const notesByDate = groupDayNotesByDate(dayNotes, noteViewer);
-
-  const seasonEventsRaw = await getSeasonEventsForRange(
+  const racesPromise = getRacesForRange(athleteId, rangeStart, rangeEnd);
+  const dayNotesPromise = getDayNotesForRange(athleteId, rangeStart, rangeEnd);
+  const seasonEventsPromise = getSeasonEventsForRange(
     athleteId,
     rangeStart,
     rangeEnd,
     noteViewer,
   );
-  const eventsByDate = groupSeasonEventsByDate(
-    seasonEventsRaw,
-    rangeStart,
-    rangeEnd,
-  );
-
-  const phaseBlocksRaw = await prisma.seasonPhaseBlock.findMany({
+  const phaseBlocksPromise = prisma.seasonPhaseBlock.findMany({
     where: {
       athleteId,
       startDate: { lte: rangeEnd },
@@ -230,14 +210,10 @@ export default async function TrainingPage({
       endDate: true,
     },
   });
-  const phaseBlocks = phaseBlocksRaw.map(toTrainingPhaseBlock);
-
-  const canLogWorkout = session.hasAthlete && Boolean(session.athleteId);
-  const today = todayDateKey();
-
-  const coachAthletes = isCoach ? await getCoachAthletes(session.userId) : [];
-  const selectedAthlete = coachAthletes.find((a) => a.id === athleteId);
-  const athletePlanConfig = await prisma.athlete.findUnique({
+  const coachAthletesPromise = isCoach
+    ? getCoachAthletes(session.userId)
+    : Promise.resolve([] as Awaited<ReturnType<typeof getCoachAthletes>>);
+  const athletePlanConfigPromise = prisma.athlete.findUnique({
     where: { id: athleteId },
     select: {
       planSportRows: true,
@@ -247,6 +223,47 @@ export default async function TrainingPage({
       showWeather: true,
     },
   });
+
+  const [
+    rawWorkouts,
+    races,
+    dayNotes,
+    seasonEventsRaw,
+    phaseBlocksRaw,
+    coachAthletes,
+    athletePlanConfig,
+  ] = await Promise.all([
+    rawWorkoutsPromise,
+    racesPromise,
+    dayNotesPromise,
+    seasonEventsPromise,
+    phaseBlocksPromise,
+    coachAthletesPromise,
+    athletePlanConfigPromise,
+  ]);
+
+  const byDateRaw = groupWorkoutsByDate(rawWorkouts);
+  const byDateWorkouts = new Map(
+    [...byDateRaw.entries()].map(([key, list]) => [
+      key,
+      list.map((w) =>
+        redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), noteViewer),
+      ),
+    ]),
+  );
+  const byDate = mergeRacesIntoByDate(byDateWorkouts, races);
+  const notesByDate = groupDayNotesByDate(dayNotes, noteViewer);
+  const eventsByDate = groupSeasonEventsByDate(
+    seasonEventsRaw,
+    rangeStart,
+    rangeEnd,
+  );
+  const phaseBlocks = phaseBlocksRaw.map(toTrainingPhaseBlock);
+
+  const canLogWorkout = session.hasAthlete && Boolean(session.athleteId);
+  const today = todayDateKey();
+
+  const selectedAthlete = coachAthletes.find((a) => a.id === athleteId);
 
   const overrideLat = parseWeatherCoord(params.wlat);
   const overrideLon = parseWeatherCoord(params.wlon);
@@ -306,29 +323,20 @@ export default async function TrainingPage({
     };
   });
 
-  const weekSportRows = isCoach
-    ? await Promise.all(
-        weekBlocks.map(async (block) => {
-          const [extra, hidden] = await Promise.all([
-            getWeekExtraPlanSportRows(athleteId, block.weekStart),
-            getWeekHiddenPlanSportRows(athleteId, block.weekStart),
-          ]);
-          return {
-            weekStartKey: block.weekStartKey,
-            weekExtraPlanSportRows: extra,
-            weekHiddenPlanSportRows: hidden,
-          };
-        }),
+  const weekSportByKey = isCoach
+    ? await getWeekPlanSportRowsForWeeks(
+        athleteId,
+        weekBlocks.map((block) => block.weekStart),
       )
-    : weekBlocks.map((block) => ({
-        weekStartKey: block.weekStartKey,
-        weekExtraPlanSportRows: [] as WorkoutType[],
-        weekHiddenPlanSportRows: [] as WorkoutType[],
-      }));
-
-  const weekSportByKey = new Map(
-    weekSportRows.map((row) => [row.weekStartKey, row]),
-  );
+    : new Map(
+        weekBlocks.map((block) => [
+          block.weekStartKey,
+          {
+            weekExtraPlanSportRows: [] as WorkoutType[],
+            weekHiddenPlanSportRows: [] as WorkoutType[],
+          },
+        ]),
+      );
 
   const firstWeek = weekBlocks[0]!;
   const weekSpanQuery = weekSpan > 1 ? `&weeks=${weekSpan}` : "";

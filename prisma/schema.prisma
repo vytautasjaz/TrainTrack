@@ -358,7 +358,7 @@ model StravaConnection {
   expiresAt       DateTime
   scope           String
   lastSyncedAt    DateTime?
-  /** When true, app load / login may auto-sync (debounced). Manual sync always available. */
+  /** When true, hourly cron (and idle client fallback) may auto-sync. Manual sync always available. */
   autoSyncEnabled Boolean   @default(true)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -928,6 +928,11 @@ model WorkoutResult {
   weightedAverageWatts Float?
   /** Encoded Google polyline from Strava map.summary_polyline (GPS route). */
   summaryPolyline  String?
+  /**
+   * Downsampled Strava streams for feed charts
+   * (`{ heartrate?, watts?, altitude?, time, distance? }`).
+   */
+  stravaStreamsCache Json?
   logType          AthleteLogType?
   completedAt      DateTime @default(now())
   createdAt        DateTime @default(now())
@@ -1006,4 +1011,12 @@ model DayNote {
 
   @@unique([athleteId, date])
   @@index([athleteId, date])
+}
+
+/** Singleton site flags (always id = 1). */
+model AppSettings {
+  id                         Int      @id @default(1)
+  coachActivityFeedEnabled   Boolean  @default(true)
+  athleteActivityFeedEnabled Boolean  @default(true)
+  updatedAt                  DateTime @updatedAt
 }

@@ -1,4 +1,7 @@
 import { prisma } from '@/lib/prisma'
+import { unstable_cache } from 'next/cache'
+import { getAppSettings } from '@/lib/app-settings'
+import { cacheTags } from '@/lib/cache-tags'
 import {
   addDateOnlyDays,
   endOfMonthDateOnly,
@@ -7,6 +10,7 @@ import {
   startOfWeekDateOnly,
   todayDateOnly,
   toDateKey,
+  toIsoString,
 } from '@/lib/dates'
 import type { DayNoteData, DayNoteViewer } from '@/lib/day-notes'
 import { redactDayNoteForViewer } from '@/lib/day-notes'
@@ -150,8 +154,39 @@ export function clampPlanningLeadDays(value: number): number {
   return Math.min(MAX_PLANNING_LEAD_DAYS, Math.max(MIN_PLANNING_LEAD_DAYS, Math.floor(value)))
 }
 
+/** Card/list result fields — omits stravaStreamsCache (large JSON; charts load on demand). */
+export const WORKOUT_RESULT_CARD_SELECT = {
+  actualDistance: true,
+  actualDuration: true,
+  rpe: true,
+  feeling: true,
+  athleteNotes: true,
+  athleteNotesPrivate: true,
+  coachReply: true,
+  coachReplyReadAt: true,
+  stravaActivityUrl: true,
+  stravaActivityId: true,
+  stravaActivityName: true,
+  stravaActivityDescription: true,
+  averageHeartrate: true,
+  maxHeartrate: true,
+  hrZoneSeconds: true,
+  averageSpeedMps: true,
+  maxSpeedMps: true,
+  elevationGainM: true,
+  sufferScore: true,
+  averageCadence: true,
+  kilojoules: true,
+  calories: true,
+  averageWatts: true,
+  weightedAverageWatts: true,
+  summaryPolyline: true,
+  logType: true,
+  completedAt: true,
+} as const
+
 export const WORKOUT_PLAN_INCLUDE = {
-  result: true,
+  result: { select: WORKOUT_RESULT_CARD_SELECT },
   rescheduledCopy: { select: { id: true, date: true } },
   coachingThread: {
     select: {
@@ -160,16 +195,32 @@ export const WORKOUT_PLAN_INCLUDE = {
       coachLastReadAt: true,
       athleteLastReadAt: true,
       _count: { select: { messages: true } },
+      // Recent messages only — cards need last author + chat-vs-feedback signal.
       messages: {
         select: { authorRole: true, kind: true },
-        orderBy: { createdAt: 'asc' as const },
+        orderBy: { createdAt: 'desc' as const },
+        take: 12,
       },
     },
   },
 } as const
 
+/** Volume/compliance fields only — no coaching thread / full result. */
+export const WORKOUT_VOLUME_SELECT = {
+  athleteId: true,
+  date: true,
+  status: true,
+  type: true,
+  selfLogged: true,
+  plannedDistance: true,
+  plannedDuration: true,
+  isRescheduleGhost: true,
+  result: { select: { actualDistance: true, actualDuration: true } },
+} as const
+
 const ACTIVITY_FEED_WORKOUT_INCLUDE = {
-  ...WORKOUT_PLAN_INCLUDE,
+  result: { select: WORKOUT_RESULT_CARD_SELECT },
+  rescheduledCopy: { select: { id: true, date: true } },
   coachingThread: {
     select: {
       id: true,
@@ -186,11 +237,24 @@ const ACTIVITY_FEED_WORKOUT_INCLUDE = {
           body: true,
           createdAt: true,
         },
-        orderBy: { createdAt: 'asc' as const },
+        orderBy: { createdAt: 'desc' as const },
+        take: 20,
       },
     },
   },
-} as const
+  athlete: { select: { id: true, name: true, avatarUrl: true } },
+}
+
+/** Coach home recent activity — initial paint (lazy-load more on scroll). */
+export const COACH_HOME_ACTIVITY_INITIAL = 8
+export const COACH_HOME_ACTIVITY_PAGE = 10
+/** @deprecated use COACH_HOME_ACTIVITY_INITIAL */
+export const COACH_HOME_ACTIVITY_FEED_TAKE = COACH_HOME_ACTIVITY_INITIAL
+
+export type CoachHomeActivityFeedCursor = {
+  activityAt: string
+  id: string
+}
 
 function buildActivityFeedThreadView(
   workout: {
@@ -214,11 +278,13 @@ function buildActivityFeedThreadView(
 ): ReturnType<typeof toCoachingThreadView> | null {
   const thread = workout.coachingThread
   if (!thread || thread.messages.length === 0) return null
+  // Include is newest-first; thread UI expects chronological order.
+  const messages = [...thread.messages].reverse()
   return toCoachingThreadView({
     id: thread.id,
     status: thread.status,
     kind: thread.kind,
-    messages: thread.messages,
+    messages,
     workout: { result: workout.result ? { feeling: workout.result.feeling ?? null } : null },
   })
 }
@@ -288,6 +354,23 @@ function workoutVolumeMin(workout: {
 }
 
 export async function getAthleteDashboard(athleteId: string) {
+  const settings = await getAppSettings()
+  const dayKey = toDateKey(todayDateOnly())
+  const feedKey = settings.athleteActivityFeedEnabled ? '1' : '0'
+  return unstable_cache(
+    () => getAthleteDashboardUncached(athleteId, settings.athleteActivityFeedEnabled),
+    ['athlete-home', athleteId, dayKey, feedKey],
+    {
+      tags: [cacheTags.athleteHome(athleteId), cacheTags.appSettings()],
+      revalidate: 120,
+    },
+  )()
+}
+
+async function getAthleteDashboardUncached(
+  athleteId: string,
+  activityFeedEnabled: boolean,
+) {
   const today = todayDateOnly()
 
   const weekStart = startOfWeekDateOnly(today)
@@ -360,20 +443,22 @@ export async function getAthleteDashboard(athleteId: string) {
           date: { gte: monthStart, lte: monthEnd },
           status: WorkoutStatus.COMPLETED,
         },
-        include: WORKOUT_PLAN_INCLUDE,
+        select: WORKOUT_VOLUME_SELECT,
       }),
-      prisma.workout.findMany({
-        where: {
-          athleteId,
-          date: { lte: today },
-          isRescheduleGhost: false,
-          type: { notIn: [WorkoutType.REST, WorkoutType.RECOVERY] },
-          status: WorkoutStatus.COMPLETED,
-        },
-        include: WORKOUT_PLAN_INCLUDE,
-        orderBy: [{ date: 'desc' }, { updatedAt: 'desc' }],
-        take: 10,
-      }),
+      activityFeedEnabled
+        ? prisma.workout.findMany({
+            where: {
+              athleteId,
+              date: { lte: today },
+              isRescheduleGhost: false,
+              type: { notIn: [WorkoutType.REST, WorkoutType.RECOVERY] },
+              status: WorkoutStatus.COMPLETED,
+            },
+            include: WORKOUT_PLAN_INCLUDE,
+            orderBy: [{ date: 'desc' }, { updatedAt: 'desc' }],
+            take: 10,
+          })
+        : Promise.resolve([]),
       getRacesForRange(athleteId, weekStart, weekEnd),
       getRacesForRange(athleteId, monthStart, monthEnd),
       prisma.athlete.findUnique({
@@ -488,6 +573,7 @@ export async function getAthleteDashboard(athleteId: string) {
     weekStatsAnchorStartKey: toDateKey(weekStart),
     planSportRows: athletePlan?.planSportRows ?? [],
     swimCssSecPer100m: athletePlan?.swimCssSecPer100m ?? null,
+    activityFeedEnabled,
     trainingLoadThresholds: {
       bikeFtpWatts: athletePlan?.bikeFtpWatts ?? null,
       paceThresholdMinPerKm: athletePlan?.paceThresholdMinPerKm ?? null,
@@ -609,7 +695,13 @@ export async function getCoachDashboard(coachId: string) {
             lte: endOfWeekDateOnly(today),
           },
         },
-        include: WORKOUT_PLAN_INCLUDE,
+        select: {
+          date: true,
+          status: true,
+          type: true,
+          selfLogged: true,
+          isRescheduleGhost: true,
+        },
       },
     },
     orderBy: { name: 'asc' },
@@ -857,26 +949,163 @@ function groupWorkoutsByAthlete<T extends { athleteId: string }>(rows: T[]) {
   return map
 }
 
+function activityRowBeforeCursor(
+  row: { activityAt: string; id: string },
+  cursor: CoachHomeActivityFeedCursor,
+): boolean {
+  const t = new Date(row.activityAt).getTime()
+  const ct = new Date(cursor.activityAt).getTime()
+  if (t !== ct) return t < ct
+  return row.id < cursor.id
+}
+
+/**
+ * Paginated coach activity feed (workouts + races), newest first.
+ * Over-fetches each source slightly, merges, then returns `limit` rows.
+ */
+export async function getCoachHomeActivityFeedPage(
+  coachId: string,
+  opts?: {
+    cursor?: CoachHomeActivityFeedCursor | null
+    limit?: number
+  },
+): Promise<{
+  rows: ReturnType<typeof mergeCoachHomeActivityFeed>
+  nextCursor: CoachHomeActivityFeedCursor | null
+  hasMore: boolean
+}> {
+  const limit = Math.max(1, Math.min(40, opts?.limit ?? COACH_HOME_ACTIVITY_PAGE))
+  const cursor = opts?.cursor ?? null
+  const athleteWhere = athleteOwnedByCoachWhere(coachId)
+  // Pull a bit more from each source so merge can fill a full page.
+  const sourceTake = limit + 8
+  const cursorAt = cursor ? new Date(cursor.activityAt) : null
+
+  const [recentCompletedRows, recentRaceRows] = await Promise.all([
+    prisma.workout.findMany({
+      where: {
+        athlete: athleteWhere,
+        status: { in: [WorkoutStatus.COMPLETED, WorkoutStatus.SKIPPED] },
+        isRescheduleGhost: false,
+        result: cursorAt
+          ? { completedAt: { lte: cursorAt } }
+          : { isNot: null },
+      },
+      include: ACTIVITY_FEED_WORKOUT_INCLUDE,
+      orderBy: { result: { completedAt: 'desc' } },
+      take: sourceTake,
+    }),
+    prisma.race.findMany({
+      where: {
+        athlete: athleteWhere,
+        intent: RaceIntent.PLANNED,
+        resultsLogOnly: false,
+        ...(cursorAt
+          ? {
+              OR: [
+                { resultLoggedAt: { lte: cursorAt } },
+                { resultLoggedAt: null, date: { lte: cursorAt } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        athlete: { select: { id: true, name: true, avatarUrl: true } },
+        legs: { orderBy: { sortOrder: 'asc' } },
+      },
+      orderBy: [{ resultLoggedAt: 'desc' }, { date: 'desc' }],
+      take: sourceTake,
+    }),
+  ])
+
+  const activityFeed: CoachHomeActivityFeedItem[] = recentCompletedRows.map((workout) => {
+    const kind = workout.status === WorkoutStatus.SKIPPED ? 'skipped' : 'completed'
+    const workoutForDetail = {
+      ...workout,
+      coachingThread: workout.coachingThread
+        ? mapActivityFeedCoachingThread(workout.coachingThread)
+        : null,
+    }
+    return {
+      athleteId: workout.athlete.id,
+      athleteName: workout.athlete.name,
+      avatarUrl: workout.athlete.avatarUrl,
+      activityAt: toIsoString(workout.result!.completedAt),
+      kind,
+      source: kind === 'completed' ? getWorkoutCompletionSource(workout) : null,
+      workout: redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(workoutForDetail), 'coach'),
+      feedbackThread: buildActivityFeedFeedbackThread(workout),
+    }
+  })
+
+  let rows = mergeCoachHomeActivityFeed(
+    buildCoachHomeActivityTableRows(activityFeed),
+    buildCoachHomeRaceActivityRows(
+      recentRaceRows.map(
+        (race): CoachHomeRaceFeedSource => ({
+          id: race.id,
+          name: race.name,
+          date: race.date,
+          location: race.location,
+          type: race.type,
+          sport: race.sport,
+          triathlonDistance: race.triathlonDistance,
+          priority: race.priority,
+          outcome: race.outcome,
+          resultTime: race.resultTime,
+          resultPlace: race.resultPlace,
+          resultPlaceGender: race.resultPlaceGender,
+          resultPlaceAg: race.resultPlaceAg,
+          resultNotes: race.resultNotes,
+          resultLoggedAt: race.resultLoggedAt,
+          stravaActivityUrl: race.stravaActivityUrl,
+          stravaActivityName: race.stravaActivityName,
+          legs: mapCoachHomeRaceLegs(race.legs),
+          athlete: race.athlete,
+        }),
+      ),
+    ),
+  )
+
+  if (cursor) {
+    rows = rows.filter((row) => activityRowBeforeCursor(row, cursor))
+  }
+
+  const page = rows.slice(0, limit)
+  const last = page[page.length - 1]
+  const hasMore = rows.length > limit
+  const nextCursor =
+    hasMore && last
+      ? { activityAt: last.activityAt, id: last.id }
+      : null
+
+  return { rows: page, nextCursor, hasMore }
+}
+
 export async function getCoachHomeData(coachId: string) {
+  const settings = await getAppSettings()
+  const dayKey = toDateKey(todayDateOnly())
+  const feedKey = settings.coachActivityFeedEnabled ? '1' : '0'
+  return unstable_cache(
+    () => getCoachHomeDataUncached(coachId, settings.coachActivityFeedEnabled),
+    ['coach-home', coachId, dayKey, feedKey],
+    {
+      tags: [cacheTags.coachHome(coachId), cacheTags.appSettings()],
+      revalidate: 120,
+    },
+  )()
+}
+
+async function getCoachHomeDataUncached(coachId: string, activityFeedEnabled: boolean) {
   const today = todayDateOnly()
   const weekStart = startOfWeekDateOnly(today)
   const lastWeekStart = addDateOnlyDays(weekStart, -7)
   const lastWeekEnd = addDateOnlyDays(weekStart, -1)
   const athleteWhere = athleteOwnedByCoachWhere(coachId)
 
-  const volumeWorkoutSelect = {
-    athleteId: true,
-    date: true,
-    status: true,
-    type: true,
-    selfLogged: true,
-    plannedDistance: true,
-    plannedDuration: true,
-    isRescheduleGhost: true,
-    result: { select: { actualDistance: true, actualDuration: true } },
-  } as const
+  const volumeWorkoutSelect = WORKOUT_VOLUME_SELECT
 
-  const [dashboard, pendingCoach, inboxStats, lastWeekWorkouts, todayWorkoutRows, recentCompletedRows, recentRaceRows, coachUser] =
+  const [dashboard, pendingCoach, inboxStats, lastWeekWorkouts, todayWorkoutRows, activityPage, coachUser] =
     await Promise.all([
     getCoachDashboard(coachId),
     getPendingCoachRequests(coachId),
@@ -901,34 +1130,9 @@ export async function getCoachHomeData(coachId: string) {
       },
       orderBy: WORKOUT_LIST_ORDER_BY,
     }),
-    prisma.workout.findMany({
-      where: {
-        athlete: athleteWhere,
-        status: { in: [WorkoutStatus.COMPLETED, WorkoutStatus.SKIPPED] },
-        isRescheduleGhost: false,
-        result: { isNot: null },
-      },
-      include: {
-        ...ACTIVITY_FEED_WORKOUT_INCLUDE,
-        athlete: { select: { id: true, name: true, avatarUrl: true } },
-        result: true,
-      },
-      orderBy: { result: { completedAt: 'desc' } },
-      take: 200,
-    }),
-    prisma.race.findMany({
-      where: {
-        athlete: athleteWhere,
-        intent: RaceIntent.PLANNED,
-        resultsLogOnly: false,
-      },
-      include: {
-        athlete: { select: { id: true, name: true, avatarUrl: true } },
-        legs: { orderBy: { sortOrder: 'asc' } },
-      },
-      orderBy: [{ date: 'desc' }],
-      take: 200,
-    }),
+    activityFeedEnabled
+      ? getCoachHomeActivityFeedPage(coachId, { limit: COACH_HOME_ACTIVITY_INITIAL })
+      : Promise.resolve({ rows: [], nextCursor: null, hasMore: false }),
     prisma.user.findUnique({
       where: { id: coachId },
       select: { notificationPrefs: true },
@@ -989,26 +1193,6 @@ export async function getCoachHomeData(coachId: string) {
     (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
   )
 
-  const activityFeed: CoachHomeActivityFeedItem[] = recentCompletedRows.map((workout) => {
-    const kind = workout.status === WorkoutStatus.SKIPPED ? 'skipped' : 'completed'
-    const workoutForDetail = {
-      ...workout,
-      coachingThread: workout.coachingThread
-        ? mapActivityFeedCoachingThread(workout.coachingThread)
-        : null,
-    }
-    return {
-      athleteId: workout.athlete.id,
-      athleteName: workout.athlete.name,
-      avatarUrl: workout.athlete.avatarUrl,
-      activityAt: workout.result!.completedAt.toISOString(),
-      kind,
-      source: kind === 'completed' ? getWorkoutCompletionSource(workout) : null,
-      workout: redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(workoutForDetail), 'coach'),
-      feedbackThread: buildActivityFeedFeedbackThread(workout),
-    }
-  })
-
   const rosterRows: CoachRosterRow[] = buildCoachRosterRows({
     athletes: dashboard.athletes.map((a) => ({
       id: a.id,
@@ -1052,7 +1236,7 @@ export async function getCoachHomeData(coachId: string) {
 
   const coachingRequests = pendingCoach.requests.map((link) => ({
     id: link.id,
-    createdAt: link.createdAt.toISOString(),
+    createdAt: toIsoString(link.createdAt),
     athlete: {
       id: link.athlete.id,
       name: link.athlete.name,
@@ -1084,34 +1268,7 @@ export async function getCoachHomeData(coachId: string) {
 
   const needsPlanCount = planningCoverageRows.filter((row) => row.daysUnplanned > 0).length
 
-  const activityTableRows = mergeCoachHomeActivityFeed(
-    buildCoachHomeActivityTableRows(activityFeed),
-    buildCoachHomeRaceActivityRows(
-      recentRaceRows.map(
-        (race): CoachHomeRaceFeedSource => ({
-          id: race.id,
-          name: race.name,
-          date: race.date,
-          location: race.location,
-          type: race.type,
-          sport: race.sport,
-          triathlonDistance: race.triathlonDistance,
-          priority: race.priority,
-          outcome: race.outcome,
-          resultTime: race.resultTime,
-          resultPlace: race.resultPlace,
-          resultPlaceGender: race.resultPlaceGender,
-          resultPlaceAg: race.resultPlaceAg,
-          resultNotes: race.resultNotes,
-          resultLoggedAt: race.resultLoggedAt,
-          stravaActivityUrl: race.stravaActivityUrl,
-          stravaActivityName: race.stravaActivityName,
-          legs: mapCoachHomeRaceLegs(race.legs),
-          athlete: race.athlete,
-        }),
-      ),
-    ),
-  )
+  const activityTableRows = activityPage.rows
   const athleteOptions = athleteOptionsFromRoster(rosterRows)
 
   const loadThresholdsByAthleteId: Record<string, SessionLoadThresholds> =
@@ -1133,12 +1290,16 @@ export async function getCoachHomeData(coachId: string) {
     )
 
   return {
-    ...dashboard,
+    athletes: dashboard.athletes,
+    recentFeedback: dashboard.recentFeedback,
+    recentRaceReports: dashboard.recentRaceReports,
+    planningLeadDays: dashboard.planningLeadDays,
+    planningWarnings: dashboard.planningWarnings,
     pendingCoach,
     needsReply,
     needsReplyThreads,
     todayAthletes,
-    activityFeed,
+    activityFeed: [],
     latestFeedback: latestFeedback.slice(0, 8),
     rosterRows,
     attentionItems,
@@ -1146,8 +1307,107 @@ export async function getCoachHomeData(coachId: string) {
     planningCoverageRows,
     needsPlanCount,
     activityTableRows,
+    activityFeedCursor: activityPage.nextCursor,
+    activityFeedHasMore: activityPage.hasMore,
+    activityFeedEnabled,
     athleteOptions,
     loadThresholdsByAthleteId,
+  }
+}
+
+/**
+ * Athletes page only needs roster + coaching code — skip activity feed,
+ * today board, and attention dismissals from the full home pack.
+ */
+export async function getCoachRosterPageData(coachId: string) {
+  const dayKey = toDateKey(todayDateOnly())
+  return unstable_cache(
+    () => getCoachRosterPageDataUncached(coachId),
+    ['coach-roster', coachId, dayKey],
+    { tags: [cacheTags.coachRoster(coachId)], revalidate: 120 },
+  )()
+}
+
+async function getCoachRosterPageDataUncached(coachId: string) {
+  const today = todayDateOnly()
+  const weekStart = startOfWeekDateOnly(today)
+  const lastWeekStart = addDateOnlyDays(weekStart, -7)
+  const lastWeekEnd = addDateOnlyDays(weekStart, -1)
+  const athleteWhere = athleteOwnedByCoachWhere(coachId)
+
+  const [dashboard, pendingCoach, inboxStats, lastWeekWorkouts, coachUser] =
+    await Promise.all([
+      getCoachDashboard(coachId),
+      getPendingCoachRequests(coachId),
+      getCoachInboxAthleteStats(coachId),
+      prisma.workout.findMany({
+        where: {
+          athlete: athleteWhere,
+          date: { gte: lastWeekStart, lte: lastWeekEnd },
+          isRescheduleGhost: false,
+        },
+        select: WORKOUT_VOLUME_SELECT,
+      }),
+      prisma.user.findUnique({
+        where: { id: coachId },
+        select: { notificationPrefs: true },
+      }),
+    ])
+
+  const {
+    needsReplyByAthlete,
+    chatThreadsByAthlete,
+    feedbackThreadsByAthlete,
+  } = inboxStats
+
+  const athleteIds = dashboard.athletes.map((a) => a.id)
+  await ensureGeneralChatThreads(athleteIds)
+  const generalThreads = await listCoachGeneralChatThreads(coachId)
+  const generalChatByAthlete = new Map<string, CoachRosterChatThread>(
+    generalThreads.map((thread) => [thread.athleteId, buildRosterChatThread(thread)]),
+  )
+
+  const lastWeekWorkoutsByAthlete = groupWorkoutsByAthlete(lastWeekWorkouts)
+  const alertPrefs = normalizeNotificationPrefs(coachUser?.notificationPrefs)
+  const planningWarningIds = new Set(
+    dashboard.athletes
+      .filter((athlete) => athlete.status === AthleteStatus.ACTIVE)
+      .filter((athlete) =>
+        isUnderPlannedBelowDays(
+          dashboard.lastPlannedKeyByAthlete.get(athlete.id) ?? null,
+          alertPrefs.underPlannedAlertBelowDays,
+        ),
+      )
+      .map((athlete) => athlete.id),
+  )
+
+  const rosterRows: CoachRosterRow[] = buildCoachRosterRows({
+    athletes: dashboard.athletes.map((a) => ({
+      id: a.id,
+      name: a.name,
+      status: a.status,
+      avatarUrl: a.avatarUrl,
+      userId: a.userId,
+      races: a.races,
+      workouts: a.workouts,
+    })),
+    lastWeekWorkoutsByAthlete,
+    planningWarningIds,
+    lastPlannedKeyByAthlete: dashboard.lastPlannedKeyByAthlete,
+    needsReplyByAthlete,
+    chatThreadsByAthlete,
+    feedbackThreadsByAthlete,
+    generalChatByAthlete,
+    formatNextRace: (race) => {
+      const d = daysUntil(race.date)
+      return { label: `${race.name} · ${d}d`, days: d }
+    },
+    complianceAlertBelowPct: alertPrefs.complianceAlertBelowPct,
+  })
+
+  return {
+    rosterRows,
+    pendingCoach,
   }
 }
 
@@ -1167,6 +1427,60 @@ export async function getWeekHiddenPlanSportRows(athleteId: string, weekStart: D
     orderBy: { sport: 'asc' },
   })
   return rows.map((row) => row.sport)
+}
+
+/** Batch week sport-row prefs for multiple week starts (one query each). */
+export async function getWeekPlanSportRowsForWeeks(
+  athleteId: string,
+  weekStarts: Date[],
+): Promise<
+  Map<string, { weekExtraPlanSportRows: WorkoutType[]; weekHiddenPlanSportRows: WorkoutType[] }>
+> {
+  const empty = {
+    weekExtraPlanSportRows: [] as WorkoutType[],
+    weekHiddenPlanSportRows: [] as WorkoutType[],
+  }
+  const result = new Map<string, typeof empty>()
+  for (const start of weekStarts) {
+    result.set(toDateKey(start), {
+      weekExtraPlanSportRows: [],
+      weekHiddenPlanSportRows: [],
+    })
+  }
+  if (weekStarts.length === 0) return result
+
+  const [extraRows, hiddenRows] = await Promise.all([
+    prisma.athleteWeekPlanSportRow.findMany({
+      where: { athleteId, weekStart: { in: weekStarts } },
+      select: { weekStart: true, sport: true },
+      orderBy: { sport: 'asc' },
+    }),
+    prisma.athleteWeekHiddenPlanSportRow.findMany({
+      where: { athleteId, weekStart: { in: weekStarts } },
+      select: { weekStart: true, sport: true },
+      orderBy: { sport: 'asc' },
+    }),
+  ])
+
+  for (const row of extraRows) {
+    const key = toDateKey(row.weekStart)
+    const entry = result.get(key) ?? {
+      weekExtraPlanSportRows: [],
+      weekHiddenPlanSportRows: [],
+    }
+    entry.weekExtraPlanSportRows.push(row.sport)
+    result.set(key, entry)
+  }
+  for (const row of hiddenRows) {
+    const key = toDateKey(row.weekStart)
+    const entry = result.get(key) ?? {
+      weekExtraPlanSportRows: [],
+      weekHiddenPlanSportRows: [],
+    }
+    entry.weekHiddenPlanSportRows.push(row.sport)
+    result.set(key, entry)
+  }
+  return result
 }
 
 export async function getAthleteForCoach(coachId: string, athleteId: string) {
@@ -1229,11 +1543,24 @@ export async function getPlanWorkouts(athleteId: string, anchor: Date) {
 }
 
 export async function getPlanWorkoutsInRange(athleteId: string, start: Date, end: Date) {
+  const startKey = toDateKey(start)
+  const endKey = toDateKey(end)
+  return unstable_cache(
+    () => getPlanWorkoutsInRangeUncached(athleteId, start, end),
+    ['plan-range', athleteId, startKey, endKey],
+    { tags: [cacheTags.athletePlan(athleteId)], revalidate: 60 },
+  )()
+}
+
+async function getPlanWorkoutsInRangeUncached(
+  athleteId: string,
+  start: Date,
+  end: Date,
+) {
   return prisma.workout.findMany({
     where: { athleteId, date: { gte: start, lte: end } },
     include: {
       ...WORKOUT_PLAN_INCLUDE,
-      template: true,
       plan: { select: { id: true, title: true } },
       planSession: { select: { weekIndex: true, dayOfWeek: true } },
     },
@@ -1252,7 +1579,7 @@ export async function getMonthWorkouts(athleteId: string, year: number, month: n
   })
 }
 
-export function groupWorkoutsByDate<T extends { date: Date }>(workouts: T[]) {
+export function groupWorkoutsByDate<T extends { date: Date | string }>(workouts: T[]) {
   const map = new Map<string, T[]>()
   for (const w of workouts) {
     const key = toDateKey(w.date)
@@ -1271,7 +1598,7 @@ export async function getDayNotesForRange(athleteId: string, start: Date, end: D
 
 export function groupDayNotesByDate(
   notes: {
-    date: Date
+    date: Date | string
     status: DayNoteData['status']
     athleteNotes: string | null
     athleteNotesPrivate: boolean

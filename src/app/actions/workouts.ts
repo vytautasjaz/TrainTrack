@@ -195,9 +195,8 @@ function buildWorkoutResultData({
   }
 }
 
-function revalidateWorkoutPaths(workoutId?: string) {
-  revalidatePath('/dashboard')
-  revalidatePath('/training')
+async function revalidateWorkoutSurfaces(athleteId: string, workoutId?: string) {
+  await onTrainingCalendarDataChanged(athleteId)
   if (workoutId) revalidatePath(`/workouts/${workoutId}`)
 }
 
@@ -273,7 +272,7 @@ export async function completeWorkout(formData: FormData) {
     update: resultData,
   })
 
-  revalidateWorkoutPaths(workoutId)
+  await revalidateWorkoutSurfaces(workout.athleteId, workoutId)
 }
 
 export async function rescheduleWorkout(formData: FormData) {
@@ -311,7 +310,7 @@ export async function rescheduleWorkout(formData: FormData) {
 
   const { moveAthleteWorkoutToDateWithGhost } = await import('@/lib/workout-reschedule')
   await moveAthleteWorkoutToDateWithGhost(workout.id, newDate)
-  revalidateWorkoutPaths(workout.id)
+  await revalidateWorkoutSurfaces(workout.athleteId, workout.id)
 }
 
 /**
@@ -334,7 +333,6 @@ export async function acceptAthleteReschedule(workoutId: string) {
     }),
   ])
 
-  revalidateWorkoutPaths(pair.activeId)
   await onTrainingCalendarDataChanged(pair.athleteId)
 }
 
@@ -361,7 +359,6 @@ export async function rejectAthleteReschedule(workoutId: string) {
     prisma.workout.delete({ where: { id: pair.ghostId } }),
   ])
 
-  revalidateWorkoutPaths(pair.activeId)
   await onTrainingCalendarDataChanged(pair.athleteId)
 }
 
@@ -454,7 +451,7 @@ export async function unlogWorkout(formData: FormData) {
     })
   })
 
-  revalidateWorkoutPaths(workout.id)
+  await revalidateWorkoutSurfaces(workout.athleteId, workout.id)
 }
 
 export async function markWorkoutDone(formData: FormData) {
@@ -493,7 +490,7 @@ export async function markWorkoutDone(formData: FormData) {
     update: { logType: AthleteLogTypeValues.COMPLETED },
   })
 
-  revalidateWorkoutPaths(workoutId)
+  await revalidateWorkoutSurfaces(workout.athleteId, workoutId)
 }
 
 export async function markWorkoutSkipped(formData: FormData) {
@@ -530,7 +527,7 @@ export async function markWorkoutSkipped(formData: FormData) {
     update: { logType: AthleteLogTypeValues.SKIPPED },
   })
 
-  revalidateWorkoutPaths(workoutId)
+  await revalidateWorkoutSurfaces(workout.athleteId, workoutId)
 }
 
 export async function createWorkoutFromTemplate(formData: FormData) {
@@ -763,8 +760,6 @@ export async function createRace(formData: FormData) {
   }
 
   revalidatePath('/season')
-  revalidatePath('/dashboard')
-  revalidatePath('/training')
   revalidatePath(`/athletes/${athleteId}`)
   await onRacesCalendarDataChanged(athleteId)
 }
@@ -869,7 +864,6 @@ export async function moveWorkout(formData: FormData) {
     data: { date: parseDateOnly(date) },
   })
 
-  revalidatePath('/training')
   await onTrainingCalendarDataChanged(workout.athleteId)
 }
 
@@ -892,8 +886,6 @@ export async function moveWorkoutToDate(workoutId: string, dateKey: string) {
     data: { date, sortOrder },
   })
 
-  revalidatePath('/training')
-  revalidatePath('/dashboard')
   await onTrainingCalendarDataChanged(workout.athleteId)
 }
 
@@ -923,8 +915,6 @@ export async function reorderDayWorkouts(dateKey: string, workoutIds: string[]) 
     ),
   )
 
-  revalidatePath('/training')
-  revalidatePath('/dashboard')
   await onTrainingCalendarDataChanged(athleteId)
 }
 
@@ -1034,8 +1024,6 @@ export async function moveDayPlanItemRelative(args: {
     ),
   )
 
-  revalidatePath('/training')
-  revalidatePath('/dashboard')
   revalidatePath('/season')
   await onTrainingCalendarDataChanged(athleteId)
   await onRacesCalendarDataChanged(athleteId)
@@ -1349,8 +1337,6 @@ export async function deleteWorkout(formData: FormData) {
     await prisma.workout.delete({ where: { id: workoutId } })
   }
 
-  revalidatePath('/training')
-  revalidatePath('/dashboard')
   revalidatePath(`/workouts/${workoutId}`)
   if (workout?.athleteId) await onTrainingCalendarDataChanged(workout.athleteId)
 
@@ -1506,8 +1492,6 @@ export async function updateRace(formData: FormData) {
   }
 
   revalidatePath('/season')
-  revalidatePath('/dashboard')
-  revalidatePath('/training')
   revalidatePath(`/athletes/${race.athleteId}`)
   revalidatePath(`/season/${race.id}/edit`)
   await onRacesCalendarDataChanged(race.athleteId)
@@ -1532,8 +1516,6 @@ export async function setRaceIntent(formData: FormData) {
   })
 
   revalidatePath('/season')
-  revalidatePath('/dashboard')
-  revalidatePath('/training')
   revalidatePath(`/athletes/${race.athleteId}`)
   await onRacesCalendarDataChanged(race.athleteId)
 }
@@ -1731,8 +1713,6 @@ export async function deleteRace(formData: FormData) {
   await prisma.race.delete({ where: { id: raceId } })
 
   revalidatePath('/season')
-  revalidatePath('/dashboard')
-  revalidatePath('/training')
   revalidatePath(`/athletes/${race.athleteId}`)
   await onRacesCalendarDataChanged(race.athleteId)
 }

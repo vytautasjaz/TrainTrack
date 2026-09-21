@@ -15,6 +15,7 @@ import {
   todayDateKey,
   todayDateOnly,
   toDateKey,
+  toIsoString,
 } from '@/lib/dates'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import type { CoachingThreadView } from '@/components/inbox/coaching-thread-panel'
@@ -185,7 +186,7 @@ export type CoachHomeRaceFeedSource = {
   resultPlaceGender: string | null
   resultPlaceAg: string | null
   resultNotes: string | null
-  resultLoggedAt: Date | null
+  resultLoggedAt: Date | string | null
   stravaActivityUrl: string | null
   stravaActivityName: string | null
   legs: RaceLegView[]
@@ -1049,7 +1050,7 @@ export function buildCoachHomeRaceActivityRows(
 
     const activityAt =
       hasReport && race.resultLoggedAt
-        ? race.resultLoggedAt.toISOString()
+        ? toIsoString(race.resultLoggedAt)
         : `${raceDateKey}T12:00:00.000Z`
     const dateKey =
       hasReport && race.resultLoggedAt ? toDateKey(race.resultLoggedAt) : raceDateKey

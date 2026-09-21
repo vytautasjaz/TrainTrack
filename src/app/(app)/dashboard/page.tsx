@@ -134,10 +134,12 @@ export default async function DashboardPage() {
                 showWeather={showWeather}
               />
 
-              <AthleteActivityFeed
-                workouts={activityFeedWorkouts}
-                loadThresholds={data.trainingLoadThresholds}
-              />
+              {data.activityFeedEnabled ? (
+                <AthleteActivityFeed
+                  workouts={activityFeedWorkouts}
+                  loadThresholds={data.trainingLoadThresholds}
+                />
+              ) : null}
             </div>
 
             <aside className="min-w-0">

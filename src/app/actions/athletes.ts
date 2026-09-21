@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { AthleteStatus, RaceOutcome, WorkoutType } from '@prisma/client'
 import { format } from 'date-fns'
 import { parseDateOnly, endOfWeekDateOnly, todayDateOnly, toDateKey } from '@/lib/dates'
+import { revalidateCoachSurfaces, revalidateAthletePlanSurfaces } from '@/lib/cache-tags'
 import { prisma } from '@/lib/prisma'
 import {
   HR_ZONE_FIELDS,
@@ -44,10 +45,9 @@ function parseHrValue(raw: FormDataEntryValue | null): number | null {
   return value
 }
 
-function revalidateAthletePaths(athleteId: string) {
-  revalidatePath('/dashboard')
-  revalidatePath('/athletes')
-  revalidatePath('/training')
+function revalidateAthletePaths(coachUserId: string, athleteId: string) {
+  revalidateCoachSurfaces(coachUserId)
+  revalidateAthletePlanSurfaces(athleteId)
   revalidatePath(`/athletes/${athleteId}`)
   revalidatePath('/settings/preferences')
 }
@@ -230,7 +230,7 @@ export async function updateAthleteStatusByCoach(athleteId: string, status: Athl
     data: { status },
   })
 
-  revalidateAthletePaths(athleteId)
+  revalidateAthletePaths(session.userId, athleteId)
   revalidatePath('/settings/preferences')
 }
 
@@ -289,7 +289,7 @@ export async function updateAthleteProfileByCoach(formData: FormData) {
     })
   }
 
-  revalidateAthletePaths(athleteId)
+  revalidateAthletePaths(session.userId, athleteId)
 }
 
 export async function updateAthleteZonesByCoach(formData: FormData) {
@@ -369,7 +369,7 @@ export async function updateAthleteZonesByCoach(formData: FormData) {
     `${coachLabel} updated your training zones. Review them in Settings → Preferences.`,
   )
 
-  revalidateAthletePaths(athleteId)
+  revalidateAthletePaths(session.userId, athleteId)
   revalidatePath('/inbox')
 }
 
@@ -392,7 +392,7 @@ export async function updateAthletePlanSportRows(formData: FormData) {
     data: { planSportRows },
   })
 
-  revalidateAthletePaths(athleteId)
+  revalidateAthletePaths(session.userId, athleteId)
 }
 
 export async function addExtraPlanSportRow(formData: FormData) {
@@ -419,7 +419,7 @@ export async function addExtraPlanSportRow(formData: FormData) {
     await prisma.athleteWeekHiddenPlanSportRow.deleteMany({
       where: { athleteId, weekStart, sport },
     })
-    revalidateAthletePaths(athleteId)
+    revalidateAthletePaths(session.userId, athleteId)
     return
   }
 
@@ -435,7 +435,7 @@ export async function addExtraPlanSportRow(formData: FormData) {
     where: { athleteId, weekStart, sport },
   })
 
-  revalidateAthletePaths(athleteId)
+  revalidateAthletePaths(session.userId, athleteId)
 }
 
 export async function removeEmptyPlanSportRow(formData: FormData) {
@@ -489,7 +489,7 @@ export async function removeEmptyPlanSportRow(formData: FormData) {
     })
   }
 
-  revalidateAthletePaths(athleteId)
+  revalidateAthletePaths(session.userId, athleteId)
 }
 
 export async function selectAthleteForTraining(formData: FormData) {
@@ -531,7 +531,5 @@ export async function deleteManagedAthlete(formData: FormData) {
     cookieStore.delete('tt_athlete')
   }
 
-  revalidatePath('/dashboard')
-  revalidatePath('/athletes')
-  revalidatePath('/training')
+  revalidateCoachSurfaces(session.userId)
 }

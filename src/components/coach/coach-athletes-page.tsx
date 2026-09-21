@@ -1,9 +1,9 @@
 import { CoachAthletesRoster } from '@/components/coach/coach-athletes-roster'
-import type { getCoachHomeData } from '@/lib/queries'
+import type { getCoachRosterPageData } from '@/lib/queries'
 
-type CoachHomeData = Awaited<ReturnType<typeof getCoachHomeData>>
+type CoachRosterPageData = Awaited<ReturnType<typeof getCoachRosterPageData>>
 
-export function CoachAthletesPageContent({ coachHome }: { coachHome: CoachHomeData }) {
+export function CoachAthletesPageContent({ coachHome }: { coachHome: CoachRosterPageData }) {
   const { rosterRows, pendingCoach } = coachHome
   const activeCount = rosterRows.filter((a) => a.status === 'ACTIVE').length
 

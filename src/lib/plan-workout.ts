@@ -14,7 +14,7 @@ import {
 } from '@prisma/client'
 import type { RaceDistancesBySport } from '@/lib/race-distance-stats'
 import { threadHasChatConversation } from '@/lib/coaching-inbox-shared'
-import { toDateKey, todayDateKey } from '@/lib/dates'
+import { toDateKey, todayDateKey, toIsoString, toIsoStringOrNull } from '@/lib/dates'
 import type { WorkoutStructure } from '@/lib/workout-builder/types'
 import { formatPlanBlockSummary } from '@/lib/workout-builder/segment-estimation'
 import { parseStructure } from '@/lib/workout-builder/utils'
@@ -117,7 +117,7 @@ export type PlanWorkoutCoachingChat = {
 export function toPlanWorkoutDetail(w: {
   id: string
   title: string
-  date: Date
+  date: Date | string
   type: WorkoutType
   sessionType?: SessionType
   status: WorkoutStatus
@@ -136,9 +136,9 @@ export function toPlanWorkoutDetail(w: {
   tags?: string[]
   selfLogged?: boolean
   sortOrder?: number
-  rescheduledFromDate?: Date | null
+  rescheduledFromDate?: Date | string | null
   isRescheduleGhost?: boolean
-  rescheduledCopy?: { id: string; date: Date } | null
+  rescheduledCopy?: { id: string; date: Date | string } | null
   result: {
     actualDistance: number | null
     actualDuration: number | null
@@ -147,7 +147,7 @@ export function toPlanWorkoutDetail(w: {
     athleteNotes: string | null
     athleteNotesPrivate?: boolean
     coachReply: string | null
-    coachReplyReadAt?: Date | null
+    coachReplyReadAt?: Date | string | null
     stravaActivityUrl: string | null
     stravaActivityId?: string | null
     stravaActivityName?: string | null
@@ -169,9 +169,9 @@ export function toPlanWorkoutDetail(w: {
   } | null
   coachingThread?: {
     status: CoachingThreadStatus
-    lastMessageAt: Date
-    coachLastReadAt: Date | null
-    athleteLastReadAt: Date | null
+    lastMessageAt: Date | string
+    coachLastReadAt: Date | string | null
+    athleteLastReadAt: Date | string | null
     _count: { messages: number }
     messages: Array<{ authorRole: CoachingAuthorRole; kind: CoachingMessageKind }>
   } | null
@@ -217,7 +217,7 @@ export function toPlanWorkoutDetail(w: {
           athleteNotes: w.result.athleteNotes,
           athleteNotesPrivate: w.result.athleteNotesPrivate ?? false,
           coachReply: w.result.coachReply ?? null,
-          coachReplyReadAt: w.result.coachReplyReadAt?.toISOString() ?? null,
+          coachReplyReadAt: toIsoStringOrNull(w.result.coachReplyReadAt),
           stravaActivityUrl: w.result.stravaActivityUrl ?? null,
           stravaActivityId: w.result.stravaActivityId ?? null,
           stravaActivityName: w.result.stravaActivityName ?? null,
@@ -255,10 +255,11 @@ export function mapCoachingChatFromThread(
   thread:
     | {
         status: CoachingThreadStatus
-        lastMessageAt: Date
-        coachLastReadAt: Date | null
-        athleteLastReadAt: Date | null
+        lastMessageAt: Date | string
+        coachLastReadAt: Date | string | null
+        athleteLastReadAt: Date | string | null
         _count: { messages: number }
+        /** Newest-first (plan include) — first entry is the latest author. */
         messages: Array<{ authorRole: CoachingAuthorRole; kind: CoachingMessageKind }>
       }
     | null
@@ -266,12 +267,12 @@ export function mapCoachingChatFromThread(
 ): PlanWorkoutCoachingChat | null {
   if (!thread || thread._count.messages === 0) return null
   if (!threadHasChatConversation(thread.messages)) return null
-  const lastMessage = thread.messages.at(-1) ?? null
+  const lastMessage = thread.messages[0] ?? null
   return {
     messageCount: thread._count.messages,
-    lastMessageAt: thread.lastMessageAt.toISOString(),
-    coachLastReadAt: thread.coachLastReadAt?.toISOString() ?? null,
-    athleteLastReadAt: thread.athleteLastReadAt?.toISOString() ?? null,
+    lastMessageAt: toIsoString(thread.lastMessageAt),
+    coachLastReadAt: toIsoStringOrNull(thread.coachLastReadAt),
+    athleteLastReadAt: toIsoStringOrNull(thread.athleteLastReadAt),
     status: thread.status,
     lastAuthorRole: lastMessage?.authorRole ?? null,
   }

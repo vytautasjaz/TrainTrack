@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
+import { onTrainingCalendarDataChanged } from '@/lib/calendar-invalidation'
 import {
   coachCanAccessAthlete,
   requireAthleteSession,
@@ -29,15 +30,19 @@ import {
 } from '@/lib/strava/client'
 import { downsampleStreamSeries } from '@/lib/strava/stream-chart'
 
-function revalidateStravaPaths() {
-  revalidatePath('/dashboard')
-  revalidatePath('/training')
+async function revalidateAfterStrava(athleteId: string | null | undefined) {
+  if (athleteId) {
+    await onTrainingCalendarDataChanged(athleteId)
+  } else {
+    revalidatePath('/dashboard')
+    revalidatePath('/training')
+  }
   revalidatePath('/settings/preferences')
   revalidatePath('/progress')
 }
 
-function revalidateWorkoutPaths(workoutId: string) {
-  revalidateStravaPaths()
+async function revalidateWorkoutAfterStrava(athleteId: string, workoutId: string) {
+  await revalidateAfterStrava(athleteId)
   revalidatePath(`/workouts/${workoutId}`)
 }
 
@@ -57,7 +62,7 @@ export async function syncStravaActivities() {
   const session = await requireAthleteSession()
   const result = await syncStravaActivitiesForUser(session.userId, session.athleteId)
 
-  revalidateStravaPaths()
+  await revalidateAfterStrava(session.athleteId)
   return result
 }
 
@@ -73,7 +78,7 @@ export async function syncStravaActivitiesForDateRange(fromKey: string, toKey?: 
     updateLastSyncedAt: false,
   })
 
-  revalidateStravaPaths()
+  await revalidateAfterStrava(session.athleteId)
   return result
 }
 
@@ -86,7 +91,7 @@ export async function setStravaAutoSyncEnabled(enabled: boolean) {
 
 /**
  * Background auto-sync on app load. No-ops if not connected, disabled, or synced recently.
- * Safe to call from a client effect; skip cases do not throw.
+ * Prefer hourly cron (`/api/cron/strava-sync`); this is a local/dev fallback.
  */
 export async function maybeAutoSyncStravaActivities() {
   const session = await requireAthleteSession()
@@ -96,7 +101,7 @@ export async function maybeAutoSyncStravaActivities() {
   )
 
   if (result.status === 'synced' && result.matched > 0) {
-    revalidateStravaPaths()
+    await revalidateAfterStrava(session.athleteId)
   }
 
   return result
@@ -115,7 +120,7 @@ export async function isStravaConnected() {
 export async function unlinkStravaFromWorkout(workoutId: string) {
   const session = await requireAthleteSession()
   await unlinkStravaFromWorkoutForAthlete(session.userId, session.athleteId, workoutId)
-  revalidateWorkoutPaths(workoutId)
+  await revalidateWorkoutAfterStrava(session.athleteId, workoutId)
 }
 
 /** Same-day compatible Strava activities for manual attach. */
@@ -137,7 +142,7 @@ export async function attachStravaActivityToWorkout(workoutId: string, activityI
     workoutId,
     activityId,
   )
-  revalidateWorkoutPaths(workoutId)
+  await revalidateWorkoutAfterStrava(session.athleteId, workoutId)
 }
 
 /** Unmatched Strava activities to import as new self-logged workouts. */
@@ -157,12 +162,12 @@ export async function importStravaActivityAsWorkout(activityId: string) {
     session.athleteId,
     activityId,
   )
-  revalidateWorkoutPaths(result.workoutId)
+  await revalidateWorkoutAfterStrava(session.athleteId, result.workoutId)
   return result
 }
 
-function revalidateRacePaths(athleteId: string, raceId?: string) {
-  revalidateStravaPaths()
+async function revalidateRacePaths(athleteId: string, raceId?: string) {
+  await revalidateAfterStrava(athleteId)
   revalidatePath('/season')
   revalidatePath(`/athletes/${athleteId}`)
   if (raceId) revalidatePath(`/season/${raceId}/edit`)
@@ -236,7 +241,7 @@ export async function getWorkoutStravaStreams(
     select: {
       athleteId: true,
       athlete: { select: { userId: true } },
-      result: { select: { stravaActivityId: true } },
+      result: { select: { stravaActivityId: true, stravaStreamsCache: true } },
     },
   })
   if (!workout?.result?.stravaActivityId) return null
@@ -251,6 +256,9 @@ export async function getWorkoutStravaStreams(
   const isCoach =
     !isOwner && (await coachCanAccessAthlete(session.userId, workout.athleteId))
   if (!isOwner && !isCoach) throw new Error('Unauthorized')
+
+  const cached = parseStreamsCache(workout.result.stravaStreamsCache)
+  if (cached) return cached
 
   const activityId = Number(workout.result.stravaActivityId)
   if (!Number.isFinite(activityId)) return null
@@ -282,9 +290,41 @@ export async function getWorkoutStravaStreams(
     }
   }
 
-  return {
+  const result: WorkoutStravaStreamsResult = {
     heartrate: pack(streams.heartrate),
     watts: pack(streams.watts),
     altitude: pack(streams.altitude, true),
+  }
+
+  // Persist for next open — avoid re-hitting Strava for feed charts.
+  void prisma.workoutResult
+    .update({
+      where: { stravaActivityId: workout.result.stravaActivityId },
+      data: { stravaStreamsCache: result },
+    })
+    .catch(() => {})
+
+  return result
+}
+
+function parseStreamsCache(raw: unknown): WorkoutStravaStreamsResult | null {
+  if (!raw || typeof raw !== 'object') return null
+  const obj = raw as Record<string, unknown>
+  const parseSeries = (value: unknown) => {
+    if (!value || typeof value !== 'object') return null
+    const s = value as { values?: unknown; time?: unknown; distance?: unknown }
+    if (!Array.isArray(s.values) || !Array.isArray(s.time) || s.values.length < 2) {
+      return null
+    }
+    return {
+      values: s.values as number[],
+      time: s.time as number[],
+      distance: Array.isArray(s.distance) ? (s.distance as number[]) : null,
+    }
+  }
+  return {
+    heartrate: parseSeries(obj.heartrate),
+    watts: parseSeries(obj.watts),
+    altitude: parseSeries(obj.altitude),
   }
 }
