@@ -22,6 +22,7 @@ import type { SwimWorkoutStructure } from '@/lib/swim-workout/types'
 import { parseSwimStructure } from '@/lib/swim-workout/parse'
 import { formatSwimStructureLines, formatSwimSetSummary } from '@/lib/swim-workout/format'
 import { isThreadUnreadForRole } from '@/lib/coaching-inbox-shared'
+import { readStructureDiagramSnapshot } from '@/lib/workout-builder/structure-diagram'
 
 export type PlanWorkoutDetail = {
   id: string
@@ -42,6 +43,8 @@ export type PlanWorkoutDetail = {
   coachNotesPrivate?: boolean
   structure: WorkoutStructure | null
   swimStructure: SwimWorkoutStructure | null
+  /** Compact Training-card silhouette (preferred over full structure on calendar). */
+  structureDiagram?: import('@/lib/workout-builder/structure-diagram').StructureDiagramSnapshot | null
   tags?: string[]
   selfLogged?: boolean
   rescheduledFromDateKey?: string | null
@@ -132,6 +135,7 @@ export function toPlanWorkoutDetail(w: {
   structure?: unknown
   swimEnvironment?: SwimEnvironment | null
   swimStructure?: unknown
+  structureDiagram?: unknown
   plannedDistanceMeters?: number | null
   tags?: string[]
   selfLogged?: boolean
@@ -197,6 +201,7 @@ export function toPlanWorkoutDetail(w: {
     coachNotesPrivate: w.coachNotesPrivate ?? false,
     structure: w.structure ? parseStructure(w.structure) : null,
     swimStructure: w.swimStructure ? parseSwimStructure(w.swimStructure) : null,
+    structureDiagram: readStructureDiagramSnapshot(w.structureDiagram),
     tags: w.tags ?? [],
     selfLogged: w.selfLogged ?? false,
     sortOrder: w.sortOrder ?? 0,

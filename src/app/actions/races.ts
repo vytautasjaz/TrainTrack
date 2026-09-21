@@ -13,6 +13,7 @@ import {
 import { toDateKey } from '@/lib/dates'
 import type { SeasonRace } from '@/lib/season-races'
 import type { RaceLegView } from '@/lib/race-legs'
+import { readPreparationBlocks } from '@/lib/race-preparation'
 import type {
   RaceCourseType,
   RacePriority,
@@ -41,6 +42,7 @@ const SEASON_RACE_SELECT = {
   url: true,
   coverImageUrl: true,
   preparationWeeks: true,
+  preparationBlocks: true,
   outcome: true,
   resultTime: true,
   resultPlace: true,
@@ -167,7 +169,10 @@ export async function getSeasonRaceDetail(
   if (!allowed) return null
 
   const { athleteId: _, ...rest } = race
-  return rest as SeasonRace
+  return {
+    ...rest,
+    preparationBlocks: readPreparationBlocks(rest.preparationBlocks),
+  } as SeasonRace
 }
 
 /** Athlete-only: update race feedback notes after the race (does not change outcome). */

@@ -482,6 +482,12 @@ model Race {
   url       String?
   /** Athlete override; null uses default weeks for race type. */
   preparationWeeks Int?
+  /**
+   * Optional phase breakdown of preparationWeeks, chronologically from prep start → race.
+   * JSON: [{ phase: SeasonPhase, weeks: number, label?: string | null }, ...]
+   * When set, weeks must sum to preparationWeeks.
+   */
+  preparationBlocks Json?
   /** Optional custom hero/cover photo (uploaded); falls back to sport default art. */
   coverImageUrl String?
   /** Set when athlete logs how the race went (or dismisses the prompt). */
@@ -849,6 +855,11 @@ model Workout {
   /** When true, coachNotes are hidden from the athlete. */
   coachNotesPrivate Boolean @default(false)
   structure       Json?
+  /**
+   * Compact intensity silhouette for Training cards (segments only).
+   * Derived from structure on save — avoids loading full builder JSON on calendar.
+   */
+  structureDiagram Json?
   swimEnvironment       SwimEnvironment?
   swimStructure         Json?
   plannedDistanceMeters Int?

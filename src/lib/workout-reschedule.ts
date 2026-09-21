@@ -2,6 +2,7 @@ import { WorkoutStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { toDateKey } from '@/lib/dates'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
+import { structureDiagramPrismaValue } from '@/lib/workout-builder/structure-diagram'
 
 type RescheduleCandidate = {
   id: string
@@ -124,6 +125,9 @@ export async function moveAthleteWorkoutToDateWithGhost(
       coachNotes: candidate.coachNotes,
       coachNotesPrivate: candidate.coachNotesPrivate,
       structure: (candidate.structure as object) ?? undefined,
+      structureDiagram: structureDiagramPrismaValue(candidate.structure, {
+        durationMinutes: candidate.plannedDuration,
+      }),
       swimEnvironment: candidate.swimEnvironment,
       swimStructure: (candidate.swimStructure as object) ?? undefined,
       plannedDistanceMeters: candidate.plannedDistanceMeters,

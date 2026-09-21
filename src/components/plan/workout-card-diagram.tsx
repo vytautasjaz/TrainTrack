@@ -2,6 +2,7 @@
 
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
 import { hasIncludeItems, hasStructureContent } from "@/lib/workout-builder/utils";
+import { structureDiagramToChartModel } from "@/lib/workout-builder/structure-diagram";
 import {
   WorkoutStructureChart,
   type StructureChartTone,
@@ -26,6 +27,9 @@ const CHART_SIZE = {
 } as const;
 
 export function workoutHasCardDiagram(workout: PlanWorkoutDetail): boolean {
+  if (workout.structureDiagram) {
+    return structureDiagramToChartModel(workout.structureDiagram) != null;
+  }
   if (!workout.structure) return false;
   return (
     hasStructureContent(workout.structure) || hasIncludeItems(workout.structure)
@@ -48,9 +52,14 @@ export function WorkoutCardDiagram({
     toneProp ??
     (completed ? "completed" : skipped ? "skipped" : "muted");
 
+  const chartModel = workout.structureDiagram
+    ? structureDiagramToChartModel(workout.structureDiagram)
+    : null;
+
   return (
     <WorkoutStructureChart
-      structure={workout.structure}
+      structure={chartModel ? undefined : workout.structure}
+      chartModel={chartModel}
       durationMinutes={workout.plannedDuration ?? undefined}
       size={CHART_SIZE[density]}
       showCaption={false}

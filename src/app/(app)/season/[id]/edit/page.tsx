@@ -10,6 +10,7 @@ import { setRaceIntent } from '@/app/actions/workouts'
 import { RaceStravaLinkPicker } from '@/components/races/race-strava-link-picker'
 import { RaceResultForm } from '@/components/races/race-result-form'
 import { EditRaceDetailsForm } from '@/components/races/edit-race-details-form'
+import { readPreparationBlocks } from '@/lib/race-preparation'
 
 type EditRacePageProps = {
   params: Promise<{ id: string }>
@@ -77,6 +78,7 @@ export default async function EditRacePage({
           goal: race.goal,
           url: race.url,
           preparationWeeks: race.preparationWeeks,
+          preparationBlocks: readPreparationBlocks(race.preparationBlocks),
           priority: race.priority,
           intent: race.intent,
           sport: race.sport,

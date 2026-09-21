@@ -102,6 +102,11 @@ import {
   type SeasonPhaseBlockData,
 } from '@/lib/season-planner'
 import {
+  prepBlockDisplayName,
+  prepBlockForWeekOffset,
+} from '@/lib/race-preparation'
+import { TRAINING_PHASE_SURFACE } from '@/lib/training-phase-context'
+import {
   RACE_INTENT_LABELS,
   RACE_PRIORITY_LABELS,
   RACE_TYPE_LABELS,
@@ -1741,20 +1746,41 @@ function StackedRaceCards({
                         : weekIdx
                     const blockWidth =
                       scale.unit === 'day' ? colW * 7 - 2 : colW - 2
+                    const totalPrep =
+                      prepWin.endWeekIndex - prepWin.startWeekIndex + 1
+                    const prepBlocks = race.preparationBlocks ?? null
+                    const block = prepBlockForWeekOffset(
+                      prepBlocks,
+                      weekIdx - prepWin.startWeekIndex,
+                      totalPrep,
+                    )
+                    const phaseSurface = block
+                      ? TRAINING_PHASE_SURFACE[block.phase]
+                      : null
+                    const title = block
+                      ? `${prepBlockDisplayName(block)} · ${weeksLeft}w to ${race.name}`
+                      : `${weeksLeft} weeks to ${race.name}`
                     return (
                       <div
                         key={`${race.id}-prep-${weekIdx}`}
                         className={cn(
                           'pointer-events-none absolute z-[1] flex items-center justify-center rounded-[4px] text-[9px] font-medium tabular-nums',
-                          PLANNER_PRIORITY_SHADOW[race.priority],
+                          !phaseSurface && PLANNER_PRIORITY_SHADOW[race.priority],
                         )}
                         style={{
                           left: dayStart * colW + 1,
                           width: Math.max(blockWidth, 2),
                           top,
                           height: cardH,
+                          ...(phaseSurface
+                            ? {
+                                backgroundColor: phaseSurface.bg,
+                                color: phaseSurface.label,
+                                boxShadow: `inset 0 0 0 1px ${phaseSurface.border}`,
+                              }
+                            : null),
                         }}
-                        title={`${weeksLeft} weeks to ${race.name}`}
+                        title={title}
                       >
                         {weeksLeft}
                       </div>

@@ -31,6 +31,7 @@ import {
 import { toTrainingPhaseBlock } from '@/lib/training-phase-context'
 import { resolveTrainingPlanSessionMetricsForAthlete, recalculateTrainingPlanSessionMetricsForPreferences } from '@/lib/training-plan-session-metrics'
 import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-athlete-preferences'
+import { structureDiagramPrismaValue } from '@/lib/workout-builder/structure-diagram'
 import { syncApproxTagsFromSources } from '@/lib/workout-metric-source'
 import { sportSlug } from '@/lib/workout-library/config'
 import { parseTrainingPlanAthleteLevel } from '@/lib/training-plan-athlete-level'
@@ -577,6 +578,9 @@ export async function applyTrainingPlan(args: {
         coachNotes: src.coachNotes,
         coachNotesPrivate: src.coachNotesPrivate,
         structure: src.structure ?? undefined,
+        structureDiagram: structureDiagramPrismaValue(src.structure, {
+          durationMinutes: metrics.durationMin,
+        }),
         swimEnvironment: src.swimEnvironment,
         swimStructure: src.swimStructure ?? undefined,
         plannedDistanceMeters: metrics.distanceMeters,

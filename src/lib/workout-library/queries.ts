@@ -22,6 +22,21 @@ const templateSelect = {
   updatedAt: true,
 } as const
 
+/** Training dock list — no structure JSON; metrics use stored km/min. */
+const trainingDockTemplateSelect = {
+  id: true,
+  title: true,
+  type: true,
+  sessionType: true,
+  distanceKm: true,
+  durationMin: true,
+  distanceSource: true,
+  durationSource: true,
+  plannedDistanceMeters: true,
+  plannedDistanceMetersSource: true,
+  folderId: true,
+} as const
+
 export type LibraryFolderRow = {
   id: string
   sport: WorkoutType
@@ -46,6 +61,15 @@ export async function getCoachLibraryTemplates(
     where: { coachId },
     orderBy: { updatedAt: 'desc' },
     select: templateSelect,
+  })
+}
+
+/** Slim template rows for the Training library dock (SSR). */
+export async function getCoachLibraryTemplatesForTrainingDock(coachId: string) {
+  return prisma.workoutTemplate.findMany({
+    where: { coachId },
+    orderBy: { updatedAt: 'desc' },
+    select: trainingDockTemplateSelect,
   })
 }
 

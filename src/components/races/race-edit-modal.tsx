@@ -26,6 +26,7 @@ function raceToInitial(race: SeasonRace): RaceFormInitialValues {
     goal: race.goal,
     url: race.url,
     preparationWeeks: race.preparationWeeks,
+    preparationBlocks: race.preparationBlocks ?? null,
     priority: race.priority,
     intent: race.intent,
     sport: race.sport,

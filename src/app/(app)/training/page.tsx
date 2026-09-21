@@ -54,7 +54,7 @@ import {
 } from "@/lib/dates";
 import {
   getCoachLibraryFolders,
-  getCoachLibraryTemplates,
+  getCoachLibraryTemplatesForTrainingDock,
 } from "@/lib/workout-library/queries";
 import { resolveLibraryTemplateMetricsForAthlete } from "@/lib/workout-library/template-metrics";
 import { loadAthletePreferencesForBuilder } from "@/lib/workout-builder/load-athlete-preferences";
@@ -181,38 +181,9 @@ export default async function TrainingPage({
   const isCoach = userIsCoach(session);
   const noteViewer = isCoach ? "coach" : "athlete";
 
-  const rawWorkoutsPromise = getPlanWorkoutsInRange(
-    athleteId,
-    rangeStart,
-    rangeEnd,
-  );
-  const racesPromise = getRacesForRange(athleteId, rangeStart, rangeEnd);
-  const dayNotesPromise = getDayNotesForRange(athleteId, rangeStart, rangeEnd);
-  const seasonEventsPromise = getSeasonEventsForRange(
-    athleteId,
-    rangeStart,
-    rangeEnd,
-    noteViewer,
-  );
-  const phaseBlocksPromise = prisma.seasonPhaseBlock.findMany({
-    where: {
-      athleteId,
-      startDate: { lte: rangeEnd },
-      endDate: { gte: rangeStart },
-    },
-    orderBy: [{ startDate: "asc" }, { endDate: "asc" }],
-    select: {
-      id: true,
-      sport: true,
-      phase: true,
-      label: true,
-      startDate: true,
-      endDate: true,
-    },
-  });
-  const coachAthletesPromise = isCoach
-    ? getCoachAthletes(session.userId)
-    : Promise.resolve([] as Awaited<ReturnType<typeof getCoachAthletes>>);
+  const overrideLat = parseWeatherCoord(params.wlat);
+  const overrideLon = parseWeatherCoord(params.wlon);
+
   const athletePlanConfigPromise = prisma.athlete.findUnique({
     where: { id: athleteId },
     select: {
@@ -224,6 +195,43 @@ export default async function TrainingPage({
     },
   });
 
+  const weatherPromise = (async (): Promise<Map<string, WeatherDaySummary>> => {
+    const dateKeys = eachDateOnlyDay(rangeStart, rangeEnd).map((d) =>
+      toDateKey(d),
+    );
+    if (overrideLat != null && overrideLon != null) {
+      try {
+        return await getYrWeatherSummaries({
+          lat: overrideLat,
+          lon: overrideLon,
+          dateKeys,
+        });
+      } catch {
+        return new Map();
+      }
+    }
+    const config = await athletePlanConfigPromise;
+    if (config?.weatherLat == null || config.weatherLon == null) {
+      return new Map();
+    }
+    try {
+      return await getYrWeatherSummaries({
+        lat: config.weatherLat,
+        lon: config.weatherLon,
+        dateKeys,
+      });
+    } catch {
+      return new Map();
+    }
+  })();
+
+  const weekStartsForSports =
+    view === "week" && isCoach
+      ? Array.from({ length: weekSpan }, (_, i) =>
+          startOfWeekDateOnly(addDateOnlyDays(anchor, i * 7)),
+        )
+      : [];
+
   const [
     rawWorkouts,
     races,
@@ -232,14 +240,61 @@ export default async function TrainingPage({
     phaseBlocksRaw,
     coachAthletes,
     athletePlanConfig,
+    weatherByDate,
+    athletePreferences,
+    weekSportByKey,
+    libraryTemplatesRaw,
+    libraryFolders,
   ] = await Promise.all([
-    rawWorkoutsPromise,
-    racesPromise,
-    dayNotesPromise,
-    seasonEventsPromise,
-    phaseBlocksPromise,
-    coachAthletesPromise,
+    getPlanWorkoutsInRange(athleteId, rangeStart, rangeEnd),
+    getRacesForRange(athleteId, rangeStart, rangeEnd),
+    getDayNotesForRange(athleteId, rangeStart, rangeEnd),
+    getSeasonEventsForRange(athleteId, rangeStart, rangeEnd, noteViewer),
+    prisma.seasonPhaseBlock.findMany({
+      where: {
+        athleteId,
+        startDate: { lte: rangeEnd },
+        endDate: { gte: rangeStart },
+      },
+      orderBy: [{ startDate: "asc" }, { endDate: "asc" }],
+      select: {
+        id: true,
+        sport: true,
+        phase: true,
+        label: true,
+        startDate: true,
+        endDate: true,
+      },
+    }),
+    isCoach
+      ? getCoachAthletes(session.userId)
+      : Promise.resolve([] as Awaited<ReturnType<typeof getCoachAthletes>>),
     athletePlanConfigPromise,
+    weatherPromise,
+    loadAthletePreferencesForBuilder(athleteId),
+    isCoach && weekStartsForSports.length > 0
+      ? getWeekPlanSportRowsForWeeks(athleteId, weekStartsForSports)
+      : Promise.resolve(
+          new Map<
+            string,
+            {
+              weekExtraPlanSportRows: WorkoutType[];
+              weekHiddenPlanSportRows: WorkoutType[];
+            }
+          >(),
+        ),
+    isCoach
+      ? getCoachLibraryTemplatesForTrainingDock(session.userId)
+      : Promise.resolve(
+          [] as Awaited<
+            ReturnType<typeof getCoachLibraryTemplatesForTrainingDock>
+          >,
+        ),
+    isCoach
+      ? getCoachLibraryFolders(session.userId)
+      : Promise.resolve(
+          [] as Awaited<ReturnType<typeof getCoachLibraryFolders>>,
+        ),
   ]);
 
   const byDateRaw = groupWorkoutsByDate(rawWorkouts);
@@ -265,8 +320,6 @@ export default async function TrainingPage({
 
   const selectedAthlete = coachAthletes.find((a) => a.id === athleteId);
 
-  const overrideLat = parseWeatherCoord(params.wlat);
-  const overrideLon = parseWeatherCoord(params.wlon);
   const activeWeatherLocation =
     overrideLat != null && overrideLon != null
       ? {
@@ -286,21 +339,6 @@ export default async function TrainingPage({
             isOverride: false,
           }
         : null;
-
-  let weatherByDate = new Map<string, WeatherDaySummary>();
-  if (activeWeatherLocation) {
-    try {
-      weatherByDate = await getYrWeatherSummaries({
-        lat: activeWeatherLocation.lat,
-        lon: activeWeatherLocation.lon,
-        dateKeys: eachDateOnlyDay(rangeStart, rangeEnd).map((d) =>
-          toDateKey(d),
-        ),
-      });
-    } catch {
-      weatherByDate = new Map();
-    }
-  }
 
   const weekBlocks = Array.from({ length: weekSpan }, (_, i) => {
     const weekAnchor = addDateOnlyDays(anchor, i * 7);
@@ -323,20 +361,18 @@ export default async function TrainingPage({
     };
   });
 
-  const weekSportByKey = isCoach
-    ? await getWeekPlanSportRowsForWeeks(
-        athleteId,
-        weekBlocks.map((block) => block.weekStart),
-      )
-    : new Map(
-        weekBlocks.map((block) => [
-          block.weekStartKey,
-          {
-            weekExtraPlanSportRows: [] as WorkoutType[],
-            weekHiddenPlanSportRows: [] as WorkoutType[],
-          },
-        ]),
-      );
+  const resolvedWeekSportByKey =
+    weekSportByKey.size > 0
+      ? weekSportByKey
+      : new Map(
+          weekBlocks.map((block) => [
+            block.weekStartKey,
+            {
+              weekExtraPlanSportRows: [] as WorkoutType[],
+              weekHiddenPlanSportRows: [] as WorkoutType[],
+            },
+          ]),
+        );
 
   const firstWeek = weekBlocks[0]!;
   const weekSpanQuery = weekSpan > 1 ? `&weeks=${weekSpan}` : "";
@@ -581,7 +617,10 @@ export default async function TrainingPage({
   );
 
   const weekViewBlocks = weekBlocks.map((block) => {
-    const sports = weekSportByKey.get(block.weekStartKey)!;
+    const sports = resolvedWeekSportByKey.get(block.weekStartKey) ?? {
+      weekExtraPlanSportRows: [] as WorkoutType[],
+      weekHiddenPlanSportRows: [] as WorkoutType[],
+    };
     return {
       weekStartKey: block.weekStartKey,
       weekLabel: block.weekLabel,
@@ -591,33 +630,26 @@ export default async function TrainingPage({
     };
   });
 
-  const athletePreferences = await loadAthletePreferencesForBuilder(athleteId);
   const swimCssSecPer100m = athletePreferences?.swimCssSecPer100m ?? null;
 
-  const libraryTemplates = isCoach
-    ? (await getCoachLibraryTemplates(session.userId)).map((t) => {
-        const metrics = resolveLibraryTemplateMetricsForAthlete(
-          t,
-          athletePreferences,
-        );
-        return {
-          id: t.id,
-          title: t.title,
-          type: t.type,
-          sessionType: t.sessionType,
-          distanceKm: metrics.distanceKm,
-          durationMin: metrics.durationMin,
-          plannedDistanceMeters: t.plannedDistanceMeters,
-          distanceApprox: metrics.distanceApprox,
-          durationApprox: metrics.durationApprox,
-          folderId: t.folderId ?? null,
-        };
-      })
-    : [];
-
-  const libraryFolders = isCoach
-    ? await getCoachLibraryFolders(session.userId)
-    : [];
+  const libraryTemplates = libraryTemplatesRaw.map((t) => {
+    const metrics = resolveLibraryTemplateMetricsForAthlete(
+      { ...t, structure: null },
+      athletePreferences,
+    );
+    return {
+      id: t.id,
+      title: t.title,
+      type: t.type,
+      sessionType: t.sessionType,
+      distanceKm: metrics.distanceKm,
+      durationMin: metrics.durationMin,
+      plannedDistanceMeters: t.plannedDistanceMeters,
+      distanceApprox: metrics.distanceApprox,
+      durationApprox: metrics.durationApprox,
+      folderId: t.folderId ?? null,
+    };
+  });
 
   return (
     <TrainingPlanShell

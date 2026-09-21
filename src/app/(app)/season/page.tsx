@@ -14,6 +14,7 @@ import {
 } from '@/lib/season-races'
 import type { SeasonPhaseBlockData } from '@/lib/season-planner'
 import { getSeasonEventsForAthlete } from '@/lib/queries'
+import { readPreparationBlocks } from '@/lib/race-preparation'
 
 export default async function SeasonPlanPage() {
   const session = await getSession()
@@ -51,6 +52,7 @@ export default async function SeasonPlanPage() {
         url: true,
         coverImageUrl: true,
         preparationWeeks: true,
+        preparationBlocks: true,
         outcome: true,
         resultTime: true,
         resultPlace: true,
@@ -77,7 +79,10 @@ export default async function SeasonPlanPage() {
     getSeasonEventsForAthlete(athleteId, eventViewer),
   ])
 
-  const seasonRaces = races as SeasonRace[]
+  const seasonRaces = races.map((race) => ({
+    ...race,
+    preparationBlocks: readPreparationBlocks(race.preparationBlocks),
+  })) as SeasonRace[]
   const phaseBlocks = phaseBlocksRaw as SeasonPhaseBlockData[]
   const seasonEvents = seasonEventsRaw
   const { planned, watching } = splitPlannedWatching(seasonRaces)

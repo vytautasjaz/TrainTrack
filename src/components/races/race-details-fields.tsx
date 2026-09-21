@@ -5,7 +5,7 @@ import {
   RacePriority,
   TriathlonDistance,
 } from '@prisma/client'
-import { Calendar, Flag, ImagePlus, MapPin, Trash2 } from 'lucide-react'
+import { Calendar, Flag, ImagePlus, MapPin, Plus, Trash2, X } from 'lucide-react'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -37,7 +37,14 @@ import { SIDEBAR_HERO_STYLE } from '@/lib/sidebar-hero'
 import { cn } from '@/lib/utils'
 import { useEffect, useRef, useState } from 'react'
 import type { RaceLegView } from '@/lib/race-legs'
-import type { RaceCourseType, RaceType, WorkoutType } from '@prisma/client'
+import type { RaceCourseType, RaceType, SeasonPhase, WorkoutType } from '@prisma/client'
+import {
+  RACE_PREP_BLOCK_PHASES,
+  suggestPreparationBlocks,
+  sumPrepBlockWeeks,
+  type RacePrepBlock,
+} from '@/lib/race-preparation'
+import { SEASON_PHASE_LABELS } from '@/lib/season-planner'
 
 const RACE_PRIORITIES = Object.keys(RACE_PRIORITY_LABELS) as RacePriority[]
 
@@ -87,6 +94,7 @@ export type RaceFormInitialValues = {
   goal?: string | null
   url?: string | null
   preparationWeeks?: number | null
+  preparationBlocks?: RacePrepBlock[] | null
   priority?: RacePriority
   intent?: RaceIntent
   sport?: WorkoutType
@@ -172,6 +180,13 @@ export function RaceDetailsFields({
   const [url, setUrl] = useState(initial?.url ?? '')
   const [prepWeeks, setPrepWeeks] = useState(
     initial?.preparationWeeks != null ? String(initial.preparationWeeks) : '',
+  )
+  const initialBlocks = initial?.preparationBlocks ?? null
+  const [prepBlocksEnabled, setPrepBlocksEnabled] = useState(
+    () => Boolean(initialBlocks && initialBlocks.length > 0),
+  )
+  const [prepBlocks, setPrepBlocks] = useState<RacePrepBlock[]>(
+    () => (initialBlocks && initialBlocks.length > 0 ? initialBlocks : []),
   )
   const coverInputRef = useRef<HTMLInputElement>(null)
   const pickInputRef = useRef<HTMLInputElement>(null)
@@ -612,7 +627,19 @@ export function RaceDetailsFields({
             <Select
               name="preparationWeeks"
               value={prepWeeks}
-              onChange={(e) => setPrepWeeks(e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value
+                setPrepWeeks(next)
+                const n = Number.parseInt(next, 10)
+                if (!Number.isFinite(n) || n < 1) {
+                  setPrepBlocksEnabled(false)
+                  setPrepBlocks([])
+                  return
+                }
+                if (prepBlocksEnabled) {
+                  setPrepBlocks(suggestPreparationBlocks(n))
+                }
+              }}
             >
               <option value="">Not set</option>
               {PREP_WEEK_OPTIONS.map((w) => (
@@ -635,6 +662,30 @@ export function RaceDetailsFields({
           </FormField>
         </div>
 
+        {prepWeeks ? (
+          <RacePrepBlocksEditor
+            totalWeeks={Number.parseInt(prepWeeks, 10)}
+            enabled={prepBlocksEnabled}
+            blocks={prepBlocks}
+            onEnabledChange={(on) => {
+              setPrepBlocksEnabled(on)
+              if (on) {
+                const n = Number.parseInt(prepWeeks, 10)
+                if (Number.isFinite(n) && n >= 1) {
+                  setPrepBlocks(
+                    prepBlocks.length > 0
+                      ? prepBlocks
+                      : suggestPreparationBlocks(n),
+                  )
+                }
+              } else {
+                setPrepBlocks([])
+              }
+            }}
+            onBlocksChange={setPrepBlocks}
+          />
+        ) : null}
+
         {raceUsesLegs(raceType) ? (
           <RaceLegsPlanFields
             key={`tri-legs-${showTriLegDistances ? 'custom' : 'preset'}`}
@@ -644,6 +695,159 @@ export function RaceDetailsFields({
           />
         ) : null}
       </div>
+    </div>
+  )
+}
+
+function RacePrepBlocksEditor({
+  totalWeeks,
+  enabled,
+  blocks,
+  onEnabledChange,
+  onBlocksChange,
+}: {
+  totalWeeks: number
+  enabled: boolean
+  blocks: RacePrepBlock[]
+  onEnabledChange: (enabled: boolean) => void
+  onBlocksChange: (blocks: RacePrepBlock[]) => void
+}) {
+  const sum = sumPrepBlockWeeks(blocks)
+  const valid = enabled && Number.isFinite(totalWeeks) && sum === totalWeeks
+  const payload =
+    enabled && blocks.length > 0
+      ? JSON.stringify(
+          blocks.map((b) => ({
+            phase: b.phase,
+            weeks: b.weeks,
+            ...(b.label?.trim() ? { label: b.label.trim() } : {}),
+          })),
+        )
+      : ''
+
+  function updateBlock(index: number, patch: Partial<RacePrepBlock>) {
+    onBlocksChange(
+      blocks.map((b, i) => (i === index ? { ...b, ...patch } : b)),
+    )
+  }
+
+  return (
+    <div className="space-y-2 rounded-[8px] border border-border/60 bg-muted/10 px-3 py-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <label className="flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="size-3.5 rounded border-border"
+            checked={enabled}
+            onChange={(e) => onEnabledChange(e.target.checked)}
+          />
+          <span className="font-medium">Break into blocks</span>
+        </label>
+        {enabled ? (
+          <button
+            type="button"
+            className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            onClick={() => onBlocksChange(suggestPreparationBlocks(totalWeeks))}
+          >
+            Suggest split
+          </button>
+        ) : null}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Optional — e.g. base → build → race-specific → taper. Order is from
+        prep start through race week.
+      </p>
+
+      {enabled ? (
+        <>
+          <input type="hidden" name="preparationBlocks" value={payload} />
+          <ul className="space-y-2">
+            {blocks.map((block, index) => (
+              <li
+                key={index}
+                className="grid grid-cols-[1fr_4.5rem_auto] items-center gap-1.5 sm:grid-cols-[7.5rem_1fr_4.5rem_auto]"
+              >
+                <Select
+                  value={block.phase}
+                  aria-label={`Block ${index + 1} phase`}
+                  onChange={(e) =>
+                    updateBlock(index, {
+                      phase: e.target.value as SeasonPhase,
+                    })
+                  }
+                >
+                  {RACE_PREP_BLOCK_PHASES.map((phase) => (
+                    <option key={phase} value={phase}>
+                      {SEASON_PHASE_LABELS[phase]}
+                    </option>
+                  ))}
+                </Select>
+                <Input
+                  value={block.label ?? ''}
+                  placeholder="Label (optional)"
+                  className="col-span-2 sm:col-span-1"
+                  onChange={(e) =>
+                    updateBlock(index, {
+                      label: e.target.value || null,
+                    })
+                  }
+                />
+                <Input
+                  type="number"
+                  min={1}
+                  max={52}
+                  value={block.weeks}
+                  aria-label={`Block ${index + 1} weeks`}
+                  className="tabular-nums"
+                  onChange={(e) => {
+                    const n = Number.parseInt(e.target.value, 10)
+                    updateBlock(index, {
+                      weeks: Number.isFinite(n) && n >= 1 ? n : 1,
+                    })
+                  }}
+                />
+                <button
+                  type="button"
+                  className="inline-flex size-8 items-center justify-center rounded-[6px] text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40"
+                  aria-label="Remove block"
+                  disabled={blocks.length <= 1}
+                  onClick={() =>
+                    onBlocksChange(blocks.filter((_, i) => i !== index))
+                  }
+                >
+                  <X className="size-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+              onClick={() =>
+                onBlocksChange([
+                  ...blocks,
+                  { phase: 'BUILD', weeks: 1, label: null },
+                ])
+              }
+            >
+              <Plus className="size-3.5" />
+              Add block
+            </button>
+            <p
+              className={cn(
+                'text-xs tabular-nums',
+                valid ? 'text-muted-foreground' : 'text-amber-700',
+              )}
+            >
+              {sum} / {totalWeeks} weeks
+              {!valid ? ' — must match preparation time' : ''}
+            </p>
+          </div>
+        </>
+      ) : (
+        <input type="hidden" name="preparationBlocks" value="" />
+      )}
     </div>
   )
 }

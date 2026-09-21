@@ -23,6 +23,7 @@ import { sportUsesPlannedDistance } from '@/lib/plan-week-totals'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 import { RECOVERY_DAY_DEFAULT_NOTE } from '@/lib/recovery-day'
 import { hasStructureContent, parseStructure } from '@/lib/workout-builder/utils'
+import { structureDiagramPrismaValue } from '@/lib/workout-builder/structure-diagram'
 import { sessionTypesForSport } from '@/lib/workout-builder/session-modes'
 import { syncApproxTagsFromSources } from '@/lib/workout-metric-source'
 import {
@@ -307,6 +308,9 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
           coachNotes: structure.coachNotes ?? payload.coachNotes,
           coachNotesPrivate: Boolean(payload.coachNotesPrivate),
           structure: structure as Prisma.InputJsonValue,
+          structureDiagram: structureDiagramPrismaValue(structure, {
+            durationMinutes: metrics.plannedDuration,
+          }),
           tags,
         },
       })
@@ -375,6 +379,7 @@ export async function updateWorkoutFromModal(
           coachNotes: payload.coachNotes,
           coachNotesPrivate: Boolean(payload.coachNotesPrivate),
           structure: Prisma.DbNull,
+          structureDiagram: Prisma.DbNull,
           tags,
         },
       })
@@ -394,6 +399,9 @@ export async function updateWorkoutFromModal(
           coachNotes: structure.coachNotes ?? payload.coachNotes,
           coachNotesPrivate: Boolean(payload.coachNotesPrivate),
           structure: structure as Prisma.InputJsonValue,
+          structureDiagram: structureDiagramPrismaValue(structure, {
+            durationMinutes: metrics.plannedDuration,
+          }),
           tags,
         },
       })
@@ -514,6 +522,9 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
         plannedDurationSource: durationSource,
         coachNotes: data.structure.coachNotes,
         structure,
+        structureDiagram: structureDiagramPrismaValue(data.structure, {
+          durationMinutes: estimatedDuration || null,
+        }),
         tags,
       },
     })
@@ -538,6 +549,9 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
       plannedDurationSource: durationSource,
       coachNotes: data.structure.coachNotes,
       structure,
+      structureDiagram: structureDiagramPrismaValue(data.structure, {
+        durationMinutes: estimatedDuration || null,
+      }),
       tags,
     },
   })

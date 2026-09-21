@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type DragEvent } from "react";
 import type { WorkoutStructure } from "@/lib/workout-builder/types";
-import { buildStructureChart } from "@/lib/workout-builder/structure-chart";
+import { buildStructureChart, type StructureChartModel } from "@/lib/workout-builder/structure-chart";
 import { intensityChartClass } from "@/lib/workout-builder/intensity-colors";
 import {
   DragInsertIndicatorVertical,
@@ -23,7 +23,9 @@ export type StructureChartTone = "default" | "muted" | "completed" | "skipped";
 type ChartSize = "xs" | "card" | "cardLg" | "sm" | "md";
 
 type WorkoutStructureChartProps = {
-  structure: WorkoutStructure | null | undefined;
+  structure?: WorkoutStructure | null;
+  /** Precomputed silhouette (Training cards) — skips parsing full structure. */
+  chartModel?: StructureChartModel | null;
   size?: ChartSize;
   showCaption?: boolean;
   /** Scales the easy-run silhouette when the chart is include-only. */
@@ -49,6 +51,7 @@ const HEIGHT: Record<ChartSize, string> = {
 
 export function WorkoutStructureChart({
   structure,
+  chartModel: chartModelProp,
   size = "sm",
   showCaption = true,
   durationMinutes,
@@ -56,10 +59,10 @@ export function WorkoutStructureChart({
   className,
   onReorderBlocks,
 }: WorkoutStructureChartProps) {
-  const model = useMemo(
-    () => buildStructureChart(structure, { durationMinutes }),
-    [structure, durationMinutes],
-  );
+  const model = useMemo(() => {
+    if (chartModelProp) return chartModelProp;
+    return buildStructureChart(structure, { durationMinutes });
+  }, [chartModelProp, structure, durationMinutes]);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [insertIndex, setInsertIndex] = useState<number | null>(null);
 

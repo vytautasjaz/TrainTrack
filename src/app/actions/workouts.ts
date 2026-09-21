@@ -5,7 +5,7 @@ import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, isCoachView, coachCanAccessAthlete, requireCoachOwnsAthlete } from '@/lib/session'
 import { parseDateOnly, requireDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
-import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, HyroxDivision, CoachAthleteLinkStatus, PlannedMetricSource } from '@prisma/client'
+import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, HyroxDivision, CoachAthleteLinkStatus, PlannedMetricSource, Prisma } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
 import { defaultSportForRaceType } from '@/lib/races'
 import {
@@ -28,9 +28,35 @@ import { loadAthletePreferencesForBuilder } from '@/lib/workout-builder/load-ath
 import { resolveLibraryTemplateMetricsForAthlete } from '@/lib/workout-library/template-metrics'
 import { syncApproxTagsFromSources } from '@/lib/workout-metric-source'
 import { putRaceCoverFile } from '@/lib/race-cover-storage'
+import {
+  parsePreparationBlocks,
+  type RacePrepBlock,
+} from '@/lib/race-preparation'
+import { structureDiagramPrismaValue } from '@/lib/workout-builder/structure-diagram'
 
 const RACE_COVER_MAX_BYTES = 3 * 1024 * 1024
 const RACE_COVER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+function parseRacePreparationFields(formData: FormData): {
+  preparationWeeks: number | null
+  preparationBlocks: RacePrepBlock[] | null
+} {
+  const prepRaw = formData.get('preparationWeeks')
+  let preparationWeeks: number | null = null
+  if (typeof prepRaw === 'string' && prepRaw.trim()) {
+    const parsed = Number.parseInt(prepRaw.trim(), 10)
+    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 52) {
+      throw new Error('Preparation weeks must be between 1 and 52.')
+    }
+    preparationWeeks = parsed
+  }
+  const blocksRaw = formData.get('preparationBlocks')
+  const preparationBlocks = parsePreparationBlocks(
+    typeof blocksRaw === 'string' ? blocksRaw : null,
+    preparationWeeks,
+  )
+  return { preparationWeeks, preparationBlocks }
+}
 
 /** Returns new URL, null to clear, or undefined when unchanged. */
 async function resolveRaceCoverUpdate(
@@ -568,6 +594,9 @@ export async function createWorkoutFromTemplate(formData: FormData) {
       plannedDurationSource: metrics.durationSource,
       coachNotes: template.notes,
       structure: template.structure ?? undefined,
+      structureDiagram: structureDiagramPrismaValue(template.structure, {
+        durationMinutes: metrics.durationMin,
+      }),
       swimEnvironment: template.swimEnvironment ?? undefined,
       swimStructure: template.swimStructure ?? undefined,
       plannedDistanceMeters: template.plannedDistanceMeters ?? undefined,
@@ -705,15 +734,8 @@ export async function createRace(formData: FormData) {
   const customDistanceKm = isTriCustom
     ? sumTriCustomDistanceKm(formData)
     : parseCustomDistanceKm(formData.get('customDistanceKm'))
-  const prepRaw = formData.get('preparationWeeks')
-  let preparationWeeks: number | null = null
-  if (typeof prepRaw === 'string' && prepRaw.trim()) {
-    const parsed = parseInt(prepRaw.trim(), 10)
-    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 52) {
-      throw new Error('Preparation weeks must be between 1 and 52.')
-    }
-    preparationWeeks = parsed
-  }
+  const { preparationWeeks, preparationBlocks } =
+    parseRacePreparationFields(formData)
 
   const raceDate = requireDateOnly(formData.get('date'))
   const raceName = String(formData.get('name') ?? '').trim()
@@ -738,6 +760,9 @@ export async function createRace(formData: FormData) {
       goal: (formData.get('goal') as string) || undefined,
       url: parseOptionalString(formData.get('url')),
       preparationWeeks,
+      preparationBlocks: preparationBlocks
+        ? (preparationBlocks as Prisma.InputJsonValue)
+        : undefined,
       daySortOrder,
       ...(raceUsesLegs(raceType)
         ? { legs: { create: triathlonLegsCreateData() } }
@@ -1108,6 +1133,9 @@ export async function copyWorkoutToDates(payload: {
         swimStructure: source.swimStructure ?? undefined,
         coachNotes: source.coachNotes,
         structure: source.structure ?? undefined,
+        structureDiagram: structureDiagramPrismaValue(source.structure, {
+          durationMinutes: source.plannedDuration,
+        }),
         tags: source.tags,
       },
     })
@@ -1446,15 +1474,8 @@ export async function updateRace(formData: FormData) {
     ? sumTriCustomDistanceKm(formData)
     : parseCustomDistanceKm(formData.get('customDistanceKm'))
   const returnTo = (formData.get('returnTo') as string) || '/season'
-  const prepRaw = formData.get('preparationWeeks')
-  let preparationWeeks: number | null = null
-  if (typeof prepRaw === 'string' && prepRaw.trim()) {
-    const parsed = parseInt(prepRaw.trim(), 10)
-    if (!Number.isFinite(parsed) || parsed < 1 || parsed > 52) {
-      throw new Error('Preparation weeks must be between 1 and 52.')
-    }
-    preparationWeeks = parsed
-  }
+  const { preparationWeeks, preparationBlocks } =
+    parseRacePreparationFields(formData)
 
   const raceDate = requireDateOnly(formData.get('date'))
   const raceName = String(formData.get('name') ?? '').trim()
@@ -1479,6 +1500,10 @@ export async function updateRace(formData: FormData) {
       goal: parseOptionalString(formData.get('goal')),
       url: parseOptionalString(formData.get('url')),
       preparationWeeks,
+      preparationBlocks:
+        preparationBlocks === null
+          ? Prisma.DbNull
+          : (preparationBlocks as Prisma.InputJsonValue),
       ...(coverUrl !== undefined ? { coverImageUrl: coverUrl } : {}),
     },
     select: { id: true, athleteId: true },

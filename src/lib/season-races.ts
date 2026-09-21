@@ -29,6 +29,7 @@ export type SeasonRace = {
   url: string | null
   coverImageUrl?: string | null
   preparationWeeks?: number | null
+  preparationBlocks?: import('@/lib/race-preparation').RacePrepBlock[] | null
   outcome?: RaceOutcome | null
   resultTime?: string | null
   resultPlace?: string | null
