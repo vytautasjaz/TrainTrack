@@ -69,7 +69,8 @@ export function RescheduleWorkoutModal({
         <DialogHeader>
           <DialogTitle>Reschedule</DialogTitle>
           <DialogDescription>
-            Leaves a placeholder on the original day and moves this workout to the new date.
+            Moves this workout to the new date. The coach can still see it was
+            rescheduled from the original plan day.
           </DialogDescription>
         </DialogHeader>
 

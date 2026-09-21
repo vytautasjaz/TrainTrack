@@ -83,7 +83,8 @@ export function SeasonPhaseBlockModal({
           <DialogTitle>{editing ? 'Edit phase' : 'Add phase'}</DialogTitle>
           <DialogDescription>
             Strategy context for the calendar — name freely; type is for
-            category. Phases do not create workouts.
+            category. Blocks start on Monday; full weeks end Sunday (a mid-week
+            end is fine for race week). Phases do not create workouts.
           </DialogDescription>
         </DialogHeader>
         <form

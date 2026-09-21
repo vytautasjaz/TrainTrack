@@ -58,7 +58,7 @@ export function CoachRescheduleReviewActions({
       <button
         type="button"
         disabled={pending}
-        title={error ?? 'Accept move — remove ghost'}
+        title={error ?? 'Accept move'}
         aria-label="Accept reschedule"
         onClick={() => run(acceptAthleteReschedule)}
         className={cn(

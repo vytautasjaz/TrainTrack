@@ -207,8 +207,8 @@ export const WORKOUT_PLAN_INCLUDE = {
 
 /**
  * Training calendar / list range — explicit select so we never pull
- * structure / swimStructure JSON (heaviest columns). Cards hide diagrams
- * when null; workout detail still loads full rows.
+ * structure / swimStructure on every row. Builder JSON is merged in only for
+ * workouts that have it (card essence for S/M/L without slowing empty days).
  */
 export const WORKOUT_PLAN_RANGE_RESULT_SELECT = {
   actualDistance: true,
@@ -439,7 +439,7 @@ export async function getAthleteDashboard(athleteId: string) {
   const feedKey = settings.athleteActivityFeedEnabled ? '1' : '0'
   return unstable_cache(
     () => getAthleteDashboardUncached(athleteId, settings.athleteActivityFeedEnabled),
-    ['athlete-home', athleteId, dayKey, feedKey],
+    ['athlete-home-v2', athleteId, dayKey, feedKey],
     {
       tags: [cacheTags.athleteHome(athleteId), cacheTags.appSettings()],
       revalidate: 120,
@@ -463,7 +463,6 @@ async function getAthleteDashboardUncached(
 
   const [
     todayWorkouts,
-    upcomingWorkouts,
     nextRaces,
     pendingRaceFollowUpsRaw,
     weekStatsWindowWorkouts,
@@ -477,13 +476,6 @@ async function getAthleteDashboardUncached(
         where: { athleteId, date: today },
         include: WORKOUT_PLAN_INCLUDE,
         orderBy: WORKOUT_LIST_ORDER_BY,
-      }),
-      prisma.workout.findMany({
-        where: { athleteId, date: { gt: today } },
-        include: WORKOUT_PLAN_INCLUDE,
-        orderBy: [{ date: 'asc' }, { sortOrder: 'asc' }],
-        /** Glanceable Home list — full schedule via View plan. */
-        take: 7,
       }),
       prisma.race.findMany({
         where: {
@@ -557,6 +549,13 @@ async function getAthleteDashboardUncached(
         },
       }),
     ])
+
+  const nextWeekEnd = addDateOnlyDays(weekEnd, 28)
+  const planWindowStart = addDateOnlyDays(weekStart, -28)
+  /** Home week navigator: current week ±4 weeks (same window as week stats). */
+  const weekPlanWorkouts = weekStatsWindowWorkouts.filter(
+    (w) => w.date >= planWindowStart && w.date <= nextWeekEnd,
+  )
 
   const weekWorkouts = weekStatsWindowWorkouts.filter(
     (w) => w.date >= weekStart && w.date <= weekEnd,
@@ -636,7 +635,7 @@ async function getAthleteDashboardUncached(
 
   return {
     todayWorkouts,
-    upcomingWorkouts,
+    weekPlanWorkouts,
     nextRace: nextRaces[0] ?? null,
     nextRaces,
     pendingRaceFollowUps,
@@ -1645,8 +1644,8 @@ export async function getPlanWorkoutsInRange(athleteId: string, start: Date, end
   const endKey = toDateKey(end)
   return unstable_cache(
     () => getPlanWorkoutsInRangeUncached(athleteId, start, end),
-    // v4: slim select + hasBuilderDetail flag (skip empty detail fetches)
-    ['plan-range-v4', athleteId, startKey, endKey],
+    // v5: attach structure only for builder workouts (card essence S/M/L)
+    ['plan-range-v5', athleteId, startKey, endKey],
     { tags: [cacheTags.athletePlan(athleteId)], revalidate: 60 },
   )()
 }
@@ -1656,29 +1655,36 @@ async function getPlanWorkoutsInRangeUncached(
   start: Date,
   end: Date,
 ) {
-  const [rows, withBuilder] = await Promise.all([
+  const rangeWhere = { athleteId, date: { gte: start, lte: end } } as const
+  const [rows, builderRows] = await Promise.all([
     prisma.workout.findMany({
-      where: { athleteId, date: { gte: start, lte: end } },
+      where: rangeWhere,
       select: WORKOUT_PLAN_RANGE_SELECT,
       orderBy: WORKOUT_LIST_ORDER_BY,
     }),
+    // Only workouts with builder JSON — keeps the main list slim while cards
+    // still get essence for S/M/L. Empty sessions skip this payload entirely.
     prisma.workout.findMany({
       where: {
-        athleteId,
-        date: { gte: start, lte: end },
+        ...rangeWhere,
         OR: [
           { NOT: { structure: { equals: Prisma.DbNull } } },
           { NOT: { swimStructure: { equals: Prisma.DbNull } } },
         ],
       },
-      select: { id: true },
+      select: { id: true, structure: true, swimStructure: true },
     }),
   ])
-  const builderIds = new Set(withBuilder.map((row) => row.id))
-  return rows.map((row) => ({
-    ...row,
-    hasBuilderDetail: builderIds.has(row.id),
-  }))
+  const builderById = new Map(builderRows.map((row) => [row.id, row]))
+  return rows.map((row) => {
+    const builder = builderById.get(row.id)
+    return {
+      ...row,
+      structure: builder?.structure ?? null,
+      swimStructure: builder?.swimStructure ?? null,
+      hasBuilderDetail: Boolean(builder),
+    }
+  })
 }
 
 /** Full workout row for modal/editor (includes structure JSON). */

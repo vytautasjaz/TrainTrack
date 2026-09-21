@@ -373,7 +373,8 @@ export async function rescheduleWorkout(formData: FormData) {
 }
 
 /**
- * Coach accepts an athlete reschedule: remove the ghost, keep the workout on the new day.
+ * Coach accepts an athlete reschedule: keep the workout on the new day and clear
+ * move lineage (and delete any legacy ghost placeholder).
  * Gate with `isCoachView` so it matches the training UI (not only the COACH role bit).
  */
 export async function acceptAthleteReschedule(workoutId: string) {
@@ -381,22 +382,25 @@ export async function acceptAthleteReschedule(workoutId: string) {
   if (!isCoachView(session)) throw new Error('Coach only')
 
   const pair = await resolvePendingReschedulePairForCoach(session.userId, workoutId)
-  await prisma.$transaction([
-    prisma.workout.delete({ where: { id: pair.ghostId } }),
-    prisma.workout.update({
+  await prisma.$transaction(async (tx) => {
+    if (pair.ghostId) {
+      await tx.workout.delete({ where: { id: pair.ghostId } })
+    }
+    await tx.workout.update({
       where: { id: pair.activeId },
       data: {
         rescheduledFromId: null,
         rescheduledFromDate: null,
       },
-    }),
-  ])
+    })
+  })
 
   await onTrainingCalendarDataChanged(pair.athleteId)
 }
 
 /**
- * Coach rejects an athlete reschedule: restore the workout to the original day and remove the ghost.
+ * Coach rejects an athlete reschedule: restore the workout to the original day
+ * and remove any legacy ghost placeholder.
  */
 export async function rejectAthleteReschedule(workoutId: string) {
   const session = await requireSession()
@@ -405,8 +409,8 @@ export async function rejectAthleteReschedule(workoutId: string) {
   const pair = await resolvePendingReschedulePairForCoach(session.userId, workoutId)
   const sortOrder = await getNextWorkoutSortOrder(pair.athleteId, pair.originalDate)
 
-  await prisma.$transaction([
-    prisma.workout.update({
+  await prisma.$transaction(async (tx) => {
+    await tx.workout.update({
       where: { id: pair.activeId },
       data: {
         date: pair.originalDate,
@@ -414,9 +418,11 @@ export async function rejectAthleteReschedule(workoutId: string) {
         rescheduledFromId: null,
         rescheduledFromDate: null,
       },
-    }),
-    prisma.workout.delete({ where: { id: pair.ghostId } }),
-  ])
+    })
+    if (pair.ghostId) {
+      await tx.workout.delete({ where: { id: pair.ghostId } })
+    }
+  })
 
   await onTrainingCalendarDataChanged(pair.athleteId)
 }
@@ -438,7 +444,7 @@ async function resolvePendingReschedulePairForCoach(coachUserId: string, workout
     const activeId = workout.rescheduledCopy?.id
     if (!activeId) throw new Error('No moved workout linked to this ghost')
     return {
-      ghostId: workout.id,
+      ghostId: workout.id as string | null,
       activeId,
       originalDate: workout.date,
       athleteId: workout.athleteId,
@@ -447,9 +453,22 @@ async function resolvePendingReschedulePairForCoach(coachUserId: string, workout
 
   if (workout.rescheduledFromId && workout.rescheduledFrom?.isRescheduleGhost) {
     return {
-      ghostId: workout.rescheduledFromId,
+      ghostId: workout.rescheduledFromId as string | null,
       activeId: workout.id,
       originalDate: workout.rescheduledFrom.date,
+      athleteId: workout.athleteId,
+    }
+  }
+
+  // Date-only lineage (no placeholder card on the original day).
+  if (
+    workout.rescheduledFromDate &&
+    toDateKey(workout.rescheduledFromDate) !== toDateKey(workout.date)
+  ) {
+    return {
+      ghostId: null as string | null,
+      activeId: workout.id,
+      originalDate: workout.rescheduledFromDate,
       athleteId: workout.athleteId,
     }
   }

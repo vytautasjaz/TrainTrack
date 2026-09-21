@@ -92,6 +92,98 @@ export const PLANNER_SPORT_TINT: Record<PlannerSport, string> = {
   HYROX: 'border-[var(--color-sport-hyrox-border)] bg-[var(--color-sport-hyrox-bg)] text-[var(--color-sport-hyrox)]',
 }
 
+/** Race card surfaces by sport — tinted chrome, black title/date text. */
+export const PLANNER_SPORT_CARD: Record<PlannerSport, string> = {
+  RUN: 'border-[var(--color-sport-run-border)] bg-[var(--color-sport-run-bg)] text-[#111111]',
+  BIKE: 'border-[var(--color-sport-bike-border)] bg-[var(--color-sport-bike-bg)] text-[#111111]',
+  SWIM: 'border-[var(--color-sport-swim-border)] bg-[var(--color-sport-swim-bg)] text-[#111111]',
+  TRIATHLON: 'border-[var(--color-sport-tri-border)] bg-[var(--color-sport-tri-bg)] text-[#111111]',
+  HYROX: 'border-[var(--color-sport-hyrox-border)] bg-[var(--color-sport-hyrox-bg)] text-[#111111]',
+}
+
+/** Prep-week fills by sport — soft wash matching card tint. */
+export const PLANNER_SPORT_SHADOW: Record<PlannerSport, string> = {
+  RUN: 'border-[var(--color-sport-run-border)] bg-[var(--color-sport-run-bg)]',
+  BIKE: 'border-[var(--color-sport-bike-border)] bg-[var(--color-sport-bike-bg)]',
+  SWIM: 'border-[var(--color-sport-swim-border)] bg-[var(--color-sport-swim-bg)]',
+  TRIATHLON: 'border-[var(--color-sport-tri-border)] bg-[var(--color-sport-tri-bg)]',
+  HYROX: 'border-[var(--color-sport-hyrox-border)] bg-[var(--color-sport-hyrox-bg)]',
+}
+
+/** Phase-label / countdown ink by sport. */
+export const PLANNER_SPORT_INK: Record<PlannerSport, string> = {
+  RUN: 'text-[var(--color-sport-run)]',
+  BIKE: 'text-[var(--color-sport-bike)]',
+  SWIM: 'text-[var(--color-sport-swim)]',
+  TRIATHLON: 'text-[var(--color-sport-tri)]',
+  HYROX: 'text-[var(--color-sport-hyrox)]',
+}
+
+/** Phase divider borders by sport. */
+export const PLANNER_SPORT_DIVIDER: Record<PlannerSport, string> = {
+  RUN: 'border-l border-[var(--color-sport-run-border)]',
+  BIKE: 'border-l border-[var(--color-sport-bike-border)]',
+  SWIM: 'border-l border-[var(--color-sport-swim-border)]',
+  TRIATHLON: 'border-l border-[var(--color-sport-tri-border)]',
+  HYROX: 'border-l border-[var(--color-sport-hyrox-border)]',
+}
+
+export type PlannerRaceColorMode = 'priority' | 'sport'
+
+/** Priority prep capsule border (shadow class only sets bg/text). */
+export const PLANNER_PRIORITY_PREP_BORDER: Record<RacePriority, string> = {
+  A: 'border-[rgb(244_81_30/0.22)]',
+  B: 'border-[rgb(49_130_206/0.18)]',
+  C: 'border-emerald-600/18',
+}
+
+export const PLANNER_PRIORITY_INK: Record<RacePriority, string> = {
+  A: 'text-[rgb(180_90_55)]',
+  B: 'text-[rgb(70_110_160)]',
+  C: 'text-[rgb(55_120_90)]',
+}
+
+export const PLANNER_PRIORITY_DIVIDER: Record<RacePriority, string> = {
+  A: 'border-l border-[rgb(244_81_30/0.28)]',
+  B: 'border-l border-[rgb(49_130_206/0.24)]',
+  C: 'border-l border-emerald-700/22',
+}
+
+export type PlannerRaceChrome = {
+  card: string
+  shadow: string
+  ink: string
+  dividerBorder: string
+}
+
+/** Resolve race pill + prep trail chrome for priority or sport color mode. */
+export function plannerRaceChrome(
+  race: { priority: RacePriority; sport?: WorkoutType | null },
+  mode: PlannerRaceColorMode,
+): PlannerRaceChrome {
+  const sport =
+    race.sport != null &&
+    (PLANNER_SPORTS as readonly WorkoutType[]).includes(race.sport)
+      ? (race.sport as PlannerSport)
+      : null
+
+  if (mode === 'sport' && sport) {
+    return {
+      card: PLANNER_SPORT_CARD[sport],
+      shadow: PLANNER_SPORT_SHADOW[sport],
+      ink: PLANNER_SPORT_INK[sport],
+      dividerBorder: PLANNER_SPORT_DIVIDER[sport],
+    }
+  }
+
+  return {
+    card: PLANNER_PRIORITY_CARD[race.priority],
+    shadow: `${PLANNER_PRIORITY_SHADOW[race.priority]} ${PLANNER_PRIORITY_PREP_BORDER[race.priority]}`,
+    ink: PLANNER_PRIORITY_INK[race.priority],
+    dividerBorder: PLANNER_PRIORITY_DIVIDER[race.priority],
+  }
+}
+
 /** Suggested preparation length (weeks) by race type — used only as form hints. */
 export const DEFAULT_PREPARATION_WEEKS: Record<RaceType, number> = {
   MARATHON: 16,
@@ -573,20 +665,28 @@ export function prepWindowForRace(args: {
 }
 
 /**
- * Convert a week-indexed prep window into day column indices
- * (Monday of start week → Sunday of end week).
+ * Convert a week-indexed prep window into day column indices.
+ * Starts Monday of the first prep week; ends on race day (not Sunday of
+ * race week) so a 1w taper with a Friday race spans Mon–Fri only.
  */
 export function prepWindowDaySpan(
   prep: PrepWindow,
   weeks: PlannerWeekColumn[],
   days: PlannerDayColumn[],
+  raceDate?: Date,
 ): { startDayIndex: number; endDayIndex: number } | null {
   const startWeek = weeks[prep.startWeekIndex]
-  const endWeek = weeks[prep.endWeekIndex]
-  if (!startWeek || !endWeek) return null
+  if (!startWeek) return null
+  const endDay = raceDate
+    ? dayIndexForDate(days, raceDate)
+    : (() => {
+        const endWeek = weeks[prep.endWeekIndex]
+        return endWeek ? dayIndexForDate(days, endWeek.end) : -1
+      })()
+  if (endDay < 0) return null
   return {
     startDayIndex: dayIndexForDate(days, startWeek.start),
-    endDayIndex: dayIndexForDate(days, endWeek.end),
+    endDayIndex: endDay,
   }
 }
 

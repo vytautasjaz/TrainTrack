@@ -11,7 +11,7 @@ import { AthleteNextRacesCard } from '@/components/dashboard/athlete-next-races-
 import { AthleteTrainingLoadCard } from '@/components/dashboard/athlete-training-load-card'
 import { toPlanWorkoutDetail, redactPlanWorkoutNotesForViewer } from '@/lib/plan-workout'
 import { prisma } from '@/lib/prisma'
-import { addDateOnlyDays, todayDateKey, todayDateOnly, toDateKey } from '@/lib/dates'
+import { addDateOnlyDays, startOfWeekDateOnly, todayDateKey, todayDateOnly, toDateKey } from '@/lib/dates'
 import { getYrWeatherSummaries } from '@/lib/weather/yr'
 import type { WeatherDaySummary } from '@/lib/weather/places'
 
@@ -61,7 +61,7 @@ export default async function DashboardPage() {
   const todayWorkouts = data.todayWorkouts.map((w) =>
     redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
   )
-  const upcomingWorkouts = data.upcomingWorkouts.map((w) =>
+  const weekPlanWorkouts = data.weekPlanWorkouts.map((w) =>
     redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
   )
   const activityFeedWorkouts = data.recentCompletedWorkouts.map((w) =>
@@ -72,14 +72,15 @@ export default async function DashboardPage() {
   const hasWeatherCoords =
     athleteWeather?.weatherLat != null && athleteWeather.weatherLon != null
   if (showWeather && hasWeatherCoords) {
-    const rollingKeys = Array.from({ length: 8 }, (_, i) =>
-      toDateKey(addDateOnlyDays(todayDateOnly(), i)),
+    const thisWeekStart = startOfWeekDateOnly(todayDateOnly())
+    const weekKeys = Array.from({ length: 63 }, (_, i) =>
+      toDateKey(addDateOnlyDays(thisWeekStart, i - 28)),
     )
     const dateKeys = [
       todayDateKey(),
-      ...rollingKeys,
+      ...weekKeys,
       ...todayWorkouts.map((w) => w.dateKey),
-      ...upcomingWorkouts.map((w) => w.dateKey),
+      ...weekPlanWorkouts.map((w) => w.dateKey),
     ]
     try {
       const weatherMap = await getYrWeatherSummaries({
@@ -129,7 +130,7 @@ export default async function DashboardPage() {
 
               <AthleteDashboardWorkouts
                 todayWorkouts={todayWorkouts}
-                upcomingWorkouts={upcomingWorkouts}
+                weekPlanWorkouts={weekPlanWorkouts}
                 weatherByDate={weatherByDate}
                 showWeather={showWeather}
               />

@@ -10,6 +10,7 @@ import {
   phaseRangeEquals,
   resizePhaseRange,
   shiftPhaseRange,
+  snapTrainingBlockRange,
   type PhaseRangeKeys,
 } from '@/lib/season-phase-range'
 import {
@@ -144,7 +145,12 @@ export function SeasonPhaseInteractiveBar({
 
     if (drag.mode === 'move') {
       updatePreview(
-        shiftPhaseRange(drag.originRange, unit === 'week' ? delta * 7 : delta),
+        snapTrainingBlockRange(
+          shiftPhaseRange(
+            drag.originRange,
+            unit === 'week' ? delta * 7 : delta,
+          ),
+        ),
       )
       return
     }
@@ -158,7 +164,9 @@ export function SeasonPhaseInteractiveBar({
         : unit === 'week'
           ? (weekEndKeys[idx] ?? displayRange.endKey)
           : (dayKeys[idx] ?? displayRange.endKey)
-    updatePreview(resizePhaseRange(drag.originRange, edge, toKey))
+    updatePreview(
+      snapTrainingBlockRange(resizePhaseRange(drag.originRange, edge, toKey)),
+    )
   }
 
   function onPointerUp(event: React.PointerEvent) {

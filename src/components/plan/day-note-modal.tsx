@@ -1,8 +1,12 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { Lock } from 'lucide-react'
-import { deleteDayNote, upsertDayNote } from '@/app/actions/day-notes'
+import {
+  deleteDayNote,
+  listCoachAthletesForDayNote,
+  upsertDayNote,
+} from '@/app/actions/day-notes'
 import {
   dayNoteKindHasContent,
   isDayNoteUnavailable,
@@ -47,6 +51,11 @@ export function DayNoteModal({
   const [pending, startTransition] = useTransition()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [roster, setRoster] = useState<Array<{ id: string; name: string }>>([])
+  const [selectedAthleteIds, setSelectedAthleteIds] = useState<string[]>(() =>
+    athleteId ? [athleteId] : [],
+  )
+  const [multiAthleteOpen, setMultiAthleteOpen] = useState(false)
   const isAthleteKind = noteKind === 'athlete'
   const unavailable = note ? isDayNoteUnavailable(note.status) : false
   const existingText = isAthleteKind
@@ -56,6 +65,8 @@ export function DayNoteModal({
     ? Boolean(note?.athleteNotesPrivate)
     : Boolean(note?.coachNotesPrivate)
   const hasExisting = dayNoteKindHasContent(note, noteKind)
+  const canOfferMultiAthlete = !readOnly && !isAthleteKind && !hasExisting
+  const multiAthleteActive = canOfferMultiAthlete && multiAthleteOpen
   const title = readOnly
     ? isAthleteKind
       ? 'Athlete note'
@@ -67,6 +78,53 @@ export function DayNoteModal({
       : hasExisting
         ? 'Edit coach note'
         : 'Add coach note'
+
+  useEffect(() => {
+    if (!open) return
+    setSelectedAthleteIds(athleteId ? [athleteId] : [])
+    setMultiAthleteOpen(false)
+    setError(null)
+  }, [open, athleteId])
+
+  useEffect(() => {
+    if (!open || readOnly || isAthleteKind || hasExisting || !multiAthleteOpen) {
+      if (!multiAthleteOpen) setRoster([])
+      return
+    }
+    let cancelled = false
+    listCoachAthletesForDayNote()
+      .then((list) => {
+        if (cancelled) return
+        setRoster(list)
+        setSelectedAthleteIds((prev) => {
+          if (prev.length > 0) {
+            const allowed = new Set(list.map((a) => a.id))
+            const kept = prev.filter((id) => allowed.has(id))
+            if (kept.length > 0) return kept
+          }
+          if (athleteId && list.some((a) => a.id === athleteId)) {
+            return [athleteId]
+          }
+          return list[0] ? [list[0].id] : []
+        })
+      })
+      .catch(() => {
+        if (!cancelled) setRoster([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, readOnly, isAthleteKind, hasExisting, athleteId, multiAthleteOpen])
+
+  function toggleAthlete(id: string) {
+    setSelectedAthleteIds((prev) => {
+      if (prev.includes(id)) {
+        if (prev.length === 1) return prev
+        return prev.filter((x) => x !== id)
+      }
+      return [...prev, id]
+    })
+  }
 
   function handleRemove() {
     setError(null)
@@ -139,6 +197,10 @@ export function DayNoteModal({
               className="space-y-3"
               action={(formData) => {
                 setError(null)
+                if (multiAthleteActive && selectedAthleteIds.length === 0) {
+                  setError('Select at least one athlete')
+                  return
+                }
                 startTransition(async () => {
                   try {
                     await upsertDayNote(formData)
@@ -152,7 +214,14 @@ export function DayNoteModal({
               <FormError message={error} />
               <input type="hidden" name="date" value={dateKey} />
               <input type="hidden" name="noteKind" value={noteKind} />
-              {athleteId && <input type="hidden" name="athleteId" value={athleteId} />}
+              {athleteId ? (
+                <input type="hidden" name="athleteId" value={athleteId} />
+              ) : null}
+              {multiAthleteActive
+                ? selectedAthleteIds.map((id) => (
+                    <input key={id} type="hidden" name="athleteIds" value={id} />
+                  ))
+                : null}
 
               <FormField label="Note">
                 <Textarea
@@ -174,6 +243,102 @@ export function DayNoteModal({
                 defaultChecked={existingPrivate}
               />
 
+              {canOfferMultiAthlete ? (
+                <div className="space-y-2">
+                  {!multiAthleteOpen ? (
+                    <button
+                      type="button"
+                      className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                      onClick={() => setMultiAthleteOpen(true)}
+                    >
+                      Also add for other athletes…
+                    </button>
+                  ) : (
+                    <FormField label="Also add for">
+                      <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border border-border/60 p-2">
+                        <div className="mb-1 flex flex-wrap items-center gap-2 px-1 pb-1">
+                          <button
+                            type="button"
+                            className="text-[11px] font-medium text-muted-foreground hover:underline"
+                            onClick={() =>
+                              setSelectedAthleteIds(roster.map((a) => a.id))
+                            }
+                          >
+                            Select all
+                          </button>
+                          <span className="text-[11px] text-muted-foreground">
+                            ·
+                          </span>
+                          <button
+                            type="button"
+                            className="text-[11px] font-medium text-muted-foreground hover:underline"
+                            onClick={() =>
+                              setSelectedAthleteIds(
+                                athleteId &&
+                                  roster.some((a) => a.id === athleteId)
+                                  ? [athleteId]
+                                  : roster[0]
+                                    ? [roster[0].id]
+                                    : [],
+                              )
+                            }
+                          >
+                            Only current
+                          </button>
+                          <span className="text-[11px] text-muted-foreground">
+                            ·
+                          </span>
+                          <button
+                            type="button"
+                            className="text-[11px] font-medium text-muted-foreground hover:underline"
+                            onClick={() => {
+                              setMultiAthleteOpen(false)
+                              setSelectedAthleteIds(
+                                athleteId ? [athleteId] : [],
+                              )
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        {roster.length === 0 ? (
+                          <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                            Loading athletes…
+                          </p>
+                        ) : roster.length === 1 ? (
+                          <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                            No other athletes on your roster.
+                          </p>
+                        ) : (
+                          roster.map((a) => {
+                            const checked = selectedAthleteIds.includes(a.id)
+                            return (
+                              <label
+                                key={a.id}
+                                className={cn(
+                                  'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition',
+                                  checked
+                                    ? 'bg-muted/50'
+                                    : 'hover:bg-muted/30',
+                                )}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleAthlete(a.id)}
+                                  className="rounded border-border"
+                                />
+                                <span className="truncate">{a.name}</span>
+                              </label>
+                            )
+                          })
+                        )}
+                      </div>
+                    </FormField>
+                  )}
+                </div>
+              ) : null}
+
               {isAthleteKind ? (
                 <label
                   className={cn(
@@ -193,7 +358,11 @@ export function DayNoteModal({
 
               <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
                 <Button type="submit" variant="secondary" size="sm" disabled={pending}>
-                  {pending ? 'Saving…' : 'Save'}
+                  {pending
+                    ? 'Saving…'
+                    : multiAthleteActive && selectedAthleteIds.length > 1
+                      ? `Save for ${selectedAthleteIds.length}`
+                      : 'Save'}
                 </Button>
                 {hasExisting ? (
                   <Button

@@ -54,7 +54,7 @@ export function HomeMobileSectionHeader({
     <div className="min-w-0">
       <h2 className={TITLE_CLASS}>{title}</h2>
       {subtitle ? (
-        <div className="mt-0.5 text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]">
+        <div className="mt-1 text-[13px] leading-snug text-[var(--tt-ink-soft,#6b6b6b)]">
           {subtitle}
         </div>
       ) : null}

@@ -139,14 +139,22 @@ export function readPreparationBlocks(raw: unknown): RacePrepBlock[] | null {
   }
 }
 
+/** True when this block is the race-week slot (sits under the race card). */
+export function isRaceWeekPrepBlock(block: RacePrepBlock): boolean {
+  if (block.phase === 'RACE') return true
+  const label = (block.label ?? '').trim().toLowerCase()
+  return label === 'race week' || label === 'race'
+}
+
 /**
  * Suggested split for a prep window (chronological: earliest → race week).
- * Mirrors a common Base → Build → Race-specific → Taper pattern.
+ * Weeks are Mon–Sun; the last week is race week and ends on race day
+ * (e.g. 1w taper + Friday race ⇒ Mon–Fri). Every block starts Monday.
  */
 export function suggestPreparationBlocks(totalWeeks: number): RacePrepBlock[] {
   const n = Math.min(52, Math.max(1, Math.round(totalWeeks)))
   if (n === 1) {
-    return [{ phase: 'RACE', weeks: 1, label: 'Race week' }]
+    return [{ phase: 'RECOVERY', weeks: 1, label: 'Taper' }]
   }
   if (n === 2) {
     return [
@@ -171,6 +179,7 @@ export function suggestPreparationBlocks(totalWeeks: number): RacePrepBlock[] {
   }
 
   // Proportional: ~25% base, ~35% build, ~25% race-specific, ~15% taper (min 1 each).
+  // Last week of the window is race week (truncated Mon→race day in the planner).
   let taper = Math.max(1, Math.round(n * 0.12))
   let raceSpecific = Math.max(1, Math.round(n * 0.25))
   let base = Math.max(1, Math.round(n * 0.25))

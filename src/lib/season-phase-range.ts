@@ -1,4 +1,10 @@
-import { addDateOnlyDays, parseDateOnly, toDateKey } from '@/lib/dates'
+import {
+  addDateOnlyDays,
+  endOfWeekDateOnly,
+  parseDateOnly,
+  startOfWeekDateOnly,
+  toDateKey,
+} from '@/lib/dates'
 
 export type PhaseRangeKeys = {
   startKey: string
@@ -8,6 +14,35 @@ export type PhaseRangeKeys = {
 /** Inclusive range from two keys (order-independent). */
 export function normalizePhaseRange(a: string, b: string): PhaseRangeKeys {
   return a <= b ? { startKey: a, endKey: b } : { startKey: b, endKey: a }
+}
+
+/**
+ * Training blocks start on Monday. Full weeks end Sunday; a mid-week end
+ * (e.g. Friday race) is kept so the last week can be Mon→race day.
+ */
+export function snapTrainingBlockRange(range: PhaseRangeKeys): PhaseRangeKeys {
+  const start = startOfWeekDateOnly(parseDateOnly(range.startKey), 1)
+  const endRaw = parseDateOnly(range.endKey)
+  let end = endRaw
+  // If end is before snapped start (rare), push to that Monday.
+  if (end.getTime() < start.getTime()) {
+    end = start
+  }
+  return {
+    startKey: toDateKey(start),
+    endKey: toDateKey(end),
+  }
+}
+
+/** Snap a painted week-column span to Mon→Sun (inclusive). */
+export function snapTrainingBlockRangeToWholeWeeks(
+  range: PhaseRangeKeys,
+): PhaseRangeKeys {
+  const snapped = snapTrainingBlockRange(range)
+  return {
+    startKey: snapped.startKey,
+    endKey: toDateKey(endOfWeekDateOnly(parseDateOnly(snapped.endKey), 1)),
+  }
 }
 
 export function phaseRangeEquals(a: PhaseRangeKeys, b: PhaseRangeKeys): boolean {

@@ -3,7 +3,8 @@
 import { revalidatePath } from 'next/cache'
 import { SeasonPhase, WorkoutType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { parseDateOnly } from '@/lib/dates'
+import { parseDateOnly, toDateKey } from '@/lib/dates'
+import { snapTrainingBlockRange } from '@/lib/season-phase-range'
 import { requireSession, resolveAthleteId } from '@/lib/session'
 import { PLANNER_SPORTS } from '@/lib/season-planner'
 
@@ -31,15 +32,26 @@ function parseSport(raw: FormDataEntryValue | null): WorkoutType {
   return raw as WorkoutType
 }
 
+function parsePhaseRange(formData: FormData): { startDate: Date; endDate: Date } {
+  const startRaw = parseDateOnly(formData.get('startDate') as string)
+  const endRaw = parseDateOnly(formData.get('endDate') as string)
+  const snapped = snapTrainingBlockRange({
+    startKey: toDateKey(startRaw),
+    endKey: toDateKey(endRaw),
+  })
+  const startDate = parseDateOnly(snapped.startKey)
+  const endDate = parseDateOnly(snapped.endKey)
+  if (endDate.getTime() < startDate.getTime()) {
+    throw new Error('End date must be on or after start date')
+  }
+  return { startDate, endDate }
+}
+
 export async function createSeasonPhaseBlock(formData: FormData) {
   const athleteId = await requireAthleteId()
   const sport = parseSport(formData.get('sport'))
   const phase = parsePhase(formData.get('phase'))
-  const startDate = parseDateOnly(formData.get('startDate') as string)
-  const endDate = parseDateOnly(formData.get('endDate') as string)
-  if (endDate.getTime() < startDate.getTime()) {
-    throw new Error('End date must be on or after start date')
-  }
+  const { startDate, endDate } = parsePhaseRange(formData)
   const labelRaw = formData.get('label')
   const label =
     typeof labelRaw === 'string' && labelRaw.trim() ? labelRaw.trim() : null
@@ -66,11 +78,7 @@ export async function updateSeasonPhaseBlock(formData: FormData) {
 
   const sport = parseSport(formData.get('sport'))
   const phase = parsePhase(formData.get('phase'))
-  const startDate = parseDateOnly(formData.get('startDate') as string)
-  const endDate = parseDateOnly(formData.get('endDate') as string)
-  if (endDate.getTime() < startDate.getTime()) {
-    throw new Error('End date must be on or after start date')
-  }
+  const { startDate, endDate } = parsePhaseRange(formData)
   const labelRaw = formData.get('label')
   const label =
     typeof labelRaw === 'string' && labelRaw.trim() ? labelRaw.trim() : null
@@ -92,11 +100,7 @@ export async function updateSeasonPhaseBlockRange(formData: FormData) {
   })
   if (!existing) throw new Error('Phase block not found')
 
-  const startDate = parseDateOnly(formData.get('startDate') as string)
-  const endDate = parseDateOnly(formData.get('endDate') as string)
-  if (endDate.getTime() < startDate.getTime()) {
-    throw new Error('End date must be on or after start date')
-  }
+  const { startDate, endDate } = parsePhaseRange(formData)
 
   await prisma.seasonPhaseBlock.update({
     where: { id },

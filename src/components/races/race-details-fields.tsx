@@ -754,8 +754,8 @@ function RacePrepBlocksEditor({
         ) : null}
       </div>
       <p className="text-xs text-muted-foreground">
-        Optional — e.g. base → build → race-specific → taper. Order is from
-        prep start through race week.
+        Optional — e.g. base → build → race-specific → taper. Weeks start Monday;
+        the last week ends on race day (e.g. Friday race ⇒ Mon–Fri taper).
       </p>
 
       {enabled ? (

@@ -4,7 +4,12 @@ import { revalidatePath } from 'next/cache'
 import { DayNoteStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
-import { requireSession, isCoachView, requireCoachOwnsAthlete } from '@/lib/session'
+import {
+  getCoachAthletes,
+  requireSession,
+  isCoachView,
+  requireCoachOwnsAthlete,
+} from '@/lib/session'
 import type { DayNoteKind } from '@/lib/day-notes'
 
 /**
@@ -20,14 +25,14 @@ async function resolveDayNoteAthleteId(formData: FormData) {
     const athleteId = formAthleteId ?? session.athleteId
     if (!athleteId) throw new Error('Athlete required')
     await requireCoachOwnsAthlete(session.userId, athleteId)
-    return { athleteId, kind: 'coach' as const }
+    return { session, athleteId, kind: 'coach' as const }
   }
 
   if (session.hasAthlete && session.athleteId) {
     if (formAthleteId && formAthleteId !== session.athleteId) {
       throw new Error('Forbidden')
     }
-    return { athleteId: session.athleteId, kind: 'athlete' as const }
+    return { session, athleteId: session.athleteId, kind: 'athlete' as const }
   }
 
   throw new Error('Unauthorized')
@@ -52,8 +57,71 @@ function hasAthleteContent(row: {
   )
 }
 
+function parseCoachAthleteIds(formData: FormData, fallbackAthleteId: string) {
+  const fromList = formData
+    .getAll('athleteIds')
+    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+    .filter(Boolean)
+  const unique = [...new Set(fromList)]
+  return unique.length > 0 ? unique : [fallbackAthleteId]
+}
+
+async function upsertCoachNoteForAthlete(args: {
+  athleteId: string
+  parsedDate: Date
+  notes: string | null
+  isPrivate: boolean
+}) {
+  const { athleteId, parsedDate, notes, isPrivate } = args
+  const existing = await prisma.dayNote.findUnique({
+    where: { athleteId_date: { athleteId, date: parsedDate } },
+  })
+
+  if (!notes) {
+    if (!hasAthleteContent(existing)) {
+      await prisma.dayNote.deleteMany({
+        where: { athleteId, date: parsedDate },
+      })
+    } else if (existing) {
+      await prisma.dayNote.update({
+        where: { athleteId_date: { athleteId, date: parsedDate } },
+        data: {
+          coachNotes: null,
+          coachNotesPrivate: false,
+        },
+      })
+    }
+    return
+  }
+
+  await prisma.dayNote.upsert({
+    where: { athleteId_date: { athleteId, date: parsedDate } },
+    create: {
+      athleteId,
+      date: parsedDate,
+      status: DayNoteStatus.AVAILABLE,
+      coachNotes: notes,
+      coachNotesPrivate: isPrivate,
+    },
+    update: {
+      coachNotes: notes,
+      coachNotesPrivate: isPrivate,
+    },
+  })
+}
+
+/** Slim roster for the coach day-note multi-athlete picker. */
+export async function listCoachAthletesForDayNote(): Promise<
+  Array<{ id: string; name: string }>
+> {
+  const session = await requireSession()
+  if (!isCoachView(session)) return []
+  const athletes = await getCoachAthletes(session.userId)
+  return athletes.map((a) => ({ id: a.id, name: a.name }))
+}
+
 export async function upsertDayNote(formData: FormData) {
-  const { athleteId, kind } = await resolveDayNoteAthleteId(formData)
+  const { session, athleteId, kind } = await resolveDayNoteAthleteId(formData)
   const date = formData.get('date') as string
   const notesRaw = (formData.get('notes') as string)?.trim()
   const notes = notesRaw || null
@@ -64,11 +132,10 @@ export async function upsertDayNote(formData: FormData) {
   if (!date) throw new Error('Date is required')
   const parsedDate = parseDateOnly(date)
 
-  const existing = await prisma.dayNote.findUnique({
-    where: { athleteId_date: { athleteId, date: parsedDate } },
-  })
-
   if (noteKind === 'athlete') {
+    const existing = await prisma.dayNote.findUnique({
+      where: { athleteId_date: { athleteId, date: parsedDate } },
+    })
     const status = unavailable ? DayNoteStatus.BUSY : DayNoteStatus.AVAILABLE
     const keepForCoach = hasCoachNotes(existing)
 
@@ -110,39 +177,19 @@ export async function upsertDayNote(formData: FormData) {
     return
   }
 
-  // Coach note
-  if (!notes) {
-    if (!hasAthleteContent(existing)) {
-      await prisma.dayNote.deleteMany({
-        where: { athleteId, date: parsedDate },
-      })
-    } else {
-      await prisma.dayNote.update({
-        where: { athleteId_date: { athleteId, date: parsedDate } },
-        data: {
-          coachNotes: null,
-          coachNotesPrivate: false,
-        },
-      })
-    }
-    revalidateDayNotePaths()
-    return
+  // Coach note — optionally apply the same text to several athletes.
+  const athleteIds = parseCoachAthleteIds(formData, athleteId)
+  for (const id of athleteIds) {
+    await requireCoachOwnsAthlete(session.userId, id)
   }
-
-  await prisma.dayNote.upsert({
-    where: { athleteId_date: { athleteId, date: parsedDate } },
-    create: {
-      athleteId,
-      date: parsedDate,
-      status: DayNoteStatus.AVAILABLE,
-      coachNotes: notes,
-      coachNotesPrivate: isPrivate,
-    },
-    update: {
-      coachNotes: notes,
-      coachNotesPrivate: isPrivate,
-    },
-  })
+  for (const id of athleteIds) {
+    await upsertCoachNoteForAthlete({
+      athleteId: id,
+      parsedDate,
+      notes,
+      isPrivate,
+    })
+  }
   revalidateDayNotePaths()
 }
 
