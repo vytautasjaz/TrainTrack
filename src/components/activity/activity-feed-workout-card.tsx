@@ -41,7 +41,7 @@ import {
   type SessionLoadThresholds,
 } from '@/lib/training-load/session-tss'
 import { cn } from '@/lib/utils'
-import { ActivityFeedFeedbackReadout } from '@/components/activity/activity-feed-feeling'
+import { ActivityFeedFeedbackReadout, ActivityFeedNotes } from '@/components/activity/activity-feed-feeling'
 import { ActivityFeedInlineFeedback } from '@/components/dashboard/athlete-activity-feed-feedback'
 
 export function ActivityDayHeading({ dateKey }: { dateKey: string }) {
@@ -299,9 +299,9 @@ function CoachReplyBlock({ reply }: { reply: string }) {
   return (
     <div className="rounded-[6px] border border-brand/20 bg-brand-soft/25 px-2.5 py-2">
       <p className="text-[10px] font-semibold uppercase tracking-wide text-brand">Coach reply</p>
-      <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-[12px] leading-snug text-[var(--tt-ink-soft)] md:text-[13px]">
-        {reply}
-      </p>
+      <div className="mt-1">
+        <ActivityFeedNotes text={reply} />
+      </div>
     </div>
   )
 }

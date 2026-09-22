@@ -85,8 +85,9 @@ export function WeekPlanWorkoutCard({
   isCoach = false,
   onOpenWorkout,
 }: WeekPlanWorkoutCardProps) {
-  const colorMode =
-    useOptionalPlanSportFilter()?.colorMode ?? ('completion' as PlanColorMode)
+  const filter = useOptionalPlanSportFilter()
+  const colorMode = filter?.colorMode ?? ('sport' as PlanColorMode)
+  const showCompletionLayer = filter?.showCompletionLayer ?? true
   const durationNotation = useDurationNotation()
   const ctxSize = useOptionalWeekCardSize()?.cardSize
   const size: WeekCardSize = sizeProp ?? ctxSize ?? defaultWeekCardSize()
@@ -100,8 +101,6 @@ export function WeekPlanWorkoutCard({
   const cardEssence = !workout.isRace
     ? getWorkoutCardEssence(workout, durationNotation, {
         includeAllBlocks: size === 'm' || size === 'l',
-        // Large cards should show the full gym / text session plan, not one line.
-        includeDescriptionPlan: size === 'l',
       })
     : []
   const showLoggedMetrics = !completed || workoutHasLoggedActuals(workout)
@@ -147,7 +146,7 @@ export function WeekPlanWorkoutCard({
   const titleSize = size === 'l' ? 'text-[0.8125rem]' : 'text-[0.75rem]'
 
   const completionPercent =
-    colorMode === 'completion' && completed && !workout.isRace
+    showCompletionLayer && completed && !workout.isRace
       ? (getWorkoutCompletionPercent(workout, status) ?? 100)
       : null
   const completionStyle =
@@ -187,7 +186,7 @@ export function WeekPlanWorkoutCard({
       </div>
     ) : null
 
-  const completionChrome = colorMode === 'completion'
+  const completionChrome = showCompletionLayer
   // Mock: title green when done; faint when skipped.
   const titleClass = cn(
     'min-w-0 flex-1 font-medium leading-snug text-[var(--tt-ink,#111)]',
@@ -249,19 +248,7 @@ export function WeekPlanWorkoutCard({
 
   const bothMetrics = Boolean(distanceMetric && durationMetric)
 
-  const blockStatus = workoutStatusToBlockStatus(status)
-  // Mock skipped = white card (not pink); completed = green soft in completion mode.
-  const blockSurface =
-    colorMode === 'sport' || colorMode === 'white'
-      ? surfaces.workoutBlock
-      : skipped
-        ? cn(surfaces.workoutBlock, surfaces.workoutBlockPlanned)
-        : cn(
-            surfaces.workoutBlock,
-            blockStatus === 'completed'
-              ? surfaces.workoutBlockCompleted
-              : surfaces.workoutBlockPlanned,
-          )
+  const blockSurface = surfaces.workoutBlock
 
   const content = (
     <>
@@ -315,7 +302,7 @@ export function WeekPlanWorkoutCard({
             skipped={skipped}
             density="week"
             tone={
-              skipped || colorMode !== 'completion' || !completed
+              skipped || !showCompletionLayer || !completed
                 ? 'muted'
                 : 'completed'
             }
@@ -409,7 +396,7 @@ export function WeekPlanWorkoutCard({
       className={cn(
         WORKOUT_TYPE_CALENDAR_SURFACE[workout.type],
         colorMode === 'white' && 'tt-calendar-card-white',
-        colorMode === 'completion' && 'tt-calendar-card-completion',
+        showCompletionLayer && 'tt-calendar-card-completion',
       )}
     >
       {block}

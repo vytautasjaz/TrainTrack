@@ -66,13 +66,14 @@ export function getWorkoutCardSubtitle(workout: PlanWorkoutDetail): string | nul
 /**
  * The short, athlete-facing prescription shown beneath the card's primary
  * metric. S: selected/auto work blocks. M/L: every builder block.
- * When there is no structure essence and `includeDescriptionPlan` is set,
- * falls back to the workout description (gym / free-text session plans).
+ * When there is no structure essence, falls back to the workout description
+ * (strength / free-text session plans) so author line breaks stay visible.
  */
 export function getWorkoutCardEssence(
   workout: PlanWorkoutDetail,
   notation: DurationNotation = DEFAULT_DURATION_NOTATION,
   options: WorkoutCardEssenceOptions & {
+    /** @deprecated Description plans always show when structure has no essence. */
     includeDescriptionPlan?: boolean
   } = {},
 ): string[] {
@@ -84,13 +85,10 @@ export function getWorkoutCardEssence(
   )
   if (fromStructure.length > 0) return fromStructure
 
-  if (!options.includeDescriptionPlan) return []
   const description = workout.description?.trim()
   if (!description) return []
-  return description
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
+  // One card line per author line (keeps blank lines as spacing).
+  return description.split('\n').map((line) => line.trimEnd())
 }
 
 function metricApproximate(

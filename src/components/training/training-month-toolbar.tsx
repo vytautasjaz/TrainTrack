@@ -9,6 +9,7 @@ import {
   StickyNote,
 } from 'lucide-react'
 import {
+  CompletionLayerToggle,
   PlanSportFilterBar,
   PlanViewModeControl,
   ToolbarDivider,
@@ -128,8 +129,15 @@ export function TrainingMonthFilterGroups({
         <ToolbarDivider className="mb-1.5 mx-0.5" />
       )}
 
-      <ToolbarFilterGroup label="View" hint="How workout cards are colored">
-        <PlanViewModeControl className="shrink-0" />
+      <ToolbarFilterGroup
+        label="View"
+        hint="Card color (Color / Plain) and completion status layer"
+      >
+        <div className="flex shrink-0 items-center gap-0.5">
+          <PlanViewModeControl className="shrink-0" />
+          <ToolbarDivider className="mx-0.5" />
+          <CompletionLayerToggle />
+        </div>
       </ToolbarFilterGroup>
 
       {stacked ? (

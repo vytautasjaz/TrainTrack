@@ -12,7 +12,7 @@ import {
   MapPin,
 } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
-import { loadMoreCoachHomeActivity } from '@/app/actions/coach-home'
+import { loadCoachHomeActivityFeed, loadMoreCoachHomeActivity } from '@/app/actions/coach-home'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import {
   ActivityDayHeading,
@@ -68,6 +68,13 @@ const TIME_RANGE_OPTIONS: Array<{ id: CoachHomeTimeRange; label: string }> = [
   { id: 'all_time', label: 'All time' },
 ]
 
+const TIME_RANGE_END_LABEL: Record<CoachHomeTimeRange, string> = {
+  last_7d: "You're all caught up for the last 7 days",
+  this_week: "You're all caught up for this week",
+  last_30d: "You're all caught up for the last 30 days",
+  all_time: "You're all caught up",
+}
+
 type CoachHomeRecentActivityTableProps = {
   className?: string
   rows: CoachHomeActivityTableRow[]
@@ -115,6 +122,7 @@ export function CoachHomeRecentActivityTable({
   const [mobileOpen, setMobileOpen] = useState(true)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false)
+  const timeRangeRef = useRef(timeRange)
 
   useEffect(() => {
     setRows(initialRows)
@@ -122,7 +130,29 @@ export function CoachHomeRecentActivityTable({
     setHasMore(initialHasMore)
     setLoadError(null)
     loadMoreLock.current = false
+    timeRangeRef.current = 'last_7d'
+    setTimeRange('last_7d')
   }, [initialRows, initialCursor, initialHasMore])
+
+  // Refetch when the time window changes so infinite scroll stays inside the filter.
+  useEffect(() => {
+    if (timeRangeRef.current === timeRange) return
+    timeRangeRef.current = timeRange
+    loadMoreLock.current = true
+    setLoadError(null)
+    startLoadMore(async () => {
+      try {
+        const page = await loadCoachHomeActivityFeed(timeRange)
+        setRows(page.rows)
+        setCursor(page.nextCursor)
+        setHasMore(page.hasMore)
+      } catch {
+        setLoadError('Could not load activity.')
+      } finally {
+        loadMoreLock.current = false
+      }
+    })
+  }, [timeRange])
 
   const timeFilteredRows = useMemo(
     () => filterActivityByTimeRange(rows, timeRange),
@@ -177,7 +207,7 @@ export function CoachHomeRecentActivityTable({
     setLoadError(null)
     startLoadMore(async () => {
       try {
-        const page = await loadMoreCoachHomeActivity(cursor)
+        const page = await loadMoreCoachHomeActivity(cursor, timeRange)
         setRows((prev) => mergeActivityRows(prev, page.rows))
         setCursor(page.nextCursor)
         setHasMore(page.hasMore)
@@ -232,7 +262,7 @@ export function CoachHomeRecentActivityTable({
     return () => observer.disconnect()
     // requestLoadMore closes over latest cursor/hasMore/isLoadingMore
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasMore, cursor, isLoadingMore])
+  }, [hasMore, cursor, isLoadingMore, timeRange])
 
   // When filters hide everything but more pages exist, keep fetching.
   useEffect(() => {
@@ -522,9 +552,8 @@ export function CoachHomeRecentActivityTable({
         ) : null}
 
         {!hasMore && filtered.length > 0 ? (
-          <p className="text-center text-[11px] tabular-nums text-[var(--tt-ink-faint)]">
-            Showing {filtered.length}
-            {filtered.length !== rows.length ? ` of ${rows.length} loaded` : null}
+          <p className="text-center text-[11px] text-[var(--tt-ink-faint)]">
+            {TIME_RANGE_END_LABEL[timeRange]}
           </p>
         ) : null}
       </CoachHomeMobileAccordionBody>

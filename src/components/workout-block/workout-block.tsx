@@ -128,25 +128,17 @@ const DENSITY = {
 
 function blockSurfaceClass(
   workout: PlanWorkoutDetail,
-  status: WorkoutStatus,
-  colorMode: PlanColorMode,
+  _status: WorkoutStatus,
+  _colorMode: PlanColorMode,
+  _showCompletionLayer: boolean,
 ) {
   if (workout.isRace) {
     const priority = workout.racePriority ?? 'C'
     return cn(surfaces.workoutBlock, RACE_PRIORITY_BLOCK[priority])
   }
-  if (colorMode === 'sport' || colorMode === 'white') {
-    return surfaces.workoutBlock
-  }
-  const kind = workoutStatusToBlockStatus(status)
-  return cn(
-    surfaces.workoutBlock,
-    kind === 'completed'
-      ? surfaces.workoutBlockCompleted
-      : kind === 'skipped'
-        ? surfaces.workoutBlockSkipped
-        : surfaces.workoutBlockPlanned,
-  )
+  // Color / Plain fills come from calendar wrapper CSS; completion layer
+  // adds rail + text chrome via `.tt-calendar-card-completion`.
+  return surfaces.workoutBlock
 }
 
 /**
@@ -167,8 +159,9 @@ export function WorkoutBlock({
   hideSubtitle = false,
   isCoach = false,
 }: WorkoutBlockProps) {
-  const filterColorMode = useOptionalPlanSportFilter()?.colorMode
-  const colorMode = colorModeProp ?? filterColorMode ?? 'completion'
+  const filter = useOptionalPlanSportFilter()
+  const colorMode = colorModeProp ?? filter?.colorMode ?? 'sport'
+  const showCompletionLayer = filter?.showCompletionLayer ?? true
   const durationNotation = useDurationNotation()
   const styles = DENSITY[density]
   const completed = !workout.isRace && isWorkoutCardCompleted(status)
@@ -185,7 +178,6 @@ export function WorkoutBlock({
     !workout.isRace && density !== 'xs'
       ? getWorkoutCardEssence(workout, durationNotation, {
           includeAllBlocks: density === 'md' || density === 'lg',
-          includeDescriptionPlan: density === 'lg',
         })
       : []
   const showSubtitleLine =
@@ -198,7 +190,7 @@ export function WorkoutBlock({
   const SportIcon = workout.isRace ? Flag : WORKOUT_TYPE_ICONS[workout.type]
   const stravaSynced = isStravaSynced(workout)
   const completionPercent =
-    colorMode === 'completion' && completed && !workout.isRace
+    showCompletionLayer && completed && !workout.isRace
       ? (getWorkoutCompletionPercent(workout, status) ?? 100)
       : null
   const completionStyle =
@@ -409,12 +401,12 @@ export function WorkoutBlock({
               line={line}
               coreClassName={cn(
                 'text-foreground',
-                completed && colorMode === 'completion' && 'text-[var(--tt-good,#1a9f5c)]',
+                completed && showCompletionLayer && 'text-[var(--tt-good,#1a9f5c)]',
                 skipped && 'text-muted-foreground',
               )}
               detailClassName={cn(
                 'text-muted-foreground',
-                completed && colorMode === 'completion' && 'text-[var(--tt-good,#1a9f5c)]/75',
+                completed && showCompletionLayer && 'text-[var(--tt-good,#1a9f5c)]/75',
                 skipped && 'text-muted-foreground',
               )}
             />
@@ -446,10 +438,10 @@ export function WorkoutBlock({
             className={cn(
               'mt-0.5 flex shrink-0 items-center justify-center',
               density === 'lg' ? 'h-6 w-6' : 'h-4 w-4',
-              completed && colorMode === 'completion' && 'text-success',
-              skipped && colorMode === 'completion' && 'text-[var(--color-tt-skipped-border)]',
-              !(completed && colorMode === 'completion') &&
-                !(skipped && colorMode === 'completion') &&
+              completed && showCompletionLayer && 'text-success',
+              skipped && showCompletionLayer && 'text-[var(--color-tt-skipped-border)]',
+              !(completed && showCompletionLayer) &&
+                !(skipped && showCompletionLayer) &&
                 'text-muted-foreground',
             )}
             aria-hidden
@@ -470,7 +462,7 @@ export function WorkoutBlock({
   const block = (
     <div
       className={cn(
-        blockSurfaceClass(workout, status, colorMode),
+        blockSurfaceClass(workout, status, colorMode, showCompletionLayer),
         footer ? 'flex min-w-0 flex-col overflow-hidden p-0' : styles.pad,
         !footer &&
           (styles.showSportIcon
@@ -538,7 +530,7 @@ export function WorkoutBlock({
       className={cn(
         WORKOUT_TYPE_CALENDAR_SURFACE[workout.type],
         colorMode === 'white' && 'tt-calendar-card-white',
-        colorMode === 'completion' && 'tt-calendar-card-completion',
+        showCompletionLayer && 'tt-calendar-card-completion',
       )}
       data-completion={
         completionPercent != null ? Math.min(100, completionPercent) : undefined

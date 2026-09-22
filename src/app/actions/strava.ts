@@ -229,8 +229,9 @@ export type WorkoutStravaStreamsResult = {
 }
 
 /**
- * On-demand Strava streams for feed charts (power / HR / elevation).
- * Uses the athlete's Strava connection — coaches can load linked athletes.
+ * Feed chart streams (power / HR / elevation).
+ * Prefer DB cache written at sync time. Legacy rows without a cache get a
+ * one-shot Strava fetch that is persisted so charts never re-hit the API.
  */
 export async function getWorkoutStravaStreams(
   workoutId: string,
@@ -257,8 +258,10 @@ export async function getWorkoutStravaStreams(
     !isOwner && (await coachCanAccessAthlete(session.userId, workout.athleteId))
   if (!isOwner && !isCoach) throw new Error('Unauthorized')
 
-  const cached = parseStreamsCache(workout.result.stravaStreamsCache)
-  if (cached) return cached
+  const cachedRaw = workout.result.stravaStreamsCache
+  if (hasStreamsCachePayload(cachedRaw)) {
+    return parseStreamsCache(cachedRaw)
+  }
 
   const activityId = Number(workout.result.stravaActivityId)
   if (!Number.isFinite(activityId)) return null
@@ -296,8 +299,8 @@ export async function getWorkoutStravaStreams(
     altitude: pack(streams.altitude, true),
   }
 
-  // Persist for next open — avoid re-hitting Strava for feed charts.
-  void prisma.workoutResult
+  // Persist even when empty so we do not keep calling Strava for this activity.
+  await prisma.workoutResult
     .update({
       where: { stravaActivityId: workout.result.stravaActivityId },
       data: { stravaStreamsCache: result },
@@ -305,6 +308,12 @@ export async function getWorkoutStravaStreams(
     .catch(() => {})
 
   return result
+}
+
+function hasStreamsCachePayload(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false
+  const obj = raw as Record<string, unknown>
+  return 'heartrate' in obj || 'watts' in obj || 'altitude' in obj
 }
 
 function parseStreamsCache(raw: unknown): WorkoutStravaStreamsResult | null {

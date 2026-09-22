@@ -4,14 +4,19 @@ import { revalidateCoachSurfaces } from '@/lib/cache-tags'
 import { prisma } from '@/lib/prisma'
 import { getAppSettings } from '@/lib/app-settings'
 import {
+  COACH_HOME_ACTIVITY_INITIAL,
   COACH_HOME_ACTIVITY_PAGE,
   getCoachHomeActivityFeedPage,
   type CoachHomeActivityFeedCursor,
 } from '@/lib/queries'
+import type { CoachHomeTimeRange } from '@/lib/coach-home'
 import { isCoach, requireSession, athleteOwnedByCoachWhere } from '@/lib/session'
 import { markCoachingThreadRead } from '@/app/actions/coaching-inbox'
 
-export async function loadMoreCoachHomeActivity(cursor: CoachHomeActivityFeedCursor) {
+export async function loadMoreCoachHomeActivity(
+  cursor: CoachHomeActivityFeedCursor,
+  timeRange: CoachHomeTimeRange = 'last_7d',
+) {
   const session = await requireSession()
   if (!isCoach(session)) throw new Error('Coach only')
   if (!cursor?.activityAt || !cursor?.id) throw new Error('Cursor required')
@@ -24,6 +29,25 @@ export async function loadMoreCoachHomeActivity(cursor: CoachHomeActivityFeedCur
   return getCoachHomeActivityFeedPage(session.userId, {
     cursor,
     limit: COACH_HOME_ACTIVITY_PAGE,
+    timeRange,
+  })
+}
+
+/** Reset / change time range — first page for the selected window. */
+export async function loadCoachHomeActivityFeed(
+  timeRange: CoachHomeTimeRange,
+) {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Coach only')
+
+  const settings = await getAppSettings()
+  if (!settings.coachActivityFeedEnabled) {
+    return { rows: [], nextCursor: null, hasMore: false }
+  }
+
+  return getCoachHomeActivityFeedPage(session.userId, {
+    limit: COACH_HOME_ACTIVITY_INITIAL,
+    timeRange,
   })
 }
 

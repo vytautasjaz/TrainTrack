@@ -17,7 +17,6 @@ import { cn } from '@/lib/utils'
 const VIEW_MODE_OPTIONS: { id: PlanColorMode; label: string }[] = [
   { id: 'sport', label: 'Color' },
   { id: 'white', label: 'Plain' },
-  { id: 'completion', label: 'Completion' },
 ]
 
 /** Quiet text control — no bordered chips. */
@@ -38,10 +37,9 @@ export function ToolbarDivider({ className }: { className?: string }) {
 const VIEW_MODE_HINTS: Record<PlanColorMode, string> = {
   sport: 'Tint cards by sport',
   white: 'White cards with sport accent',
-  completion: 'Green done, muted skipped',
 }
 
-/** Color / Plain / Completion — quiet text toggles (match redesign week toolbar). */
+/** Color / Plain — quiet text toggles (Completion is a separate layer). */
 export function PlanViewModeControl({ className }: { className?: string }) {
   const { colorMode, setColorMode } = usePlanSportFilter()
 
@@ -49,7 +47,7 @@ export function PlanViewModeControl({ className }: { className?: string }) {
     <div
       className={cn('flex shrink-0 items-center gap-0.5', className)}
       role="group"
-      aria-label="View mode"
+      aria-label="Card color"
     >
       {VIEW_MODE_OPTIONS.map((opt) => (
         <ToolbarTextToggle
@@ -62,6 +60,25 @@ export function PlanViewModeControl({ className }: { className?: string }) {
         </ToolbarTextToggle>
       ))}
     </div>
+  )
+}
+
+/** Completion status chrome — independent of Color / Plain. */
+export function CompletionLayerToggle() {
+  const { showCompletionLayer, toggleCompletionLayer } = usePlanSportFilter()
+
+  return (
+    <ToolbarTextToggle
+      pressed={showCompletionLayer}
+      onClick={toggleCompletionLayer}
+      title={
+        showCompletionLayer
+          ? 'Hide completion status on cards'
+          : 'Show green done / muted skipped on cards'
+      }
+    >
+      Completion
+    </ToolbarTextToggle>
   )
 }
 

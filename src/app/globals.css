@@ -3072,13 +3072,13 @@ html[data-inbox-mobile-detail='true'] .tt-dashboard-content > [class*='space-y']
 .tt-dashboard-today .group\/card:hover .tt-workout-block-skipped,
 .tt-dashboard-today
   .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
-    .tt-calendar-card-completion
+    .tt-calendar-card-completion:has([data-status='completed'])
   )
   .tt-workout-block,
 .tt-dashboard-today
   .group\/card:hover
   .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
-    .tt-calendar-card-completion
+    .tt-calendar-card-completion:has([data-status='completed'])
   )
   .tt-workout-block {
   border: none !important;
@@ -3642,8 +3642,10 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
 }
 
 /*
- * Month calendar: free 2D pan in one scroller (touch / trackpad diagonal).
- * Sticky weekday header (top) + Stats column (left) stay put while days move.
+ * Month calendar:
+ * - Desktop flow: page scrolls Y; grid only scrolls X (same as week matrix).
+ * - Mobile fixed frame / expand stage: one 2D scroller fills leftover height.
+ * Sticky Stats column (left) stays put while days move horizontally.
  */
 .tt-month-grid-bleed {
   position: relative;
@@ -3651,7 +3653,7 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .tt-month-grid-scroll {
@@ -3659,10 +3661,26 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
+  /* clip (not visible): avoids overflow-y computing to auto, which traps wheel on desktop. */
+  overflow-x: auto;
+  overflow-y: clip;
+  overscroll-behavior-x: contain;
   touch-action: pan-x pan-y;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Height-constrained shells keep a single inner 2D pan (no page Y + grid Y). */
+.tt-training-list-frame[data-training-list-frame='fixed'] .tt-month-grid-bleed,
+.tt-week-expand-rotate-inner .tt-month-grid-bleed,
+html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-month-grid-bleed {
+  overflow: hidden;
+}
+
+.tt-training-list-frame[data-training-list-frame='fixed'] .tt-month-grid-scroll,
+.tt-week-expand-rotate-inner .tt-month-grid-scroll,
+html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-month-grid-scroll {
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 /* Mobile fixed frame + expand stage: fill leftover height so Y pans inside the grid. */
@@ -3682,12 +3700,19 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
   overflow: hidden;
 }
 
-/* Desktop: cap height so both axes scroll in one viewport (not page Y + grid X). */
+/* Expanded desktop: fill the viewport so only the grid scrolls. */
 @media (min-width: 1024px) {
-  html:not([data-calendar-expanded='true'])
-    .tt-training-list-frame[data-training-list-frame='flow']
+  html[data-calendar-expanded='true']
+    .tt-calendar-expanded-root
+    .tt-month-view-root,
+  html[data-calendar-expanded='true']
+    .tt-calendar-expanded-root
+    .tt-month-grid-bleed,
+  html[data-calendar-expanded='true']
+    .tt-calendar-expanded-root
     .tt-month-grid-scroll {
-    max-height: calc(100dvh - 11.5rem);
+    flex: 1 1 auto;
+    min-height: 0;
   }
 
   html[data-calendar-expanded='true']
@@ -3720,6 +3745,13 @@ html[data-calendar-expanded='true'] .tt-training-list-sticky-header {
   position: sticky;
   top: 0;
   z-index: 5;
+}
+
+/* Page-scroll month (desktop flow): don’t pin weekday row — avoids a second sticky bar. */
+.tt-training-list-frame[data-training-list-frame='flow']
+  .tt-month-grid-scroll
+  .tt-month-grid-days-header {
+  position: static;
 }
 
 .tt-month-grid-scroll .tt-month-stats-col {
@@ -4160,15 +4192,28 @@ html.tt-week-portrait-lock body {
   ) !important;
 }
 
-.tt-calendar-card-completion .tt-week-plan-card[data-status='skipped']::before {
+.tt-calendar-card-completion.tt-calendar-card-white
+  .tt-week-plan-card[data-status='skipped']::before {
   background: var(--tt-ink-faint, #9a9a9a);
 }
 
-/* Skipped week card — white surface + grey border (mock), not pink. */
-.tt-calendar-card-completion .tt-week-plan-card.tt-week-plan-card-skipped,
-.tt-week-plan-card.tt-week-plan-card-skipped {
+.tt-calendar-card-completion:not(.tt-calendar-card-white)
+  .tt-week-plan-card[data-status='skipped']::before {
+  background: color-mix(in srgb, var(--tt-sport-color) 45%, transparent);
+}
+
+/* Skipped week card — Plain: white surface. Color: keep sport tint. */
+.tt-calendar-card-white .tt-week-plan-card.tt-week-plan-card-skipped,
+.tt-calendar-card-completion.tt-calendar-card-white
+  .tt-week-plan-card.tt-week-plan-card-skipped {
   background: var(--color-card, #fff) !important;
   border-color: var(--tt-line-strong, #dddddd) !important;
+}
+
+.tt-calendar-card-sport:not(.tt-calendar-card-white)
+  .tt-week-plan-card.tt-week-plan-card-skipped {
+  background: color-mix(in srgb, var(--tt-sport-bg) 75%, var(--color-card)) !important;
+  border-color: color-mix(in srgb, var(--tt-sport-border) 50%, transparent) !important;
 }
 
 .tt-calendar-card-sport:has(.tt-week-plan-card[data-ghost='true']) .tt-week-plan-card::before,
@@ -4220,7 +4265,7 @@ html.tt-week-portrait-lock body {
 }
 
 .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
-    .tt-calendar-card-completion
+    .tt-calendar-card-completion:has([data-status='completed'])
   )
   .tt-workout-feedback-section,
 .tt-workout-feedback-section[data-feedback-tint='sport'] {
@@ -4244,42 +4289,50 @@ html.tt-week-portrait-lock body {
 /* Reschedule ghost — faded placeholder on the original plan day. */
 .tt-workout-block-ghost,
 .tt-workout-block[data-ghost='true'] {
-  opacity: 0.4;
-  filter: grayscale(0.4);
+  opacity: 0.55;
   border-style: dashed;
   background-color: color-mix(in srgb, var(--color-muted) 45%, var(--color-card));
 }
 
 /* Body fade when review footer stays crisp inside the same card. */
 .tt-workout-block-ghost-body {
-  opacity: 0.4;
-  filter: grayscale(0.4);
+  opacity: 0.55;
 }
 
-/* Soften sport wash / border that otherwise win via !important. */
-.tt-calendar-card-sport .tt-workout-block-ghost,
-.tt-calendar-card-sport .tt-workout-block[data-ghost='true'],
-.tt-calendar-card-sport:has([data-status='ghost']) > .tt-workout-block {
+/* Plain / default — soft gray mute (wins over sport wash via !important). */
+.tt-calendar-card-sport.tt-calendar-card-white .tt-workout-block-ghost,
+.tt-calendar-card-sport.tt-calendar-card-white .tt-workout-block[data-ghost='true'],
+.tt-calendar-card-sport.tt-calendar-card-white:has([data-status='ghost']) > .tt-workout-block {
   background: color-mix(in srgb, var(--color-muted) 45%, var(--color-card)) !important;
   border-color: color-mix(in srgb, var(--color-border) 55%, transparent) !important;
+  border-style: dashed !important;
+}
+
+/* Color mode — keep sport wash on ghosts (faded), not gray. */
+.tt-calendar-card-sport:not(.tt-calendar-card-white) .tt-workout-block-ghost,
+.tt-calendar-card-sport:not(.tt-calendar-card-white) .tt-workout-block[data-ghost='true'],
+.tt-calendar-card-sport:not(.tt-calendar-card-white):has([data-status='ghost']) > .tt-workout-block {
+  background: color-mix(in srgb, var(--tt-sport-bg) 65%, var(--color-card)) !important;
+  border-color: color-mix(in srgb, var(--tt-sport-border) 45%, transparent) !important;
   border-style: dashed !important;
 }
 
 /* List / dashboard row ghosts — match workout-block ghost language. */
 .tt-list-workout-row-ghost {
   border-style: dashed !important;
-  background-color: color-mix(in srgb, var(--color-muted) 45%, var(--color-card)) !important;
   border-color: color-mix(in srgb, var(--color-border) 55%, transparent) !important;
 }
 
+.tt-list-workout-row-ghost:not([data-color-mode='sport']) {
+  background-color: color-mix(in srgb, var(--color-muted) 45%, var(--color-card)) !important;
+}
+
 .tt-list-workout-row-ghost:not(:has([data-review-footer])) {
-  opacity: 0.4;
-  filter: grayscale(0.4);
+  opacity: 0.55;
 }
 
 .tt-list-workout-row-ghost-body {
-  opacity: 0.4;
-  filter: grayscale(0.4);
+  opacity: 0.55;
 }
 
 .tt-workout-block-adjusted {
@@ -4292,7 +4345,7 @@ html.tt-week-portrait-lock body {
   background-color: color-mix(in oklab, var(--color-muted) 28%, var(--color-card));
 }
 .group\/card:hover .tt-workout-block-completed {
-  background-color: color-mix(in oklab, var(--color-tt-completed-bg) 70%, #86d39a);
+  background-color: color-mix(in oklab, var(--color-tt-completed-bg) 88%, #86d39a);
 }
 .group\/card:hover .tt-workout-block-skipped {
   background-color: color-mix(in oklab, var(--color-tt-skipped-bg) 70%, #f5a3a3);
@@ -4341,19 +4394,19 @@ html.tt-week-portrait-lock body {
 }
 
 .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
-  .tt-calendar-card-completion
+  .tt-calendar-card-completion:has([data-status='completed'])
 ) {
   background: var(--tt-sport-bg);
   border-color: var(--tt-sport-border);
 }
 .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
-    .tt-calendar-card-completion
+    .tt-calendar-card-completion:has([data-status='completed'])
   ):has(.tt-workout-block) {
   background: transparent;
   border-color: transparent;
 }
 .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
-    .tt-calendar-card-completion
+    .tt-calendar-card-completion:has([data-status='completed'])
   )
   .tt-workout-block {
   background: var(--tt-sport-bg) !important;
@@ -4363,36 +4416,36 @@ html.tt-week-portrait-lock body {
 /* Sport hover — deepen the tint slightly */
 .group\/card:hover
   .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
-    .tt-calendar-card-completion
+    .tt-calendar-card-completion:has([data-status='completed'])
   )
   .tt-workout-block,
 .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
-    .tt-calendar-card-completion
+    .tt-calendar-card-completion:has([data-status='completed'])
   ):hover
   .tt-workout-block {
   background: color-mix(
     in oklab,
-    var(--tt-sport-color) 10%,
+    var(--tt-sport-color) 6%,
     var(--tt-sport-bg)
   ) !important;
   border-color: color-mix(
     in oklab,
-    var(--tt-sport-color) 22%,
+    var(--tt-sport-color) 14%,
     var(--tt-sport-border)
   ) !important;
 }
 
 .group\/card:hover
   .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
-    .tt-calendar-card-completion
+    .tt-calendar-card-completion:has([data-status='completed'])
   ):not(:has(.tt-workout-block)),
 .tt-calendar-card-sport:not(.tt-calendar-card-white):not(
-    .tt-calendar-card-completion
+    .tt-calendar-card-completion:has([data-status='completed'])
   ):hover:not(:has(.tt-workout-block)) {
-  background: color-mix(in oklab, var(--tt-sport-color) 10%, var(--tt-sport-bg));
+  background: color-mix(in oklab, var(--tt-sport-color) 6%, var(--tt-sport-bg));
   border-color: color-mix(
     in oklab,
-    var(--tt-sport-color) 22%,
+    var(--tt-sport-color) 14%,
     var(--tt-sport-border)
   );
 }
@@ -4442,8 +4495,16 @@ html.tt-week-portrait-lock body {
   );
 }
 
-.tt-calendar-card-completion:has([data-status='skipped'])::before {
+.tt-calendar-card-completion.tt-calendar-card-white:has(
+  [data-status='skipped']
+)::before {
   background: var(--color-tt-skipped-border);
+}
+
+.tt-calendar-card-completion:not(.tt-calendar-card-white):has(
+  [data-status='skipped']
+)::before {
+  background: color-mix(in srgb, var(--tt-sport-color) 45%, transparent);
 }
 
 /*
@@ -4465,18 +4526,50 @@ html.tt-week-portrait-lock body {
   border-color: var(--tt-line-strong, #dddddd) !important;
 }
 
-/* Plain hover — wash in a bit of sport color */
-.group\/card:hover .tt-calendar-card-white.tt-calendar-card-sport .tt-workout-block,
-.tt-calendar-card-white.tt-calendar-card-sport:hover .tt-workout-block {
-  background: color-mix(in oklab, var(--tt-sport-color) 12%, #fff) !important;
-  border-color: color-mix(in oklab, var(--tt-sport-color) 28%, #fff) !important;
+/* Plain hover — wash in a bit of sport color (not on completed + Completion layer). */
+.group\/card:hover
+  .tt-calendar-card-white.tt-calendar-card-sport:not(
+    .tt-calendar-card-completion:has([data-status='completed'])
+  )
+  .tt-workout-block,
+.tt-calendar-card-white.tt-calendar-card-sport:not(
+    .tt-calendar-card-completion:has([data-status='completed'])
+  ):hover
+  .tt-workout-block {
+  background: color-mix(in oklab, var(--tt-sport-color) 8%, #fff) !important;
+  border-color: color-mix(in oklab, var(--tt-sport-color) 18%, #fff) !important;
 }
 
 .group\/card:hover
-  .tt-calendar-card-white.tt-calendar-card-sport:not(:has(.tt-workout-block)),
-.tt-calendar-card-white.tt-calendar-card-sport:hover:not(:has(.tt-workout-block)) {
-  background: color-mix(in oklab, var(--tt-sport-color) 12%, #fff) !important;
-  border-color: color-mix(in oklab, var(--tt-sport-color) 28%, #fff) !important;
+  .tt-calendar-card-white.tt-calendar-card-sport:not(
+    .tt-calendar-card-completion:has([data-status='completed'])
+  ):not(:has(.tt-workout-block)),
+.tt-calendar-card-white.tt-calendar-card-sport:not(
+    .tt-calendar-card-completion:has([data-status='completed'])
+  ):hover:not(:has(.tt-workout-block)) {
+  background: color-mix(in oklab, var(--tt-sport-color) 8%, #fff) !important;
+  border-color: color-mix(in oklab, var(--tt-sport-color) 18%, #fff) !important;
+}
+
+/* Completion layer — completed hover deepens green (Color + Plain). */
+.group\/card:hover
+  .tt-calendar-card-completion
+  .tt-week-plan-card[data-status='completed'],
+.tt-calendar-card-completion:hover .tt-week-plan-card[data-status='completed'],
+.group\/card:hover
+  .tt-calendar-card-completion:has([data-status='completed'])
+  .tt-workout-block,
+.tt-calendar-card-completion:has([data-status='completed']):hover .tt-workout-block {
+  background: color-mix(
+    in oklab,
+    var(--color-tt-completed-bg, #f0faf4) 88%,
+    #86d39a
+  ) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--color-tt-completed-border, #86d39a) 78%,
+    var(--tt-line, #ebebeb)
+  ) !important;
 }
 
 /*
@@ -4488,7 +4581,7 @@ html.tt-week-portrait-lock body {
   border-color: transparent !important;
 }
 
-.tt-calendar-card-completion .tt-workout-block-planned {
+.tt-calendar-card-completion.tt-calendar-card-white .tt-workout-block-planned {
   background: var(--color-card, #fff) !important;
   border-color: var(--tt-line-strong, #dddddd) !important;
 }

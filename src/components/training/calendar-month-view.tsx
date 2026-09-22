@@ -620,9 +620,9 @@ export function CalendarMonthView({
 
   const monthGrid = (
     <div className="tt-month-view-root flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="tt-month-grid-bleed @container flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden rounded-[0.5rem]">
+      <div className="tt-month-grid-bleed @container flex min-h-0 min-w-0 max-w-full flex-1 flex-col rounded-[0.5rem]">
         <div
-          className="tt-month-grid-scroll min-h-0 min-w-0 w-full max-w-full flex-1 overscroll-contain"
+          className="tt-month-grid-scroll min-h-0 min-w-0 w-full max-w-full flex-1"
           data-month-stats={showStats ? "1" : "0"}
         >
           <div className="tt-month-grid-scroll-inner">
@@ -722,7 +722,7 @@ export function CalendarMonthView({
         </div>
       ) : (
         <TrainingListFrame
-          /* Month pans X+Y inside the grid; frame only clips to the viewport. */
+          /* Desktop: page scrolls Y, grid scrolls X. Mobile fixed frame: grid pans X+Y. */
           scrollBody={false}
           className={cn(expanded && "tt-calendar-expanded-root")}
           header={stickyHeader}

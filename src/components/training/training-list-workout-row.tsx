@@ -180,9 +180,10 @@ export function TrainingListWorkoutRow({
   const dnd = usePlanWeekDnd()
   const [dragging, setDragging] = useState(false)
   const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout)
-  const colorMode: PlanColorMode =
-    useOptionalPlanSportFilter()?.colorMode ?? 'completion'
-  const completionChrome = colorMode === 'completion'
+  const filter = useOptionalPlanSportFilter()
+  const colorMode: PlanColorMode = filter?.colorMode ?? 'sport'
+  const showCompletionLayer = filter?.showCompletionLayer ?? true
+  const completionChrome = showCompletionLayer
   const completed = isWorkoutCardCompleted(status)
   const skipped = isWorkoutCardSkipped(status)
   const isRace = Boolean(workout.isRace)
@@ -253,8 +254,10 @@ export function TrainingListWorkoutRow({
   const metricCell = listMetricCell(workout, status, hero, secondary)
 
   const rowBackground = (() => {
-    if (colorMode === 'sport' && !skipped) {
-      return `color-mix(in srgb, ${sportRail} ${selected ? 16 : 7}%, white)`
+    if (colorMode === 'sport') {
+      // Ghosts + skipped stay sport-tinted (softer); open/selected stay stronger.
+      const tint = workout.isRescheduleGhost || skipped ? 5 : selected ? 16 : 7
+      return `color-mix(in srgb, ${sportRail} ${tint}%, white)`
     }
     // Today already has a day-content wash — don't stack a second rose fill.
     if (selected && isToday) {
@@ -279,6 +282,7 @@ export function TrainingListWorkoutRow({
               ? 'completed'
               : 'planned'
       }
+      data-color-mode={colorMode}
       onClick={onOpen}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -406,7 +410,7 @@ export function TrainingListWorkoutRow({
               density="list"
               className="w-full min-w-0"
               tone={
-                skipped || colorMode !== 'completion' || !completed
+                skipped || !showCompletionLayer || !completed
                   ? 'muted'
                   : 'completed'
               }

@@ -23,15 +23,15 @@ function MockStructureSketch({
   bars,
   done,
   skipped,
-  colorMode,
+  showCompletionLayer,
 }: {
   bars: NonNullable<TrainingWorkout['structureBars']>
   done?: boolean
   skipped?: boolean
-  colorMode: PlanColorMode
+  showCompletionLayer: boolean
 }) {
   const fill =
-    colorMode === 'completion' && done
+    showCompletionLayer && done
       ? 'var(--tt-good)'
       : 'var(--tt-ink-faint)'
 
@@ -47,7 +47,7 @@ function MockStructureSketch({
               flexBasis: 0,
               height: `${Math.max(18, Math.round(bar.intensity * 100))}%`,
               background: fill,
-              opacity: skipped ? 0.35 : done && colorMode === 'completion' ? 0.55 : 0.4,
+              opacity: skipped ? 0.35 : done && showCompletionLayer ? 0.55 : 0.4,
             }}
           />
         ))}
@@ -59,6 +59,7 @@ function MockStructureSketch({
 function weekBlockChrome(
   workout: TrainingWorkout,
   colorMode: PlanColorMode,
+  showCompletionLayer: boolean,
 ): {
   rail: string
   surface: string
@@ -71,12 +72,23 @@ function weekBlockChrome(
   const skipped = workout.status === 'skipped'
   const sportRail = sportRailColor(workout.sport)
 
-  if (colorMode === 'sport') {
+  const base =
+    colorMode === 'sport'
+      ? {
+          rail: sportRail,
+          surface: 'border shadow-[0_1px_2px_rgb(0_0_0_/0.045)]',
+          bg: SPORT_BG[workout.sport],
+          borderColor: sportRail,
+        }
+      : {
+          rail: sportRail,
+          surface:
+            'border-[var(--tt-line-strong)] bg-white shadow-[0_1px_2px_rgb(0_0_0_/0.045)]',
+        }
+
+  if (!showCompletionLayer) {
     return {
-      rail: sportRail,
-      surface: 'border shadow-[0_1px_2px_rgb(0_0_0_/0.045)]',
-      bg: SPORT_BG[workout.sport],
-      borderColor: sportRail,
+      ...base,
       titleClass: skipped
         ? '!text-[var(--tt-ink-faint)] line-through'
         : workout.race
@@ -86,26 +98,14 @@ function weekBlockChrome(
     }
   }
 
-  if (colorMode === 'white') {
-    return {
-      rail: sportRail,
-      surface:
-        'border-[var(--tt-line-strong)] bg-white shadow-[0_1px_2px_rgb(0_0_0_/0.045)]',
-      titleClass: skipped
-        ? '!text-[var(--tt-ink-faint)] line-through'
-        : workout.race
-          ? '!text-[var(--tt-red)]'
-          : '',
-      captionDone: '',
-    }
-  }
-
-  // completion
   return {
-    rail: done ? 'var(--tt-good)' : skipped ? 'var(--tt-ink-faint)' : sportRail,
+    ...base,
+    rail: done ? 'var(--tt-good)' : skipped ? 'var(--tt-ink-faint)' : base.rail,
     surface: done
       ? 'border-[rgb(26_159_92/0.28)] bg-[var(--tt-good-soft)] shadow-[0_1px_2px_rgb(0_0_0_/0.045)]'
-      : 'border-[var(--tt-line-strong)] bg-white shadow-[0_1px_2px_rgb(0_0_0_/0.045)]',
+      : base.surface,
+    bg: done ? undefined : base.bg,
+    borderColor: done ? undefined : base.borderColor,
     titleClass: done
       ? '!text-[var(--tt-good)]'
       : skipped
@@ -117,7 +117,7 @@ function weekBlockChrome(
   }
 }
 
-/** Quiet week card — prescription-first; respects Color / Plain / Completion. */
+/** Quiet week card — prescription-first; respects Color / Plain + Completion layer. */
 export function WeekWorkoutBlock({
   workout,
   size = 'm',
@@ -125,10 +125,12 @@ export function WeekWorkoutBlock({
   workout: TrainingWorkout
   size?: WeekCardSize
 }) {
-  const colorMode = useOptionalPlanSportFilter()?.colorMode ?? 'completion'
+  const filter = useOptionalPlanSportFilter()
+  const colorMode = filter?.colorMode ?? 'sport'
+  const showCompletionLayer = filter?.showCompletionLayer ?? true
   const done = workout.status === 'done'
   const skipped = workout.status === 'skipped'
-  const chrome = weekBlockChrome(workout, colorMode)
+  const chrome = weekBlockChrome(workout, colorMode, showCompletionLayer)
   const metric = done
     ? workout.actualMetric ?? workout.prescriptionMetric
     : workout.prescriptionMetric
@@ -197,7 +199,7 @@ export function WeekWorkoutBlock({
       {(metric || (showMeta && duration)) && (
         <p
           className={`tt-mock-caption mt-1.5 tabular-nums !text-[var(--tt-ink-soft)] ${
-            colorMode === 'completion' && done ? '!text-[var(--tt-good)]/90' : ''
+            showCompletionLayer && done ? '!text-[var(--tt-good)]/90' : ''
           }`}
         >
           <span className="font-medium text-[var(--tt-ink)]">{metric}</span>
@@ -212,7 +214,7 @@ export function WeekWorkoutBlock({
           bars={workout.structureBars}
           done={done}
           skipped={skipped}
-          colorMode={colorMode}
+          showCompletionLayer={showCompletionLayer}
         />
       ) : null}
     </div>

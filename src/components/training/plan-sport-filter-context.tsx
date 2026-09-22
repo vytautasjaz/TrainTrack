@@ -13,6 +13,7 @@ import {
 import type { WorkoutType } from '@prisma/client'
 import {
   defaultPlanColorMode,
+  defaultPlanCompletionLayer,
   defaultPlanStatusFilters,
   defaultVisiblePlanSports,
   FILTERABLE_PLAN_SPORTS,
@@ -25,9 +26,11 @@ import {
   PLAN_STATUS_FILTER_STORAGE_KEY,
   PLAN_STATUS_FILTERS,
   readStoredPlanColorMode,
+  readStoredPlanCompletionLayer,
   serializePlanStatusFilters,
   serializeVisiblePlanSports,
   writeStoredPlanColorMode,
+  writeStoredPlanCompletionLayer,
   type PlanColorMode,
   type PlanStatusFilter,
 } from '@/lib/plan-sport-filter'
@@ -37,12 +40,15 @@ type PlanSportFilterContextValue = {
   visibleSportSet: ReadonlySet<WorkoutType>
   isSportVisible: (sport: WorkoutType) => boolean
   colorMode: PlanColorMode
+  showCompletionLayer: boolean
   visibleStatuses: PlanStatusFilter[]
   visibleStatusSet: ReadonlySet<PlanStatusFilter>
   isFiltered: boolean
   setSportVisible: (sport: WorkoutType, visible: boolean) => void
   setAllVisible: (visible: boolean) => void
   setColorMode: (mode: PlanColorMode) => void
+  setShowCompletionLayer: (on: boolean) => void
+  toggleCompletionLayer: () => void
   setStatusVisible: (status: PlanStatusFilter, visible: boolean) => void
   setAllStatusesVisible: (visible: boolean) => void
   resetFilters: () => void
@@ -78,6 +84,19 @@ export function useResolvedPlanColorMode(): PlanColorMode {
   return ctx?.colorMode ?? stored
 }
 
+/** Completion status chrome. Uses the training toggle when present, else the saved preference. */
+export function useResolvedPlanCompletionLayer(): boolean {
+  const ctx = useOptionalPlanSportFilter()
+  const [stored, setStored] = useState(defaultPlanCompletionLayer)
+
+  useEffect(() => {
+    if (ctx) return
+    setStored(readStoredPlanCompletionLayer())
+  }, [ctx])
+
+  return ctx?.showCompletionLayer ?? stored
+}
+
 type PlanSportFilterProviderProps = {
   children: ReactNode
 }
@@ -85,6 +104,9 @@ type PlanSportFilterProviderProps = {
 export function PlanSportFilterProvider({ children }: PlanSportFilterProviderProps) {
   const [visibleSports, setVisibleSports] = useState(defaultVisiblePlanSports)
   const [colorMode, setColorModeState] = useState<PlanColorMode>(defaultPlanColorMode)
+  const [showCompletionLayer, setShowCompletionLayerState] = useState(
+    defaultPlanCompletionLayer,
+  )
   const [visibleStatuses, setVisibleStatuses] = useState(defaultPlanStatusFilters)
   const [hydrated, setHydrated] = useState(false)
 
@@ -94,6 +116,7 @@ export function PlanSportFilterProvider({ children }: PlanSportFilterProviderPro
         parseVisiblePlanSports(localStorage.getItem(PLAN_SPORT_FILTER_STORAGE_KEY)),
       )
       setColorModeState(readStoredPlanColorMode())
+      setShowCompletionLayerState(readStoredPlanCompletionLayer())
       setVisibleStatuses(
         parsePlanStatusFilters(localStorage.getItem(PLAN_STATUS_FILTER_STORAGE_KEY)),
       )
@@ -119,6 +142,11 @@ export function PlanSportFilterProvider({ children }: PlanSportFilterProviderPro
   const persistColorMode = useCallback((next: PlanColorMode) => {
     setColorModeState(next)
     writeStoredPlanColorMode(next)
+  }, [])
+
+  const persistCompletionLayer = useCallback((next: boolean) => {
+    setShowCompletionLayerState(next)
+    writeStoredPlanCompletionLayer(next)
   }, [])
 
   const persistStatuses = useCallback((next: PlanStatusFilter[]) => {
@@ -169,6 +197,21 @@ export function PlanSportFilterProvider({ children }: PlanSportFilterProviderPro
     [persistColorMode],
   )
 
+  const setShowCompletionLayer = useCallback(
+    (on: boolean) => {
+      persistCompletionLayer(on)
+    },
+    [persistCompletionLayer],
+  )
+
+  const toggleCompletionLayer = useCallback(() => {
+    setShowCompletionLayerState((prev) => {
+      const next = !prev
+      writeStoredPlanCompletionLayer(next)
+      return next
+    })
+  }, [])
+
   const setStatusVisible = useCallback((status: PlanStatusFilter, visible: boolean) => {
     setVisibleStatuses((prev) => {
       const set = new Set(prev)
@@ -197,11 +240,15 @@ export function PlanSportFilterProvider({ children }: PlanSportFilterProviderPro
   const resetFilters = useCallback(() => {
     persistSports(defaultVisiblePlanSports())
     persistColorMode(defaultPlanColorMode())
+    persistCompletionLayer(defaultPlanCompletionLayer())
     persistStatuses(defaultPlanStatusFilters())
-  }, [persistSports, persistColorMode, persistStatuses])
+  }, [persistSports, persistColorMode, persistCompletionLayer, persistStatuses])
 
   const effectiveSports = hydrated ? visibleSports : defaultVisiblePlanSports()
   const effectiveColorMode = hydrated ? colorMode : defaultPlanColorMode()
+  const effectiveCompletionLayer = hydrated
+    ? showCompletionLayer
+    : defaultPlanCompletionLayer()
   const effectiveStatuses = hydrated ? visibleStatuses : defaultPlanStatusFilters()
 
   const visibleSportSet = useMemo(
@@ -215,6 +262,7 @@ export function PlanSportFilterProvider({ children }: PlanSportFilterProviderPro
 
   const isFiltered =
     effectiveColorMode !== defaultPlanColorMode() ||
+    effectiveCompletionLayer !== defaultPlanCompletionLayer() ||
     effectiveSports.length < FILTERABLE_PLAN_SPORTS.length ||
     effectiveStatuses.length < PLAN_STATUS_FILTERS.length
 
@@ -224,12 +272,15 @@ export function PlanSportFilterProvider({ children }: PlanSportFilterProviderPro
       visibleSportSet,
       isSportVisible: (sport) => isPlanSportVisible(sport, visibleSportSet),
       colorMode: effectiveColorMode,
+      showCompletionLayer: effectiveCompletionLayer,
       visibleStatuses: effectiveStatuses,
       visibleStatusSet,
       isFiltered,
       setSportVisible,
       setAllVisible,
       setColorMode,
+      setShowCompletionLayer,
+      toggleCompletionLayer,
       setStatusVisible,
       setAllStatusesVisible,
       resetFilters,
@@ -238,12 +289,15 @@ export function PlanSportFilterProvider({ children }: PlanSportFilterProviderPro
       effectiveSports,
       visibleSportSet,
       effectiveColorMode,
+      effectiveCompletionLayer,
       effectiveStatuses,
       visibleStatusSet,
       isFiltered,
       setSportVisible,
       setAllVisible,
       setColorMode,
+      setShowCompletionLayer,
+      toggleCompletionLayer,
       setStatusVisible,
       setAllStatusesVisible,
       resetFilters,

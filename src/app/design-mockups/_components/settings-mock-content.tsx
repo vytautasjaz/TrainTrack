@@ -465,18 +465,22 @@ function WeatherSection() {
 }
 
 function PlanDisplaySection() {
-  const [mode, setMode] = useState<'sport' | 'completion'>('sport')
+  const [mode, setMode] = useState<'sport' | 'white'>('sport')
+  const [completion, setCompletion] = useState(true)
   return (
     <section className="space-y-5">
       <SectionTitle
         title="Plan display"
-        description="How workout cards color themselves on week and list views."
+        description="Card color and completion status on week and list views."
       />
       <div className="space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint)]">
+          Color
+        </p>
         {(
           [
-            ['sport', 'Sport colors', 'Rail and accents follow run / bike / swim.'],
-            ['completion', 'Completion', 'Done sessions shift to green; planned stay neutral.'],
+            ['sport', 'Color', 'Tint cards by Run / Bike / Swim…'],
+            ['white', 'Plain', 'White cards with sport accent'],
           ] as const
         ).map(([id, label, hint]) => (
           <button
@@ -494,6 +498,40 @@ function PlanDisplaySection() {
             <span className="mt-0.5 text-[12px] text-[var(--tt-ink-soft)]">{hint}</span>
           </button>
         ))}
+      </div>
+      <div className="space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint)]">
+          Layer
+        </p>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={completion}
+          onClick={() => setCompletion((v) => !v)}
+          className={cn(
+            'flex w-full items-start justify-between gap-3 rounded-[8px] border px-3.5 py-3 text-left transition',
+            completion
+              ? 'border-[var(--tt-ink)] shadow-[0_0_0_1px_var(--tt-ink)]'
+              : 'border-[var(--tt-line)] hover:border-[var(--tt-line-strong)]',
+          )}
+        >
+          <span className="min-w-0">
+            <span className="block text-[13px] font-semibold text-[var(--tt-ink)]">
+              Completion layer
+            </span>
+            <span className="mt-0.5 block text-[12px] text-[var(--tt-ink-soft)]">
+              Green done and muted skipped on top of Color or Plain
+            </span>
+          </span>
+          <span
+            className={cn(
+              'mt-0.5 shrink-0 text-[11px] font-semibold uppercase tracking-wide',
+              completion ? 'text-[var(--tt-ink)]' : 'text-[var(--tt-ink-faint)]',
+            )}
+          >
+            {completion ? 'On' : 'Off'}
+          </span>
+        </button>
       </div>
     </section>
   )

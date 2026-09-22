@@ -180,12 +180,12 @@ const VIEW_MODE_OPTIONS: {
 }[] = [
   { id: 'sport', label: 'Color', hint: 'Tint cards by sport' },
   { id: 'white', label: 'Plain', hint: 'White cards with sport accent' },
-  { id: 'completion', label: 'Completion', hint: 'Green done, muted skipped' },
 ]
 
-/** Color / Plain / Completion as quiet text — matches Sports / Notes. */
+/** Color / Plain as quiet text; Completion is a separate layer toggle. */
 function QuietPlanViewModeControl() {
-  const { colorMode, setColorMode } = usePlanSportFilter()
+  const { colorMode, setColorMode, showCompletionLayer, toggleCompletionLayer } =
+    usePlanSportFilter()
 
   return (
     <div className="flex shrink-0 items-center gap-0.5" role="group" aria-label="View mode">
@@ -199,6 +199,14 @@ function QuietPlanViewModeControl() {
           {opt.label}
         </ToolbarTextToggle>
       ))}
+      <div className="mx-0.5 h-4 w-px shrink-0 bg-border" aria-hidden />
+      <ToolbarTextToggle
+        pressed={showCompletionLayer}
+        onClick={toggleCompletionLayer}
+        title="Green done / muted skipped on cards"
+      >
+        Completion
+      </ToolbarTextToggle>
     </div>
   )
 }

@@ -1157,12 +1157,14 @@ export function groupActivityRowsByDay(
 
 export type CoachHomeTimeRange = 'last_7d' | 'this_week' | 'last_30d' | 'all_time'
 
-export function filterActivityByTimeRange(
-  rows: CoachHomeActivityTableRow[],
-  range: CoachHomeTimeRange,
-): CoachHomeActivityTableRow[] {
-  if (range === 'all_time') return rows
-
+/** Inclusive local-date bounds for the coach activity feed time filter. */
+export function activityTimeRangeBounds(range: CoachHomeTimeRange): {
+  start: Date
+  end: Date
+  startKey: string
+  endKey: string
+} | null {
+  if (range === 'all_time') return null
   const today = todayDateOnly()
   const start =
     range === 'this_week'
@@ -1170,9 +1172,25 @@ export function filterActivityByTimeRange(
       : range === 'last_30d'
         ? addDateOnlyDays(today, -29)
         : addDateOnlyDays(today, -6)
-  const startKey = toDateKey(start)
-  const endKey = todayDateKey()
-  return rows.filter((row) => row.dateKey >= startKey && row.dateKey <= endKey)
+  return {
+    start,
+    end: today,
+    startKey: toDateKey(start),
+    endKey: todayDateKey(),
+  }
+}
+
+export function filterActivityByTimeRange(
+  rows: CoachHomeActivityTableRow[],
+  range: CoachHomeTimeRange,
+): CoachHomeActivityTableRow[] {
+  const bounds = activityTimeRangeBounds(range)
+  if (!bounds) return rows
+  return rows.filter((row) => {
+    // Match server feed window (completedAt / activityAt), not plan date.
+    const key = toDateKey(row.activityAt)
+    return key >= bounds.startKey && key <= bounds.endKey
+  })
 }
 
 export function athleteOptionsFromRoster(

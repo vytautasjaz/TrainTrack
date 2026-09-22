@@ -112,10 +112,7 @@ export function getWorkoutCardEssenceLines(
 
   const override = structure.cardSummary?.essence?.trim()
   if (override) {
-    return override
-      .split(/\n+/)
-      .map((line) => line.trim())
-      .filter(Boolean)
+    return override.split('\n').map((line) => line.trimEnd())
   }
 
   const selectedIds = structure.cardSummary?.highlightedBlockIds ?? []

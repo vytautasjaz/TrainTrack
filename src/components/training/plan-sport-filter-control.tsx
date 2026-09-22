@@ -27,6 +27,8 @@ export function PlanSportFilterControl({
     setAllVisible,
     colorMode,
     setColorMode,
+    showCompletionLayer,
+    setShowCompletionLayer,
     visibleStatusSet,
     setStatusVisible,
     resetFilters,
@@ -116,6 +118,35 @@ export function PlanSportFilterControl({
                 )
               })}
             </div>
+            <DropdownMenu.CheckboxItem
+              checked={showCompletionLayer}
+              onCheckedChange={(next) => setShowCompletionLayer(next === true)}
+              onSelect={(e) => e.preventDefault()}
+              className={cn(
+                'relative mt-1.5 flex cursor-pointer select-none items-center gap-2 rounded-[4px] px-2 py-1.5 text-sm outline-none',
+                'data-[highlighted]:bg-muted/70',
+              )}
+            >
+              <span
+                className={cn(
+                  'flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border',
+                  showCompletionLayer
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-border bg-card',
+                )}
+                aria-hidden
+              >
+                {showCompletionLayer ? (
+                  <Check className="h-3 w-3" strokeWidth={3} />
+                ) : null}
+              </span>
+              <span className="min-w-0">
+                <span className="font-medium">Completion layer</span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  Green done, muted skipped
+                </span>
+              </span>
+            </DropdownMenu.CheckboxItem>
           </div>
 
           <DropdownMenu.Separator className="my-1 h-px bg-border" />

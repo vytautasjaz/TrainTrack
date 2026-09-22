@@ -284,43 +284,55 @@ async function createSelfLoggedWorkoutFromActivity(
   return workout.id
 }
 
-async function resolveHrZoneSecondsForActivity(
+async function fetchAndCacheActivityStreams(
   accessToken: string,
   activityId: number,
-  bounds: NonNullable<ReturnType<typeof resolveHrZoneBounds>>,
-): Promise<{ hrZoneSeconds: HrZoneSeconds; streamsCache: unknown } | null> {
+  bounds: NonNullable<ReturnType<typeof resolveHrZoneBounds>> | null,
+): Promise<{
+  hrZoneSeconds: HrZoneSeconds | null
+  streamsCache: {
+    heartrate: ReturnType<typeof packStreamSeries>
+    watts: ReturnType<typeof packStreamSeries>
+    altitude: ReturnType<typeof packStreamSeries>
+  }
+} | null> {
   try {
     const streams = await fetchStravaActivityStreams(accessToken, activityId)
-    if (!streams.heartrate) return null
-    const hrZoneSeconds = computeHrZoneSeconds(streams.heartrate, streams.time, bounds)
-    if (!hrZoneSeconds) return null
-    const pack = (values: number[] | null, withDistance = false) => {
-      if (!values || values.length < 2) return null
-      const down = downsampleStreamSeries(
-        values,
-        streams.time,
-        140,
-        withDistance ? streams.distance : null,
-      )
-      if (down.values.length < 2) return null
-      return {
-        values: down.values,
-        time: down.time,
-        distance: down.companion,
-      }
+    const streamsCache = {
+      heartrate: packStreamSeries(streams.heartrate, streams.time),
+      watts: packStreamSeries(streams.watts, streams.time),
+      altitude: packStreamSeries(streams.altitude, streams.time, streams.distance),
     }
-    return {
-      hrZoneSeconds,
-      streamsCache: {
-        heartrate: pack(streams.heartrate),
-        watts: pack(streams.watts),
-        altitude: pack(streams.altitude, true),
-      },
-    }
+    const hrZoneSeconds =
+      bounds && streams.heartrate
+        ? computeHrZoneSeconds(streams.heartrate, streams.time, bounds)
+        : null
+    return { hrZoneSeconds, streamsCache }
   } catch (err) {
-    console.warn('Strava HR stream / zone seconds skipped:', err)
+    console.warn('Strava streams fetch skipped:', err)
     return null
   }
+}
+
+function packStreamSeries(
+  values: number[] | null,
+  time: number[] | null,
+  distance: number[] | null = null,
+) {
+  if (!values || !time || values.length < 2) return null
+  const down = downsampleStreamSeries(values, time, 140, distance)
+  if (down.values.length < 2) return null
+  return {
+    values: down.values,
+    time: down.time,
+    distance: down.companion,
+  }
+}
+
+function hasStreamsCache(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false
+  const obj = raw as Record<string, unknown>
+  return 'heartrate' in obj || 'watts' in obj || 'altitude' in obj
 }
 
 async function mapPool<T, R>(
@@ -352,18 +364,17 @@ async function applyActivityToWorkout(
   const durationMin = secondsToMinutes(activity.moving_time || activity.elapsed_time)
   const activityName = activity.name?.trim() || null
 
-  // List summaries omit description / calories / sometimes map — fetch detail when needed.
+  // List summaries usually include the map polyline. Only hit detail when GPS is missing.
   let activityDescription = activity.description?.trim() || null
   let detailedCalories = optionalFinite(activity.calories)
   let summaryPolyline = activity.map?.summary_polyline?.trim() || null
-  if (!activityDescription || detailedCalories == null || !summaryPolyline) {
+  if (!summaryPolyline) {
     try {
       const detailed = await fetchStravaActivity(accessToken, activity.id)
       activityDescription = activityDescription || detailed.description?.trim() || null
       detailedCalories = detailedCalories ?? optionalFinite(detailed.calories)
       summaryPolyline =
         summaryPolyline || detailed.map?.summary_polyline?.trim() || null
-      // Prefer richer metrics from the detailed payload when present.
       Object.assign(activity, {
         average_heartrate: activity.average_heartrate ?? detailed.average_heartrate,
         max_heartrate: activity.max_heartrate ?? detailed.max_heartrate,
@@ -400,12 +411,14 @@ async function applyActivityToWorkout(
     },
   })
   const hrBounds = resolveHrZoneBounds(workoutRow?.athlete ?? {})
-  const hrPacked =
-    hrBounds != null
-      ? await resolveHrZoneSecondsForActivity(accessToken, activity.id, hrBounds)
-      : null
-  const hrZoneSeconds = hrPacked?.hrZoneSeconds ?? null
-  const streamsCache = hrPacked?.streamsCache ?? null
+  // Always pack streams at sync time so feed charts never need Strava.
+  const packed = await fetchAndCacheActivityStreams(
+    accessToken,
+    activity.id,
+    hrBounds,
+  )
+  const hrZoneSeconds = packed?.hrZoneSeconds ?? null
+  const streamsCache = packed?.streamsCache ?? null
 
   await prisma.workout.update({
     where: { id: workoutId },
@@ -523,34 +536,31 @@ export async function syncStravaActivitiesForUser(
       where: { stravaActivityId: String(activity.id) },
     })
     if (existing) {
-      // Backfill description / metrics / GPS / second-precise duration for previously synced activities.
-      const needsDescription = !existing.stravaActivityDescription?.trim()
-      const needsMetrics = existing.averageHeartrate == null && existing.averageSpeedMps == null
+      // Backfill only missing essentials. Skip description-only gaps (saves detail calls).
+      // Charts use stravaStreamsCache — fill once here, not on every feed open.
+      const needsMetrics =
+        existing.averageHeartrate == null && existing.averageSpeedMps == null
       const needsWeightedWatts = existing.weightedAverageWatts == null
       const needsPolyline = !existing.summaryPolyline?.trim()
-      const needsHrZones = existing.hrZoneSeconds == null
+      const needsHrZones = existing.hrZoneSeconds == null && hrBounds != null
+      const needsStreams = !hasStreamsCache(existing.stravaStreamsCache)
       const durationMin = secondsToMinutes(activity.moving_time || activity.elapsed_time)
       const needsDurationPrecision =
         existing.actualDuration == null ||
         Number.isInteger(existing.actualDuration)
-      // Do not backfill stravaStreamsCache here — charts fetch+cache on demand.
       if (
-        needsDescription ||
         needsMetrics ||
         needsWeightedWatts ||
         needsPolyline ||
         needsDurationPrecision ||
-        needsHrZones
+        needsHrZones ||
+        needsStreams
       ) {
         try {
-          const detailed =
-            needsDescription || needsPolyline
-              ? await fetchStravaActivity(accessToken, activity.id)
-              : activity
-          const description =
-            existing.stravaActivityDescription?.trim() ||
-            detailed.description?.trim() ||
-            null
+          // Detail only when GPS polyline is missing from the list payload.
+          const detailed = needsPolyline
+            ? await fetchStravaActivity(accessToken, activity.id)
+            : activity
           const metrics = stravaMetricsFromActivity({
             ...activity,
             ...detailed,
@@ -558,34 +568,37 @@ export async function syncStravaActivitiesForUser(
           })
           const preciseDuration = secondsToMinutes(
             detailed.moving_time ||
-            detailed.elapsed_time ||
-            activity.moving_time ||
-            activity.elapsed_time,
+              detailed.elapsed_time ||
+              activity.moving_time ||
+              activity.elapsed_time,
           )
-          const hrPacked =
-            needsHrZones && hrBounds
-              ? await resolveHrZoneSecondsForActivity(
+          const packed =
+            needsStreams || needsHrZones
+              ? await fetchAndCacheActivityStreams(
                   accessToken,
                   activity.id,
-                  hrBounds,
+                  needsHrZones ? hrBounds : null,
                 )
               : null
           await prisma.workoutResult.update({
             where: { id: existing.id },
             data: {
-              ...(description ? { stravaActivityDescription: description } : {}),
               stravaActivityName:
                 existing.stravaActivityName?.trim() ||
                 detailed.name?.trim() ||
                 activity.name?.trim() ||
                 null,
-              ...(needsDurationPrecision ? { actualDuration: preciseDuration || durationMin } : {}),
+              ...(needsDurationPrecision
+                ? { actualDuration: preciseDuration || durationMin }
+                : {}),
               ...(needsPolyline && metrics.summaryPolyline
                 ? { summaryPolyline: metrics.summaryPolyline }
                 : {}),
-              ...(hrPacked?.hrZoneSeconds ? { hrZoneSeconds: hrPacked.hrZoneSeconds } : {}),
-              ...(hrPacked?.streamsCache
-                ? { stravaStreamsCache: hrPacked.streamsCache }
+              ...(packed?.hrZoneSeconds
+                ? { hrZoneSeconds: packed.hrZoneSeconds }
+                : {}),
+              ...(packed?.streamsCache
+                ? { stravaStreamsCache: packed.streamsCache }
                 : {}),
               ...(needsMetrics
                 ? {
@@ -608,7 +621,8 @@ export async function syncStravaActivitiesForUser(
               ...(needsWeightedWatts
                 ? {
                     weightedAverageWatts:
-                      existing.weightedAverageWatts ?? metrics.weightedAverageWatts,
+                      existing.weightedAverageWatts ??
+                      metrics.weightedAverageWatts,
                   }
                 : {}),
             },

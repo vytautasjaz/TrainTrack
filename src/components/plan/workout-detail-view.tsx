@@ -34,7 +34,10 @@ import {
 } from '@/lib/plan-workout-detail-prefetch'
 import { parseDateOnly } from '@/lib/dates'
 import { useCurrentPath } from '@/hooks/use-current-path'
-import { useResolvedPlanColorMode } from '@/components/training/plan-sport-filter-context'
+import {
+  useResolvedPlanColorMode,
+  useResolvedPlanCompletionLayer,
+} from '@/components/training/plan-sport-filter-context'
 import { cn } from '@/lib/utils'
 
 export function formatWorkoutDetailDate(dateKey: string) {
@@ -91,6 +94,7 @@ export function WorkoutDetailView({
 }: WorkoutDetailViewProps) {
   const currentPath = useCurrentPath()
   const colorMode = useResolvedPlanColorMode()
+  const showCompletionLayer = useResolvedPlanCompletionLayer()
   const [workout, setWorkout] = useState(workoutProp)
   const [detailLoading, setDetailLoading] = useState(false)
   const result = workout.result
@@ -171,7 +175,7 @@ export function WorkoutDetailView({
     }
   }
 
-  const completionChrome = colorMode === 'completion'
+  const completionChrome = showCompletionLayer
   const insetX = compact ? (compactFlush ? 'pl-2.5 pr-1' : 'px-2.5') : 'px-5'
   const insetMX = compact ? (compactFlush ? 'ml-2.5 mr-1' : 'mx-2.5') : 'mx-5'
 
@@ -342,6 +346,7 @@ export function WorkoutDetailView({
             showUtilityActions={!isCoach}
             showStatusBadge={completionChrome}
             colorMode={colorMode}
+            showCompletionLayer={showCompletionLayer}
             heroTone={heroTone}
             compactHero={compact}
             compactFlush={compactFlush}

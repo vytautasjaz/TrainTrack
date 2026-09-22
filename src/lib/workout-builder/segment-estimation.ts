@@ -823,10 +823,8 @@ export function formatBlockEssenceLines(
   if (block.type === 'FREE_TEXT') {
     const text = block.text?.trim()
     if (!text) return []
-    return text
-      .split(/\n+/)
-      .map((line) => line.trim())
-      .filter(Boolean)
+    // Keep author line breaks (blank lines become empty strings for spacing).
+    return text.split('\n').map((line) => line.trimEnd())
   }
   const summary = formatBlockSummary(block, sportType ?? 'RUN', notation)
   return summary ? [summary] : []

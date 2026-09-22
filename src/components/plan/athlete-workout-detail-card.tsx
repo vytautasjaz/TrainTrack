@@ -314,8 +314,10 @@ type AthleteWorkoutDetailCardProps = {
   showUtilityActions?: boolean;
   /** Completed / Skipped chip next to Strava or Done/Skip (athlete modal only). */
   showStatusBadge?: boolean;
-  /** Matches training Color / Plain / Completion chrome. */
+  /** Matches training Color / Plain chrome. */
   colorMode?: PlanColorMode;
+  /** Green done / muted skipped status chrome (independent of colorMode). */
+  showCompletionLayer?: boolean;
   /** Modal / preview use dark; list side panel stays light. */
   heroTone?: HeroTone;
   /** Tighter hero padding for embedded side panels (inbox, roster). */
@@ -336,7 +338,8 @@ export function AthleteWorkoutDetailCard({
   onStravaChange,
   showUtilityActions = false,
   showStatusBadge = false,
-  colorMode = "completion",
+  colorMode: _colorMode = "sport",
+  showCompletionLayer = true,
   heroTone = "dark",
   compactHero = false,
   compactFlush = false,
@@ -376,7 +379,7 @@ export function AthleteWorkoutDetailCard({
   const sportLabel = WORKOUT_TYPE_LABELS[workout.type];
   const completed = workout.status === WorkoutStatus.COMPLETED;
   const skipped = workout.status === WorkoutStatus.SKIPPED;
-  const statusChrome = colorMode === "completion";
+  const statusChrome = showCompletionLayer;
   const darkHero = heroTone === "dark";
   const insetX = compactHero ? (compactFlush ? "pl-2.5 pr-1" : "px-2.5") : "px-5";
   const insetMX = compactHero ? (compactFlush ? "ml-2.5 mr-1" : "mx-2.5") : "mx-5";

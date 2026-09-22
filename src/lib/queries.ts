@@ -55,6 +55,7 @@ import { racePlaceSummary } from '@/lib/season-races'
 import type { RaceLegView } from '@/lib/race-legs'
 import {
   athleteOptionsFromRoster,
+  activityTimeRangeBounds,
   buildCoachHomeActivityTableRows,
   buildCoachHomeAttentionItems,
   buildCoachHomePlanningCoverageRows,
@@ -63,6 +64,7 @@ import {
   isUnderPlannedBelowDays,
   mergeCoachHomeActivityFeed,
   type CoachHomeRaceFeedSource,
+  type CoachHomeTimeRange,
 } from '@/lib/coach-home'
 
 function mapCoachHomeRaceLegs(
@@ -1041,12 +1043,14 @@ function activityRowBeforeCursor(
 /**
  * Paginated coach activity feed (workouts + races), newest first.
  * Over-fetches each source slightly, merges, then returns `limit` rows.
+ * Optional `timeRange` limits results so “Show more” stays within the filter.
  */
 export async function getCoachHomeActivityFeedPage(
   coachId: string,
   opts?: {
     cursor?: CoachHomeActivityFeedCursor | null
     limit?: number
+    timeRange?: CoachHomeTimeRange
   },
 ): Promise<{
   rows: ReturnType<typeof mergeCoachHomeActivityFeed>
@@ -1055,13 +1059,27 @@ export async function getCoachHomeActivityFeedPage(
 }> {
   const limit = Math.max(1, Math.min(40, opts?.limit ?? COACH_HOME_ACTIVITY_PAGE))
   const cursor = opts?.cursor ?? null
+  const timeRange = opts?.timeRange ?? 'last_7d'
+  const rangeBounds = activityTimeRangeBounds(timeRange)
   const athleteWhere = athleteOwnedByCoachWhere(coachId)
   // Pull a bit more from each source so merge can fill a full page.
   const sourceTake = limit + 8
   const cursorAt = cursor ? new Date(cursor.activityAt) : null
   const today = todayDateOnly()
-  const raceWindowStart = addDateOnlyDays(today, -45)
-  const raceWindowEnd = addDateOnlyDays(today, 7)
+  const raceWindowStart = rangeBounds?.start ?? addDateOnlyDays(today, -45)
+  const raceWindowEnd = rangeBounds?.end ?? addDateOnlyDays(today, 7)
+
+  const workoutCompletedAtFilter: Prisma.DateTimeFilter = {
+    ...(rangeBounds ? { gte: rangeBounds.start } : {}),
+    ...(cursorAt ? { lte: cursorAt } : {}),
+  }
+
+  const raceDateLte =
+    cursorAt && rangeBounds
+      ? cursorAt < rangeBounds.end
+        ? cursorAt
+        : rangeBounds.end
+      : (cursorAt ?? rangeBounds?.end ?? raceWindowEnd)
 
   const [recentCompletedRows, recentRaceRows] = await Promise.all([
     prisma.workout.findMany({
@@ -1069,9 +1087,10 @@ export async function getCoachHomeActivityFeedPage(
         athlete: athleteWhere,
         status: { in: [WorkoutStatus.COMPLETED, WorkoutStatus.SKIPPED] },
         isRescheduleGhost: false,
-        result: cursorAt
-          ? { completedAt: { lte: cursorAt } }
-          : { isNot: null },
+        result:
+          rangeBounds || cursorAt
+            ? { completedAt: workoutCompletedAtFilter }
+            : { isNot: null },
       },
       select: ACTIVITY_FEED_WORKOUT_SELECT,
       orderBy: { result: { completedAt: 'desc' } },
@@ -1082,23 +1101,26 @@ export async function getCoachHomeActivityFeedPage(
         athlete: athleteWhere,
         intent: RaceIntent.PLANNED,
         resultsLogOnly: false,
-        // Avoid pulling an entire season of upcoming races into the feed merge.
         OR: [
-          { resultLoggedAt: { not: null } },
-          { date: { gte: raceWindowStart, lte: raceWindowEnd } },
-        ],
-        ...(cursorAt
-          ? {
-              AND: [
-                {
-                  OR: [
-                    { resultLoggedAt: { lte: cursorAt } },
-                    { resultLoggedAt: null, date: { lte: cursorAt } },
-                  ],
+          {
+            AND: [
+              { resultLoggedAt: { not: null } },
+              {
+                resultLoggedAt: {
+                  ...(rangeBounds ? { gte: rangeBounds.start } : {}),
+                  ...(cursorAt ? { lte: cursorAt } : {}),
                 },
-              ],
-            }
-          : {}),
+              },
+            ],
+          },
+          {
+            resultLoggedAt: null,
+            date: {
+              gte: raceWindowStart,
+              lte: raceDateLte,
+            },
+          },
+        ],
       },
       include: {
         athlete: { select: { id: true, name: true, avatarUrl: true } },
@@ -1228,7 +1250,10 @@ async function getCoachHomeDataUncached(coachId: string, activityFeedEnabled: bo
       orderBy: WORKOUT_LIST_ORDER_BY,
     }),
     activityFeedEnabled
-      ? getCoachHomeActivityFeedPage(coachId, { limit: COACH_HOME_ACTIVITY_INITIAL })
+      ? getCoachHomeActivityFeedPage(coachId, {
+          limit: COACH_HOME_ACTIVITY_INITIAL,
+          timeRange: 'last_7d',
+        })
       : Promise.resolve({ rows: [], nextCursor: null, hasMore: false }),
     prisma.user.findUnique({
       where: { id: coachId },

@@ -12,10 +12,11 @@ import {
   workoutFeelingTone,
   WORKOUT_FEELING_META_CLASS,
 } from '@/lib/workout-feeling'
+import { PreserveNewlines } from '@/components/ui/preserve-newlines'
 import { cn } from '@/lib/utils'
 
 const FEEDBACK_PREVIEW_LINES = 3
-const WEEK_FEEDBACK_PREVIEW_LINES = 3
+const WEEK_FEEDBACK_PREVIEW_LINES = 2
 
 export type WorkoutFeedbackPreview = {
   feeling: number | null
@@ -114,24 +115,10 @@ export function WorkoutResultFeedbackSummary({
             showHeader ? 'mt-1.5' : undefined,
           )}
         >
-          {preview.notes}
+          <PreserveNewlines text={preview.notes} />
         </p>
       ) : null}
     </section>
-  )
-}
-
-function FeedbackMultilineText({ text }: { text: string }) {
-  const lines = text.split('\n')
-  return (
-    <>
-      {lines.map((line, index) => (
-        <span key={index}>
-          {index > 0 ? <br /> : null}
-          {line}
-        </span>
-      ))}
-    </>
   )
 }
 
@@ -139,24 +126,31 @@ function clampClassForLines(lines: number) {
   return lines <= 2 ? 'line-clamp-2' : 'line-clamp-3'
 }
 
-function notesLikelyOverflow(text: string | null | undefined, lines: number): boolean {
+function notesLikelyOverflow(
+  text: string | null | undefined,
+  lines: number,
+  narrow = false,
+): boolean {
   const trimmed = text?.trim()
   if (!trimmed) return false
   const nonempty = trimmed.split(/\n/).filter((line) => line.trim().length > 0)
   if (nonempty.length > lines) return true
-  return trimmed.length > 120
+  // Week columns are narrow (~90–120px) — wrap much earlier than feed.
+  const charsPerLine = narrow ? 28 : 42
+  return trimmed.length > lines * charsPerLine
 }
 
 function useClampedOverflow(
   text: string | null | undefined,
   expanded: boolean,
   lines: number,
+  narrow = false,
 ) {
   const ref = useRef<HTMLParagraphElement>(null)
   /** Sticky while expanded so “Show less” stays available. */
   const [measuredOverflow, setMeasuredOverflow] = useState(false)
   const clampClass = clampClassForLines(lines)
-  const heuristic = notesLikelyOverflow(text, lines)
+  const heuristic = notesLikelyOverflow(text, lines, narrow)
   const canExpand = heuristic || measuredOverflow
 
   useEffect(() => {
@@ -177,12 +171,8 @@ function useClampedOverflow(
     if (!el) return
 
     const check = () => {
-      // Measure natural height vs clamped height (scrollHeight alone is unreliable with line-clamp).
-      el.classList.remove('line-clamp-2', 'line-clamp-3')
-      const fullHeight = el.scrollHeight
-      el.classList.add(clampClass)
-      const clampedHeight = el.clientHeight
-      setMeasuredOverflow(fullHeight > clampedHeight + 2)
+      // While clamped: scrollHeight is full content, clientHeight is visible.
+      setMeasuredOverflow(el.scrollHeight > el.clientHeight + 1)
     }
 
     check()
@@ -197,7 +187,7 @@ function useClampedOverflow(
     }
   }, [text, expanded, lines, clampClass])
 
-  return { ref, canExpand }
+  return { ref, canExpand, clampClass }
 }
 
 type WorkoutInlineFeedbackProps = {
@@ -225,8 +215,9 @@ export function WorkoutInlineFeedback({
   section = true,
 }: WorkoutInlineFeedbackProps) {
   const feedbackCtx = useOptionalShowFeedback()
-  const colorMode: PlanColorMode =
-    useOptionalPlanSportFilter()?.colorMode ?? 'completion'
+  const filter = useOptionalPlanSportFilter()
+  const colorMode: PlanColorMode = filter?.colorMode ?? 'sport'
+  const showCompletionLayer = filter?.showCompletionLayer ?? true
   const [expanded, setExpanded] = useState(false)
 
   const preview = useMemo(
@@ -239,14 +230,24 @@ export function WorkoutInlineFeedback({
   }, [workout.id])
 
   const previewLines = weekView ? WEEK_FEEDBACK_PREVIEW_LINES : FEEDBACK_PREVIEW_LINES
-  const notesOverflow = useClampedOverflow(preview?.notes, expanded, previewLines)
-  const replyOverflow = useClampedOverflow(preview?.reply, expanded, previewLines)
+  const notesOverflow = useClampedOverflow(
+    preview?.notes,
+    expanded,
+    previewLines,
+    weekView,
+  )
+  const replyOverflow = useClampedOverflow(
+    preview?.reply,
+    expanded,
+    previewLines,
+    weekView,
+  )
 
   if (!feedbackCtx?.showFeedback || !preview) return null
 
   const completed = isWorkoutCardCompleted(workout.status)
   const canExpand = notesOverflow.canExpand || replyOverflow.canExpand
-  const clampClass = clampClassForLines(previewLines)
+  const clampClass = notesOverflow.clampClass
   const bodyTextClass = listView
     ? 'whitespace-pre-wrap text-xs font-normal leading-snug tracking-[0.004em] text-[var(--tt-ink-soft,#6b6b6b)]'
     : weekView
@@ -275,7 +276,9 @@ export function WorkoutInlineFeedback({
           : 'mt-1',
         className,
       )}
-      data-feedback-tint={colorMode}
+      data-feedback-tint={
+        showCompletionLayer ? 'completion' : colorMode
+      }
       data-card-status={completed ? 'completed' : 'planned'}
       style={tintStyle}
       onClick={(e) => e.stopPropagation()}
@@ -294,7 +297,7 @@ export function WorkoutInlineFeedback({
               {preview.feeling && preview.notes ? ' · ' : null}
               {preview.notes ? (
                 <span className="font-normal">
-                  <FeedbackMultilineText text={preview.notes} />
+                  <PreserveNewlines text={preview.notes} />
                 </span>
               ) : null}
             </p>
@@ -307,7 +310,7 @@ export function WorkoutInlineFeedback({
               <span className="font-semibold text-[var(--tt-ink,#111)]">Coach</span>
               {' · '}
               <span className="font-normal">
-                <FeedbackMultilineText text={preview.reply} />
+                <PreserveNewlines text={preview.reply} />
               </span>
             </p>
           ) : null}
@@ -319,7 +322,7 @@ export function WorkoutInlineFeedback({
               ref={notesOverflow.ref}
               className={cn(bodyTextClass, !expanded && clampClass)}
             >
-              <FeedbackMultilineText text={preview.notes} />
+              <PreserveNewlines text={preview.notes} />
             </p>
           ) : weekView && preview.feeling && !preview.notes ? (
             <FeelingHint feeling={preview.feeling} className="text-xs" />
@@ -336,7 +339,7 @@ export function WorkoutInlineFeedback({
                 )}
               >
                 <span className="text-[var(--tt-ink-faint,#9a9a9a)]">Coach · </span>
-                <FeedbackMultilineText text={preview.reply} />
+                <PreserveNewlines text={preview.reply} />
               </p>
             </div>
           ) : null}
@@ -348,11 +351,11 @@ export function WorkoutInlineFeedback({
           type="button"
           className={cn(
             'font-semibold text-[var(--tt-ink-soft,#6b6b6b)] transition hover:text-[var(--tt-ink)]',
-            weekView ? 'text-[11px]' : 'text-[10px] uppercase tracking-[0.06em]',
+            weekView || listView ? 'text-[11px]' : 'text-[10px]',
           )}
           onClick={() => setExpanded((v) => !v)}
         >
-          {expanded ? 'Show less' : isCoach ? 'Show more' : 'View more'}
+          {expanded ? 'Show less' : 'Show more'}
         </button>
       ) : null}
     </div>

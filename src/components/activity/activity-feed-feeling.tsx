@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { MessageSquare } from 'lucide-react'
+import { PreserveNewlines } from '@/components/ui/preserve-newlines'
 import {
   workoutFeelingLabel,
   workoutFeelingTone,
@@ -15,10 +16,10 @@ function notesLikelyOverflow(text: string): boolean {
   const lines = text.split(/\n/).filter((line) => line.trim().length > 0)
   if (lines.length > FEED_NOTES_PREVIEW_LINES) return true
   // Long single paragraphs also need a clamp in the narrow feed column.
-  return text.length > 140
+  return text.length > FEED_NOTES_PREVIEW_LINES * 42
 }
 
-function ActivityFeedNotes({ text }: { text: string }) {
+export function ActivityFeedNotes({ text }: { text: string }) {
   const trimmed = text.trim()
   const ref = useRef<HTMLParagraphElement>(null)
   const [expanded, setExpanded] = useState(false)
@@ -38,24 +39,7 @@ function ActivityFeedNotes({ text }: { text: string }) {
     if (!el) return
 
     const check = () => {
-      const prevClamp = el.style.webkitLineClamp
-      const prevDisplay = el.style.display
-      const prevOverflow = el.style.overflow
-      const prevOrient = el.style.webkitBoxOrient
-      el.style.webkitLineClamp = 'unset'
-      el.style.display = 'block'
-      el.style.overflow = 'visible'
-      const fullHeight = el.scrollHeight
-      el.style.webkitLineClamp = String(FEED_NOTES_PREVIEW_LINES)
-      el.style.display = '-webkit-box'
-      el.style.overflow = 'hidden'
-      el.style.webkitBoxOrient = 'vertical'
-      const clampedHeight = el.clientHeight
-      el.style.webkitLineClamp = prevClamp
-      el.style.display = prevDisplay
-      el.style.overflow = prevOverflow
-      el.style.webkitBoxOrient = prevOrient
-      setMeasuredOverflow(fullHeight > clampedHeight + 2)
+      setMeasuredOverflow(el.scrollHeight > el.clientHeight + 1)
     }
 
     check()
@@ -77,11 +61,11 @@ function ActivityFeedNotes({ text }: { text: string }) {
       <p
         ref={ref}
         className={cn(
-          'whitespace-pre-wrap text-[12px] leading-snug text-[var(--tt-ink-soft,#6b6b6b)] md:text-[13px]',
-          !expanded && canExpand && 'line-clamp-3',
+          'text-[12px] leading-snug text-[var(--tt-ink-soft,#6b6b6b)] md:text-[13px]',
+          !expanded && 'line-clamp-3',
         )}
       >
-        {trimmed}
+        <PreserveNewlines text={trimmed} />
       </p>
       {canExpand ? (
         <button
@@ -92,7 +76,7 @@ function ActivityFeedNotes({ text }: { text: string }) {
             setExpanded((value) => !value)
           }}
         >
-          {expanded ? 'Show less' : 'View more'}
+          {expanded ? 'Show less' : 'Show more'}
         </button>
       ) : null}
     </div>

@@ -5,15 +5,20 @@ import {
 } from '@/lib/plan-sports'
 
 export const PLAN_SPORT_FILTER_STORAGE_KEY = 'tt-plan-visible-sports'
-export const PLAN_COLOR_MODE_STORAGE_KEY = 'tt-plan-color-mode-v2'
+/** Color / Plain only. Legacy `completion` values migrate via parsePlanColorMode. */
+export const PLAN_COLOR_MODE_STORAGE_KEY = 'tt-plan-color-mode-v3'
+export const PLAN_COMPLETION_LAYER_STORAGE_KEY = 'tt-plan-completion-layer-v1'
+/** Pre-v3 key — used once to migrate Color/Plain + Completion layer. */
+const PLAN_COLOR_MODE_STORAGE_KEY_V2 = 'tt-plan-color-mode-v2'
 export const PLAN_STATUS_FILTER_STORAGE_KEY = 'tt-plan-status-filter'
 
 export const FILTERABLE_PLAN_SPORTS = CONFIGURABLE_PLAN_SPORTS
 
-export type PlanColorMode = 'sport' | 'completion' | 'white'
+/** Card fill: sport tint (Color) vs white (Plain). Completion is a separate layer. */
+export type PlanColorMode = 'sport' | 'white'
 export type PlanStatusFilter = 'done' | 'open' | 'skipped'
 
-export const PLAN_COLOR_MODES: PlanColorMode[] = ['sport', 'completion', 'white']
+export const PLAN_COLOR_MODES: PlanColorMode[] = ['sport', 'white']
 export const PLAN_STATUS_FILTERS: PlanStatusFilter[] = ['done', 'open', 'skipped']
 
 export const PLAN_COLOR_MODE_OPTIONS: {
@@ -21,9 +26,8 @@ export const PLAN_COLOR_MODE_OPTIONS: {
   label: string
   hint: string
 }[] = [
-  { id: 'sport', label: 'By sport', hint: 'Tint cards by Run / Bike / Swim…' },
-  { id: 'completion', label: 'By completion', hint: 'Green done, muted skipped' },
-  { id: 'white', label: 'White', hint: 'White cards with sport accent' },
+  { id: 'sport', label: 'Color', hint: 'Tint cards by Run / Bike / Swim…' },
+  { id: 'white', label: 'Plain', hint: 'White cards with sport accent' },
 ]
 
 export const PLAN_STATUS_FILTER_OPTIONS: {
@@ -40,13 +44,26 @@ export function defaultVisiblePlanSports(): WorkoutType[] {
 }
 
 export function defaultPlanColorMode(): PlanColorMode {
-  return 'completion'
+  return 'sport'
+}
+
+export function defaultPlanCompletionLayer(): boolean {
+  return true
 }
 
 export function readStoredPlanColorMode(): PlanColorMode {
   if (typeof window === 'undefined') return defaultPlanColorMode()
   try {
-    return parsePlanColorMode(localStorage.getItem(PLAN_COLOR_MODE_STORAGE_KEY))
+    const v3 = localStorage.getItem(PLAN_COLOR_MODE_STORAGE_KEY)
+    if (v3 != null) return parsePlanColorMode(v3)
+
+    const v2 = localStorage.getItem(PLAN_COLOR_MODE_STORAGE_KEY_V2)
+    if (v2 != null) {
+      const migrated = parsePlanColorMode(v2)
+      writeStoredPlanColorMode(migrated)
+      return migrated
+    }
+    return defaultPlanColorMode()
   } catch {
     return defaultPlanColorMode()
   }
@@ -60,12 +77,45 @@ export function writeStoredPlanColorMode(mode: PlanColorMode) {
   }
 }
 
+export function readStoredPlanCompletionLayer(): boolean {
+  if (typeof window === 'undefined') return defaultPlanCompletionLayer()
+  try {
+    const raw = localStorage.getItem(PLAN_COMPLETION_LAYER_STORAGE_KEY)
+    if (raw === '1' || raw === 'true') return true
+    if (raw === '0' || raw === 'false') return false
+
+    // Migrate from exclusive v2 modes: completion → on; Color/Plain → off.
+    const v2 = localStorage.getItem(PLAN_COLOR_MODE_STORAGE_KEY_V2)
+    if (v2 === 'completion') {
+      writeStoredPlanCompletionLayer(true)
+      return true
+    }
+    if (v2 === 'sport' || v2 === 'white') {
+      writeStoredPlanCompletionLayer(false)
+      return false
+    }
+    return defaultPlanCompletionLayer()
+  } catch {
+    return defaultPlanCompletionLayer()
+  }
+}
+
+export function writeStoredPlanCompletionLayer(on: boolean) {
+  try {
+    localStorage.setItem(PLAN_COMPLETION_LAYER_STORAGE_KEY, on ? '1' : '0')
+  } catch {
+    /* ignore */
+  }
+}
+
 export function defaultPlanStatusFilters(): PlanStatusFilter[] {
   return [...PLAN_STATUS_FILTERS]
 }
 
 export function parsePlanColorMode(raw: string | null): PlanColorMode {
-  if (raw === 'sport' || raw === 'completion' || raw === 'white') return raw
+  if (raw === 'sport' || raw === 'white') return raw
+  // Legacy exclusive "completion" mode → Plain (white) + completion layer on.
+  if (raw === 'completion') return 'white'
   return defaultPlanColorMode()
 }
 

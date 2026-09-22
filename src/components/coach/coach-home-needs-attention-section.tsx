@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 import { Check, ChevronDown } from 'lucide-react'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
+import { PreserveNewlines } from '@/components/ui/preserve-newlines'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import {
   CoachHomePanelEmpty,
@@ -416,7 +417,7 @@ function AttentionTableRow({
       </td>
       <td className="max-w-0">
         <p className="line-clamp-3 text-[13px] leading-snug text-[var(--tt-ink-soft)]">
-          {item.description}
+          <PreserveNewlines text={item.description} />
         </p>
         {item.contextLine ? (
           <p className="mt-0.5 line-clamp-1 text-[11px] text-[var(--tt-ink-faint)]">

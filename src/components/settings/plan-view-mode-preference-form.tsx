@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -10,8 +9,11 @@ import {
 import {
   PLAN_COLOR_MODE_OPTIONS,
   defaultPlanColorMode,
+  defaultPlanCompletionLayer,
   readStoredPlanColorMode,
+  readStoredPlanCompletionLayer,
   writeStoredPlanColorMode,
+  writeStoredPlanCompletionLayer,
   type PlanColorMode,
 } from '@/lib/plan-sport-filter'
 import { SettingsPanel } from '@/components/settings/settings-section-chrome'
@@ -19,9 +21,11 @@ import { cn } from '@/lib/utils'
 
 export function PlanViewModePreferenceForm({ embedded = false }: { embedded?: boolean }) {
   const [mode, setMode] = useState<PlanColorMode>(defaultPlanColorMode)
+  const [completionLayer, setCompletionLayer] = useState(defaultPlanCompletionLayer)
 
   useEffect(() => {
     setMode(readStoredPlanColorMode())
+    setCompletionLayer(readStoredPlanCompletionLayer())
   }, [])
 
   function select(next: PlanColorMode) {
@@ -29,7 +33,12 @@ export function PlanViewModePreferenceForm({ embedded = false }: { embedded?: bo
     writeStoredPlanColorMode(next)
   }
 
-  const body = embedded ? (
+  function toggleCompletion(next: boolean) {
+    setCompletionLayer(next)
+    writeStoredPlanCompletionLayer(next)
+  }
+
+  const colorBody = embedded ? (
     <div className="space-y-2">
       {PLAN_COLOR_MODE_OPTIONS.map((opt) => (
         <button
@@ -50,7 +59,7 @@ export function PlanViewModePreferenceForm({ embedded = false }: { embedded?: bo
     </div>
   ) : (
     <>
-      <SegmentedControl aria-label="Default view mode" className="w-full sm:w-auto">
+      <SegmentedControl aria-label="Default card color" className="w-full sm:w-auto">
         {PLAN_COLOR_MODE_OPTIONS.map((opt) => (
           <SegmentedControlItem
             key={opt.id}
@@ -69,14 +78,59 @@ export function PlanViewModePreferenceForm({ embedded = false }: { embedded?: bo
     </>
   )
 
+  const completionBody = (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={completionLayer}
+      onClick={() => toggleCompletion(!completionLayer)}
+      className={cn(
+        'flex w-full items-start justify-between gap-3 rounded-[8px] border px-3.5 py-3 text-left transition',
+        completionLayer
+          ? 'border-[var(--tt-ink,#111)] shadow-[0_0_0_1px_var(--tt-ink,#111)]'
+          : 'border-[var(--tt-line,#ebebeb)] hover:border-[var(--tt-line-strong,#d9d9d9)]',
+      )}
+    >
+      <span className="min-w-0">
+        <span className="block text-[13px] font-semibold text-[var(--tt-ink,#111)]">
+          Completion layer
+        </span>
+        <span className="mt-0.5 block text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
+          Green done and muted skipped on top of Color or Plain
+        </span>
+      </span>
+      <span
+        className={cn(
+          'mt-0.5 shrink-0 text-[11px] font-semibold uppercase tracking-wide',
+          completionLayer ? 'text-[var(--tt-ink,#111)]' : 'text-[var(--tt-ink-faint,#9a9a9a)]',
+        )}
+      >
+        {completionLayer ? 'On' : 'Off'}
+      </span>
+    </button>
+  )
+
   if (embedded) {
     return (
       <SettingsPanel
         id="plan"
         title="Plan display"
-        description="How workout cards color themselves on week and list views."
+        description="Card color and completion status on week and list views."
       >
-        {body}
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
+              Color
+            </p>
+            {colorBody}
+          </div>
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
+              Layer
+            </p>
+            {completionBody}
+          </div>
+        </div>
       </SettingsPanel>
     )
   }
@@ -86,10 +140,13 @@ export function PlanViewModePreferenceForm({ embedded = false }: { embedded?: bo
       <div>
         <SectionTitle variant="ui">Default view mode</SectionTitle>
         <Caption>
-          How workout cards are colored on Training. You can still switch this on the calendar.
+          Card color and completion layer on Training. You can still switch these on the calendar.
         </Caption>
       </div>
-      {body}
+      <div className="space-y-3">
+        {colorBody}
+        {completionBody}
+      </div>
     </section>
   )
 }
