@@ -16,6 +16,7 @@ import { PlanCanvasEditor } from '@/components/training/plan-canvas-editor'
 import type { TrainingPlanEditorDetail } from '@/lib/training-plan'
 import { startOfWeekDateOnly, toDateKey } from '@/lib/dates'
 import { PlannedMetricSource } from '@prisma/client'
+import { prisma } from '@/lib/prisma'
 
 type PageProps = {
   params: Promise<{ id: string }>
@@ -24,16 +25,31 @@ type PageProps = {
 export default async function TrainingPlanEditorPage({ params }: PageProps) {
   const session = await getSession()
   if (!session) redirect('/')
-  if (!isCoachView(session)) redirect('/training')
 
   const { id } = await params
+
+  // Athletes may open plans they own (e.g. AI self-coach drafts).
+  if (!isCoachView(session)) {
+    const owned = await prisma.trainingPlan.findFirst({
+      where: { id, coachId: session.userId },
+      select: { id: true },
+    })
+    if (!owned) redirect('/training')
+  }
+
   const athleteId = await resolveAthleteId(session)
 
   const [rawPlan, rawTemplates, folders, athletes] = await Promise.all([
     getTrainingPlanDetail(id),
-    getCoachLibraryTemplates(session.userId),
-    getCoachLibraryFolders(session.userId),
-    getCoachAthletes(session.userId),
+    isCoachView(session)
+      ? getCoachLibraryTemplates(session.userId)
+      : Promise.resolve([]),
+    isCoachView(session)
+      ? getCoachLibraryFolders(session.userId)
+      : Promise.resolve([]),
+    isCoachView(session)
+      ? getCoachAthletes(session.userId)
+      : Promise.resolve([]),
   ])
 
   if (!rawPlan) notFound()

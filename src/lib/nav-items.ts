@@ -69,6 +69,7 @@ const COACH_LIBRARY_NAV: NavItem = {
   children: [
     { href: '/workouts', label: 'Workouts' },
     { href: '/workouts/plans', label: 'Training plans' },
+    { href: '/workouts/plans/ai', label: 'Draft with AI' },
   ],
 }
 
@@ -83,6 +84,20 @@ export function isNavActive(pathname: string, href: string) {
     return (
       pathname === '/workouts' ||
       (pathname.startsWith('/workouts/') && !pathname.startsWith('/workouts/plans'))
+    )
+  }
+  if (href === '/workouts/plans') {
+    return (
+      pathname === '/workouts/plans' ||
+      (pathname.startsWith('/workouts/plans/') &&
+        !pathname.startsWith('/workouts/plans/ai'))
+    )
+  }
+  if (href === '/training') {
+    return (
+      pathname === '/training' ||
+      (pathname.startsWith('/training/') &&
+        !pathname.startsWith('/training/ai-plan'))
     )
   }
   return pathname === href || pathname.startsWith(`${href}/`)
@@ -110,7 +125,16 @@ export function getMainNav(isCoach: boolean): NavItem[] {
   }
   return [
     HOME_NAV,
-    { href: '/training', label: 'Training', icon: CalendarRange },
+    {
+      href: '/training',
+      label: 'Training',
+      icon: CalendarRange,
+      subnavAlwaysVisible: true,
+      children: [
+        { href: '/training', label: 'Calendar' },
+        { href: '/training/ai-plan', label: 'Draft with AI' },
+      ],
+    },
     { href: '/inbox', label: 'Inbox', icon: MessageSquare },
     { href: '/season', label: 'Season', icon: Flag },
     { href: '/progress', label: 'Stats', icon: LineChart },

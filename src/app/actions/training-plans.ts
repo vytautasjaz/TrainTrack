@@ -26,6 +26,7 @@ import {
   requireSession,
   resolveAthleteId,
   isCoachView,
+  isCoach,
   requireCoachOwnsAthlete,
 } from '@/lib/session'
 import { toTrainingPhaseBlock } from '@/lib/training-phase-context'
@@ -80,8 +81,11 @@ async function getNextPlanSlotSortOrder(
 
 async function requireCoachSession() {
   const session = await requireSession()
-  if (!isCoachView(session)) throw new Error('Coach only')
-  return session
+  // Coach workspace, or plan owner editing an AI / self-coach draft.
+  if (isCoachView(session) || isCoach(session) || session.hasAthlete) {
+    return session
+  }
+  throw new Error('Coach only')
 }
 
 export async function listTrainingPlans(): Promise<TrainingPlanListItem[]> {

@@ -114,6 +114,7 @@ export function AdminUsersTable({
                   <th className="px-3 py-2.5 font-semibold">User</th>
                   <th className="px-3 py-2.5 font-semibold">Roles</th>
                   <th className="px-3 py-2.5 font-semibold">Profiles</th>
+                  <th className="px-3 py-2.5 font-semibold">Plan</th>
                   <th className="px-3 py-2.5 font-semibold">Status</th>
                   <th className="px-3 py-2.5 font-semibold">Created</th>
                   <th className="px-3 py-2.5 font-semibold">Actions</th>
@@ -125,7 +126,7 @@ export function AdminUsersTable({
             {users.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-3 py-8 text-center text-[var(--tt-ink-soft,#6b6b6b)]"
                 >
                   No users found
@@ -171,6 +172,9 @@ export function AdminUsersTable({
                       ]
                         .filter(Boolean)
                         .join(' · ') || '—'}
+                    </td>
+                    <td className="px-3 py-2.5 text-xs text-[var(--tt-ink-soft,#6b6b6b)]">
+                      {user.membershipPlanName ?? '—'}
                     </td>
                     <td className="px-3 py-2.5">
                       <span

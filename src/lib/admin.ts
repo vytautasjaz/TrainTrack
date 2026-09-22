@@ -12,6 +12,7 @@ export type AdminUserRow = {
   createdAt: Date
   hasAthlete: boolean
   hasCoach: boolean
+  membershipPlanName: string | null
 }
 
 export const ADMIN_USER_SORT_FIELDS = [
@@ -99,6 +100,24 @@ export async function listAdminUsers(opts: {
   const page = rows.slice(0, PAGE_SIZE)
   const nextCursor = rows.length > PAGE_SIZE ? page[page.length - 1]!.id : null
 
+  const now = new Date()
+  const memberships = await prisma.userMembership.findMany({
+    where: {
+      userId: { in: page.map((u) => u.id) },
+      status: { in: ['ACTIVE', 'TRIALING'] },
+      currentPeriodStart: { lte: now },
+      currentPeriodEnd: { gt: now },
+    },
+    include: { plan: { select: { name: true } } },
+    orderBy: { currentPeriodEnd: 'desc' },
+  })
+  const planByUser = new Map<string, string>()
+  for (const m of memberships) {
+    if (!planByUser.has(m.userId)) {
+      planByUser.set(m.userId, m.plan.name)
+    }
+  }
+
   return {
     users: page.map((u) => ({
       id: u.id,
@@ -110,6 +129,7 @@ export async function listAdminUsers(opts: {
       createdAt: u.createdAt,
       hasAthlete: Boolean(u.athleteProfile),
       hasCoach: Boolean(u.coachProfile),
+      membershipPlanName: planByUser.get(u.id) ?? null,
     })),
     nextCursor,
   }

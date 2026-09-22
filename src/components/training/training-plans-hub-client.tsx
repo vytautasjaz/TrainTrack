@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, Sparkles } from 'lucide-react'
 import { TrainingPlansLibraryList } from '@/components/training/training-plans-library-list'
 import { CreateTrainingPlanModal } from '@/components/training/create-training-plan-modal'
 import {
@@ -40,6 +41,12 @@ export function TrainingPlansHubClient({
           </PageHeaderDescription>
         </div>
         <PageHeaderActions>
+          <Button type="button" size="sm" variant="outline" asChild>
+            <Link href="/workouts/plans/ai">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              Draft with AI
+            </Link>
+          </Button>
           <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
             <Plus className="h-3.5 w-3.5" aria-hidden />
             New plan

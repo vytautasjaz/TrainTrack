@@ -262,6 +262,8 @@ model User {
   stravaConnection  StravaConnection?
   webPushSubscriptions WebPushSubscription[]
   coachAttentionDismissals CoachAttentionDismissal[]
+  memberships       UserMembership[]
+  aiUsageEvents     AiUsageEvent[]
 }
 
 /** Coach dismissed a Needs attention item on Home (snooze until state changes). */
@@ -1030,4 +1032,78 @@ model AppSettings {
   coachActivityFeedEnabled   Boolean  @default(true)
   athleteActivityFeedEnabled Boolean  @default(true)
   updatedAt                  DateTime @updatedAt
+}
+
+enum MembershipStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
+
+enum AiUsageKind {
+  DRAFT
+  ADAPT
+}
+
+/** Admin-managed subscription tiers (Stripe fields reserved for later). */
+model SubscriptionPlan {
+  id                 String   @id @default(cuid())
+  slug               String   @unique
+  name               String
+  description        String?
+  /** Display / future Stripe price in cents. */
+  priceCents         Int      @default(0)
+  /** Billing interval label — MVP always month. */
+  interval           String   @default("month")
+  aiDraftsPerMonth   Int      @default(0)
+  aiAdaptsPerMonth   Int      @default(0)
+  maxPlanWeeks       Int      @default(16)
+  /** Skill slugs from code registry this plan unlocks. Empty = none. */
+  enabledSkillSlugs  String[] @default([])
+  isActive           Boolean  @default(true)
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  memberships UserMembership[]
+}
+
+model UserMembership {
+  id                   String           @id @default(cuid())
+  userId               String
+  planId               String
+  status               MembershipStatus @default(ACTIVE)
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  /** Reserved for Stripe Checkout wiring. */
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  user User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId, status])
+  @@index([planId])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+}
+
+model AiUsageEvent {
+  id         String      @id @default(cuid())
+  userId     String
+  skillSlug  String
+  kind       AiUsageKind
+  tokensIn   Int?
+  tokensOut  Int?
+  athleteId  String?
+  planId     String?
+  createdAt  DateTime    @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, kind, createdAt])
 }

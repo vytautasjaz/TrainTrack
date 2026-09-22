@@ -26,6 +26,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^4.0.72",
     "@auth/prisma-adapter": "^2.11.3",
     "@emoji-mart/data": "^1.2.1",
     "@meteocons/svg": "^0.1.0",
@@ -40,6 +41,7 @@
     "@radix-ui/react-select": "^2.2.5",
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.12",
+    "ai": "^7.0.109",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",

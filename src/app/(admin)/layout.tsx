@@ -29,6 +29,9 @@ export default async function AdminLayout({
               <Link href="/admin" className="hover:text-[var(--tt-ink,#111)]">
                 Users
               </Link>
+              <Link href="/admin/memberships" className="hover:text-[var(--tt-ink,#111)]">
+                Memberships
+              </Link>
               <Link href="/admin/settings" className="hover:text-[var(--tt-ink,#111)]">
                 Settings
               </Link>

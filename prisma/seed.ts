@@ -4,7 +4,78 @@ import { generateCoachingCode } from '../src/lib/coaching-code'
 
 const prisma = new PrismaClient()
 
+const DEFAULT_SKILL_SLUGS = [
+  'run-5k-build',
+  'run-half-marathon',
+  'run-marathon',
+  'hyrox-general',
+  'multi-sport-base',
+  'adapt-plan',
+] as const
+
+async function seedSubscriptionPlans() {
+  const plans = [
+    {
+      slug: 'free',
+      name: 'Free',
+      description: 'Core training tools without AI drafts.',
+      priceCents: 0,
+      aiDraftsPerMonth: 0,
+      aiAdaptsPerMonth: 0,
+      maxPlanWeeks: 12,
+      enabledSkillSlugs: [] as string[],
+      sortOrder: 0,
+    },
+    {
+      slug: 'coach-ai',
+      name: 'Coach AI',
+      description: 'AI draft and adapt skills for coaches.',
+      priceCents: 2900,
+      aiDraftsPerMonth: 20,
+      aiAdaptsPerMonth: 10,
+      maxPlanWeeks: 24,
+      enabledSkillSlugs: [...DEFAULT_SKILL_SLUGS],
+      sortOrder: 1,
+    },
+    {
+      slug: 'athlete-ai',
+      name: 'Athlete AI',
+      description: 'Self-coaching AI drafts from your training history.',
+      priceCents: 1500,
+      aiDraftsPerMonth: 8,
+      aiAdaptsPerMonth: 4,
+      maxPlanWeeks: 16,
+      enabledSkillSlugs: [...DEFAULT_SKILL_SLUGS],
+      sortOrder: 2,
+    },
+  ]
+
+  for (const plan of plans) {
+    await prisma.subscriptionPlan.upsert({
+      where: { slug: plan.slug },
+      create: {
+        ...plan,
+        interval: 'month',
+        isActive: true,
+      },
+      update: {
+        name: plan.name,
+        description: plan.description,
+        priceCents: plan.priceCents,
+        aiDraftsPerMonth: plan.aiDraftsPerMonth,
+        aiAdaptsPerMonth: plan.aiAdaptsPerMonth,
+        maxPlanWeeks: plan.maxPlanWeeks,
+        enabledSkillSlugs: plan.enabledSkillSlugs,
+        sortOrder: plan.sortOrder,
+        isActive: true,
+      },
+    })
+  }
+}
+
 async function main() {
+  await prisma.aiUsageEvent.deleteMany().catch(() => undefined)
+  await prisma.userMembership.deleteMany().catch(() => undefined)
   await prisma.workoutResult.deleteMany()
   await prisma.workout.deleteMany()
   await prisma.workoutTemplate.deleteMany()
@@ -21,6 +92,8 @@ async function main() {
   await prisma.session.deleteMany().catch(() => undefined)
   await prisma.athlete.deleteMany()
   await prisma.user.deleteMany()
+
+  await seedSubscriptionPlans()
 
   const coach = await prisma.user.create({
     data: {
@@ -148,6 +221,7 @@ async function main() {
   }
 
   console.log('Seeded Coach Alex (%s) + Jordan Lee', coachProfile.coachingCode)
+  console.log('Seeded subscription plans: free, coach-ai, athlete-ai')
 }
 
 main()

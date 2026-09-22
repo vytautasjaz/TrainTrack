@@ -12,6 +12,7 @@ import {
   PanelRightOpen,
   Pencil,
   Plus,
+  Sparkles,
 } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
 import {
@@ -343,6 +344,14 @@ export function PlanCanvasEditor({
             </div>
             <PageHeaderActions>
               <div className="flex flex-wrap items-center gap-1.5">
+                <Button type="button" size="sm" variant="outline" asChild>
+                  <Link
+                    href={`/workouts/plans/ai?mode=adapt&planId=${plan.id}`}
+                  >
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                    Adapt with AI
+                  </Link>
+                </Button>
                 <CardSizeToolbarControl />
                 <PlanCanvasStatsToggle />
                 <LibraryToggleButton />

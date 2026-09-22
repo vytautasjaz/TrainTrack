@@ -3,6 +3,7 @@ import { CoachAthleteLinkStatus } from '@prisma/client'
 import { Button } from '@/components/ui/button'
 import { Caption } from '@/components/ui/typography'
 import { AccountProfileSection } from '@/components/settings/account-profile-section'
+import { AiMembershipUsageCard } from '@/components/ai/ai-membership-usage-card'
 import { CoachInviteAthleteSection } from '@/components/settings/coach-invite-athlete-section'
 import { NotificationPrefsForm } from '@/components/settings/notification-prefs-form'
 import { PlanViewModePreferenceForm } from '@/components/settings/plan-view-mode-preference-form'
@@ -233,6 +234,9 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                   stravaConnected={stravaConnected}
                   coachLinks={user.athleteProfile?.coachLinks ?? []}
                   currentUserId={user.id}
+                />
+                <AiMembershipUsageCard
+                  audience={coachView ? 'coach' : 'athlete'}
                 />
                 {coachView ? profileExtras : null}
               </>

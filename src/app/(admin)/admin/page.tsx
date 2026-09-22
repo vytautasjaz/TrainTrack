@@ -127,6 +127,7 @@ export default async function AdminUsersPage({ searchParams }: AdminPageProps) {
             />
             <th className="px-3 py-2.5 font-semibold">Roles</th>
             <th className="px-3 py-2.5 font-semibold">Profiles</th>
+            <th className="px-3 py-2.5 font-semibold">Plan</th>
             <SortHeader
               label="Status"
               field="status"

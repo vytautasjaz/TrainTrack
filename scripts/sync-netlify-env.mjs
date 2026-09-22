@@ -98,6 +98,11 @@ const lines = [
   `STRAVA_CLIENT_SECRET="${local.get('STRAVA_CLIENT_SECRET') ?? ''}"`,
   `STRAVA_SCOPES="${local.get('STRAVA_SCOPES') ?? 'read,activity:read_all,profile:read_all'}"`,
   '',
+  `OPENAI_API_KEY="${local.get('OPENAI_API_KEY') ?? ''}"`,
+  local.get('OPENAI_MODEL')
+    ? `OPENAI_MODEL="${local.get('OPENAI_MODEL')}"`
+    : '# OPENAI_MODEL="gpt-4o-mini"',
+  '',
 ]
 
 writeFileSync(outPath, `${lines.join('\n')}\n`)
