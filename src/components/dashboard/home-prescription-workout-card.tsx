@@ -66,39 +66,20 @@ function includeLine(workout: PlanWorkoutDetail): string | null {
     .join(' · ')
 }
 
-function prescriptionLines(workout: PlanWorkoutDetail): string[] {
-  const description = workout.description?.trim()
-  if (description) {
-    const lines = description
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean)
-      .map((line) => line.replace(/\s*·\s*Z[1-5]\s*$/i, '').trim())
-      .filter(Boolean)
-    if (lines.length > 0) return lines
+function prescriptionBody(workout: PlanWorkoutDetail): string {
+  const description = workout.description
+  if (description != null && description.trim()) {
+    // Keep author newlines and blank lines; only trim outer edges.
+    return description.replace(/^\n+/, '').replace(/\n+$/, '')
   }
   const subtitle = getWorkoutCardSubtitle(workout)
   if (subtitle) {
-    return [subtitle.replace(/\s*·\s*Z[1-5]\s*$/i, '').trim() || subtitle]
+    return subtitle.replace(/\s*·\s*Z[1-5]\s*$/i, '').trim() || subtitle
   }
   const metrics = getWorkoutPlanMetrics(workout)
   const parts = [metrics.distance, metrics.duration].filter(Boolean) as string[]
-  if (parts.length) return [parts.join(' · ')]
-  return ['—']
-}
-
-function recoveryLine(workout: PlanWorkoutDetail): string | null {
-  const description = workout.description?.trim()
-  if (!description) return null
-  const lines = description
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(Boolean)
-  // Second line often holds recovery / notes in simple prescriptions
-  if (lines.length < 2) return null
-  const second = lines[1]!
-  if (/^recover/i.test(second) || /^cd\b/i.test(second)) return second
-  return null
+  if (parts.length) return parts.join(' · ')
+  return '—'
 }
 
 /**
@@ -131,17 +112,12 @@ export function HomePrescriptionWorkoutCard({
         : sportRailColor(workout.type)
 
   const title = workout.isRace ? `⚑ ${workout.title}` : workout.title
-  const prescription = prescriptionLines(workout)
-  const recovery = recoveryLine(workout)
-  // When the full description is already shown as prescription lines, skip
-  // the separate recovery line so it isn't duplicated.
-  const showRecovery =
-    Boolean(recovery) &&
-    !(prescription.length > 1 && recovery != null && prescription.includes(recovery))
+  const hasAuthoredDescription = Boolean(workout.description?.trim())
+  const prescription = prescriptionBody(workout)
   const include = includeLine(workout)
   const zone =
     extractZone(workout.description) ??
-    extractZone(prescription.join(' ')) ??
+    extractZone(prescription) ??
     null
 
   const hero = getWorkoutCardHero(workout, status)
@@ -157,6 +133,10 @@ export function HomePrescriptionWorkoutCard({
   const actualMetric =
     showLogged && hero
       ? formatHeroLabel(hero.value, hero.unit, hero.approximate)
+      : null
+  const plannedAlongside =
+    showLogged && hero?.plannedValue
+      ? formatHeroLabel(hero.plannedValue, hero.plannedUnit, false)
       : null
   const actualSecondary =
     showLogged && secondary?.actual ? secondary.actual : null
@@ -210,24 +190,17 @@ export function HomePrescriptionWorkoutCard({
           </div>
         ) : null}
 
-        <div
+        <p
           className={cn(
-            'mt-1 space-y-0.5 text-[0.9375rem] leading-snug text-[var(--tt-ink,#111)]',
+            'mt-1 text-[0.9375rem] leading-snug text-[var(--tt-ink,#111)]',
+            hasAuthoredDescription && 'whitespace-pre-wrap',
             done && !ghost && 'text-[var(--tt-good,#1a9f5c)]/85',
             skipped && !ghost && 'text-[var(--tt-red,#da2f36)]/80',
             ghost && 'text-[var(--tt-ink-faint,#9a9a9a)]',
           )}
         >
-          {prescription.map((line, index) => (
-            <p key={`${index}-${line}`}>{line}</p>
-          ))}
-        </div>
-
-        {showRecovery && recovery ? (
-          <p className="mt-0.5 text-[12px] leading-snug text-[var(--tt-ink-soft,#6b6b6b)]">
-            {recovery}
-          </p>
-        ) : null}
+          {prescription}
+        </p>
 
         {include ? (
           <p className="mt-2 text-[12px] leading-snug text-[var(--tt-ink-faint,#9a9a9a)]">
@@ -244,10 +217,22 @@ export function HomePrescriptionWorkoutCard({
             <>
               <span className="font-semibold tabular-nums text-[var(--tt-good,#1a9f5c)]">
                 {actualMetric}
+                {plannedAlongside ? (
+                  <span className="font-semibold text-[var(--tt-good,#1a9f5c)]/55">
+                    {' / '}
+                    {plannedAlongside}
+                  </span>
+                ) : null}
               </span>
               {actualSecondary ? (
                 <span className="tabular-nums text-[var(--tt-good,#1a9f5c)]/80">
                   {actualSecondary}
+                  {secondary?.planned ? (
+                    <span className="text-[var(--tt-good,#1a9f5c)]/55">
+                      {' / '}
+                      {secondary.planned}
+                    </span>
+                  ) : null}
                 </span>
               ) : null}
               {pct > 0 ? (

@@ -6,6 +6,7 @@ import {
   dismissCoachHomeAttentionItem,
   dismissCoachHomeAttentionItems,
 } from '@/app/actions/coach-home'
+import { emitInboxUnreadCount } from '@/components/layout/inbox-nav-badge'
 import { CoachHomeAttentionActionPanel } from '@/components/coach/coach-home-attention-action-panel'
 import { CoachHomeCoachingRequests } from '@/components/coach/coach-home-coaching-requests'
 import type { CoachHomeCoachingRequest } from '@/components/coach/coach-home-coaching-requests'
@@ -110,19 +111,31 @@ export function CoachHomeClient({
       const formData = new FormData()
       formData.set('itemKey', item.id)
       formData.set('contextAt', coachHomeAttentionContextAt(item))
-      await dismissCoachHomeAttentionItem(formData)
+      const result = await dismissCoachHomeAttentionItem(formData)
+      if (
+        result?.inboxUnreadCount != null &&
+        result.markedReplyThreadIds.length > 0
+      ) {
+        emitInboxUnreadCount(result.inboxUnreadCount)
+      }
       router.refresh()
     })
   }
 
   function persistDismissMany(items: CoachHomeAttentionItem[]) {
     startDismiss(async () => {
-      await dismissCoachHomeAttentionItems(
+      const result = await dismissCoachHomeAttentionItems(
         items.map((item) => ({
           itemKey: item.id,
           contextAt: coachHomeAttentionContextAt(item),
         })),
       )
+      if (
+        result?.inboxUnreadCount != null &&
+        result.markedReplyThreadIds.length > 0
+      ) {
+        emitInboxUnreadCount(result.inboxUnreadCount)
+      }
       router.refresh()
     })
   }

@@ -49,22 +49,23 @@
   --color-text-secondary: #6b6b6b;
   --color-text-tertiary: #9a9a9a;
 
-  /* Sport semantic colors */
+  /* Sport semantic colors — bg/border are opaque mixes so day/phase washes
+   * under cards don't tint the sport chrome. */
   --color-sport-run: #f4511e;
-  --color-sport-run-bg: rgb(244 81 30 / 0.08);
-  --color-sport-run-border: rgb(244 81 30 / 0.22);
+  --color-sport-run-bg: color-mix(in srgb, #f4511e 8%, white);
+  --color-sport-run-border: color-mix(in srgb, #f4511e 22%, white);
   --color-sport-swim: #1e9bde;
-  --color-sport-swim-bg: rgb(30 155 222 / 0.08);
-  --color-sport-swim-border: rgb(30 155 222 / 0.22);
+  --color-sport-swim-bg: color-mix(in srgb, #1e9bde 8%, white);
+  --color-sport-swim-border: color-mix(in srgb, #1e9bde 22%, white);
   --color-sport-bike: #16b8a6;
-  --color-sport-bike-bg: rgb(22 184 166 / 0.08);
-  --color-sport-bike-border: rgb(22 184 166 / 0.22);
+  --color-sport-bike-bg: color-mix(in srgb, #16b8a6 8%, white);
+  --color-sport-bike-border: color-mix(in srgb, #16b8a6 22%, white);
   --color-sport-strength: #8b5cf6;
-  --color-sport-strength-bg: rgb(139 92 246 / 0.08);
-  --color-sport-strength-border: rgb(139 92 246 / 0.22);
+  --color-sport-strength-bg: color-mix(in srgb, #8b5cf6 8%, white);
+  --color-sport-strength-border: color-mix(in srgb, #8b5cf6 22%, white);
   --color-sport-hyrox: #d97706;
-  --color-sport-hyrox-bg: rgb(217 119 6 / 0.08);
-  --color-sport-hyrox-border: rgb(217 119 6 / 0.22);
+  --color-sport-hyrox-bg: color-mix(in srgb, #d97706 8%, white);
+  --color-sport-hyrox-border: color-mix(in srgb, #d97706 22%, white);
   /* Reserved — no WorkoutType yet */
   --color-sport-ski: #4f7fd9;
   --color-sport-ski-bg: #eff6ff;
@@ -73,8 +74,8 @@
   --color-sport-tri-bg: #f5f3ff;
   --color-sport-tri-border: #ddd6fe;
   --color-sport-recovery: #8b5cf6;
-  --color-sport-recovery-bg: rgb(139 92 246 / 0.08);
-  --color-sport-recovery-border: rgb(139 92 246 / 0.22);
+  --color-sport-recovery-bg: color-mix(in srgb, #8b5cf6 8%, white);
+  --color-sport-recovery-border: color-mix(in srgb, #8b5cf6 22%, white);
   --color-sport-rest: #a1a1aa;
   --color-sport-rest-bg: #fafafa;
   --color-sport-rest-border: #e4e4e7;

@@ -1,6 +1,9 @@
 'use server'
 
-import { revalidateCoachSurfaces } from '@/lib/cache-tags'
+import {
+  revalidateCoachSurfaces,
+  revalidateInboxSurfaces,
+} from '@/lib/cache-tags'
 import { prisma } from '@/lib/prisma'
 import { getAppSettings } from '@/lib/app-settings'
 import {
@@ -12,6 +15,10 @@ import {
 import type { CoachHomeTimeRange } from '@/lib/coach-home'
 import { isCoach, requireSession, athleteOwnedByCoachWhere } from '@/lib/session'
 import { markCoachingThreadRead } from '@/app/actions/coaching-inbox'
+import {
+  INBOX_LIST_MAX,
+  isThreadUnreadForRole,
+} from '@/lib/coaching-inbox-shared'
 
 export async function loadMoreCoachHomeActivity(
   cursor: CoachHomeActivityFeedCursor,
@@ -124,8 +131,14 @@ export async function dismissCoachHomeAttentionItem(formData: FormData) {
   const contextAt = ((formData.get('contextAt') as string) ?? '').trim()
   if (!itemKey) throw new Error('Item required')
 
-  await dismissAttentionItemsForCoach(session.userId, [{ itemKey, contextAt }])
+  const result = await dismissAttentionItemsForCoach(session.userId, [
+    { itemKey, contextAt },
+  ])
   revalidateCoachSurfaces(session.userId)
+  if (result.markedReplyThreadIds.length > 0) {
+    revalidateInboxSurfaces(session.userId)
+  }
+  return result
 }
 
 export async function dismissCoachHomeAttentionItems(
@@ -133,16 +146,52 @@ export async function dismissCoachHomeAttentionItems(
 ) {
   const session = await requireSession()
   if (!isCoach(session)) throw new Error('Coach only')
-  if (!items.length) return
+  if (!items.length) {
+    return { markedReplyThreadIds: [] as string[], inboxUnreadCount: null as number | null }
+  }
 
-  await dismissAttentionItemsForCoach(session.userId, items)
+  const result = await dismissAttentionItemsForCoach(session.userId, items)
   revalidateCoachSurfaces(session.userId)
+  if (result.markedReplyThreadIds.length > 0) {
+    revalidateInboxSurfaces(session.userId)
+  }
+  return result
+}
+
+/** Fresh unread count (avoids React cache() stale value after mark-read in same request). */
+async function countCoachInboxUnreadUncached(coachUserId: string): Promise<number> {
+  const threads = await prisma.coachingThread.findMany({
+    where: {
+      athlete: athleteOwnedByCoachWhere(coachUserId),
+    },
+    select: {
+      lastMessageAt: true,
+      coachLastReadAt: true,
+      athleteLastReadAt: true,
+      messages: {
+        select: { authorRole: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
+    },
+    orderBy: { lastMessageAt: 'desc' },
+    take: INBOX_LIST_MAX,
+  })
+  return threads
+    .map((t) => ({
+      ...t,
+      messages: [...t.messages].reverse(),
+    }))
+    .filter((t) => isThreadUnreadForRole(t, 'coach')).length
 }
 
 async function dismissAttentionItemsForCoach(
   coachUserId: string,
   items: Array<{ itemKey: string; contextAt: string }>,
-) {
+): Promise<{
+  markedReplyThreadIds: string[]
+  inboxUnreadCount: number | null
+}> {
   const unique = new Map<string, string>()
   for (const item of items) {
     if (!item.itemKey) continue
@@ -185,4 +234,11 @@ async function dismissAttentionItemsForCoach(
     markForm.set('threadId', threadId)
     await markCoachingThreadRead(markForm)
   }
+
+  if (replyThreadIds.length === 0) {
+    return { markedReplyThreadIds: [], inboxUnreadCount: null }
+  }
+
+  const inboxUnreadCount = await countCoachInboxUnreadUncached(coachUserId)
+  return { markedReplyThreadIds: replyThreadIds, inboxUnreadCount }
 }

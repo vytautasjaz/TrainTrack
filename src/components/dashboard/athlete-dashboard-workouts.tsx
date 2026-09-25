@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import { PlanWorkoutModal } from '@/components/plan/plan-workout-modal'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
 import { HomePrescriptionWorkoutCard } from '@/components/dashboard/home-prescription-workout-card'
@@ -24,6 +24,8 @@ import {
   getWorkoutCardEssence,
   getWorkoutCardHero,
   getWorkoutCardSubtitle,
+  isWorkoutCardCompleted,
+  isWorkoutCardSkipped,
   type WorkoutCardHero,
 } from '@/lib/workout-card'
 import { DEFAULT_DURATION_NOTATION } from '@/lib/workout-builder/duration-notation'
@@ -154,19 +156,32 @@ function TodayPrescriptionRow({ workout }: { workout: PlanWorkoutDetail }) {
 function WeekSessionTitle({
   title,
   metric,
+  skipped,
 }: {
   title: string
   metric: WorkoutCardHero | null
+  skipped?: boolean
 }) {
+  const plannedMuted = skipped
+    ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
+    : 'text-[var(--tt-ink-soft,#6b6b6b)]'
+
   return (
-    <p className="min-w-0 truncate text-[0.9375rem] font-semibold leading-snug text-[var(--tt-ink,#111)]">
+    <p
+      className={cn(
+        'min-w-0 truncate text-[0.9375rem] font-semibold leading-snug',
+        skipped
+          ? 'text-[var(--tt-ink-faint,#9a9a9a)] line-through'
+          : 'text-[var(--tt-ink,#111)]',
+      )}
+    >
       {title}
       {metric ? (
         <>
-          {metric.approximate ? (
+          {metric.approximate && !metric.plannedValue ? (
             <span className="font-semibold"> ~ </span>
           ) : (
-            <span className="font-semibold text-[var(--tt-ink-soft,#6b6b6b)]">
+            <span className={cn('font-semibold', plannedMuted)}>
               {' '}
               -{' '}
             </span>
@@ -177,6 +192,18 @@ function WeekSessionTitle({
               <span className="text-[0.75rem] font-medium"> {metric.unit}</span>
             ) : null}
           </span>
+          {metric.plannedValue ? (
+            <span className={cn('tabular-nums font-semibold', plannedMuted)}>
+              {' / '}
+              {metric.plannedValue}
+              {metric.plannedUnit ? (
+                <span className="text-[0.75rem] font-medium">
+                  {' '}
+                  {metric.plannedUnit}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
         </>
       ) : null}
     </p>
@@ -287,7 +314,6 @@ function WeekDayRows({
             className={cn(
               'group/day flex min-w-0 items-stretch transition-colors hover:bg-[var(--tt-sidebar,#f5f5f5)]/60',
               mobile ? 'pl-2 pr-3' : 'px-4',
-              isPast && 'opacity-75',
             )}
           >
             <div
@@ -309,6 +335,8 @@ function WeekDayRows({
 
             <div className="flex min-w-0 flex-1 flex-col">
               {sessions.map((workout, index) => {
+                const completed = isWorkoutCardCompleted(workout.status)
+                const skipped = isWorkoutCardSkipped(workout.status)
                 const essenceLines = weekRowEssence(workout)
                 const subtitle =
                   essenceLines.length === 0
@@ -317,23 +345,46 @@ function WeekDayRows({
                 const metric = weekRowPrimaryMetric(workout)
                 const isFirst = index === 0
                 const isLast = index === sessions.length - 1
+                const softTone = skipped
+                  ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
+                  : 'text-[var(--tt-ink-soft,#6b6b6b)]'
+                const statusLabel = skipped ? 'Skipped' : null
 
                 const subline =
                   essenceLines.length > 0 ? (
-                    <div className="mt-0.5 flex min-w-0 flex-col gap-0 leading-snug text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
+                    <div
+                      className={cn(
+                        'mt-0.5 flex min-w-0 flex-col gap-0 leading-snug text-[12px]',
+                        softTone,
+                      )}
+                    >
                       {essenceLines.map((line, i) => (
-                        <WorkoutCardEssenceLine
-                          key={`${i}-${line}`}
-                          line={line}
-                          className="truncate"
-                          coreClassName="text-[var(--tt-ink-soft,#6b6b6b)]"
-                          detailClassName="font-normal text-[var(--tt-ink-soft,#6b6b6b)]"
-                        />
+                        <span key={`${i}-${line}`} className="truncate">
+                          <WorkoutCardEssenceLine
+                            line={line}
+                            className="inline"
+                            coreClassName={softTone}
+                            detailClassName={cn('font-normal', softTone)}
+                          />
+                          {i === essenceLines.length - 1 && statusLabel
+                            ? ` · ${statusLabel}`
+                            : null}
+                        </span>
                       ))}
                     </div>
-                  ) : subtitle ? (
-                    <p className="mt-0.5 truncate text-[12px] leading-snug text-[var(--tt-ink-soft,#6b6b6b)]">
+                  ) : subtitle || statusLabel ? (
+                    <p
+                      className={cn(
+                        'mt-0.5 truncate text-[12px] leading-snug',
+                        softTone,
+                      )}
+                    >
                       {subtitle}
+                      {statusLabel
+                        ? subtitle
+                          ? ` · ${statusLabel}`
+                          : statusLabel
+                        : null}
                     </p>
                   ) : null
 
@@ -342,6 +393,13 @@ function WeekDayRows({
                     key={workout.id}
                     type="button"
                     onClick={() => onSelect(workout)}
+                    data-status={
+                      completed
+                        ? 'completed'
+                        : skipped
+                          ? 'skipped'
+                          : 'planned'
+                    }
                     className={cn(
                       'flex w-full min-w-0 flex-col text-left',
                       isFirst && isLast
@@ -358,13 +416,26 @@ function WeekDayRows({
                         type={workout.type}
                         isRace={workout.isRace}
                         size="sm"
-                        className="h-8 w-8 shrink-0 rounded-[8px]"
+                        className={cn(
+                          'h-8 w-8 shrink-0 rounded-[8px]',
+                          skipped && 'opacity-50',
+                        )}
                       />
-                      <div className="min-w-0 flex-1 overflow-hidden">
-                        <WeekSessionTitle
-                          title={workout.title}
-                          metric={metric}
-                        />
+                      <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                        <div className="min-w-0 truncate">
+                          <WeekSessionTitle
+                            title={workout.title}
+                            metric={metric}
+                            skipped={skipped}
+                          />
+                        </div>
+                        {completed ? (
+                          <Check
+                            className="h-4 w-4 shrink-0 text-[var(--tt-good,#1a9f5c)]"
+                            strokeWidth={2.5}
+                            aria-label="Completed"
+                          />
+                        ) : null}
                       </div>
                     </div>
                     {subline ? (
@@ -406,7 +477,7 @@ export function AthleteDashboardWorkouts({
   showWeather = true,
 }: AthleteDashboardWorkoutsProps) {
   const [selected, setSelected] = useState<PlanWorkoutDetail | null>(null)
-  /** 0 = this week, -1 = previous, +1 = next, … */
+  /** 0 = upcoming (rest of this week), +1 = next week, … */
   const [weekOffset, setWeekOffset] = useState(0)
 
   const byDate = useMemo(
@@ -424,26 +495,38 @@ export function AthleteDashboardWorkouts({
     [thisWeekStart, weekOffset],
   )
 
-  const viewWeekDays = useMemo(
-    () => buildWeekDays(viewWeekStart, byDate),
-    [viewWeekStart, byDate],
-  )
+  const viewWeekDays = useMemo(() => {
+    const days = buildWeekDays(viewWeekStart, byDate)
+    // Current week: only upcoming days (after Today — Today has its own section).
+    if (weekOffset === 0) {
+      const todayKey = toDateKey(todayDateOnly())
+      return days.filter((day) => day.dateKey > todayKey)
+    }
+    return days
+  }, [viewWeekStart, byDate, weekOffset])
 
   const weekTitle =
     weekOffset === 0
-      ? 'This week'
-      : weekOffset === -1
-        ? 'Last week'
-        : weekOffset === 1
-          ? 'Next week'
-          : 'Week'
+      ? 'Upcoming workouts'
+      : weekOffset === 1
+        ? 'Next week'
+        : 'Week'
 
   const weekLabel = useMemo(() => {
+    if (weekOffset === 0 && viewWeekDays.length > 0) {
+      const first = viewWeekDays[0]!
+      const last = viewWeekDays[viewWeekDays.length - 1]!
+      if (first.dateKey === last.dateKey) {
+        return formatDateOnly(first.date, 'd MMM')
+      }
+      return `${formatDateOnly(first.date, 'd MMM')} – ${formatDateOnly(last.date, 'd MMM')}`
+    }
     const end = endOfWeekDateOnly(viewWeekStart)
     return `${formatDateOnly(viewWeekStart, 'd MMM')} – ${formatDateOnly(end, 'd MMM')}`
-  }, [viewWeekStart])
+  }, [viewWeekStart, viewWeekDays, weekOffset])
 
-  const canGoPrev = weekOffset > -4
+  /** Forward only from current week; back only to return from future weeks. */
+  const canGoPrev = weekOffset > 0
   const canGoNext = weekOffset < 4
 
   return (
@@ -486,8 +569,7 @@ export function AthleteDashboardWorkouts({
                     : ''
                 }`}
               >
-                <span className="md:hidden">This week</span>
-                <span className="hidden md:inline">Today</span>
+                Upcoming
               </button>
               <button
                 type="button"
@@ -515,24 +597,34 @@ export function AthleteDashboardWorkouts({
         />
 
         <MobileAccordionBody expanded className="space-y-2">
-          <div className="overflow-hidden divide-y divide-[var(--tt-line,#ebebeb)] border-y border-[var(--tt-line,#ebebeb)] md:hidden">
-            <WeekDayRows
-              days={viewWeekDays}
-              onSelect={setSelected}
-              mobile
-              showWeather={showWeather}
-              weatherByDate={weatherByDate}
-            />
-          </div>
+          {viewWeekDays.length === 0 ? (
+            <p className="px-1 py-6 text-center text-[13px] text-[var(--tt-ink-soft,#6b6b6b)] md:rounded-[10px] md:border md:border-[var(--tt-line,#ebebeb)] md:px-4 md:py-8">
+              {weekOffset === 0
+                ? 'Nothing else planned this week.'
+                : 'Nothing planned this week.'}
+            </p>
+          ) : (
+            <>
+              <div className="overflow-hidden divide-y divide-[var(--tt-line,#ebebeb)] border-y border-[var(--tt-line,#ebebeb)] md:hidden">
+                <WeekDayRows
+                  days={viewWeekDays}
+                  onSelect={setSelected}
+                  mobile
+                  showWeather={showWeather}
+                  weatherByDate={weatherByDate}
+                />
+              </div>
 
-          <div className="tt-surface-card hidden overflow-hidden divide-y divide-[var(--tt-line,#ebebeb)] md:block">
-            <WeekDayRows
-              days={viewWeekDays}
-              onSelect={setSelected}
-              showWeather={showWeather}
-              weatherByDate={weatherByDate}
-            />
-          </div>
+              <div className="tt-surface-card hidden overflow-hidden divide-y divide-[var(--tt-line,#ebebeb)] md:block">
+                <WeekDayRows
+                  days={viewWeekDays}
+                  onSelect={setSelected}
+                  showWeather={showWeather}
+                  weatherByDate={weatherByDate}
+                />
+              </div>
+            </>
+          )}
 
           <div className="flex justify-end px-4 md:px-0">
             <Link
