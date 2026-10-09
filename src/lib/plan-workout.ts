@@ -23,6 +23,7 @@ import { parseSwimStructure } from '@/lib/swim-workout/parse'
 import { formatSwimStructureLines, formatSwimSetSummary } from '@/lib/swim-workout/format'
 import { isThreadUnreadForRole } from '@/lib/coaching-inbox-shared'
 import { readStructureDiagramSnapshot } from '@/lib/workout-builder/structure-diagram'
+import type { NormalizedAthletePrivacyPrefs } from '@/lib/athlete-privacy'
 
 export type PlanWorkoutDetail = {
   id: string
@@ -100,6 +101,8 @@ export type PlanWorkoutDetail = {
     averageWatts?: number | null
     weightedAverageWatts?: number | null
     summaryPolyline?: string | null
+    /** Precomputed Strava laps / 1 km splits (small JSON). */
+    stravaLapsCache?: unknown
     logType: AthleteLogType | null
   } | null
   /** Active coaching thread on this workout (plan cards). */
@@ -176,6 +179,7 @@ export function toPlanWorkoutDetail(w: {
     averageWatts?: number | null
     weightedAverageWatts?: number | null
     summaryPolyline?: string | null
+    stravaLapsCache?: unknown
     logType?: AthleteLogType | null
   } | null
   coachingThread?: {
@@ -250,6 +254,7 @@ export function toPlanWorkoutDetail(w: {
           averageWatts: w.result.averageWatts ?? null,
           weightedAverageWatts: w.result.weightedAverageWatts ?? null,
           summaryPolyline: w.result.summaryPolyline ?? null,
+          stravaLapsCache: w.result.stravaLapsCache ?? null,
           logType: w.result.logType ?? null,
         }
       : null,
@@ -270,6 +275,9 @@ export function toPlanWorkoutDetail(w: {
 export function workoutNeedsDetailFetch(workout: PlanWorkoutDetail): boolean {
   if (workout.isRace) return false
   if (workout.structure != null || workout.swimStructure != null) return false
+  // List/feed payloads often strip builder JSON but keep the compact diagram —
+  // still fetch full structure so open modal shows blocks + graph.
+  if (workout.structureDiagram != null) return true
   if (workout.hasBuilderDetail === false) return false
   return true
 }
@@ -346,6 +354,45 @@ export function redactPlanWorkoutNotesForViewer(
   }
 
   return workout
+}
+
+/** Hide completion / Strava / feedback from coaches when the athlete opts out. */
+export function redactPlanWorkoutLogFromCoach(
+  workout: PlanWorkoutDetail,
+): PlanWorkoutDetail {
+  const hideCompletion =
+    workout.status === WorkoutStatus.COMPLETED ||
+    workout.status === WorkoutStatus.SKIPPED
+  return {
+    ...workout,
+    status: hideCompletion ? WorkoutStatus.PLANNED : workout.status,
+    result: null,
+    coachingChat: null,
+  }
+}
+
+export function applyPlanWorkoutViewerPolicy(
+  workout: PlanWorkoutDetail,
+  viewer: 'coach' | 'athlete',
+  options?: { privacy?: NormalizedAthletePrivacyPrefs },
+): PlanWorkoutDetail {
+  let detail = redactPlanWorkoutNotesForViewer(workout, viewer)
+  if (
+    viewer === 'coach' &&
+    options?.privacy &&
+    !options.privacy.shareWorkoutLogWithCoach
+  ) {
+    detail = redactPlanWorkoutLogFromCoach(detail)
+  }
+  return detail
+}
+
+/** Drop self-logged imports from coach calendars when logs are private. */
+export function filterPlanWorkoutRowsForCoachPrivacy<
+  T extends { selfLogged?: boolean },
+>(rows: T[], privacy: NormalizedAthletePrivacyPrefs): T[] {
+  if (privacy.shareWorkoutLogWithCoach) return rows
+  return rows.filter((row) => !row.selfLogged)
 }
 
 /** One-line summaries for each block in a structured workout (plan + athlete views). */

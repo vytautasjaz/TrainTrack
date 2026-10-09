@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { unstable_cache } from 'next/cache'
 import { getAppSettings } from '@/lib/app-settings'
 import { cacheTags } from '@/lib/cache-tags'
+import { DASHBOARD_WEEK_NAV_LIMIT } from '@/lib/dashboard-week-nav'
 import {
   addDateOnlyDays,
   endOfMonthDateOnly,
@@ -45,7 +46,12 @@ import {
   type CoachRosterFeedbackItem,
   type CoachRosterRow,
 } from '@/lib/coach-roster'
-import { toPlanWorkoutDetail, redactPlanWorkoutNotesForViewer } from '@/lib/plan-workout'
+import {
+  toPlanWorkoutDetail,
+  redactPlanWorkoutNotesForViewer,
+  applyPlanWorkoutViewerPolicy,
+} from '@/lib/plan-workout'
+import { fetchAthletePrivacyPrefsMap } from '@/lib/athlete-privacy-server'
 import { getWorkoutCompletionSource } from '@/lib/workout-history'
 import { formatDateKeyCompact } from '@/lib/dates'
 import { daysUntil } from '@/lib/utils'
@@ -183,6 +189,7 @@ export const WORKOUT_RESULT_CARD_SELECT = {
   averageWatts: true,
   weightedAverageWatts: true,
   summaryPolyline: true,
+  stravaLapsCache: true,
   logType: true,
   completedAt: true,
 } as const
@@ -314,6 +321,7 @@ const ACTIVITY_FEED_RESULT_SELECT = {
   averageWatts: true,
   weightedAverageWatts: true,
   summaryPolyline: true,
+  stravaLapsCache: true,
   logType: true,
   completedAt: true,
 } as const
@@ -344,6 +352,7 @@ const ACTIVITY_FEED_WORKOUT_SELECT = {
   sortOrder: true,
   rescheduledFromDate: true,
   isRescheduleGhost: true,
+  structureDiagram: true,
   result: { select: ACTIVITY_FEED_RESULT_SELECT },
   rescheduledCopy: { select: { id: true, date: true } },
   coachingThread: {
@@ -459,9 +468,14 @@ async function getAthleteDashboardUncached(
   const weekEnd = endOfWeekDateOnly(today)
   const monthStart = startOfMonthDateOnly(today)
   const monthEnd = endOfMonthDateOnly(today)
-  /** Current week ±4 weeks for dashboard week-stats navigation. */
-  const weekStatsWindowStart = addDateOnlyDays(weekStart, -28)
-  const weekStatsWindowEnd = addDateOnlyDays(weekEnd, 28)
+  const weekStatsWindowStart = addDateOnlyDays(
+    weekStart,
+    -DASHBOARD_WEEK_NAV_LIMIT * 7,
+  )
+  const weekStatsWindowEnd = addDateOnlyDays(
+    weekEnd,
+    DASHBOARD_WEEK_NAV_LIMIT * 7,
+  )
 
   const [
     todayWorkouts,
@@ -487,7 +501,6 @@ async function getAthleteDashboardUncached(
           date: { gte: today },
         },
         orderBy: { date: 'asc' },
-        take: 5,
       }),
       prisma.race.findMany({
         where: {
@@ -865,8 +878,9 @@ function buildRosterChatThread(
   thread: CoachingThreadWithMessages & {
     athlete?: { id: string; name: string; avatarUrl?: string | null }
   },
+  athletePrivacy?: import('@/lib/athlete-privacy').NormalizedAthletePrivacyPrefs,
 ): CoachRosterChatThread {
-  const row = serializeInboxThread(thread, 'coach')
+  const row = serializeInboxThread(thread, 'coach', { athletePrivacy })
   const view = toCoachingThreadView(thread)
   const context = rosterChatThreadContext(row, thread.kind)
   return {
@@ -897,6 +911,9 @@ async function getCoachInboxAthleteStats(coachUserId: string) {
     filter: 'all',
     take: INBOX_LIST_MAX,
   })
+  const privacyByAthlete = await fetchAthletePrivacyPrefsMap(
+    threads.map((thread) => thread.athlete?.id).filter(Boolean) as string[],
+  )
 
   const summaryMap = new Map<string, CoachNeedsReplySummary>()
   const needsReplyByAthlete = new Map<string, number>()
@@ -920,7 +937,9 @@ async function getCoachInboxAthleteStats(coachUserId: string) {
     if (!thread.athlete) continue
 
     const athleteId = thread.athlete.id
-    const row = serializeInboxThread(thread, 'coach')
+    const row = serializeInboxThread(thread, 'coach', {
+      athletePrivacy: privacyByAthlete.get(athleteId),
+    })
     const view = toCoachingThreadView(thread)
     const context = rosterChatThreadContext(row, thread.kind)
 
@@ -1134,12 +1153,23 @@ export async function getCoachHomeActivityFeedPage(
     }),
   ])
 
-  const activityFeed: CoachHomeActivityFeedItem[] = recentCompletedRows.map((workout) => {
+  const privacyByAthlete = await fetchAthletePrivacyPrefsMap(
+    recentCompletedRows.map((workout) => workout.athlete.id),
+  )
+  const coachVisibleCompletedRows = recentCompletedRows.filter(
+    (workout) =>
+      privacyByAthlete.get(workout.athlete.id)?.shareWorkoutLogWithCoach !== false,
+  )
+
+  const activityFeed: CoachHomeActivityFeedItem[] = coachVisibleCompletedRows.map((workout) => {
+    const privacy = privacyByAthlete.get(workout.athlete.id)
     const kind = workout.status === WorkoutStatus.SKIPPED ? 'skipped' : 'completed'
     const workoutForDetail = {
       ...workout,
       structure: null,
       swimStructure: null,
+      // Keep diagram for cards; fetch full structure when the workout is opened.
+      hasBuilderDetail: Boolean(workout.structureDiagram),
       coachingThread: workout.coachingThread
         ? mapActivityFeedCoachingThread(workout.coachingThread)
         : null,
@@ -1151,7 +1181,11 @@ export async function getCoachHomeActivityFeedPage(
       activityAt: toIsoString(workout.result!.completedAt),
       kind,
       source: kind === 'completed' ? getWorkoutCompletionSource(workout) : null,
-      workout: redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(workoutForDetail), 'coach'),
+      workout: applyPlanWorkoutViewerPolicy(
+        toPlanWorkoutDetail(workoutForDetail),
+        'coach',
+        { privacy },
+      ),
       // Notes/reply come from WorkoutResult — skip loading feedback message bodies.
       feedbackThread: null,
     }
@@ -1272,8 +1306,12 @@ async function getCoachHomeDataUncached(coachId: string, activityFeedEnabled: bo
   const athleteIds = dashboard.athletes.map((a) => a.id)
   await ensureGeneralChatThreads(athleteIds)
   const generalThreads = await listCoachGeneralChatThreads(coachId)
+  const rosterPrivacyByAthlete = await fetchAthletePrivacyPrefsMap(athleteIds)
   const generalChatByAthlete = new Map<string, CoachRosterChatThread>(
-    generalThreads.map((thread) => [thread.athleteId, buildRosterChatThread(thread)]),
+    generalThreads.map((thread) => [
+      thread.athleteId,
+      buildRosterChatThread(thread, rosterPrivacyByAthlete.get(thread.athleteId)),
+    ]),
   )
 
   const lastWeekWorkoutsByAthlete = groupWorkoutsByAthlete(lastWeekWorkouts)
@@ -1290,10 +1328,17 @@ async function getCoachHomeDataUncached(coachId: string, activityFeedEnabled: bo
       .map((athlete) => athlete.id),
   )
 
+  const todayPrivacyByAthlete = await fetchAthletePrivacyPrefsMap(
+    todayWorkoutRows.map((workout) => workout.athleteId),
+  )
   const todayWorkoutsByAthlete = new Map<string, ReturnType<typeof toPlanWorkoutDetail>[]>()
   for (const workout of todayWorkoutRows) {
     const list = todayWorkoutsByAthlete.get(workout.athleteId) ?? []
-    list.push(redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(workout), 'coach'))
+    list.push(
+      applyPlanWorkoutViewerPolicy(toPlanWorkoutDetail(workout), 'coach', {
+        privacy: todayPrivacyByAthlete.get(workout.athleteId),
+      }),
+    )
     todayWorkoutsByAthlete.set(workout.athleteId, list)
   }
 
@@ -1485,8 +1530,12 @@ async function getCoachRosterPageDataUncached(coachId: string) {
   const athleteIds = dashboard.athletes.map((a) => a.id)
   await ensureGeneralChatThreads(athleteIds)
   const generalThreads = await listCoachGeneralChatThreads(coachId)
+  const rosterPrivacyByAthlete = await fetchAthletePrivacyPrefsMap(athleteIds)
   const generalChatByAthlete = new Map<string, CoachRosterChatThread>(
-    generalThreads.map((thread) => [thread.athleteId, buildRosterChatThread(thread)]),
+    generalThreads.map((thread) => [
+      thread.athleteId,
+      buildRosterChatThread(thread, rosterPrivacyByAthlete.get(thread.athleteId)),
+    ]),
   )
 
   const lastWeekWorkoutsByAthlete = groupWorkoutsByAthlete(lastWeekWorkouts)

@@ -19,6 +19,11 @@ import {
   weekSportProgressPercent,
   weekSportsWithPlannedWork,
 } from '@/lib/week-sport-stats'
+import {
+  weekSessionLoadActual,
+  weekSessionLoadPlanned,
+} from '@/lib/training-load/session-tss'
+import { useSessionLoadThresholds } from '@/components/plan/session-load-thresholds-context'
 import { cn, formatDuration } from '@/lib/utils'
 
 type WeekPortraitStatsProps = {
@@ -42,12 +47,16 @@ export function WeekPortraitStats({
   swimCssSecPer100m = null,
   className,
 }: WeekPortraitStatsProps) {
+  const loadThresholds = useSessionLoadThresholds()
   const options: WeekTotalsOptions = { swimCssSecPer100m }
   const allWorkouts = days.flatMap((d) => d.workouts)
   const sports = weekSportsWithPlannedWork(days, sportRows, options)
   const { planned: volumePlannedMin, actual: volumeActualMin } =
     sumWeekDurationMinutes(days, options)
   const volumePct = weekSportProgressPercent(volumeActualMin, volumePlannedMin)
+  const plannedTss = weekSessionLoadPlanned(allWorkouts, loadThresholds)
+  const actualTss = weekSessionLoadActual(allWorkouts, loadThresholds)
+  const tssPct = weekSportProgressPercent(actualTss, plannedTss)
 
   const sportsRowRef = useRef<HTMLDivElement>(null)
   const [showSportBars, setShowSportBars] = useState(false)
@@ -141,37 +150,74 @@ export function WeekPortraitStats({
         </div>
       ) : null}
 
-      {(volumePlannedMin > 0 || volumeActualMin > 0) && (
-        <div className="tt-week-portrait-volume min-w-0">
-          <div className="flex items-baseline justify-between gap-2">
-            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
-              Weekly volume
-            </p>
-            <p className="text-[11px] tabular-nums text-muted-foreground">
-              {volumeActualMin > 0 && volumePlannedMin > 0 ? (
-                <>
-                  <span className="font-semibold text-foreground">
-                    {formatDuration(volumeActualMin)}
-                  </span>
-                  <span>
-                    /{formatDuration(volumePlannedMin)} · {volumePct}%
-                  </span>
-                </>
-              ) : (
-                <span className="font-semibold text-foreground">
-                  {formatDuration(
-                    volumeActualMin > 0 ? volumeActualMin : volumePlannedMin,
+      {(volumePlannedMin > 0 || volumeActualMin > 0 || plannedTss > 0) && (
+        <div className="tt-week-portrait-volume grid min-w-0 grid-cols-2 gap-3">
+          {(volumePlannedMin > 0 || volumeActualMin > 0) && (
+            <div className="min-w-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                  Volume
+                </p>
+                <p className="text-[11px] tabular-nums text-muted-foreground">
+                  {volumeActualMin > 0 && volumePlannedMin > 0 ? (
+                    <>
+                      <span className="font-semibold text-foreground">
+                        {formatDuration(volumeActualMin)}
+                      </span>
+                      <span>
+                        /{formatDuration(volumePlannedMin)} · {volumePct}%
+                      </span>
+                    </>
+                  ) : (
+                    <span className="font-semibold text-foreground">
+                      {formatDuration(
+                        volumeActualMin > 0
+                          ? volumeActualMin
+                          : volumePlannedMin,
+                      )}
+                    </span>
                   )}
-                </span>
-              )}
-            </p>
-          </div>
-          <div className="mt-1 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
-            <div
-              className="h-full rounded-full bg-[var(--tt-ink-soft,#6b6b6b)] transition-[width]"
-              style={{ width: `${volumePct}%` }}
-            />
-          </div>
+                </p>
+              </div>
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
+                <div
+                  className="h-full rounded-full bg-[var(--tt-ink-soft,#6b6b6b)] transition-[width]"
+                  style={{ width: `${volumePct}%` }}
+                />
+              </div>
+            </div>
+          )}
+          {plannedTss > 0 ? (
+            <div className="min-w-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+                  TSS
+                </p>
+                <p className="text-[11px] tabular-nums text-muted-foreground">
+                  {actualTss > 0 ? (
+                    <>
+                      <span className="font-semibold text-foreground">
+                        {actualTss}
+                      </span>
+                      <span>
+                        /{plannedTss} · {tssPct}%
+                      </span>
+                    </>
+                  ) : (
+                    <span className="font-semibold text-foreground">
+                      {plannedTss}
+                    </span>
+                  )}
+                </p>
+              </div>
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
+                <div
+                  className="h-full rounded-full bg-[var(--tt-ink-soft,#6b6b6b)] transition-[width]"
+                  style={{ width: `${tssPct}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

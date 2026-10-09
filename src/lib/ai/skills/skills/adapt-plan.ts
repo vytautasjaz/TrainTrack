@@ -3,13 +3,14 @@ import {
   adaptPlanOutputSchema,
   type AiSkillDefinition,
 } from '@/lib/ai/skills/types'
+import { buildSkillSystemPrompt } from '@/lib/ai/skills/philosophy'
 
 /** Phase 2: propose session edits from completed work + feedback. */
 export const adaptPlanSkill: AiSkillDefinition = {
   slug: 'adapt-plan',
   title: 'Adapt plan',
   description:
-    'Adjust an existing plan from recent completed sessions, load, and feedback.',
+    'Replan from recent load, skips, and focus (recover / maintain / progress / injury) using coach-engine rules — never blind makeup of missed work.',
   audience: 'both',
   kind: 'adapt',
   briefFields: [
@@ -48,8 +49,24 @@ export const adaptPlanSkill: AiSkillDefinition = {
       .default('maintain'),
     notes: z.string().max(2000).optional().default(''),
   }),
-  systemPrompt: `You are adapting an existing training plan based on completed sessions, compliance, load, and feedback.
-Propose concrete sessionEdits (update/add/remove) using weekIndex + dayOfWeek.
-Prefer small, justified changes. Summarize why. Do not invent absolute dates.`,
+  systemPrompt: buildSkillSystemPrompt(`### Adapt existing plan
+
+You help adapt an **existing** plan from recent results, skips, readiness, and the chosen focus.
+
+**Focus modes**
+- **recover** — reduce dose, protect key adaptations at MED, prioritize sleep/recovery language in notes; drop or soften quality.
+- **maintain** — keep primary stimuli; fix friction (spacing, overreach); do not invent new peaks.
+- **progress** — advance one dimension (e.g. interval ladder 6→8→10, or long-run duration) only if response and capacity support it.
+- **injury** — remove or substitute high mechanical-cost running; prefer cross-train / strength / reduced impact; never “push through” pain flags.
+
+**Missed / modified sessions**
+- Do not blindly reschedule missed key work.
+- Prefer SKIP / REPLACE / REDUCE when makeup would smash the next key day.
+- Modified ≠ failed — understand why before escalating load.
+
+**Output mindset**
+- Smallest change that restores a coherent week.
+- Protect key sessions; explain what changed and why in coach language.
+- Still respect library candidates and hard constraints when proposing edits.`),
   outputSchema: adaptPlanOutputSchema,
 }

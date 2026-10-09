@@ -36,9 +36,10 @@ import { structureDiagramPrismaValue } from '@/lib/workout-builder/structure-dia
 import { getPlanWorkoutById } from '@/lib/queries'
 import {
   toPlanWorkoutDetail,
-  redactPlanWorkoutNotesForViewer,
+  applyPlanWorkoutViewerPolicy,
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
+import { fetchAthletePrivacyPrefs } from '@/lib/athlete-privacy-server'
 
 const RACE_COVER_MAX_BYTES = 3 * 1024 * 1024
 const RACE_COVER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -67,7 +68,9 @@ export async function getPlanWorkoutDetail(
   if (!allowed) return null
 
   const viewer = isCoachView(session) ? 'coach' : 'athlete'
-  return redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(row), viewer)
+  const privacy =
+    viewer === 'coach' ? await fetchAthletePrivacyPrefs(row.athleteId) : undefined
+  return applyPlanWorkoutViewerPolicy(toPlanWorkoutDetail(row), viewer, { privacy })
 }
 
 function parseRacePreparationFields(formData: FormData): {
@@ -331,6 +334,19 @@ export async function completeWorkout(formData: FormData) {
     update: resultData,
   })
 
+  try {
+    const { applyCalendarReplanAfterLog } = await import(
+      '@/lib/coach-engine/adapt-existing-plan'
+    )
+    await applyCalendarReplanAfterLog({
+      athleteId: workout.athleteId,
+      workoutId,
+      kind: status === WorkoutStatus.SKIPPED ? 'skipped' : 'completed',
+    })
+  } catch {
+    // Replan is best-effort; logging still succeeded.
+  }
+
   await revalidateWorkoutSurfaces(workout.athleteId, workoutId)
 }
 
@@ -568,6 +584,19 @@ export async function markWorkoutDone(formData: FormData) {
     update: { logType: AthleteLogTypeValues.COMPLETED },
   })
 
+  try {
+    const { applyCalendarReplanAfterLog } = await import(
+      '@/lib/coach-engine/adapt-existing-plan'
+    )
+    await applyCalendarReplanAfterLog({
+      athleteId: workout.athleteId,
+      workoutId,
+      kind: 'completed',
+    })
+  } catch {
+    // best-effort
+  }
+
   await revalidateWorkoutSurfaces(workout.athleteId, workoutId)
 }
 
@@ -604,6 +633,19 @@ export async function markWorkoutSkipped(formData: FormData) {
     },
     update: { logType: AthleteLogTypeValues.SKIPPED },
   })
+
+  try {
+    const { applyCalendarReplanAfterLog } = await import(
+      '@/lib/coach-engine/adapt-existing-plan'
+    )
+    await applyCalendarReplanAfterLog({
+      athleteId: workout.athleteId,
+      workoutId,
+      kind: 'skipped',
+    })
+  } catch {
+    // best-effort — never move skipped session blindly
+  }
 
   await revalidateWorkoutSurfaces(workout.athleteId, workoutId)
 }

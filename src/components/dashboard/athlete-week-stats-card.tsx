@@ -1,7 +1,6 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { format, getISOWeek } from 'date-fns'
 import type { WorkoutType } from '@prisma/client'
 import {
@@ -26,15 +25,24 @@ import {
   HomeMobileSectionHeader,
 } from '@/components/ui/mobile-accordion-body'
 import {
+  WeekCarouselNav,
   WeekSwipePane,
   WeekSwipeSlide,
 } from '@/components/dashboard/week-swipe-pane'
 import { MorphProgressBar } from '@/components/dashboard/week-nav-morph'
 import { cn } from '@/lib/utils'
+import {
+  DASHBOARD_WEEK_NAV_CENTER,
+  DASHBOARD_WEEK_NAV_COUNT,
+} from '@/lib/dashboard-week-nav'
+import {
+  weekSessionLoadActual,
+  weekSessionLoadPlanned,
+} from '@/lib/training-load/session-tss'
+import { useSessionLoadThresholds } from '@/components/plan/session-load-thresholds-context'
 
-const WEEK_NAV_LIMIT = 4
-const WEEK_COUNT = WEEK_NAV_LIMIT * 2 + 1
-const CENTER_INDEX = WEEK_NAV_LIMIT
+const WEEK_COUNT = DASHBOARD_WEEK_NAV_COUNT
+const CENTER_INDEX = DASHBOARD_WEEK_NAV_CENTER
 
 const SHELL =
   'overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] px-4 py-3.5 shadow-[var(--tt-shadow)] md:rounded-[10px] md:p-4'
@@ -65,6 +73,8 @@ function buildWeekStats(
   planSportRows: WorkoutType[],
   swimCssSecPer100m: number | null,
   weekOffset: number,
+  plannedTss: number,
+  actualTss: number,
 ) {
   const keys = weekDateKeys(weekStartKey)
   const keySet = new Set(keys)
@@ -124,6 +134,14 @@ function buildWeekStats(
       completedLabel: formatHoursLabel(completedMin),
       pct: overallPct,
     },
+    tss: {
+      planned: plannedTss,
+      actual: actualTss,
+      pct:
+        plannedTss > 0
+          ? Math.min(100, Math.round((actualTss / plannedTss) * 100))
+          : 0,
+    },
   }
 }
 
@@ -141,21 +159,33 @@ export function AthleteWeekStatsCard({
     null,
   )
   const syncTimerRef = useRef<number | null>(null)
+  const loadThresholds = useSessionLoadThresholds()
 
   const weeks = useMemo(() => {
     const anchor = parseDateOnly(anchorWeekStartKey)
     return Array.from({ length: WEEK_COUNT }, (_, i) => {
       const weekOffset = i - CENTER_INDEX
       const weekStartKey = toDateKey(addDateOnlyDays(anchor, weekOffset * 7))
+      const keys = weekDateKeys(weekStartKey)
+      const keySet = new Set(keys)
+      const weekWorkouts = workouts.filter((w) => keySet.has(w.dateKey))
       return buildWeekStats(
         weekStartKey,
         workouts,
         planSportRows,
         swimCssSecPer100m,
         weekOffset,
+        weekSessionLoadPlanned(weekWorkouts, loadThresholds),
+        weekSessionLoadActual(weekWorkouts, loadThresholds),
       )
     })
-  }, [anchorWeekStartKey, workouts, planSportRows, swimCssSecPer100m])
+  }, [
+    anchorWeekStartKey,
+    workouts,
+    planSportRows,
+    swimCssSecPer100m,
+    loadThresholds,
+  ])
 
   const week = weeks[active]!
   const canPrev = active > 0
@@ -163,7 +193,10 @@ export function AthleteWeekStatsCard({
 
   const captureBarPcts = useCallback(
     (slide: (typeof weeks)[number]) => {
-      const pcts: Record<string, number> = { __overall: slide.overall.pct }
+      const pcts: Record<string, number> = {
+        __overall: slide.overall.pct,
+        __tss: slide.tss.pct,
+      }
       for (const sport of slide.sports) {
         const totals = sumSportWeekTotals(slide.planDays, sport, {
           swimCssSecPer100m,
@@ -228,26 +261,14 @@ export function AthleteWeekStatsCard({
         collapsible={false}
         subtitle={week.rangeLabel}
         trailing={
-          <>
-            <button
-              type="button"
-              onClick={() => goByArrow(Math.max(0, active - 1))}
-              disabled={!canPrev}
-              aria-label="Previous week"
-              className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-            <button
-              type="button"
-              onClick={() => goByArrow(Math.min(WEEK_COUNT - 1, active + 1))}
-              disabled={!canNext}
-              aria-label="Next week"
-              className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
-            >
-              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-          </>
+          <WeekCarouselNav
+            canPrev={canPrev}
+            canNext={canNext}
+            isToday={active === CENTER_INDEX}
+            onPrev={() => goByArrow(Math.max(0, active - 1))}
+            onNext={() => goByArrow(Math.min(WEEK_COUNT - 1, active + 1))}
+            onToday={() => goByArrow(CENTER_INDEX)}
+          />
         }
       />
 
@@ -320,26 +341,64 @@ export function AthleteWeekStatsCard({
                 </div>
               )}
 
-              <div className="mt-3 border-t border-[var(--tt-line,#ebebeb)] pt-2.5">
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
-                    Overall
-                  </p>
-                  <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
-                    <span className="font-semibold text-[var(--tt-ink,#111)]">
-                      {data.overall.completedLabel}
-                    </span>
-                    <span>
-                      /{data.overall.plannedLabel} · {data.overall.pct}%
-                    </span>
-                  </p>
+              <div className="mt-3 grid grid-cols-2 gap-3 border-t border-[var(--tt-line,#ebebeb)] pt-2.5">
+                <div className="min-w-0">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
+                      Volume
+                    </p>
+                    <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
+                      <span className="font-semibold text-[var(--tt-ink,#111)]">
+                        {data.overall.completedLabel}
+                      </span>
+                      <span>
+                        /{data.overall.plannedLabel} · {data.overall.pct}%
+                      </span>
+                    </p>
+                  </div>
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
+                    <MorphProgressBar
+                      pct={data.overall.pct}
+                      morphFrom={morph?.__overall ?? null}
+                      className="bg-[var(--tt-ink-soft,#6b6b6b)]"
+                    />
+                  </div>
                 </div>
-                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
-                  <MorphProgressBar
-                    pct={data.overall.pct}
-                    morphFrom={morph?.__overall ?? null}
-                    className="bg-[var(--tt-ink-soft,#6b6b6b)]"
-                  />
+                <div className="min-w-0">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
+                      TSS
+                    </p>
+                    <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
+                      {data.tss.planned > 0 ? (
+                        data.tss.actual > 0 ? (
+                          <>
+                            <span className="font-semibold text-[var(--tt-ink,#111)]">
+                              {data.tss.actual}
+                            </span>
+                            <span>
+                              /{data.tss.planned} · {data.tss.pct}%
+                            </span>
+                          </>
+                        ) : (
+                          <span className="font-semibold text-[var(--tt-ink,#111)]">
+                            {data.tss.planned}
+                          </span>
+                        )
+                      ) : (
+                        <span className="font-semibold text-[var(--tt-ink,#111)]">
+                          —
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
+                    <MorphProgressBar
+                      pct={data.tss.pct}
+                      morphFrom={morph?.__tss ?? null}
+                      className="bg-[var(--tt-ink-soft,#6b6b6b)]"
+                    />
+                  </div>
                 </div>
               </div>
             </WeekSwipeSlide>

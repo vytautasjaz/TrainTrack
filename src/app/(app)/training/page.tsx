@@ -34,8 +34,10 @@ import {
 import { prisma } from "@/lib/prisma";
 import {
   toPlanWorkoutDetail,
-  redactPlanWorkoutNotesForViewer,
+  applyPlanWorkoutViewerPolicy,
+  filterPlanWorkoutRowsForCoachPrivacy,
 } from "@/lib/plan-workout";
+import { fetchAthletePrivacyPrefs } from "@/lib/athlete-privacy-server";
 import { mergeRacesIntoByDate } from "@/lib/races";
 import { buildPlanTableDays } from "@/lib/plan-week";
 import { buildTrainingDays } from "@/lib/training-timeline";
@@ -58,6 +60,7 @@ import {
 } from "@/lib/workout-library/queries";
 import { resolveLibraryTemplateMetricsForAthlete } from "@/lib/workout-library/template-metrics";
 import { loadAthletePreferencesForBuilder } from "@/lib/workout-builder/load-athlete-preferences";
+import { sessionLoadThresholdsFromPreferences } from "@/lib/training-load/session-tss";
 import { TrainingPlanShell } from "@/components/training/training-plan-shell";
 import { TrainingDefaultViewRedirect } from "@/components/training/training-default-view-redirect";
 import { getYrWeatherSummaries } from "@/lib/weather/yr";
@@ -180,6 +183,9 @@ export default async function TrainingPage({
 
   const isCoach = userIsCoach(session);
   const noteViewer = isCoach ? "coach" : "athlete";
+  const athletePrivacyPrefs = isCoach
+    ? await fetchAthletePrivacyPrefs(athleteId)
+    : null;
 
   const overrideLat = parseWeatherCoord(params.wlat);
   const overrideLon = parseWeatherCoord(params.wlon);
@@ -297,12 +303,18 @@ export default async function TrainingPage({
         ),
   ]);
 
-  const byDateRaw = groupWorkoutsByDate(rawWorkouts);
+  const coachVisibleWorkouts =
+    isCoach && athletePrivacyPrefs
+      ? filterPlanWorkoutRowsForCoachPrivacy(rawWorkouts, athletePrivacyPrefs)
+      : rawWorkouts;
+  const byDateRaw = groupWorkoutsByDate(coachVisibleWorkouts);
   const byDateWorkouts = new Map(
     [...byDateRaw.entries()].map(([key, list]) => [
       key,
       list.map((w) =>
-        redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), noteViewer),
+        applyPlanWorkoutViewerPolicy(toPlanWorkoutDetail(w), noteViewer, {
+          privacy: athletePrivacyPrefs ?? undefined,
+        }),
       ),
     ]),
   );
@@ -658,6 +670,7 @@ export default async function TrainingPage({
       folders={libraryFolders}
       athleteId={athleteId}
       athletes={coachAthletes.map((a) => ({ id: a.id, name: a.name }))}
+      loadThresholds={sessionLoadThresholdsFromPreferences(athletePreferences)}
     >
       {view === "calendar" ? (
         <CalendarMonthView

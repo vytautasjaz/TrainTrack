@@ -5,9 +5,11 @@ import {
   useMemo,
   useRef,
   useState,
+  useTransition,
   type ReactNode,
 } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Maximize2, Minimize2, Sparkles, X } from "lucide-react";
 import { WorkoutType } from "@prisma/client";
 import { CalendarPeriodNav } from "@/components/plan/calendar-period-nav";
 import { DayDropSection } from "@/components/plan/day-drop-section";
@@ -46,6 +48,8 @@ import {
   PageHeader,
   PageHeaderActions,
 } from "@/components/ui/page-header";
+import { Button } from "@/components/ui/button";
+import { createAiSuggestedCalendarWorkouts } from "@/app/actions/ai-calendar";
 import type { DayNoteData } from "@/lib/day-notes";
 import { dayNoteHasVisibleContent } from "@/lib/day-notes";
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
@@ -56,7 +60,7 @@ import {
 import { getRecoveryWorkout } from "@/lib/recovery-day";
 import type { SeasonEventData } from "@/lib/season-planner";
 import { displaySeasonPhaseName } from "@/lib/season-planner";
-import { parseDateOnly, toDateKey } from "@/lib/dates";
+import { parseDateOnly } from "@/lib/dates";
 import { setCalendarExpanded } from "@/lib/calendar-expand";
 import { MONTH_CARD_SIZE_STORAGE_KEY } from "@/lib/week-card-size";
 import {
@@ -275,6 +279,42 @@ export function CalendarMonthView({
   const landscapeAutoExpandRef = useRef(false);
   const [phaseModal, setPhaseModal] = useState<SeasonPhaseModalState>(null);
   const filteredByDate = useFilteredWorkoutsByDate(workoutsByDate);
+  const [selectedDateKeys, setSelectedDateKeys] = useState<string[]>([]);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiPending, startAiTransition] = useTransition();
+  const router = useRouter();
+
+  function toggleDaySelection(dateKey: string) {
+    if (!isCoach) return;
+    setSelectedDateKeys((prev) =>
+      prev.includes(dateKey)
+        ? prev.filter((k) => k !== dateKey)
+        : [...prev, dateKey].sort(),
+    );
+    setAiError(null);
+  }
+
+  function clearDaySelection() {
+    setSelectedDateKeys([]);
+    setAiError(null);
+  }
+
+  function generateAiForSelected() {
+    if (selectedDateKeys.length === 0) return;
+    setAiError(null);
+    startAiTransition(async () => {
+      const result = await createAiSuggestedCalendarWorkouts({
+        dateKeys: selectedDateKeys,
+        athleteId,
+      });
+      if (!result.ok) {
+        setAiError(result.error);
+        return;
+      }
+      clearDaySelection();
+      router.refresh();
+    });
+  }
 
   const monthInRangeKeys = useMemo(() => {
     const inMonth = months.flatMap((m) => m.days).filter((d) => d.inMonth);
@@ -504,22 +544,28 @@ export function CalendarMonthView({
     onToggleStats: toggleShowStats,
     monthSpan,
     spanHrefs,
+    expanded,
+    onToggleExpanded: toggleExpanded,
     planStartWeekKey: monthInRangeKeys.startKey,
     planEndWeekKey: monthInRangeKeys.endKey,
     athleteId,
   };
 
-  const expandToggleBtn = !expanded ? (
+  const expandToggleBtn = (
     <button
       type="button"
       onClick={toggleExpanded}
       className="tt-inbox-mobile-icon-btn"
-      aria-label="Expand month plan"
-      title="Expand month plan"
+      aria-label={expanded ? "Exit expanded view" : "Expand month plan"}
+      title={expanded ? "Exit expanded view" : "Expand month plan"}
     >
-      <Maximize2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+      {expanded ? (
+        <Minimize2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+      ) : (
+        <Maximize2 className="h-4 w-4" strokeWidth={2} aria-hidden />
+      )}
     </button>
-  ) : null;
+  );
 
   const stickyHeader = (
     <PageHeader className="tt-inbox-page-header tt-training-list-page-header mb-0 pt-0 lg:mb-0 lg:pt-0">
@@ -538,7 +584,10 @@ export function CalendarMonthView({
             {expandToggleBtn}
           </div>
           <div className="min-w-0 justify-self-end [grid-area:views]">
-            {viewControls}
+            <div className="flex flex-nowrap items-center gap-1.5">
+              {viewControls}
+              <div className="hidden lg:block">{expandToggleBtn}</div>
+            </div>
           </div>
           <div className="hidden [grid-area:toolbar] lg:block">
             <PageHeaderActions className="ml-0 flex-col items-end gap-2 pt-0 sm:gap-2.5">
@@ -656,28 +705,64 @@ export function CalendarMonthView({
               </div>
 
               <div className={cn("grid gap-px bg-border", gridCols, TABLE_BODY)}>
-                {weeks.map((week, weekIndex) => (
-                  <CalendarWeekRow
-                    key={week[0]?.dateKey ?? weekIndex}
-                    week={week}
-                    weekIndex={weekIndex}
-                    allDays={days}
-                    showStats={showStats}
-                    showNotes={showNotes}
-                    showEvents={showEvents}
-                    isCoach={isCoach}
-                    canEditDayNotes={canEditDayNotes}
-                    athleteId={athleteId}
-                    planSportRows={planSportRows}
-                    swimCssSecPer100m={swimCssSecPer100m}
-                    workoutsByDate={workoutsByDate}
-                    dayWorkouts={dayWorkouts}
-                    dayNote={dayNote}
-                    dayEvents={dayEvents}
-                    phaseBlocks={phaseBlocks}
-                    onEditPhase={openEditPhase}
-                  />
-                ))}
+                {weeks.flatMap((week, weekIndex) => {
+                  const weekKey = week[0]?.dateKey ?? `w${weekIndex}`;
+                  const cells = week.map((day, dayInWeek) => {
+                    const dayIndex = weekIndex * 7 + dayInWeek;
+                    const prevDay =
+                      dayIndex > 0 ? days[dayIndex - 1]! : null;
+                    const monthBoundary =
+                      !prevDay ||
+                      prevDay.dateKey.slice(0, 7) !==
+                        day.dateKey.slice(0, 7);
+                    const phase = phaseForDate(phaseBlocks, day.dateKey);
+                    const phaseTransition = isPhaseTransitionDay(
+                      phaseBlocks,
+                      day.dateKey,
+                      prevDay?.dateKey ?? previousDateKey(day.dateKey),
+                    );
+
+                    return (
+                      <CalendarDayCell
+                        key={day.dateKey}
+                        day={day}
+                        dayIndex={dayIndex}
+                        isWeekend={dayInWeek >= 5}
+                        monthBoundary={monthBoundary}
+                        filtered={dayWorkouts(day.dateKey)}
+                        note={dayNote(day.dateKey)}
+                        events={dayEvents(day.dateKey)}
+                        showNotes={showNotes}
+                        showEvents={showEvents}
+                        isCoach={isCoach}
+                        canEditDayNotes={canEditDayNotes}
+                        athleteId={athleteId}
+                        workoutsByDate={workoutsByDate}
+                        phase={phase}
+                        phaseTransition={phaseTransition}
+                        onEditPhase={openEditPhase}
+                        selected={selectedDateKeys.includes(day.dateKey)}
+                        onToggleSelection={() =>
+                          toggleDaySelection(day.dateKey)
+                        }
+                      />
+                    );
+                  });
+
+                  if (!showStats) return cells;
+
+                  return [
+                    <CalendarWeekStatsCell
+                      key={`stats-${weekKey}`}
+                      weekDays={week}
+                      workoutsByDate={workoutsByDate}
+                      planSportRows={planSportRows}
+                      swimCssSecPer100m={swimCssSecPer100m}
+                      className="tt-month-stats-col"
+                    />,
+                    ...cells,
+                  ];
+                })}
               </div>
             </div>
           </div>
@@ -730,94 +815,45 @@ export function CalendarMonthView({
           {monthGrid}
         </TrainingListFrame>
       )}
-    </WeekCardSizeProvider>
-  );
-}
 
-function CalendarWeekRow({
-  week,
-  weekIndex,
-  allDays,
-  showStats,
-  showNotes,
-  showEvents,
-  isCoach,
-  canEditDayNotes,
-  athleteId,
-  planSportRows,
-  swimCssSecPer100m,
-  workoutsByDate,
-  dayWorkouts,
-  dayNote,
-  dayEvents,
-  phaseBlocks,
-  onEditPhase,
-}: {
-  week: CalendarDay[];
-  weekIndex: number;
-  allDays: CalendarDay[];
-  showStats: boolean;
-  showNotes: boolean;
-  showEvents: boolean;
-  isCoach: boolean;
-  canEditDayNotes: boolean;
-  athleteId?: string;
-  planSportRows: WorkoutType[];
-  swimCssSecPer100m: number | null;
-  workoutsByDate: Map<string, PlanWorkoutDetail[]>;
-  dayWorkouts: (dateKey: string) => PlanWorkoutDetail[];
-  dayNote: (dateKey: string) => DayNoteData | null;
-  dayEvents: (dateKey: string) => SeasonEventData[];
-  phaseBlocks: TrainingPhaseBlock[];
-  onEditPhase: (block: TrainingPhaseBlock) => void;
-}) {
-  return (
-    <>
-      {showStats ? (
-        <CalendarWeekStatsCell
-          weekDays={week}
-          workoutsByDate={workoutsByDate}
-          planSportRows={planSportRows}
-          swimCssSecPer100m={swimCssSecPer100m}
-          className="tt-month-stats-col"
-        />
+      {isCoach && selectedDateKeys.length > 0 ? (
+        <div className="fixed bottom-4 left-1/2 z-40 flex w-[min(28rem,calc(100%-1.5rem))] -translate-x-1/2 flex-col gap-2 rounded-[12px] border border-[var(--tt-line,#ebebeb)] bg-white p-3 shadow-[0_8px_30px_rgba(0,0,0,0.12)]">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-[var(--tt-ink,#111)]">
+              {selectedDateKeys.length} day
+              {selectedDateKeys.length === 1 ? "" : "s"} selected
+            </p>
+            <button
+              type="button"
+              onClick={clearDaySelection}
+              className="rounded-[6px] p-1 text-[var(--tt-ink-faint,#9a9a9a)] hover:bg-[var(--tt-sidebar,#f5f5f5)] hover:text-[var(--tt-ink,#111)]"
+              aria-label="Clear selection"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
+            Click day numbers to select. AI will add a suggested workout for each
+            day.
+          </p>
+          {aiError ? (
+            <p className="text-[12px] text-[var(--tt-red,#da2f36)]">{aiError}</p>
+          ) : null}
+          <Button
+            type="button"
+            size="sm"
+            disabled={aiPending}
+            onClick={generateAiForSelected}
+            className="w-full"
+          >
+            <Sparkles className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            {aiPending
+              ? "Generating…"
+              : `Generate AI workouts (${selectedDateKeys.length})`}
+          </Button>
+        </div>
       ) : null}
-      {week.map((day, dayInWeek) => {
-        const dayIndex = weekIndex * 7 + dayInWeek;
-        const prevDay = dayIndex > 0 ? allDays[dayIndex - 1]! : null;
-        const monthBoundary =
-          !prevDay ||
-          prevDay.dateKey.slice(0, 7) !== day.dateKey.slice(0, 7);
-        const phase = phaseForDate(phaseBlocks, day.dateKey);
-        const phaseTransition = isPhaseTransitionDay(
-          phaseBlocks,
-          day.dateKey,
-          prevDay?.dateKey ?? previousDateKey(day.dateKey),
-        );
-
-        return (
-          <CalendarDayCell
-            key={day.dateKey}
-            day={day}
-            dayIndex={dayIndex}
-            isWeekend={dayInWeek >= 5}
-            monthBoundary={monthBoundary}
-            filtered={dayWorkouts(day.dateKey)}
-            note={dayNote(day.dateKey)}
-            events={dayEvents(day.dateKey)}
-            showNotes={showNotes}
-            showEvents={showEvents}
-            isCoach={isCoach}
-            canEditDayNotes={canEditDayNotes}
-            athleteId={athleteId}
-            workoutsByDate={workoutsByDate}
-            phase={phase}
-            phaseTransition={phaseTransition}
-            onEditPhase={onEditPhase}
-          />
-        );
-      })}
-    </>
+    </WeekCardSizeProvider>
   );
 }
 
@@ -838,6 +874,8 @@ function CalendarDayCell({
   phase,
   phaseTransition,
   onEditPhase,
+  selected,
+  onToggleSelection,
 }: {
   day: CalendarDay;
   dayIndex: number;
@@ -855,6 +893,8 @@ function CalendarDayCell({
   phase: TrainingPhaseBlock | null;
   phaseTransition: boolean;
   onEditPhase: (block: TrainingPhaseBlock) => void;
+  selected: boolean;
+  onToggleSelection: () => void;
 }) {
   const monthLabel = monthBoundary
     ? parseDateOnly(day.dateKey).toLocaleDateString(undefined, {
@@ -900,33 +940,65 @@ function CalendarDayCell({
     />
   );
 
+  const dayNumberInner = monthLabel ? (
+    <span className="inline-flex items-baseline gap-1">
+      <span
+        className={cn(
+          day.isToday &&
+            !selected &&
+            "inline-flex h-5 min-w-5 items-center justify-center rounded-[4px] bg-foreground px-1 text-[11px] font-bold text-background",
+          selected &&
+            "inline-flex h-5 min-w-5 items-center justify-center rounded-[4px] bg-[var(--tt-ink,#111)] px-1 text-[11px] font-bold text-white",
+        )}
+      >
+        {day.dayNumber}
+      </span>
+      <span className="text-[10px] font-semibold tracking-wide text-foreground/70">
+        {monthLabel}
+      </span>
+    </span>
+  ) : day.isToday || selected ? (
+    <span
+      className={cn(
+        "inline-flex h-5 min-w-5 items-center justify-center rounded-[4px] px-1 text-[11px] font-bold",
+        selected
+          ? "bg-[var(--tt-ink,#111)] text-white"
+          : "bg-foreground text-background",
+      )}
+    >
+      {day.dayNumber}
+    </span>
+  ) : (
+    day.dayNumber
+  );
+
   const dateHead = (
     <div
       className={cn(
         "min-w-0 px-1 text-left text-[11px] font-semibold tabular-nums",
-        day.isToday ? "text-foreground" : "text-muted-foreground",
+        day.isToday || selected ? "text-foreground" : "text-muted-foreground",
       )}
     >
-      {monthLabel ? (
-        <span className="inline-flex items-baseline gap-1">
-          <span
-            className={cn(
-              day.isToday &&
-                "inline-flex h-5 min-w-5 items-center justify-center rounded-[4px] bg-foreground px-1 text-[11px] font-bold text-background",
-            )}
-          >
-            {day.dayNumber}
-          </span>
-          <span className="text-[10px] font-semibold tracking-wide text-foreground/70">
-            {monthLabel}
-          </span>
-        </span>
-      ) : day.isToday ? (
-        <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-[4px] bg-foreground px-1 text-[11px] font-bold text-background">
-          {day.dayNumber}
-        </span>
+      {isCoach ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelection();
+          }}
+          className="rounded-[4px] text-left hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30"
+          title={selected ? "Deselect day" : "Select day for AI"}
+          aria-pressed={selected}
+          aria-label={
+            selected
+              ? `Deselect ${day.dateKey}`
+              : `Select ${day.dateKey} for AI`
+          }
+        >
+          {dayNumberInner}
+        </button>
       ) : (
-        day.dayNumber
+        dayNumberInner
       )}
     </div>
   );
@@ -943,7 +1015,8 @@ function CalendarDayCell({
         monthBoundary &&
           dayIndex > 0 &&
           "border-l-[3px] border-l-foreground/35",
-        day.isToday && "ring-2 ring-inset ring-foreground/50",
+        day.isToday && !selected && "ring-2 ring-inset ring-foreground/50",
+        selected && "ring-2 ring-inset ring-[var(--tt-ink,#111)]/70 bg-[color-mix(in_srgb,var(--tt-ink,#111)_6%,var(--color-card,#fff))]",
         phaseTransition && phaseSurface && "border-l-[3px]",
       )}
       style={

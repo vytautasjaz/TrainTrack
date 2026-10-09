@@ -44,9 +44,24 @@ import {
   LibraryFilterPicker,
   type LibraryFilterOption,
 } from '@/components/workout-library/library-filter-picker'
+import { format } from 'date-fns'
 
 /** all = every plan · general = no athlete · or an athlete id */
 type AthleteFilter = 'all' | 'general' | string
+
+function formatPlanLibraryDate(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  return format(d, 'd MMM yyyy')
+}
+
+/** True when updated is meaningfully later than created (not just same write). */
+function planWasUpdatedAfterCreate(plan: TrainingPlanListItem): boolean {
+  const created = new Date(plan.createdAt).getTime()
+  const updated = new Date(plan.updatedAt).getTime()
+  if (!Number.isFinite(created) || !Number.isFinite(updated)) return false
+  return updated - created > 60_000
+}
 
 type TrainingPlansLibraryListProps = {
   athleteId?: string
@@ -73,6 +88,16 @@ function planMetaLine(plan: TrainingPlanListItem): string {
   return parts.join(' · ')
 }
 
+function planDatesLine(plan: TrainingPlanListItem): string {
+  const created = formatPlanLibraryDate(plan.createdAt)
+  if (!created) return ''
+  if (!planWasUpdatedAfterCreate(plan)) return `Generated ${created}`
+  const updated = formatPlanLibraryDate(plan.updatedAt)
+  return updated
+    ? `Generated ${created} · Updated ${updated}`
+    : `Generated ${created}`
+}
+
 function PlanCard({
   plan,
   pending,
@@ -88,6 +113,7 @@ function PlanCard({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const datesLine = planDatesLine(plan)
   return (
     <li className="rounded-[8px] border border-[var(--tt-line-strong,#d4d4d4)] bg-white px-3 py-2.5 shadow-[0_1px_0_rgba(17,17,17,0.04)]">
       <div className="min-w-0">
@@ -103,6 +129,11 @@ function PlanCard({
             ? ` · for ${plan.forAthleteName}`
             : ''}
         </p>
+        {datesLine ? (
+          <p className="mt-0.5 text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
+            {datesLine}
+          </p>
+        ) : null}
         {plan.description?.trim() ? (
           <p className="mt-1 line-clamp-2 text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
             {plan.description.trim()}

@@ -32,6 +32,8 @@ export const planDraftSessionSchema = z.object({
   plannedDuration: nullableNumber({ int: true, min: 1, max: 600 }),
   coachNotes: nullableString(2000),
   tags: z.array(z.string().max(40)).max(8),
+  /** Coach-engine library id — materialize copies builder structure from DB. */
+  candidateId: nullableString(80),
 })
 
 export const planDraftPhaseSchema = z.object({
@@ -52,16 +54,26 @@ export const planDraftOutputSchema = z.object({
     z.null(),
   ]),
   target: nullableString(80),
-  guidelines: nullableString(4000),
+  guidelines: nullableString(16000),
   sessions: z.array(planDraftSessionSchema).min(1).max(400),
   phases: z.array(planDraftPhaseSchema).max(20),
 })
 
 export type PlanDraftOutput = z.infer<typeof planDraftOutputSchema>
 
+/** Coach-engine drafts may attach builder JSON; OpenAI schema omits it. */
+export type PlanDraftSessionWithStructure = PlanDraftOutput['sessions'][number] & {
+  structure?: unknown | null
+  swimStructure?: unknown | null
+}
+
+export type PlanDraftWithStructure = Omit<PlanDraftOutput, 'sessions'> & {
+  sessions: PlanDraftSessionWithStructure[]
+}
+
 export const adaptPlanOutputSchema = z.object({
   summary: z.string().max(2000),
-  guidelines: nullableString(4000),
+  guidelines: nullableString(16000),
   sessionEdits: z
     .array(
       z.object({

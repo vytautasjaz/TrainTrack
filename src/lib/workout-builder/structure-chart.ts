@@ -3,6 +3,7 @@ import {
   estimateBlockDurationMinutes,
   formatPlanBlockSummary,
   intervalRepMinutes,
+  repeatedSetDurationMinutes,
   resolvePaceMinPerKm,
   segmentDurationMinutes,
   FALLBACK_PACES,
@@ -94,7 +95,7 @@ function intensityFromKeywords(raw: string): number | null {
   if (/\bz\s*5\b|zone\s*5/.test(value)) return 0.95
   if (/\b(hard|race|5k|10k)\b/.test(value)) return 0.9
   if (/\bz\s*4\b|zone\s*4|\b(threshold|critical|css)\b/.test(value)) return 0.82
-  if (/\bz\s*3\b|zone\s*3|\b(tempo|sweet\s*spot|moderate|marathon)\b/.test(value)) {
+  if (/\bz\s*3\b|zone\s*3|\b(tempo|sweet\s*spot|moderate|marathon|steady)\b/.test(value)) {
     return 0.64
   }
   if (/\bz\s*2\b|zone\s*2|\b(easy|endurance|aerobic)\b/.test(value)) return 0.38
@@ -205,7 +206,11 @@ function blockDurationWeight(block: WorkoutBlock): number {
     case 'INTERVAL': {
       const { work, recovery } = intervalRepMinutes(block)
       const workWeight = work || 1
-      return (block.repetitions ?? 1) * (workWeight + recovery)
+      return repeatedSetDurationMinutes(
+        block.repetitions ?? 1,
+        workWeight,
+        recovery,
+      )
     }
     case 'REPETITION': {
       const pace = resolvePaceMinPerKm(block.targets, 'work')
@@ -402,7 +407,7 @@ function expandBlock(
 
     for (let i = 0; i < stripeReps; i++) {
       segments.push({ kind, weight: workWeight, intensity: workIntensity })
-      if (recoveryWeight > 0) {
+      if (recoveryWeight > 0 && i < stripeReps - 1) {
         segments.push({
           kind: 'recovery',
           weight: recoveryWeight,
@@ -464,7 +469,7 @@ function expandIncludeItem(item: WorkoutIncludeItem): StructureChartSegment[] {
   const segments: StructureChartSegment[] = []
   for (let i = 0; i < reps; i++) {
     segments.push({ kind: 'work', weight: work, intensity })
-    if (recovery > 0) {
+    if (recovery > 0 && i < reps - 1) {
       segments.push({
         kind: 'recovery',
         weight: recovery,

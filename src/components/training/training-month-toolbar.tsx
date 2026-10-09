@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   CalendarDays,
   ChartColumn,
+  Maximize2,
+  Minimize2,
   SlidersHorizontal,
   StickyNote,
 } from 'lucide-react'
@@ -33,8 +35,8 @@ type TrainingMonthFilterGroupsProps = {
   onToggleStats: () => void
   monthSpan: 1 | 2 | 3
   spanHrefs: Record<1 | 2 | 3, string>
-  /** Extra control after Cards (e.g. desktop expand lives next to view switch instead). */
-  trailing?: ReactNode
+  expanded?: boolean
+  onToggleExpanded?: () => void
   planStartWeekKey?: string
   planEndWeekKey?: string
   athleteId?: string
@@ -56,7 +58,8 @@ export function TrainingMonthFilterGroups({
   onToggleStats,
   monthSpan,
   spanHrefs,
-  trailing,
+  expanded = false,
+  onToggleExpanded,
   planStartWeekKey,
   planEndWeekKey,
   athleteId,
@@ -152,7 +155,6 @@ export function TrainingMonthFilterGroups({
       >
         <div className="flex items-center gap-0.5">
           <MonthCardSizeToolbarControl />
-          {trailing}
         </div>
       </ToolbarFilterGroup>
 
@@ -162,7 +164,7 @@ export function TrainingMonthFilterGroups({
         <ToolbarDivider className="mb-1.5 mx-0.5" />
       )}
 
-      <ToolbarFilterGroup label="Layout" hint="Months shown on the calendar">
+      <ToolbarFilterGroup label="Layout" hint="Months shown and expanded calendar">
         <div
           className="flex items-center gap-0.5"
           role="group"
@@ -184,6 +186,20 @@ export function TrainingMonthFilterGroups({
               {n}m
             </Link>
           ))}
+          {onToggleExpanded ? (
+            <ToolbarTextToggle
+              pressed={expanded}
+              onClick={onToggleExpanded}
+              title={expanded ? 'Exit expanded view' : 'Expand month plan'}
+              className="font-semibold text-foreground hover:text-foreground [&_svg]:opacity-100"
+            >
+              {expanded ? (
+                <Minimize2 className="h-3.5 w-3.5" aria-hidden />
+              ) : (
+                <Maximize2 className="h-3.5 w-3.5" aria-hidden />
+              )}
+            </ToolbarTextToggle>
+          ) : null}
         </div>
       </ToolbarFilterGroup>
 
@@ -226,7 +242,8 @@ export function TrainingMonthToolbar({
   onToggleStats,
   monthSpan,
   spanHrefs,
-  trailing,
+  expanded,
+  onToggleExpanded,
   planStartWeekKey,
   planEndWeekKey,
   athleteId,
@@ -247,7 +264,8 @@ export function TrainingMonthToolbar({
     onToggleStats,
     monthSpan,
     spanHrefs,
-    trailing,
+    expanded,
+    onToggleExpanded,
     planStartWeekKey,
     planEndWeekKey,
     athleteId,

@@ -1,8 +1,11 @@
 import { WorkoutType } from '@prisma/client'
 import { formatPaceMinPerKm, parsePaceMinPerKm } from '@/lib/athlete-preferences'
 import { INTENSITY_ZONE_PRESETS } from '@/lib/intensity-zones'
+import { RPE_PRESETS } from './effort-presets'
 import type { Segment, SegmentUnit, Target, TargetType } from './types'
 import { TARGET_TYPE_LABELS } from './types'
+
+export { RPE_PRESETS } from './effort-presets'
 
 export function isBikeSport(sport: WorkoutType): boolean {
   return sport === WorkoutType.BIKE || sport === WorkoutType.TRIATHLON
@@ -66,10 +69,23 @@ export function simpleTargetTypeLabel(type: TargetType): string {
 export function intensitySuggestions(type: TargetType, sport: WorkoutType): string[] {
   const zones = [...INTENSITY_ZONE_PRESETS]
   if (type === 'rpe') {
-    return ['Easy', 'Recovery', 'Tempo', 'Threshold', 'Hard', 'Max', ...zones]
+    return [...RPE_PRESETS, ...zones]
   }
   if (type === 'pace') {
-    return [...zones, 'Easy', 'Tempo', 'Threshold', '5:30', '4:30', '4:00', '3:45']
+    return [
+      ...zones,
+      'Easy',
+      'Steady',
+      'Tempo',
+      'Threshold',
+      'HM Pace',
+      'Marathon Pace',
+      '5K Pace',
+      '5:30',
+      '4:30',
+      '4:00',
+      '3:45',
+    ]
   }
   if (type === 'heartRate') {
     return ['120', '130', '140', '150', '160', '170', '180']
@@ -215,8 +231,6 @@ export function formatIntensityDisplay(target: Target, _sport: WorkoutType): str
   }
   return `${targetTypeLabel(target.type)} ${value}`
 }
-
-export const RPE_PRESETS = ['Easy', 'Recovery', 'Moderate', 'Hard', 'Max'] as const
 
 /** Z1–Z6 — aligned with coach intensity zone prefs. */
 export const HR_ZONE_PRESETS = INTENSITY_ZONE_PRESETS

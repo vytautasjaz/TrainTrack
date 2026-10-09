@@ -119,7 +119,10 @@ export function emptyStructure(): WorkoutStructure {
   return { warmup: [], mainSet: [], cooldown: [], includeItems: [] }
 }
 
-export function hasStructureContent(structure: WorkoutStructure): boolean {
+export function hasStructureContent(
+  structure?: WorkoutStructure | null,
+): boolean {
+  if (!structure) return false
   return (
     structure.warmup.length > 0 ||
     structure.mainSet.length > 0 ||

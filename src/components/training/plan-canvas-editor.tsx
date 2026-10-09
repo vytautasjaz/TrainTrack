@@ -7,6 +7,7 @@ import {
   BookCopy,
   ChartColumn,
   ChevronLeft,
+  Download,
   Library,
   Minus,
   PanelRightOpen,
@@ -20,6 +21,7 @@ import {
   PlanCanvasDndErrorBanner,
 } from '@/components/training/plan-canvas-dnd'
 import { PlanCanvasGrid } from '@/components/training/plan-canvas-grid'
+import { PlanWeeklyStatsCharts } from '@/components/training/plan-weekly-stats-charts'
 import { PlanPhaseTimeline } from '@/components/training/plan-phase-timeline'
 import {
   WeekCardSizeProvider,
@@ -63,12 +65,14 @@ import {
   notifyTrainingPlansChanged,
   type TrainingPlanEditorDetail,
 } from '@/lib/training-plan'
+import { downloadTrainingPlanCsv } from '@/lib/training-plan-csv'
 import { PLANNER_SPORTS, PLANNER_SPORT_LABELS } from '@/lib/season-planner'
 import { toUserMessage } from '@/lib/action-error'
+import { cn } from '@/lib/utils'
 import { ToolbarTextToggle } from '@/components/training/plan-sport-filter-bar'
 import { useStoredFlag } from '@/hooks/use-stored-flag'
 import { PLAN_CANVAS_STATS_COLLAPSED_STORAGE_KEY } from '@/lib/plan-calendar-layers'
-import { cn } from '@/lib/utils'
+import { WhyThisPlanPanel } from '@/components/ai/why-this-plan-panel'
 import {
   TrainingPlanAudienceFields,
   type PlanAthleteOption,
@@ -78,6 +82,8 @@ import {
   parseTrainingPlanAthleteLevel,
 } from '@/lib/training-plan-athlete-level'
 import type { AthletePreferences } from '@/lib/athlete-preferences'
+import { SessionLoadThresholdsProvider } from '@/components/plan/session-load-thresholds-context'
+import { sessionLoadThresholdsFromPreferences } from '@/lib/training-load/session-tss'
 
 const LIBRARY_DOCK_PX = 320
 const dockMotionClass =
@@ -309,6 +315,9 @@ export function PlanCanvasEditor({
   }
 
   return (
+    <SessionLoadThresholdsProvider
+      value={sessionLoadThresholdsFromPreferences(estimationPreferences)}
+    >
     <TrainingLibraryProvider
       templates={templates}
       folders={folders}
@@ -421,6 +430,15 @@ export function PlanCanvasEditor({
                 <Button
                   type="button"
                   size="sm"
+                  variant="outline"
+                  onClick={() => downloadTrainingPlanCsv(plan)}
+                >
+                  <Download className="h-3.5 w-3.5" aria-hidden />
+                  Export CSV
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
                   variant="secondary"
                   onClick={() => setApplyOpen(true)}
                 >
@@ -440,6 +458,12 @@ export function PlanCanvasEditor({
             dates.
           </p>
 
+          <WhyThisPlanPanel
+            guidelines={plan.description}
+            description={plan.description}
+            className="mb-3"
+          />
+
           <PlanPhaseTimeline
             planId={plan.id}
             weekCount={plan.weekCount}
@@ -447,6 +471,11 @@ export function PlanCanvasEditor({
           />
 
           <PlanCanvasGrid
+            plan={plan}
+            estimationPreferences={estimationPreferences}
+          />
+
+          <PlanWeeklyStatsCharts
             plan={plan}
             estimationPreferences={estimationPreferences}
           />
@@ -591,5 +620,6 @@ export function PlanCanvasEditor({
       </PlanCanvasDndProvider>
       </WeekCardSizeProvider>
     </TrainingLibraryProvider>
+    </SessionLoadThresholdsProvider>
   )
 }

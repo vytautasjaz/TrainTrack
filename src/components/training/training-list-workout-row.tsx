@@ -39,6 +39,7 @@ import {
 import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { WorkoutInlineFeedback } from '@/components/plan/workout-inline-feedback'
+import { WorkoutCardCoachNote } from '@/components/plan/workout-card-coach-note'
 import {
   WorkoutCardDiagram,
   workoutHasCardDiagram,
@@ -398,6 +399,11 @@ export function TrainingListWorkoutRow({
           <p className="mt-0.5 truncate text-[11px] font-normal text-[var(--tt-ink-soft,#6b6b6b)]">
             {subtitle}
           </p>
+          <WorkoutCardCoachNote
+            note={workout.coachNotes}
+            compact
+            className="mt-0.5"
+          />
         </div>
 
         {/* SCHEMA — desktop only, between workout and details */}
@@ -645,6 +651,11 @@ function DashboardListRow({
               {subtitle}
             </p>
           ) : null}
+          <WorkoutCardCoachNote
+            note={workout.coachNotes}
+            compact
+            className="mt-0.5"
+          />
         </div>
         <div className="shrink-0 text-right">
           <p className="text-[12px] font-semibold tabular-nums text-[#111827]">

@@ -1,0 +1,42 @@
+{
+  "name": "traintrack-athlete",
+  "version": "0.1.0",
+  "main": "expo-router/entry",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "ios": "expo start --ios",
+    "android": "expo start --android",
+    "web": "expo start --web"
+  },
+  "dependencies": {
+    "@expo-google-fonts/bebas-neue": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo/vector-icons": "^15.0.3",
+    "babel-preset-expo": "~57.0.0",
+    "expo": "~57.0.25",
+    "expo-auth-session": "~57.0.13",
+    "expo-constants": "~57.0.19",
+    "expo-crypto": "~57.0.3",
+    "expo-font": "~57.0.4",
+    "expo-linking": "~57.0.11",
+    "expo-router": "~57.0.23",
+    "expo-secure-store": "~57.0.4",
+    "expo-splash-screen": "~57.0.9",
+    "expo-status-bar": "~57.0.1",
+    "expo-system-ui": "~57.0.4",
+    "expo-web-browser": "~57.0.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.3",
+    "react-native-gesture-handler": "~2.32.0",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "^0.21.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2",
+    "typescript": "~6.0.3"
+  }
+}

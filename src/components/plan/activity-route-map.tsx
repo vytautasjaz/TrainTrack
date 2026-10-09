@@ -151,16 +151,33 @@ export function ActivityRouteMap({
   useEffect(() => {
     if (!expanded) return
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setExpanded(false)
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      setExpanded(false)
     }
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('keydown', onKeyDown, true)
     return () => {
       document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('keydown', onKeyDown, true)
     }
   }, [expanded])
+
+  function closeExpanded() {
+    setExpanded(false)
+    const swallow = (event: Event) => {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    document.addEventListener('pointerup', swallow, true)
+    document.addEventListener('click', swallow, true)
+    window.setTimeout(() => {
+      document.removeEventListener('pointerup', swallow, true)
+      document.removeEventListener('click', swallow, true)
+    }, 400)
+  }
 
   return (
     <>
@@ -176,24 +193,20 @@ export function ActivityRouteMap({
       {portalReady && expanded
         ? createPortal(
             <div
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-3 backdrop-blur-[2px]"
+              data-tt-activity-map-overlay=""
+              className="pointer-events-auto fixed inset-0 z-[300] flex h-dvh w-full flex-col bg-black sm:h-auto sm:items-center sm:justify-center sm:bg-black/40 sm:p-3 sm:backdrop-blur-[2px]"
+              style={{ pointerEvents: 'auto' }}
               role="dialog"
               aria-modal="true"
               aria-label="Expanded activity map"
-              // Close on click (not pointerdown) so the backdrop still owns the
-              // gesture and the feed card underneath never receives a ghost click.
               onPointerDown={(event) => {
-                if (event.target !== event.currentTarget) return
                 event.stopPropagation()
+                if (event.target === event.currentTarget) closeExpanded()
               }}
-              onClick={(event) => {
-                if (event.target !== event.currentTarget) return
-                event.stopPropagation()
-                setExpanded(false)
-              }}
+              onClick={(event) => event.stopPropagation()}
             >
               <div
-                className="w-full max-w-[min(96vw,72rem)] overflow-hidden rounded-[6px] border border-[var(--tt-line)] bg-white p-2 shadow-lg sm:p-3"
+                className="pointer-events-auto relative min-h-0 w-full flex-1 overflow-hidden bg-[#dfe6ec] sm:h-auto sm:max-h-[min(80vh,720px)] sm:max-w-[min(96vw,72rem)] sm:flex-none sm:rounded-[6px] sm:border sm:border-[var(--tt-line)] sm:bg-white sm:p-2 sm:shadow-lg"
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => event.stopPropagation()}
               >
@@ -203,7 +216,7 @@ export function ActivityRouteMap({
                   size="expanded"
                   basemap={basemap}
                   onBasemapChange={setBasemap}
-                  onCollapse={() => setExpanded(false)}
+                  onCollapse={closeExpanded}
                 />
               </div>
             </div>,
@@ -490,68 +503,78 @@ function ActivityRouteMapCanvas({
 
   return (
     <div
-      ref={rootRef}
       className={cn(
-        'relative overflow-hidden rounded-[6px] border border-[var(--tt-line)] bg-[#dfe6ec]',
-        'touch-none select-none',
-        size === 'expanded' && 'w-full',
+        'relative overflow-hidden bg-[#dfe6ec]',
+        size === 'expanded'
+          ? 'h-full min-h-0 w-full rounded-none border-0 sm:h-auto sm:max-h-[min(80vh,720px)] sm:rounded-[6px] sm:border sm:border-[var(--tt-line)] sm:[aspect-ratio:var(--map-aspect)]'
+          : 'rounded-[6px] border border-[var(--tt-line)]',
         className,
       )}
-      style={{
-        aspectRatio: base.aspectRatio,
-        ...(size === 'expanded' ? { maxHeight: 'min(80vh, 720px)' } : null),
-      }}
-      onClick={(event) => event.stopPropagation()}
-      onPointerDown={(event) => {
-        event.stopPropagation()
-        if (event.button !== 0) return
-        if (animRef.current != null) {
-          cancelAnimationFrame(animRef.current)
-          animRef.current = null
-        }
-        dragRef.current = {
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          origin: viewRef.current.center,
-        }
-        event.currentTarget.setPointerCapture(event.pointerId)
-      }}
-      onPointerMove={(event) => {
-        const drag = dragRef.current
-        if (!drag || drag.pointerId !== event.pointerId || !base) return
-        const rect = rootRef.current?.getBoundingClientRect()
-        if (!rect || rect.width <= 0 || rect.height <= 0) return
-        const z = viewRef.current.zoom
-        const dx = ((event.clientX - drag.startX) / rect.width) * base.width
-        const dy = ((event.clientY - drag.startY) / rect.height) * base.height
-        const originX = lngToWorldX(drag.origin.lng, z)
-        const originY = latToWorldY(drag.origin.lat, z)
-        const nextCenter = {
-          lng: worldXToLng(originX - dx, z),
-          lat: worldYToLat(originY - dy, z),
-        }
-        syncView(z, nextCenter)
-      }}
-      onPointerUp={(event) => {
-        if (dragRef.current?.pointerId === event.pointerId) {
-          dragRef.current = null
-        }
-      }}
-      onPointerCancel={() => {
-        dragRef.current = null
-      }}
-      onDoubleClick={(event) => {
-        event.preventDefault()
-        event.stopPropagation()
-        const rect = rootRef.current?.getBoundingClientRect()
-        if (!rect || !base) return
-        animateZoomBy(1, {
-          x: ((event.clientX - rect.left) / rect.width) * base.width,
-          y: ((event.clientY - rect.top) / rect.height) * base.height,
-        })
-      }}
+      style={
+        size === 'expanded'
+          ? {
+              ['--map-aspect' as string]: base.aspectRatio,
+            }
+          : { aspectRatio: base.aspectRatio }
+      }
     >
+      <div
+        ref={rootRef}
+        className="absolute inset-0 touch-none select-none"
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => {
+          event.stopPropagation()
+          if (event.button !== 0) return
+          if (animRef.current != null) {
+            cancelAnimationFrame(animRef.current)
+            animRef.current = null
+          }
+          dragRef.current = {
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            origin: viewRef.current.center,
+          }
+          event.currentTarget.setPointerCapture(event.pointerId)
+        }}
+        onPointerMove={(event) => {
+          const drag = dragRef.current
+          if (!drag || drag.pointerId !== event.pointerId || !base) return
+          const rect = rootRef.current?.getBoundingClientRect()
+          if (!rect || rect.width <= 0 || rect.height <= 0) return
+          const z = viewRef.current.zoom
+          const dx = ((event.clientX - drag.startX) / rect.width) * base.width
+          const dy = ((event.clientY - drag.startY) / rect.height) * base.height
+          const originX = lngToWorldX(drag.origin.lng, z)
+          const originY = latToWorldY(drag.origin.lat, z)
+          const nextCenter = {
+            lng: worldXToLng(originX - dx, z),
+            lat: worldYToLat(originY - dy, z),
+          }
+          syncView(z, nextCenter)
+        }}
+        onPointerUp={(event) => {
+          if (dragRef.current?.pointerId === event.pointerId) {
+            dragRef.current = null
+          }
+          if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId)
+          }
+        }}
+        onPointerCancel={() => {
+          dragRef.current = null
+        }}
+        onDoubleClick={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          const rect = rootRef.current?.getBoundingClientRect()
+          if (!rect || !base) return
+          animateZoomBy(1, {
+            x: ((event.clientX - rect.left) / rect.width) * base.width,
+            y: ((event.clientY - rect.top) / rect.height) * base.height,
+          })
+        }}
+      >
       <div
         className="absolute inset-0 cursor-grab active:cursor-grabbing"
         style={{
@@ -626,11 +649,12 @@ function ActivityRouteMapCanvas({
           />
         </svg>
       </div>
+      </div>
 
       {/* Google Maps–style map type control — expanded only */}
       {size === 'expanded' ? (
         <div
-          className="absolute left-2 top-2 flex h-8 overflow-hidden rounded-[2px] border border-[#dadce0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.3)]"
+          className="pointer-events-auto absolute left-2 top-[max(0.5rem,env(safe-area-inset-top))] z-30 flex h-8 overflow-hidden rounded-[2px] border border-[#dadce0] bg-white shadow-[0_1px_4px_rgba(0,0,0,0.3)] sm:top-2"
           onPointerDown={(event) => event.stopPropagation()}
         >
           {(['street', 'satellite'] as const).map((id, index) => {
@@ -661,73 +685,80 @@ function ActivityRouteMapCanvas({
       ) : null}
 
       <div
-        className="absolute right-1.5 top-1.5 flex flex-col overflow-hidden rounded-[5px] border border-black/10 bg-white/90 shadow-sm backdrop-blur-[2px]"
+        className="pointer-events-auto absolute right-[max(0.375rem,env(safe-area-inset-right))] top-[max(0.5rem,env(safe-area-inset-top))] z-30 flex flex-col overflow-hidden rounded-[5px] border border-black/10 bg-white/90 shadow-sm backdrop-blur-[2px] sm:right-1.5 sm:top-1.5"
         onPointerDown={(event) => event.stopPropagation()}
       >
         {onCollapse ? (
           <button
             type="button"
             aria-label="Close map"
-            onClick={(event) => {
+            onPointerDown={(event) => {
+              event.preventDefault()
               event.stopPropagation()
               onCollapse()
             }}
-            className="inline-flex h-6 w-6 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5"
+            className="inline-flex h-8 w-8 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5"
           >
-            <X className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+            <X className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
           </button>
         ) : null}
         <button
           type="button"
           aria-label="Zoom in"
           disabled={!canZoomIn}
-          onClick={(event) => {
+          onPointerDown={(event) => {
+            event.preventDefault()
             event.stopPropagation()
+            if (!canZoomIn) return
             animateZoomBy(1)
           }}
           className={cn(
-            'inline-flex h-6 w-6 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5 disabled:opacity-35',
+            'inline-flex h-8 w-8 items-center justify-center text-[var(--tt-ink)] transition hover:bg-black/5 disabled:opacity-35',
             onCollapse && 'border-t border-black/10',
           )}
         >
-          <Plus className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+          <Plus className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
         </button>
         <button
           type="button"
           aria-label="Zoom out"
           disabled={!canZoomOut}
-          onClick={(event) => {
+          onPointerDown={(event) => {
+            event.preventDefault()
             event.stopPropagation()
+            if (!canZoomOut) return
             animateZoomBy(-1)
           }}
-          className="inline-flex h-6 w-6 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5 disabled:opacity-35"
+          className="inline-flex h-8 w-8 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5 disabled:opacity-35"
         >
-          <Minus className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+          <Minus className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
         </button>
         {onExpand ? (
           <button
             type="button"
             aria-label="Expand map"
-            onClick={(event) => {
+            onPointerDown={(event) => {
+              event.preventDefault()
               event.stopPropagation()
               onExpand()
             }}
-            className="inline-flex h-6 w-6 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5"
+            className="inline-flex h-8 w-8 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5"
           >
-            <Maximize2 className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+            <Maximize2 className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
           </button>
         ) : null}
         {!isFit ? (
           <button
             type="button"
             aria-label="Reset map"
-            onClick={(event) => {
+            onPointerDown={(event) => {
+              event.preventDefault()
               event.stopPropagation()
               resetView()
             }}
-            className="inline-flex h-6 w-6 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5"
+            className="inline-flex h-8 w-8 items-center justify-center border-t border-black/10 text-[var(--tt-ink)] transition hover:bg-black/5"
           >
-            <RotateCcw className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+            <RotateCcw className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
           </button>
         ) : null}
       </div>

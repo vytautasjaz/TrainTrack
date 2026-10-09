@@ -44,6 +44,7 @@ export function PlanSessionEditorDialog({
         className="flex max-h-[min(92vh,52rem)] w-[calc(100%-1.5rem)] max-w-[min(64rem,calc(100%-1.5rem))] flex-col gap-0 overflow-hidden border-0 bg-transparent p-0 shadow-none sm:w-auto"
         overlayClassName="bg-black/50"
         hideCloseButton
+        preventDismissOnOutside
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">

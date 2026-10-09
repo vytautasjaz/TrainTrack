@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const SLIDE_MS = 300
@@ -198,5 +199,63 @@ export function WeekSwipeSlide({
     <div className="w-full min-w-full shrink-0" aria-hidden={!active}>
       {children}
     </div>
+  )
+}
+
+const NAV_BTN =
+  'rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30'
+
+/** Chevrons + Today jump — same control as mobile week widgets. */
+export function WeekCarouselNav({
+  canPrev,
+  canNext,
+  isToday,
+  onPrev,
+  onNext,
+  onToday,
+}: {
+  canPrev: boolean
+  canNext: boolean
+  isToday: boolean
+  onPrev: () => void
+  onNext: () => void
+  onToday: () => void
+}) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onPrev}
+        disabled={!canPrev}
+        aria-label="Previous week"
+        className={NAV_BTN}
+      >
+        <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
+        onClick={onToday}
+        disabled={isToday}
+        aria-label="Jump to this week"
+        aria-current={isToday ? 'date' : undefined}
+        className={cn(
+          'min-w-[2.75rem] px-1 text-[10px] font-semibold uppercase tracking-[0.06em]',
+          isToday
+            ? 'cursor-default text-[var(--tt-ink,#111)]'
+            : 'text-[var(--tt-ink-faint,#9a9a9a)] hover:text-[var(--tt-ink,#111)]',
+        )}
+      >
+        Today
+      </button>
+      <button
+        type="button"
+        onClick={onNext}
+        disabled={!canNext}
+        aria-label="Next week"
+        className={NAV_BTN}
+      >
+        <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+      </button>
+    </>
   )
 }

@@ -25,10 +25,12 @@ import {
   unlinkStravaFromRaceLegForAthlete,
 } from '@/lib/strava/sync'
 import {
-  fetchStravaActivityStreams,
-  getValidAccessToken,
-} from '@/lib/strava/client'
-import { downsampleStreamSeries } from '@/lib/strava/stream-chart'
+  overlayProfileFromPackedStreams,
+  parseLapsCache,
+  splitsFromCachedStreams,
+  splitIntervalMeters,
+  type ActivityLapsCache,
+} from '@/lib/strava/laps'
 
 async function revalidateAfterStrava(athleteId: string | null | undefined) {
   if (athleteId) {
@@ -116,11 +118,23 @@ export async function isStravaConnected() {
   return Boolean(connection)
 }
 
-/** Detach a wrongly linked Strava activity and restore the workout to planned. */
+/**
+ * Detach a wrongly linked Strava activity.
+ * Self-logged imports are deleted; planned sessions return to PLANNED.
+ */
 export async function unlinkStravaFromWorkout(workoutId: string) {
   const session = await requireAthleteSession()
-  await unlinkStravaFromWorkoutForAthlete(session.userId, session.athleteId, workoutId)
-  await revalidateWorkoutAfterStrava(session.athleteId, workoutId)
+  const result = await unlinkStravaFromWorkoutForAthlete(
+    session.userId,
+    session.athleteId,
+    workoutId,
+  )
+  if (result.removed) {
+    await revalidateAfterStrava(session.athleteId)
+  } else {
+    await revalidateWorkoutAfterStrava(session.athleteId, workoutId)
+  }
+  return result
 }
 
 /** Same-day compatible Strava activities for manual attach. */
@@ -229,9 +243,7 @@ export type WorkoutStravaStreamsResult = {
 }
 
 /**
- * Feed chart streams (power / HR / elevation).
- * Prefer DB cache written at sync time. Legacy rows without a cache get a
- * one-shot Strava fetch that is persisted so charts never re-hit the API.
+ * Feed chart streams (power / HR / elevation) from the DB cache written at sync.
  */
 export async function getWorkoutStravaStreams(
   workoutId: string,
@@ -241,7 +253,6 @@ export async function getWorkoutStravaStreams(
     where: { id: workoutId },
     select: {
       athleteId: true,
-      athlete: { select: { userId: true } },
       result: { select: { stravaActivityId: true, stravaStreamsCache: true } },
     },
   })
@@ -258,56 +269,8 @@ export async function getWorkoutStravaStreams(
     !isOwner && (await coachCanAccessAthlete(session.userId, workout.athleteId))
   if (!isOwner && !isCoach) throw new Error('Unauthorized')
 
-  const cachedRaw = workout.result.stravaStreamsCache
-  if (hasStreamsCachePayload(cachedRaw)) {
-    return parseStreamsCache(cachedRaw)
-  }
-
-  const activityId = Number(workout.result.stravaActivityId)
-  if (!Number.isFinite(activityId)) return null
-
-  const athleteUserId = workout.athlete.userId
-  if (!athleteUserId) return null
-
-  let accessToken: string
-  try {
-    accessToken = await getValidAccessToken(athleteUserId)
-  } catch {
-    return null
-  }
-
-  const streams = await fetchStravaActivityStreams(accessToken, activityId)
-  const pack = (values: number[] | null, withDistance = false) => {
-    if (!values || values.length < 2) return null
-    const down = downsampleStreamSeries(
-      values,
-      streams.time,
-      140,
-      withDistance ? streams.distance : null,
-    )
-    if (down.values.length < 2) return null
-    return {
-      values: down.values,
-      time: down.time,
-      distance: down.companion,
-    }
-  }
-
-  const result: WorkoutStravaStreamsResult = {
-    heartrate: pack(streams.heartrate),
-    watts: pack(streams.watts),
-    altitude: pack(streams.altitude, true),
-  }
-
-  // Persist even when empty so we do not keep calling Strava for this activity.
-  await prisma.workoutResult
-    .update({
-      where: { stravaActivityId: workout.result.stravaActivityId },
-      data: { stravaStreamsCache: result },
-    })
-    .catch(() => {})
-
-  return result
+  if (!hasStreamsCachePayload(workout.result.stravaStreamsCache)) return null
+  return parseStreamsCache(workout.result.stravaStreamsCache)
 }
 
 function hasStreamsCachePayload(raw: unknown): boolean {
@@ -336,4 +299,76 @@ function parseStreamsCache(raw: unknown): WorkoutStravaStreamsResult | null {
     watts: parseSeries(obj.watts),
     altitude: parseSeries(obj.altitude),
   }
+}
+
+/**
+ * Laps / km splits from the cache written at Strava sync. Packed streams in the
+ * DB can fill a missing overlay for older rows — never calls Strava.
+ */
+export async function getWorkoutStravaLaps(
+  workoutId: string,
+): Promise<ActivityLapsCache | null> {
+  const session = await requireSession()
+  const workout = await prisma.workout.findFirst({
+    where: { id: workoutId },
+    select: {
+      type: true,
+      athleteId: true,
+      result: {
+        select: {
+          stravaActivityId: true,
+          stravaLapsCache: true,
+          stravaStreamsCache: true,
+        },
+      },
+    },
+  })
+  if (!workout?.result?.stravaActivityId) return null
+
+  const isOwner = Boolean(
+    session.hasAthlete &&
+      (await prisma.athlete.findFirst({
+        where: { id: workout.athleteId, userId: session.userId },
+        select: { id: true },
+      })),
+  )
+  const isCoach =
+    !isOwner && (await coachCanAccessAthlete(session.userId, workout.athleteId))
+  if (!isOwner && !isCoach) throw new Error('Unauthorized')
+
+  const cached = parseLapsCache(workout.result.stravaLapsCache)
+  if (cached && cached.version >= 5) return cached
+
+  const fromPacked = overlayProfileFromPackedStreams(
+    workout.result.stravaStreamsCache,
+  )
+  if (cached && (cached.hasLaps || cached.splitsMetric.length >= 2)) {
+    return {
+      ...cached,
+      version: 5,
+      profile: {
+        elevationM:
+          fromPacked?.elevationM ?? cached.profile?.elevationM ?? null,
+        hrBpm: fromPacked?.hrBpm ?? cached.profile?.hrBpm ?? null,
+        speedMps: fromPacked?.speedMps ?? cached.profile?.speedMps ?? null,
+      },
+    }
+  }
+
+  const kmFromPacked = splitsFromCachedStreams(
+    workout.result.stravaStreamsCache,
+    splitIntervalMeters(workout.type),
+  )
+  if (kmFromPacked.length >= 2) {
+    return {
+      version: 5,
+      fetched: true,
+      hasLaps: false,
+      laps: [],
+      splitsMetric: kmFromPacked,
+      profile: fromPacked,
+    }
+  }
+
+  return cached
 }

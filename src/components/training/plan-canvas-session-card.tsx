@@ -27,6 +27,11 @@ export function PlanCanvasSessionCard({
   const library = useTrainingLibrary()
   const [copyOpen, setCopyOpen] = useState(false)
   const workout = planSessionToPlanWorkoutDetail(session)
+  // Prefer L density when a builder structure exists so the intensity graph shows.
+  const cardSize =
+    workout.structure || workout.structureDiagram || workout.swimStructure
+      ? 'l'
+      : undefined
   const dragging =
     dnd?.dragItem?.kind === 'session' && dnd.dragItem.id === session.id
 
@@ -59,7 +64,7 @@ export function PlanCanvasSessionCard({
           onEdit(session)
         }}
       >
-        <WeekPlanWorkoutCard workout={workout} isCoach />
+        <WeekPlanWorkoutCard workout={workout} isCoach size={cardSize} />
       </button>
       <div className="absolute right-1 top-1 z-10 hidden items-center gap-0.5 group-hover/session:flex">
         <button

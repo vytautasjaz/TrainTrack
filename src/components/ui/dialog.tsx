@@ -30,6 +30,7 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const FLOATING_UI_SELECTOR = [
   "[data-tt-date-field-panel]",
   "[data-tt-date-field-backdrop]",
+  "[data-tt-activity-map-overlay]",
   "[data-radix-dropdown-menu-content]",
   "[data-radix-select-content]",
   "[data-radix-popover-content]",
@@ -76,6 +77,8 @@ const DialogContent = React.forwardRef<
     overlayClassName?: string;
     hideCloseButton?: boolean;
     closeButtonClassName?: string;
+    /** Ignore overlay / outside clicks. Use for long forms where a near-miss tap must not discard work. */
+    preventDismissOnOutside?: boolean;
   }
 >(
   (
@@ -85,6 +88,7 @@ const DialogContent = React.forwardRef<
       overlayClassName,
       hideCloseButton = false,
       closeButtonClassName,
+      preventDismissOnOutside = false,
       onPointerDownOutside,
       onFocusOutside,
       onInteractOutside,
@@ -101,15 +105,18 @@ const DialogContent = React.forwardRef<
           className,
         )}
         onPointerDownOutside={(event) => {
-          preventDismissWhileFloatingUiOpen(event);
+          if (preventDismissOnOutside) event.preventDefault();
+          else preventDismissWhileFloatingUiOpen(event);
           onPointerDownOutside?.(event);
         }}
         onFocusOutside={(event) => {
-          preventDismissWhileFloatingUiOpen(event);
+          if (preventDismissOnOutside) event.preventDefault();
+          else preventDismissWhileFloatingUiOpen(event);
           onFocusOutside?.(event);
         }}
         onInteractOutside={(event) => {
-          preventDismissWhileFloatingUiOpen(event);
+          if (preventDismissOnOutside) event.preventDefault();
+          else preventDismissWhileFloatingUiOpen(event);
           onInteractOutside?.(event);
         }}
         {...props}

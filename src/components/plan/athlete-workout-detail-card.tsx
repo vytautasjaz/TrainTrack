@@ -1,20 +1,25 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
+  Activity,
   CalendarClock,
   Check,
   Clock,
   ExternalLink,
   Flame,
+  Gauge,
+  Heart,
   Link2,
   MessageSquare,
   MoreHorizontal,
+  Mountain,
+  Route,
   Share2,
   Unlink,
   X,
+  Zap,
 } from "lucide-react";
 import { WorkoutStatus, WorkoutType } from "@prisma/client";
 import { WorkoutSportIcon } from "@/components/plan/workout-sport-icon";
@@ -29,6 +34,8 @@ import {
 import { AthleteWorkoutQuickActions } from "@/components/plan/athlete-workout-quick-actions";
 import { StravaSyncedIndicator } from "@/components/plan/strava-synced-indicator";
 import { StatusPill } from "@/components/ui/status-pill";
+import { ActivityLapsWidget } from "@/components/activity/activity-laps-widget";
+import { ActivityRouteMap } from "@/components/plan/activity-route-map";
 import { WorkoutStructureChart } from "@/components/workout-builder/workout-structure-chart";
 import { IncludeItemsSummary } from "@/components/workout-editor/include-items-summary";
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
@@ -64,6 +71,11 @@ import { parseDateOnly } from "@/lib/dates";
 import { formatPaceMinPerKm } from "@/lib/athlete-preferences";
 import { cn } from "@/lib/utils";
 import type { PlanColorMode } from "@/lib/plan-sport-filter";
+import { useSessionLoadThresholds } from "@/components/plan/session-load-thresholds-context";
+import {
+  stravaSyncedMetricSlots,
+  type WorkoutResultMetricSlot,
+} from "@/lib/workout-result-metrics";
 
 const SPORT_ACCENT: Record<WorkoutType, string> = {
   RUN: "var(--color-sport-run)",
@@ -171,6 +183,33 @@ function resultThirdMetric(workout: PlanWorkoutDetail): {
   return null;
 }
 
+function stravaMetricIcon(label: string) {
+  const cls = "h-3 w-3";
+  switch (label) {
+    case "Distance":
+      return <Route className={cls} strokeWidth={1.75} />;
+    case "Time":
+    case "Duration":
+      return <Clock className={cls} strokeWidth={1.75} />;
+    case "Avg pace":
+    case "Avg speed":
+      return <Gauge className={cls} strokeWidth={1.75} />;
+    case "Elev gain":
+      return <Mountain className={cls} strokeWidth={1.75} />;
+    case "TSS":
+      return <Activity className={cls} strokeWidth={1.75} />;
+    case "Avg HR":
+    case "Max HR":
+      return <Heart className={cls} strokeWidth={1.75} />;
+    case "Avg power":
+      return <Zap className={cls} strokeWidth={1.75} />;
+    case "Calories":
+      return <Flame className={cls} strokeWidth={1.75} />;
+    default:
+      return undefined;
+  }
+}
+
 function HeroMetricColumn({
   label,
   value,
@@ -179,6 +218,8 @@ function HeroMetricColumn({
   planned,
   icon,
   tone = "dark",
+  dense = false,
+  className,
 }: {
   label: string;
   value: string | null;
@@ -187,10 +228,17 @@ function HeroMetricColumn({
   planned?: string | null;
   icon?: ReactNode;
   tone?: HeroTone;
+  dense?: boolean;
+  className?: string;
 }) {
   const dark = tone === "dark";
   return (
-    <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center">
+    <div
+      className={cn(
+        "flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-1.5 text-center",
+        className,
+      )}
+    >
       <div
         className={cn(
           "inline-flex h-4 shrink-0 items-center justify-center gap-1",
@@ -215,7 +263,8 @@ function HeroMetricColumn({
         ) : null}
         <span
           className={cn(
-            "max-w-full truncate text-[22px] font-bold leading-none tracking-tight tabular-nums",
+            "max-w-full truncate font-bold leading-none tracking-tight tabular-nums",
+            dense ? "text-[17px]" : "text-[22px]",
             dark
               ? value
                 ? "text-white"
@@ -247,6 +296,102 @@ function HeroMetricColumn({
         >
           / {planned}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+function metricDividerClass(tone: HeroTone) {
+  return tone === "dark"
+    ? "w-px shrink-0 self-stretch bg-white/15"
+    : "w-px shrink-0 self-stretch bg-[var(--tt-line)]";
+}
+
+function metricRowClass({
+  tone,
+  compactHero,
+  extra = false,
+  flushTop = false,
+}: {
+  tone: HeroTone;
+  compactHero: boolean;
+  extra?: boolean;
+  flushTop?: boolean;
+}) {
+  const dark = tone === "dark";
+  return cn(
+    "flex min-w-0 items-stretch overflow-hidden",
+    flushTop
+      ? "mt-0"
+      : extra
+        ? compactHero
+          ? "mt-2"
+          : "mt-3"
+        : compactHero
+          ? "mt-3"
+          : "mt-5",
+    !dark && "border-y border-[var(--tt-line)] py-2.5",
+    extra && !dark && "border-t-0",
+  );
+}
+
+function CompletedStravaMetricsRows({
+  primary,
+  extra,
+  tone,
+  compactHero,
+  flushTop = false,
+}: {
+  primary: WorkoutResultMetricSlot[];
+  extra: WorkoutResultMetricSlot[];
+  tone: HeroTone;
+  compactHero: boolean;
+  flushTop?: boolean;
+}) {
+  const dividerClass = metricDividerClass(tone);
+  const dense = primary.length > 3;
+  return (
+    <div className="min-w-0">
+      <div className={metricRowClass({ tone, compactHero, flushTop })}>
+        {primary.map((slot, index) => (
+          <Fragment key={slot.label}>
+            {index > 0 ? <div className={dividerClass} /> : null}
+            <HeroMetricColumn
+              tone={tone}
+              dense={dense}
+              label={slot.label}
+              value={slot.value}
+              unit={slot.unit}
+              planned={slot.planned}
+              icon={stravaMetricIcon(slot.label)}
+            />
+          </Fragment>
+        ))}
+      </div>
+      {extra.length > 0 ? (
+        <div
+          className={cn(
+            metricRowClass({ tone, compactHero, extra: true }),
+            extra.length < 4 && "justify-start",
+          )}
+        >
+          {extra.map((slot, index) => (
+            <Fragment key={slot.label}>
+              {index > 0 ? <div className={dividerClass} /> : null}
+              <HeroMetricColumn
+                tone={tone}
+                dense
+                label={slot.label}
+                value={slot.value}
+                unit={slot.unit}
+                icon={stravaMetricIcon(slot.label)}
+                className={
+                  extra.length < 4 ? "flex-[0_0_20%] max-w-[22%]" : undefined
+                }
+              />
+            </Fragment>
+          ))}
+        </div>
       ) : null}
     </div>
   );
@@ -347,6 +492,7 @@ export function AthleteWorkoutDetailCard({
   onRescheduleDone,
   onClose,
 }: AthleteWorkoutDetailCardProps) {
+  const loadThresholds = useSessionLoadThresholds();
   const [stravaConnected, setStravaConnected] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [detachOpen, setDetachOpen] = useState(false);
@@ -393,14 +539,8 @@ export function AthleteWorkoutDetailCard({
     : statusChrome && skipped
       ? "#f5a3a3"
       : sportColor;
-  const dividerClass = darkHero
-    ? "w-px shrink-0 self-stretch bg-white/15"
-    : "w-px shrink-0 self-stretch bg-[var(--tt-line)]";
-  const metricsRowClass = cn(
-    "flex min-w-0 items-stretch overflow-hidden",
-    compactHero ? "mt-3" : "mt-5",
-    !darkHero && "border-y border-[var(--tt-line)] py-2.5",
-  );
+  const dividerClass = metricDividerClass(heroTone);
+  const metricsRowClass = metricRowClass({ tone: heroTone, compactHero });
   const iconButtonClass = darkHero
     ? "rounded-md p-1.5 text-white/55 transition hover:bg-white/10 hover:text-white"
     : "rounded-md p-1.5 text-muted-foreground transition hover:bg-muted/60 hover:text-foreground";
@@ -527,6 +667,24 @@ export function AthleteWorkoutDetailCard({
       : metrics.showPlannedComparison && metrics.plannedDuration
         ? metrics.plannedDuration
         : null;
+  const stravaSlots =
+    completed && stravaSynced
+      ? stravaSyncedMetricSlots(workout, loadThresholds)
+      : null;
+  const withPlanned = (slot: WorkoutResultMetricSlot): WorkoutResultMetricSlot => {
+    if (slot.label === "Distance") {
+      return { ...slot, planned: plannedDistanceCaption };
+    }
+    if (slot.label === "Time" || slot.label === "Duration") {
+      return { ...slot, planned: plannedTimeCaption };
+    }
+    return slot;
+  };
+  const stravaPrimary = stravaSlots?.primary.map(withPlanned) ?? [];
+  const stravaExtra = stravaSlots?.extra ?? [];
+  const summaryPolyline = workout.result?.summaryPolyline?.trim() || null;
+  const showRouteMap = Boolean(summaryPolyline);
+  const metricsBelowMap = completed && showRouteMap;
 
   return (
     <div className={cn(className)}>
@@ -716,7 +874,9 @@ export function AthleteWorkoutDetailCard({
                         className="flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-foreground/[0.04]"
                       >
                         <Unlink className="h-3.5 w-3.5 text-muted-foreground" />
-                        Detach Strava activity
+                        {workout.selfLogged
+                          ? 'Remove from plan'
+                          : 'Detach Strava activity'}
                       </DropdownMenu.Item>
                     ) : null}
                   </DropdownMenu.Content>
@@ -748,10 +908,14 @@ export function AthleteWorkoutDetailCard({
             />
             <StravaDetachButton
               workoutId={workout.id}
+              selfLogged={Boolean(workout.selfLogged)}
               hideTrigger
               open={detachOpen}
               onOpenChange={setDetachOpen}
-              onDetached={onStravaChange}
+              onDetached={(result) => {
+                if (result?.removed) onClose?.()
+                onStravaChange?.()
+              }}
             />
           </>
         ) : null}
@@ -765,7 +929,14 @@ export function AthleteWorkoutDetailCard({
           />
         ) : null}
 
-        {completed ? (
+        {metricsBelowMap ? null : completed && stravaPrimary.length > 0 ? (
+          <CompletedStravaMetricsRows
+            primary={stravaPrimary}
+            extra={stravaExtra}
+            tone={heroTone}
+            compactHero={compactHero}
+          />
+        ) : completed ? (
           <div className={metricsRowClass}>
             <HeroMetricColumn
               tone={heroTone}
@@ -861,6 +1032,63 @@ export function AthleteWorkoutDetailCard({
           </div>
         ) : null}
       </div>
+
+      {showRouteMap && summaryPolyline ? (
+        <div className={cn("space-y-3 pb-2", compactHero ? "pt-3" : "pt-4", insetX)}>
+          <ActivityRouteMap
+            summaryPolyline={summaryPolyline}
+            routeColor={sportColor}
+            className="w-full"
+          />
+          {metricsBelowMap && stravaPrimary.length > 0 ? (
+            <CompletedStravaMetricsRows
+              primary={stravaPrimary}
+              extra={stravaExtra}
+              tone="light"
+              compactHero={compactHero}
+              flushTop
+            />
+          ) : metricsBelowMap ? (
+            <div className={metricRowClass({ tone: "light", compactHero, flushTop: true })}>
+              <HeroMetricColumn
+                tone="light"
+                label="Distance"
+                value={actualDistanceParts?.value ?? null}
+                unit={
+                  actualDistanceParts?.unit ||
+                  (config.showDistance ? config.distanceUnit : null)
+                }
+                planned={plannedDistanceCaption}
+                icon={<Link2 className="h-3 w-3" strokeWidth={1.75} />}
+              />
+              <div className={metricDividerClass("light")} />
+              <HeroMetricColumn
+                tone="light"
+                label="Time"
+                value={actualTimeLabel ?? null}
+                planned={plannedTimeCaption}
+                icon={<Clock className="h-3 w-3" strokeWidth={1.75} />}
+              />
+              <div className={metricDividerClass("light")} />
+              <HeroMetricColumn
+                tone="light"
+                label={thirdMetric?.label ?? "Avg pace"}
+                value={thirdMetric?.value ?? null}
+                unit={thirdMetric?.unit ?? null}
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {completed && stravaSynced && workout.result?.stravaActivityId ? (
+        <ActivityLapsWidget
+          workoutId={workout.id}
+          sport={workout.type}
+          initialCache={workout.result?.stravaLapsCache}
+          className={cn(compactHero ? "mx-2.5 mt-3" : "mx-5 mt-4")}
+        />
+      ) : null}
 
       {/* Intensity graph — keep for planned and completed */}
       {(hasBuilderStructure || hasIncludes) && workout.structure ? (

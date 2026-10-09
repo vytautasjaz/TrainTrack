@@ -16,6 +16,7 @@ import {
 } from '@/components/plan/reschedule-badge'
 import { useOptionalPlanSportFilter } from '@/components/training/plan-sport-filter-context'
 import { useDurationNotation } from '@/components/workout-builder/duration-notation-context'
+import { useSessionLoadThresholds } from '@/components/plan/session-load-thresholds-context'
 import { surfaces } from '@/lib/design-tokens'
 import { RACE_PRIORITY_BLOCK } from '@/lib/race-day'
 import { isStravaSynced, workoutHasCoachingChat, type PlanWorkoutDetail } from '@/lib/plan-workout'
@@ -25,6 +26,7 @@ import {
   getWorkoutCardEssence,
   getWorkoutCardHero,
   getWorkoutCardSubtitle,
+  getWorkoutCardTss,
   getWorkoutCompletionPercent,
   isWorkoutCardCompleted,
   isWorkoutCardSkipped,
@@ -163,6 +165,7 @@ export function WorkoutBlock({
   const colorMode = colorModeProp ?? filter?.colorMode ?? 'sport'
   const showCompletionLayer = filter?.showCompletionLayer ?? true
   const durationNotation = useDurationNotation()
+  const loadThresholds = useSessionLoadThresholds()
   const styles = DENSITY[density]
   const completed = !workout.isRace && isWorkoutCardCompleted(status)
   const skipped = !workout.isRace && isWorkoutCardSkipped(status)
@@ -325,6 +328,32 @@ export function WorkoutBlock({
     </div>
   ) : null
 
+  const tssLabel = getWorkoutCardTss(workout, status, loadThresholds)
+  const metricTss =
+    tssLabel && density !== 'xs' ? (
+      <div
+        className={cn(
+          'flex min-w-0 items-center gap-1 overflow-hidden text-ellipsis whitespace-nowrap',
+          styles.secondary,
+        )}
+      >
+        <WorkoutCardMetricIcon
+          kind="tss"
+          className={cn(styles.clock, 'text-muted-foreground')}
+        />
+        <span className="font-semibold tabular-nums text-foreground">
+          {tssLabel.actual}
+        </span>
+        {tssLabel.planned ? (
+          <span className="tabular-nums text-tt-muted">
+            {'\u00a0/\u00a0'}
+            {tssLabel.planned}
+          </span>
+        ) : null}
+        <span className="text-tt-muted"> TSS</span>
+      </div>
+    ) : null
+
   const textBlock = canInlineEdit ? (
     <div className="flex min-w-0 flex-1 flex-col">
       <PlanWorkoutCardInlineEdit
@@ -425,6 +454,8 @@ export function WorkoutBlock({
       ) : null}
 
       {metricSecondary}
+
+      {metricTss}
 
       {fingerprint}
     </div>

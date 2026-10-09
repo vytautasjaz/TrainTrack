@@ -1,7 +1,7 @@
 "use client";
 
 import { format, getISOWeek } from "date-fns";
-import { Clock } from "lucide-react";
+import { Activity, Clock } from "lucide-react";
 import {
   sumSportWeekTotals,
   sumWeekDurationMinutes,
@@ -20,6 +20,11 @@ import {
   weekSportProgressPercent,
   weekSportsWithPlannedWork,
 } from "@/lib/week-sport-stats";
+import {
+  weekSessionLoadActual,
+  weekSessionLoadPlanned,
+} from "@/lib/training-load/session-tss";
+import { useSessionLoadThresholds } from "@/components/plan/session-load-thresholds-context";
 import { cn, formatDuration } from "@/lib/utils";
 import type { WorkoutType } from "@prisma/client";
 
@@ -38,6 +43,7 @@ export function CalendarWeekStatsCell({
   swimCssSecPer100m = null,
   className,
 }: CalendarWeekStatsCellProps) {
+  const loadThresholds = useSessionLoadThresholds();
   const options: WeekTotalsOptions = { swimCssSecPer100m };
   const planDays = weekDays.map((day) => ({
     workouts: workoutsByDate.get(day.dateKey) ?? [],
@@ -46,6 +52,8 @@ export function CalendarWeekStatsCell({
   const sports = weekSportsWithPlannedWork(planDays, planSportRows, options);
   const { planned: volumePlannedMin, actual: volumeActualMin } =
     sumWeekDurationMinutes(planDays, options);
+  const plannedTss = weekSessionLoadPlanned(allWorkouts, loadThresholds);
+  const actualTss = weekSessionLoadActual(allWorkouts, loadThresholds);
 
   const start = parseDateOnly(weekDays[0]!.dateKey);
   const end = parseDateOnly(weekDays[weekDays.length - 1]!.dateKey);
@@ -116,29 +124,58 @@ export function CalendarWeekStatsCell({
           );
         })}
 
-        {volumePlannedMin > 0 ? (
-          <div className="flex min-w-0 items-center gap-1.5 border-t border-foreground/8 pt-2">
-            <Clock
-              className="h-3 w-3 shrink-0 text-muted-foreground"
-              strokeWidth={2.25}
-              aria-hidden
-            />
-            <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-foreground">
-              Volume
-            </span>
-            <span className="shrink-0 text-right text-[9px] tabular-nums leading-none text-muted-foreground">
-              {volumeActualMin > 0 ? (
-                <>
-                  <span className="font-semibold text-foreground">
-                    {formatDuration(volumeActualMin)}
-                  </span>
-                  {" / "}
-                  {formatDuration(volumePlannedMin)}
-                </>
-              ) : (
-                formatDuration(volumePlannedMin)
-              )}
-            </span>
+        {volumePlannedMin > 0 || plannedTss > 0 ? (
+          <div className="flex min-w-0 flex-col gap-1.5 border-t border-foreground/8 pt-2">
+            {volumePlannedMin > 0 ? (
+              <div className="flex min-w-0 items-center gap-1.5">
+                <Clock
+                  className="h-3 w-3 shrink-0 text-muted-foreground"
+                  strokeWidth={2.25}
+                  aria-hidden
+                />
+                <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-foreground">
+                  Volume
+                </span>
+                <span className="shrink-0 text-right text-[9px] tabular-nums leading-none text-muted-foreground">
+                  {volumeActualMin > 0 ? (
+                    <>
+                      <span className="font-semibold text-foreground">
+                        {formatDuration(volumeActualMin)}
+                      </span>
+                      {" / "}
+                      {formatDuration(volumePlannedMin)}
+                    </>
+                  ) : (
+                    formatDuration(volumePlannedMin)
+                  )}
+                </span>
+              </div>
+            ) : null}
+            {plannedTss > 0 ? (
+              <div className="flex min-w-0 items-center gap-1.5">
+                <Activity
+                  className="h-3 w-3 shrink-0 text-muted-foreground"
+                  strokeWidth={2.25}
+                  aria-hidden
+                />
+                <span className="min-w-0 flex-1 truncate text-[10px] font-semibold text-foreground">
+                  TSS
+                </span>
+                <span className="shrink-0 text-right text-[9px] tabular-nums leading-none text-muted-foreground">
+                  {actualTss > 0 ? (
+                    <>
+                      <span className="font-semibold text-foreground">
+                        {actualTss}
+                      </span>
+                      {" / "}
+                      {plannedTss}
+                    </>
+                  ) : (
+                    plannedTss
+                  )}
+                </span>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>

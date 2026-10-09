@@ -415,6 +415,12 @@ model Athlete {
   /** When true, forecast is shown above workouts by default. Week view can still toggle for the session. */
   showWeather         Boolean @default(true)
 
+  /**
+   * Athlete privacy controls (Strava import rules, coach visibility of logs).
+   * JSON: see normalizeAthletePrivacyPrefs in src/lib/athlete-privacy.ts
+   */
+  privacyPrefs Json?
+
   // Coach training planner: default sport rows always shown
   planSportRows WorkoutType[] @default([RUN, BIKE, SWIM])
 
@@ -738,6 +744,11 @@ model TrainingPlan {
    * for canvas estimates (overrides level defaults).
    */
   forAthleteId String?
+  /**
+   * Coach-engine audit snapshot: inputs, engine/library versions, constraints,
+   * and validation results for reproducibility.
+   */
+  coachEngineAudit Json?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -946,6 +957,11 @@ model WorkoutResult {
    * (`{ heartrate?, watts?, altitude?, time, distance? }`).
    */
   stravaStreamsCache Json?
+  /**
+   * Strava laps + metric km splits for the workout detail widget
+   * (`{ fetched, laps, splitsMetric }`).
+   */
+  stravaLapsCache    Json?
   logType          AthleteLogType?
   completedAt      DateTime @default(now())
   createdAt        DateTime @default(now())
@@ -1106,4 +1122,57 @@ model AiUsageEvent {
 
   @@index([userId, createdAt])
   @@index([userId, kind, createdAt])
+}
+
+/**
+ * Global coach-engine workout candidates used by AI plan generation.
+ * Seeded from code library; editable in Admin.
+ */
+model CoachEngineWorkout {
+  id                   String      @id
+  primaryAdaptation    String
+  sport                WorkoutType
+  sessionType          SessionType @default(CUSTOM)
+  title                String
+  description          String      @default("")
+  durationMin          Int         @default(45)
+  distanceKm           Float?
+  cardiovascularLoad   String      @default("low")
+  muscularLoad         String      @default("low")
+  mechanicalLoad       String      @default("low")
+  difficulty           String      @default("easy")
+  tags                 String[]    @default([])
+  intervalCount        Int?
+  intervalDurationMin  Float?
+  recoveryMin          Float?
+  methodologyTags      String[]    @default([])
+  progressionTo        String[]    @default([])
+  family               String?
+  isActive             Boolean     @default(true)
+  sortOrder            Int         @default(0)
+  /** Same builder JSON as Workout / WorkoutTemplate — shown on plan cards when applied. */
+  structure            Json?
+  swimStructure        Json?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  @@index([isActive, sport])
+  @@index([primaryAdaptation])
+}
+
+/**
+ * Admin overrides for code-registered AI skills (slug matches registry).
+ * Missing row = use code defaults. Code still owns briefSchema / kind / slug.
+ */
+model AiSkillConfig {
+  slug          String   @id
+  title         String?
+  description   String?
+  /** Coach / LLM guidance — overrides code systemPrompt when set. */
+  systemPrompt  String?
+  audience      String?
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

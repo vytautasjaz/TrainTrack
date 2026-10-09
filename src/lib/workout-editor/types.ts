@@ -11,7 +11,7 @@ export type WorkoutPrimaryMetricState = WorkoutPrimaryMetric | null
 export type DurationUnit = 'min' | 'hours'
 export type DistanceUnit = 'km' | 'm'
 
-export type WorkoutEditorMode = BuilderMode | 'plan' | 'training-plan'
+export type WorkoutEditorMode = BuilderMode | 'plan' | 'training-plan' | 'ai-library'
 
 export type SharedWorkoutEditorProps = {
   /** plan | workout (scheduled) | template (library) | training-plan (library plan session) */
@@ -53,6 +53,8 @@ export type SportEditorConfig = {
 
 export function getSportEditorConfig(sport: WorkoutType): SportEditorConfig {
   const showDistance = sportUsesPlannedDistance(sport)
+  const supportsBuilder =
+    sportSupportsWorkoutBuilder(sport) || sport === WorkoutType.SWIM
   return {
     showDistance: sport === WorkoutType.SWIM ? true : showDistance,
     distanceUnit: sport === WorkoutType.SWIM ? 'm' : 'km',
@@ -65,7 +67,9 @@ export function getSportEditorConfig(sport: WorkoutType): SportEditorConfig {
         : sportSupportsWorkoutBuilder(sport)
           ? 'blocks'
           : 'notes',
-    supportsBuilder: sportSupportsWorkoutBuilder(sport) || sport === WorkoutType.SWIM,
-    descriptionOnly: sport === WorkoutType.STRENGTH,
+    supportsBuilder,
+    // Strength used to be notes-only; keep the flag for empty new sessions, but
+    // structured AI/library strength still opens the block builder via detailsKind.
+    descriptionOnly: sport === WorkoutType.STRENGTH && !supportsBuilder,
   }
 }

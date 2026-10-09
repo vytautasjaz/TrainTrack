@@ -22,6 +22,10 @@ import {
   DEFAULT_DURATION_NOTATION,
   type DurationNotation,
 } from '@/lib/workout-builder/duration-notation'
+import {
+  estimateSessionLoad,
+  type SessionLoadThresholds,
+} from '@/lib/training-load/session-tss'
 
 export type WorkoutCardHero = {
   value: string
@@ -387,6 +391,43 @@ export function getWorkoutCardDuration(
   return { actual: actualLabel, planned }
 }
 
+/** Session TSS on cards: actual first, planned after "/" when they differ. */
+export function getWorkoutCardTss(
+  workout: PlanWorkoutDetail,
+  status: WorkoutStatus = workout.status,
+  thresholds: SessionLoadThresholds = {},
+): WorkoutCardDuration | null {
+  if (workout.isRace || workout.type === WorkoutType.REST) return null
+  const withStatus =
+    status === workout.status ? workout : { ...workout, status }
+
+  const actualEst = estimateSessionLoad(withStatus, thresholds, {
+    preferPlanned: false,
+  })
+  const actual = actualEst ? Math.round(actualEst.tss) : null
+
+  if (workout.selfLogged) {
+    if (actual == null || actual <= 0) return null
+    return { actual: String(actual) }
+  }
+
+  const plannedEst = estimateSessionLoad(withStatus, thresholds, {
+    preferPlanned: true,
+  })
+  const planned = plannedEst ? Math.round(plannedEst.tss) : null
+  const primary = actual ?? planned
+  if (primary == null || primary <= 0) return null
+
+  const isCompleted = status === WorkoutStatus.COMPLETED
+  return {
+    actual: String(primary),
+    planned:
+      isCompleted && planned != null && planned !== primary
+        ? String(planned)
+        : undefined,
+  }
+}
+
 /**
  * Race secondary: usually time — actual first (dark), planned after "/" (muted).
  * Field names match the card UI (`actual` = left, `planned` = after slash).
@@ -474,7 +515,9 @@ export function getWorkoutCompletionPercent(
   workout: PlanWorkoutDetail,
   status: WorkoutStatus = workout.status,
 ): number | null {
-  if (status !== WorkoutStatus.COMPLETED || workout.isRace) return null
+  if (status !== WorkoutStatus.COMPLETED || workout.isRace || workout.selfLogged) {
+    return null
+  }
 
   const actualDistanceKm = workout.result?.actualDistance
   if (actualDistanceKm != null && actualDistanceKm > 0) {

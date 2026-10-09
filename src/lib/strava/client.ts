@@ -1,6 +1,12 @@
 import { prisma } from '@/lib/prisma'
 import { getStravaConfig } from './config'
-import type { StravaActivity, StravaAthleteSummary, StravaTokenResponse } from './types'
+import type {
+  StravaActivity,
+  StravaAthleteSummary,
+  StravaLap,
+  StravaSplit,
+  StravaTokenResponse,
+} from './types'
 
 const STRAVA_API = 'https://www.strava.com/api/v3'
 const STRAVA_OAUTH = 'https://www.strava.com/oauth'
@@ -135,6 +141,44 @@ export async function fetchStravaActivity(
   return response.json()
 }
 
+export type StravaLapsAndSplits = {
+  laps: StravaLap[]
+  splitsMetric: StravaSplit[]
+}
+
+/** Laps + kilometre splits from the detailed activity payload. */
+export async function fetchStravaActivityLapsAndSplits(
+  accessToken: string,
+  activityId: number,
+): Promise<StravaLapsAndSplits> {
+  try {
+    const payload = await fetchStravaActivity(accessToken, activityId)
+    return {
+      laps: Array.isArray(payload.laps) ? payload.laps : [],
+      splitsMetric: Array.isArray(payload.splits_metric)
+        ? payload.splits_metric
+        : Array.isArray(payload.splits_standard)
+          ? payload.splits_standard
+          : [],
+    }
+  } catch {
+    return { laps: [], splitsMetric: [] }
+  }
+}
+
+export async function fetchStravaActivityLaps(
+  accessToken: string,
+  activityId: number,
+): Promise<StravaLap[]> {
+  const response = await fetch(`${STRAVA_API}/activities/${activityId}/laps`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    next: { revalidate: 0 },
+  })
+  if (!response.ok) return []
+  const payload = (await response.json()) as unknown
+  return Array.isArray(payload) ? (payload as StravaLap[]) : []
+}
+
 type StravaStreamSeries = {
   data?: number[]
   series_type?: string
@@ -147,6 +191,43 @@ export type StravaActivityStreams = {
   altitude: number[] | null
   distance: number[] | null
   time: number[] | null
+  velocity: number[] | null
+  latlng: Array<[number, number]> | null
+}
+
+function parseStreamsPayload(
+  raw: unknown,
+): Record<string, StravaStreamSeries> {
+  if (Array.isArray(raw)) {
+    const out: Record<string, StravaStreamSeries> = {}
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue
+      const type = (item as { type?: unknown }).type
+      if (typeof type === 'string') out[type] = item as StravaStreamSeries
+    }
+    return out
+  }
+  if (raw && typeof raw === 'object') {
+    return raw as Record<string, StravaStreamSeries>
+  }
+  return {}
+}
+
+function streamLatLng(
+  payload: Record<string, StravaStreamSeries>,
+): Array<[number, number]> | null {
+  const raw = payload.latlng?.data
+  if (!Array.isArray(raw) || raw.length < 2) return null
+  const out: Array<[number, number]> = []
+  for (const pair of raw) {
+    if (!Array.isArray(pair) || pair.length < 2) continue
+    const lat = pair[0]
+    const lng = pair[1]
+    if (typeof lat === 'number' && Number.isFinite(lat) && typeof lng === 'number' && Number.isFinite(lng)) {
+      out.push([lat, lng])
+    }
+  }
+  return out.length >= 2 ? out : null
 }
 
 function streamSeries(
@@ -155,8 +236,29 @@ function streamSeries(
 ): number[] | null {
   const raw = payload[key]?.data
   if (!Array.isArray(raw) || raw.length === 0) return null
-  const values = raw.filter((n) => Number.isFinite(n))
+  const values = raw.filter((n) => typeof n === 'number' && Number.isFinite(n))
   return values.length > 0 ? values : null
+}
+
+function pairedDistanceTime(payload: Record<string, StravaStreamSeries>): {
+  distance: number[]
+  time: number[]
+} | null {
+  const distRaw = payload.distance?.data
+  const timeRaw = payload.time?.data
+  if (!Array.isArray(distRaw) || !Array.isArray(timeRaw)) return null
+  const n = Math.min(distRaw.length, timeRaw.length)
+  const distance: number[] = []
+  const time: number[] = []
+  for (let i = 0; i < n; i += 1) {
+    const d = distRaw[i]
+    const t = timeRaw[i]
+    if (typeof d === 'number' && Number.isFinite(d) && typeof t === 'number' && Number.isFinite(t)) {
+      distance.push(d)
+      time.push(t)
+    }
+  }
+  return distance.length >= 2 ? { distance, time } : null
 }
 
 /**
@@ -166,11 +268,12 @@ function streamSeries(
 export async function fetchStravaActivityStreams(
   accessToken: string,
   activityId: number,
-  keys: string[] = ['heartrate', 'watts', 'altitude', 'distance', 'time'],
+  keys: string[] = ['heartrate', 'watts', 'altitude', 'distance', 'time', 'velocity_smooth', 'latlng'],
 ): Promise<StravaActivityStreams> {
   const params = new URLSearchParams({
     keys: keys.join(','),
     key_by_type: 'true',
+    resolution: 'high',
   })
   const response = await fetch(
     `${STRAVA_API}/activities/${activityId}/streams?${params.toString()}`,
@@ -189,19 +292,24 @@ export async function fetchStravaActivityStreams(
         altitude: null,
         distance: null,
         time: null,
+        velocity: null,
+        latlng: null,
       }
     }
     const body = await response.text()
     throw new Error(`Strava streams fetch failed: ${body}`)
   }
 
-  const payload = (await response.json()) as Record<string, StravaStreamSeries>
+  const payload = parseStreamsPayload(await response.json())
+  const gps = pairedDistanceTime(payload)
   return {
     heartrate: streamSeries(payload, 'heartrate'),
     watts: streamSeries(payload, 'watts'),
     altitude: streamSeries(payload, 'altitude'),
-    distance: streamSeries(payload, 'distance'),
-    time: streamSeries(payload, 'time'),
+    distance: gps?.distance ?? streamSeries(payload, 'distance'),
+    time: gps?.time ?? streamSeries(payload, 'time'),
+    velocity: streamSeries(payload, 'velocity_smooth'),
+    latlng: streamLatLng(payload),
   }
 }
 

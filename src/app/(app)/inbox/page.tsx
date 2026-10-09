@@ -12,6 +12,7 @@ import {
 } from '@/lib/coaching-inbox'
 import { InboxClient } from '@/components/inbox/inbox-client'
 import { getPendingCoachRequests } from '@/lib/queries'
+import { fetchAthletePrivacyPrefsMap } from '@/lib/athlete-privacy-server'
 import { isPushConfigured } from '@/lib/push-notifications'
 import { resolveCoachAvatarUrl } from '@/lib/coach-avatar'
 
@@ -101,9 +102,18 @@ async function getAthleteInboxParticipants(athleteId: string) {
 function mapThreads(
   threadsRaw: Awaited<ReturnType<typeof listCoachInboxThreads>>,
   role: 'athlete' | 'coach',
+  privacyByAthlete?: Map<
+    string,
+    import('@/lib/athlete-privacy').NormalizedAthletePrivacyPrefs
+  >,
 ) {
   return threadsRaw.map((t) => {
-    const base = serializeInboxThread(t, role)
+    const base = serializeInboxThread(t, role, {
+      athletePrivacy:
+        role === 'coach' && t.athlete
+          ? privacyByAthlete?.get(t.athlete.id)
+          : undefined,
+    })
     return {
       ...base,
       workoutDetail: base.workoutDetail,
@@ -128,13 +138,16 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
       getCoachParticipant(session.userId),
       getCoachAthletes(session.userId),
     ])
+    const privacyByAthlete = await fetchAthletePrivacyPrefsMap(
+      threadsRaw.map((thread) => thread.athlete?.id).filter(Boolean) as string[],
+    )
 
     return (
       <div className="tt-dashboard-page -mx-4 px-4 pb-8 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
         <div className="tt-dashboard-content min-w-0 max-w-full space-y-5">
           <InboxClient
             role="coach"
-            threads={mapThreads(threadsRaw, 'coach')}
+            threads={mapThreads(threadsRaw, 'coach', privacyByAthlete)}
             initialThreadId={initialThreadId}
             pushConfigured={pushConfigured}
             coachParticipant={coachParticipant}

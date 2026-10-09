@@ -13,8 +13,10 @@ import {
 import { groupSeasonEventsByDate } from '@/lib/season-events'
 import {
   toPlanWorkoutDetail,
-  redactPlanWorkoutNotesForViewer,
+  applyPlanWorkoutViewerPolicy,
+  filterPlanWorkoutRowsForCoachPrivacy,
 } from '@/lib/plan-workout'
+import { fetchAthletePrivacyPrefs } from '@/lib/athlete-privacy-server'
 import { mergeRacesIntoByDate } from '@/lib/races'
 import { buildPlanTableDays } from '@/lib/plan-week'
 import { parseDateOnly, toDateKey } from '@/lib/dates'
@@ -63,13 +65,21 @@ export async function fetchTrainingTableDays(
   }
 
   const rawWorkouts = await getPlanWorkoutsInRange(athleteId, start, end)
-  const byDateRaw = groupWorkoutsByDate(rawWorkouts)
   const noteViewer = isCoachView(session) ? 'coach' : 'athlete'
+  const athletePrivacyPrefs =
+    noteViewer === 'coach' ? await fetchAthletePrivacyPrefs(athleteId) : null
+  const coachVisibleWorkouts =
+    noteViewer === 'coach' && athletePrivacyPrefs
+      ? filterPlanWorkoutRowsForCoachPrivacy(rawWorkouts, athletePrivacyPrefs)
+      : rawWorkouts
+  const byDateRaw = groupWorkoutsByDate(coachVisibleWorkouts)
   const byDateWorkouts = new Map(
     [...byDateRaw.entries()].map(([key, list]) => [
       key,
       list.map((w) =>
-        redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), noteViewer),
+        applyPlanWorkoutViewerPolicy(toPlanWorkoutDetail(w), noteViewer, {
+          privacy: athletePrivacyPrefs ?? undefined,
+        }),
       ),
     ]),
   )

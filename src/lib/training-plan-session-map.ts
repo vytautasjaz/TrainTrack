@@ -9,6 +9,7 @@ import type { TrainingPlanSessionDetail } from '@/lib/training-plan'
 import { planSlotKey } from '@/lib/training-plan'
 import { parseStructure } from '@/lib/workout-builder/utils'
 import { parseSwimStructure } from '@/lib/swim-workout/parse'
+import { computeStructureDiagramSnapshot } from '@/lib/workout-builder/structure-diagram'
 
 /** Map a library plan session into PlanWorkoutDetail for SharedWorkoutEditor / cards. */
 export function planSessionToPlanWorkoutDetail(
@@ -56,6 +57,12 @@ export function planSessionToPlanWorkoutDetail(
     coachNotesPrivate: session.coachNotesPrivate,
     structure,
     swimStructure,
+    structureDiagram: structure
+      ? computeStructureDiagramSnapshot(structure, {
+          durationMinutes: session.plannedDuration,
+        })
+      : null,
+    hasBuilderDetail: Boolean(structure) || Boolean(swimStructure),
     tags: session.tags,
     result: null,
   }

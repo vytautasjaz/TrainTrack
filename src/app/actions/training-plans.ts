@@ -110,6 +110,7 @@ export async function listTrainingPlans(): Promise<TrainingPlanListItem[]> {
     forAthleteName: p.forAthlete?.name ?? null,
     sessionCount: p._count.sessions,
     phaseCount: p._count.phases,
+    createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   }))
 }

@@ -6,6 +6,7 @@ import { AccountProfileSection } from '@/components/settings/account-profile-sec
 import { AiMembershipUsageCard } from '@/components/ai/ai-membership-usage-card'
 import { CoachInviteAthleteSection } from '@/components/settings/coach-invite-athlete-section'
 import { NotificationPrefsForm } from '@/components/settings/notification-prefs-form'
+import { AthletePrivacyPrefsForm } from '@/components/settings/athlete-privacy-prefs-form'
 import { PlanViewModePreferenceForm } from '@/components/settings/plan-view-mode-preference-form'
 import { TrainingDefaultViewForm } from '@/components/settings/training-default-view-form'
 import { WeekCardSizePreferenceForm } from '@/components/settings/week-card-size-preference-form'
@@ -244,6 +245,16 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             'sign-in': (
               <SignInMethodsSection embedded hasGoogle={hasGoogle} hasPassword={hasPassword} />
             ),
+            privacy:
+              isAthlete && ownAthleteId && !coachView ? (
+                <SettingsPanel
+                  id="privacy-controls"
+                  title="Privacy"
+                  description="Control what TrainTrack imports from Strava and what your linked coach can see."
+                >
+                  <AthletePrivacyPrefsForm />
+                </SettingsPanel>
+              ) : null,
             notifications: (
               <>
                 <SettingsPanel

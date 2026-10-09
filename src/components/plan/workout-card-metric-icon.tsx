@@ -1,7 +1,7 @@
-import { Clock, Route } from 'lucide-react'
+import { Activity, Clock, Route } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type WorkoutCardMetricKind = 'distance' | 'duration'
+export type WorkoutCardMetricKind = 'distance' | 'duration' | 'tss'
 
 export function WorkoutCardMetricIcon({
   kind,
@@ -10,7 +10,7 @@ export function WorkoutCardMetricIcon({
   kind: WorkoutCardMetricKind
   className?: string
 }) {
-  const Icon = kind === 'duration' ? Clock : Route
+  const Icon = kind === 'duration' ? Clock : kind === 'tss' ? Activity : Route
   return (
     <Icon
       className={cn('h-3 w-3 shrink-0', className)}

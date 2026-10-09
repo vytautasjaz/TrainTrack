@@ -135,8 +135,24 @@ function speedFromRpe(rpe: number, preferences?: AthletePreferences | null): num
   return pickBikeSpeed('vo2max', preferences)
 }
 
+/** Standing / in-place rest — no travel, so mileage must stay 0. */
+const STATIONARY_RECOVERY_RE = /\bstand(?:ing)?\b|\bstationary\b|\bin[-\s]?place\b/
+
+export function isStationaryRecoveryText(value: string | null | undefined): boolean {
+  return STATIONARY_RECOVERY_RE.test((value ?? '').toLowerCase())
+}
+
+export function isStationaryRecovery(
+  targets?: Target[] | null,
+  extraText?: string | null,
+): boolean {
+  if (isStationaryRecoveryText(extraText)) return true
+  return Boolean(targets?.some((target) => isStationaryRecoveryText(target.value)))
+}
+
 function paceFromKeywords(value: string, preferences?: AthletePreferences | null): number | null {
   const v = value.toLowerCase()
+  if (isStationaryRecoveryText(v)) return null
   if (v.includes('recovery') || v.includes('z1')) return pickPace('recovery', preferences)
   if (v.includes('easy') || v.includes('z2')) return pickPace('easy', preferences)
   if (v.includes('marathon') || v.includes('z3')) return pickPace('tempo', preferences)
@@ -345,12 +361,8 @@ export function intervalRepMinutes(
     workRate.kind === 'speed' ? workRate.speedKph : null,
   )
 
-  const recoverySeg = effectiveIntervalSegment(
-    block.recovery,
-    'recovery',
-    block.targets,
-    sportType,
-  )
+  const recoverySeg =
+    block.recovery && block.recovery.value > 0 ? block.recovery : undefined
   const recoveryRate = resolveTravelRate(
     [recoveryTarget(block.targets)],
     'recovery',
@@ -364,6 +376,17 @@ export function intervalRepMinutes(
   )
 
   return { work, recovery }
+}
+
+/** Work + recovery between reps only — no rest after the last rep. */
+export function repeatedSetDurationMinutes(
+  reps: number,
+  work: number,
+  recovery: number,
+): number {
+  const n = Math.max(1, Math.round(reps) || 1)
+  if (recovery <= 0) return n * work
+  return n * work + (n - 1) * recovery
 }
 
 export function estimateBlockDurationMinutes(
@@ -398,7 +421,7 @@ export function estimateBlockDurationMinutes(
       return block.time ?? 0
     case 'INTERVAL': {
       const { work, recovery } = intervalRepMinutes(block, preferences, sportType)
-      return reps * (work + recovery)
+      return repeatedSetDurationMinutes(reps, work, recovery)
     }
     case 'REPETITION': {
       const rate = resolveTravelRate(block.targets, 'work', preferences, sportType)
@@ -424,6 +447,13 @@ export function estimateStructureDurationMinutes(
   let total = 0
   for (const block of [...structure.warmup, ...structure.mainSet, ...structure.cooldown]) {
     total += estimateBlockDurationMinutes(block, preferences, sportType)
+  }
+  for (const item of structure.includeItems ?? []) {
+    const work = segmentDurationMinutes(item.work, FALLBACK_PACES.interval)
+    const recovery = item.recovery
+      ? segmentDurationMinutes(item.recovery, FALLBACK_PACES.recovery)
+      : 0
+    total += repeatedSetDurationMinutes(item.repetitions, work, recovery)
   }
   return Math.round(total)
 }
@@ -451,6 +481,7 @@ export function estimateBlockDistanceKm(
         return km > 0 ? km : 0
       }
       const role = block.type === 'RECOVERY' ? 'recovery' : 'continuous'
+      if (isStationaryRecovery(targets, block.name)) return 0
       const rate = resolveTravelRate(targets, role, preferences, sportType)
       const minutes = block.time ?? 0
       if (minutes <= 0) return 0
@@ -468,25 +499,27 @@ export function estimateBlockDistanceKm(
         workRate.kind === 'speed' ? workRate.speedKph : null,
       )
 
-      const recoverySeg = effectiveIntervalSegment(
-        block.recovery,
-        'recovery',
-        block.targets,
-        sportType,
-      )
+      const recoverySeg =
+        block.recovery && block.recovery.value > 0 ? block.recovery : undefined
+      const recoveryTargets = [recoveryTarget(block.targets)]
       const recoveryRate = resolveTravelRate(
-        [recoveryTarget(block.targets)],
+        recoveryTargets,
         'recovery',
         preferences,
         sportType,
       )
-      const recoveryKm = segmentDistanceKmEstimated(
-        recoverySeg,
-        recoveryRate.kind === 'pace' ? recoveryRate.paceMinPerKm : null,
-        recoveryRate.kind === 'speed' ? recoveryRate.speedKph : null,
+      const recoveryKm = isStationaryRecovery(
+        recoveryTargets,
+        recoverySeg?.description ?? block.recovery?.description,
       )
+        ? 0
+        : segmentDistanceKmEstimated(
+            recoverySeg,
+            recoveryRate.kind === 'pace' ? recoveryRate.paceMinPerKm : null,
+            recoveryRate.kind === 'speed' ? recoveryRate.speedKph : null,
+          )
 
-      return reps * (workKm + recoveryKm)
+      return repeatedSetDurationMinutes(reps, workKm, recoveryKm)
     }
     case 'REPETITION': {
       const rate = resolveTravelRate(block.targets, 'work', preferences, sportType)

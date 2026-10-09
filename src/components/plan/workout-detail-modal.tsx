@@ -67,6 +67,10 @@ export function WorkoutDetailModal({
         hideCloseButton
         overlayClassName="bg-black/50"
         onEscapeKeyDown={(e) => {
+          if (document.querySelector("[data-tt-activity-map-overlay]")) {
+            e.preventDefault()
+            return
+          }
           if (closeHandleRef.current && !closeHandleRef.current.tryClose()) {
             e.preventDefault()
           }

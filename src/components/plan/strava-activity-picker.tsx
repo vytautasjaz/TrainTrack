@@ -26,7 +26,9 @@ import { formatDistance, formatDuration, cn } from '@/lib/utils'
 
 type StravaDetachButtonProps = {
   workoutId: string
-  onDetached?: () => void
+  /** Self-logged imports are removed from the plan on detach. */
+  selfLogged?: boolean
+  onDetached?: (result?: { removed: boolean }) => void
   /** Hide the default button; control the confirm dialog from outside. */
   hideTrigger?: boolean
   open?: boolean
@@ -35,6 +37,7 @@ type StravaDetachButtonProps = {
 
 export function StravaDetachButton({
   workoutId,
+  selfLogged = false,
   onDetached,
   hideTrigger = false,
   open: openControlled,
@@ -48,10 +51,10 @@ export function StravaDetachButton({
 
   function handleConfirm() {
     startTransition(async () => {
-      await unlinkStravaFromWorkout(workoutId)
+      const result = await unlinkStravaFromWorkout(workoutId)
       setConfirmOpen(false)
       router.refresh()
-      onDetached?.()
+      onDetached?.(result)
     })
   }
 
@@ -66,17 +69,21 @@ export function StravaDetachButton({
           onClick={() => setConfirmOpen(true)}
         >
           <Unlink className="h-3.5 w-3.5" />
-          Detach Strava
+          {selfLogged ? 'Remove from plan' : 'Detach Strava'}
         </Button>
       ) : null}
       <ConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="Detach Strava activity?"
-        description="This clears the linked Strava data and returns the workout to planned so you can log it manually or pick a different activity."
-        confirmLabel="Detach"
+        title={selfLogged ? 'Remove this workout?' : 'Detach Strava activity?'}
+        description={
+          selfLogged
+            ? 'This self-added workout came from Strava. Detaching removes it from your plan.'
+            : 'This clears the linked Strava data and returns the workout to planned so you can log it manually or pick a different activity.'
+        }
+        confirmLabel={selfLogged ? 'Remove' : 'Detach'}
         cancelLabel="Cancel"
-        tone="default"
+        tone={selfLogged ? 'danger' : 'default'}
         pending={pending}
         onConfirm={handleConfirm}
       />

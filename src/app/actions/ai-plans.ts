@@ -14,16 +14,16 @@ import {
   getAiQuotaSnapshot,
   logAiUsageEvent,
 } from '@/lib/ai/entitlements'
-import { generateStructuredObject } from '@/lib/ai/openai'
 import { requireSkill, listSkills } from '@/lib/ai/skills/registry'
-import { buildAthleteContextPack } from '@/lib/ai/skills/context'
-import {
-  adaptPlanOutputSchema,
-  briefValuesToPrompt,
-  planDraftOutputSchema,
-  type AdaptPlanOutput,
-} from '@/lib/ai/skills/types'
 import { materializePlanDraft } from '@/lib/ai/materialize-plan-draft'
+import {
+  CoachEngineValidationError,
+  CoachEngineSafetyError,
+  runCoachEngineDraft,
+} from '@/lib/coach-engine'
+import { collectAthleteData } from '@/lib/coach-engine/collect'
+import { buildAthleteState } from '@/lib/coach-engine/state'
+import { adaptExistingTrainingPlan } from '@/lib/coach-engine/adapt-existing-plan'
 
 export type AiSkillListItem = {
   slug: string
@@ -52,6 +52,10 @@ export async function getAiSkillsForUser(opts?: {
   quota: Awaited<ReturnType<typeof getAiQuotaSnapshot>>
 }> {
   const session = await requireSession()
+  const { refreshSkillOverridesFromDb } = await import(
+    '@/lib/ai/skills/skill-store'
+  )
+  await refreshSkillOverridesFromDb()
   const quota = await getAiQuotaSnapshot(session.userId)
   const audience = opts?.audience ?? (isCoach(session) ? 'coach' : 'athlete')
   const skills = listSkills({ audience }).map((s) => ({
@@ -69,6 +73,128 @@ export async function getAiSkillsForUser(opts?: {
 export async function getMyAiQuota() {
   const session = await requireSession()
   return getAiQuotaSnapshot(session.userId)
+}
+
+export type AiAthleteDraftContext = {
+  athleteId: string
+  name: string
+  paces: {
+    easy: number | null
+    tempo: number | null
+    threshold: number | null
+    vo2: number | null
+  }
+  bikeFtpWatts: number | null
+  swimCssSecPer100m: number | null
+  hr: { max: number | null; resting: number | null }
+  races: {
+    name: string
+    date: string
+    type: string
+    priority: string
+    goal: string | null
+  }[]
+  recentVolumeKm: number
+  recentSessionsPerWeek: number
+  consistencyPct: number
+  weekCountLookback: number
+  sessionCountLookback: number
+  dataGaps: string[]
+  /** Last N weeks of completed running km (newest first). */
+  weeklyKm: number[]
+  recentLongestRunKm: number | null
+  volumeTrendPct: number | null
+  suggestedLevel: 'beginner' | 'intermediate' | 'advanced' | 'elite'
+}
+
+function suggestLevelFromVolume(args: {
+  weeklyKm: number
+  sessionsPerWeek: number
+  longestKm: number | null
+}): AiAthleteDraftContext['suggestedLevel'] {
+  const km = args.weeklyKm
+  const long = args.longestKm ?? 0
+  if (km >= 90 && long >= 28) return 'elite'
+  if (km >= 65 || long >= 24) return 'advanced'
+  if (km >= 35 || args.sessionsPerWeek >= 4) return 'intermediate'
+  return 'beginner'
+}
+
+/** Load collected athlete snapshot for the pre-generate guide (editable in UI). */
+export async function getAiAthleteDraftContext(
+  athleteId: string,
+): Promise<AiAthleteDraftContext> {
+  const session = await requireSession()
+  const id = await resolveDraftAthleteAccess({
+    userId: session.userId,
+    athleteId,
+    isCoachUser: isCoach(session),
+  })
+  const data = await collectAthleteData(id)
+  const state = buildAthleteState(data, 'intermediate')
+  const dataGaps: string[] = []
+  if (data.paces.easy == null) dataGaps.push('Easy pace')
+  if (data.paces.threshold == null) dataGaps.push('Threshold pace')
+  if (data.weekSummaries.length < 2) dataGaps.push('Recent training history')
+  if (data.races.length === 0) dataGaps.push('Upcoming race')
+  if (data.hr.max == null) dataGaps.push('Max HR')
+
+  const weeklyKm = data.weekSummaries.slice(0, 8).map((w) => {
+    const done = w.completedDistanceKm
+    const planned = w.plannedDistanceKm
+    return Math.round(done > 0 ? done : planned)
+  })
+  const recentLongestRunKm = (() => {
+    let max = 0
+    for (const s of data.recentSessions) {
+      const km = s.actualDistanceKm ?? s.plannedDistanceKm ?? 0
+      if (km > max) max = km
+    }
+    return max > 0 ? Math.round(max * 10) / 10 : null
+  })()
+  const volumeTrendPct = (() => {
+    if (weeklyKm.length < 4) return null
+    const recent = weeklyKm.slice(0, 3)
+    const earlier = weeklyKm.slice(3, 6)
+    const avg = (xs: number[]) =>
+      xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0
+    const a = avg(recent)
+    const b = avg(earlier)
+    if (b <= 0) return null
+    return Math.round(((a - b) / b) * 100)
+  })()
+  const recentVolumeKm = state.recentVolume.runningKmPerWeek
+  const recentSessionsPerWeek = state.recentVolume.sessionsPerWeek
+
+  return {
+    athleteId: data.athleteId,
+    name: data.name,
+    paces: data.paces,
+    bikeFtpWatts: data.bikeFtpWatts,
+    swimCssSecPer100m: data.swimCssSecPer100m,
+    hr: data.hr,
+    races: data.races.map((r) => ({
+      name: r.name,
+      date: r.date,
+      type: r.type,
+      priority: r.priority,
+      goal: r.goal,
+    })),
+    recentVolumeKm,
+    recentSessionsPerWeek,
+    consistencyPct: Math.round(state.consistency * 100),
+    weekCountLookback: data.weekSummaries.length,
+    sessionCountLookback: data.recentSessions.length,
+    dataGaps,
+    weeklyKm,
+    recentLongestRunKm,
+    volumeTrendPct,
+    suggestedLevel: suggestLevelFromVolume({
+      weeklyKm: recentVolumeKm,
+      sessionsPerWeek: recentSessionsPerWeek,
+      longestKm: recentLongestRunKm,
+    }),
+  }
 }
 
 async function resolveDraftAthleteAccess(args: {
@@ -91,36 +217,66 @@ async function resolveDraftAthleteAccess(args: {
 }
 
 export type DraftAiPlanResult =
-  | { ok: true; planId: string }
+  | {
+      ok: true
+      planId: string
+      decisionTrace: import('@/lib/coach-engine/decision-trace').CoachEngineDecisionTrace
+    }
   | {
       ok: false
       error: string
       paywall?: boolean
       reason?: string
+      /** Generation refused to save — week still invalid after repair. */
+      requiresReview?: boolean
+      weekIndex?: number | null
+      validationErrors?: import('@/lib/coach-engine/types').ValidationError[]
+      /** Safety intake blocked generation before planning. */
+      safetyBlocked?: boolean
+      safetyFlags?: import('@/lib/coach-engine/types').SafetyFlag[]
+      safetyConstraints?: import('@/lib/coach-engine/types').SafetyPlanningConstraint[]
     }
 
 export async function draftAiTrainingPlan(input: {
   skillSlug: string
-  athleteId: string
+  /**
+   * Real athlete, or omit / empty for a general library plan built from
+   * brief-entered athlete data only.
+   */
+  athleteId?: string | null
   brief: Record<string, unknown>
+  /** Optional coach override for methodology selection. */
+  lockedModel?: import('@/lib/coach-engine/types').TrainingModelId | null
 }): Promise<DraftAiPlanResult> {
   try {
     const session = await requireSession()
+    const { refreshSkillOverridesFromDb } = await import(
+      '@/lib/ai/skills/skill-store'
+    )
+    await refreshSkillOverridesFromDb()
     const skill = requireSkill(input.skillSlug)
     if (skill.kind !== 'draft') {
       return { ok: false, error: 'This skill is not a draft skill.' }
     }
 
-    const athleteId = await resolveDraftAthleteAccess({
-      userId: session.userId,
-      athleteId: input.athleteId,
-      isCoachUser: isCoach(session),
-    })
+    const requestedAthleteId = input.athleteId?.trim() || null
+    const athleteId = requestedAthleteId
+      ? await resolveDraftAthleteAccess({
+          userId: session.userId,
+          athleteId: requestedAthleteId,
+          isCoachUser: isCoach(session),
+        })
+      : null
 
+    const profileName =
+      typeof input.brief.athleteName === 'string'
+        ? input.brief.athleteName.trim()
+        : ''
     const brief = skill.briefSchema.parse(input.brief) as Record<
       string,
       unknown
     >
+    if (profileName) brief.athleteName = profileName
     const weekCount =
       typeof brief.weekCount === 'number' ? brief.weekCount : undefined
 
@@ -131,49 +287,43 @@ export async function draftAiTrainingPlan(input: {
       weekCount,
     })
 
-    const context = await buildAthleteContextPack(athleteId)
-    const prompt = [
-      'Athlete context:',
-      context.textSummary,
-      '',
-      'User brief:',
-      briefValuesToPrompt(brief),
-      '',
-      'Produce a complete relative training plan matching the schema.',
-    ].join('\n')
-
-    const { object, tokensIn, tokensOut } = await generateStructuredObject({
-      system: skill.systemPrompt,
-      prompt,
-      schema: planDraftOutputSchema,
+    // Deterministic coach engine builds state → gaps → methodology → dose;
+    // AI only adapts candidate workouts (with validation + library fallback).
+    const engine = await runCoachEngineDraft({
+      athleteId,
+      skillSlug: skill.slug,
+      brief,
+      allowAi: true,
+      lockedModel: input.lockedModel,
     })
 
-    // Clamp weeks to brief / entitlement
-    if (weekCount && object.weekCount !== weekCount) {
-      object.weekCount = weekCount
-      object.sessions = object.sessions.filter((s) => s.weekIndex < weekCount)
+    const draft = engine.draft
+    if (weekCount && draft.weekCount !== weekCount) {
+      draft.weekCount = weekCount
+      draft.sessions = draft.sessions.filter((s) => s.weekIndex < weekCount)
     }
 
     const { planId } = await materializePlanDraft({
       coachUserId: session.userId,
       forAthleteId: athleteId,
-      draft: object,
+      draft,
       skillSlug: skill.slug,
+      coachEngineAudit: engine.audit,
     })
 
     await logAiUsageEvent({
       userId: session.userId,
       skillSlug: skill.slug,
       kind: AiUsageKind.DRAFT,
-      tokensIn,
-      tokensOut,
+      tokensIn: engine.tokensIn,
+      tokensOut: engine.tokensOut,
       athleteId,
       planId,
     })
 
     revalidatePath('/workouts/plans')
     revalidatePath(`/workouts/plans/${planId}`)
-    return { ok: true, planId }
+    return { ok: true, planId, decisionTrace: engine.decisionTrace }
   } catch (err) {
     if (err instanceof AiPaywallError) {
       return {
@@ -183,6 +333,25 @@ export async function draftAiTrainingPlan(input: {
         reason: err.reason,
       }
     }
+    if (err instanceof CoachEngineValidationError) {
+      return {
+        ok: false,
+        error: err.message,
+        requiresReview: true,
+        weekIndex: err.weekIndex,
+        validationErrors: err.errors,
+      }
+    }
+    if (err instanceof CoachEngineSafetyError) {
+      return {
+        ok: false,
+        error: err.message,
+        requiresReview: true,
+        safetyBlocked: true,
+        safetyFlags: err.gate.flags,
+        safetyConstraints: err.gate.constraints,
+      }
+    }
     const message = err instanceof Error ? err.message : 'Draft failed'
     return { ok: false, error: message }
   }
@@ -190,17 +359,28 @@ export async function draftAiTrainingPlan(input: {
 
 export type AdaptAiPlanResult =
   | { ok: true; summary: string; editsApplied: number; planId: string }
-  | { ok: false; error: string; paywall?: boolean; reason?: string }
+  | {
+      ok: false
+      error: string
+      paywall?: boolean
+      reason?: string
+      safetyBlocked?: boolean
+    }
 
-/** Phase 2: propose + apply session edits onto an owned plan. */
+/** Adapt an owned plan via coach-engine (deterministic; no free-form plan rewrite). */
 export async function adaptAiTrainingPlan(input: {
   skillSlug?: string
   planId: string
   athleteId: string
   brief: Record<string, unknown>
+  lockedModel?: import('@/lib/coach-engine/types').TrainingModelId | null
 }): Promise<AdaptAiPlanResult> {
   try {
     const session = await requireSession()
+    const { refreshSkillOverridesFromDb } = await import(
+      '@/lib/ai/skills/skill-store'
+    )
+    await refreshSkillOverridesFromDb()
     const skill = requireSkill(input.skillSlug ?? 'adapt-plan')
     if (skill.kind !== 'adapt') {
       return { ok: false, error: 'This skill is not an adapt skill.' }
@@ -214,15 +394,7 @@ export async function adaptAiTrainingPlan(input: {
 
     const plan = await prisma.trainingPlan.findFirst({
       where: { id: input.planId, coachId: session.userId },
-      include: {
-        sessions: {
-          orderBy: [
-            { weekIndex: 'asc' },
-            { dayOfWeek: 'asc' },
-            { sortOrder: 'asc' },
-          ],
-        },
-      },
+      select: { id: true },
     })
     if (!plan) throw new Error('Plan not found')
 
@@ -230,8 +402,6 @@ export async function adaptAiTrainingPlan(input: {
       string,
       unknown
     >
-    const lookbackWeeks =
-      typeof brief.lookbackWeeks === 'number' ? brief.lookbackWeeks : 2
 
     await assertAiEntitlement({
       userId: session.userId,
@@ -239,54 +409,19 @@ export async function adaptAiTrainingPlan(input: {
       kind: AiUsageKind.ADAPT,
     })
 
-    const context = await buildAthleteContextPack(athleteId, {
-      lookbackWeeks: Math.max(4, lookbackWeeks + 2),
+    const result = await adaptExistingTrainingPlan({
+      planId: plan.id,
+      athleteId,
+      brief,
+      lockedModel: input.lockedModel,
     })
-
-    const planSnapshot = {
-      title: plan.title,
-      weekCount: plan.weekCount,
-      sessions: plan.sessions.map((s) => ({
-        id: s.id,
-        weekIndex: s.weekIndex,
-        dayOfWeek: s.dayOfWeek,
-        type: s.type,
-        sessionType: s.sessionType,
-        title: s.title,
-        description: s.description,
-        plannedDistance: s.plannedDistance,
-        plannedDuration: s.plannedDuration,
-      })),
-    }
-
-    const prompt = [
-      'Athlete context:',
-      context.textSummary,
-      '',
-      'Current plan:',
-      JSON.stringify(planSnapshot),
-      '',
-      'Adaptation brief:',
-      briefValuesToPrompt(brief),
-      '',
-      'Propose sessionEdits to improve the plan.',
-    ].join('\n')
-
-    const { object, tokensIn, tokensOut } =
-      await generateStructuredObject<typeof adaptPlanOutputSchema>({
-        system: skill.systemPrompt,
-        prompt,
-        schema: adaptPlanOutputSchema,
-      })
-
-    const editsApplied = await applyAdaptEdits(plan.id, plan.weekCount, object)
 
     await logAiUsageEvent({
       userId: session.userId,
       skillSlug: skill.slug,
       kind: AiUsageKind.ADAPT,
-      tokensIn,
-      tokensOut,
+      tokensIn: null,
+      tokensOut: null,
       athleteId,
       planId: plan.id,
     })
@@ -294,8 +429,8 @@ export async function adaptAiTrainingPlan(input: {
     revalidatePath(`/workouts/plans/${plan.id}`)
     return {
       ok: true,
-      summary: object.summary,
-      editsApplied,
+      summary: result.summary,
+      editsApplied: result.editsApplied,
       planId: plan.id,
     }
   } catch (err) {
@@ -307,121 +442,14 @@ export async function adaptAiTrainingPlan(input: {
         reason: err.reason,
       }
     }
+    if (err instanceof CoachEngineSafetyError) {
+      return {
+        ok: false,
+        error: err.message,
+        safetyBlocked: true,
+      }
+    }
     const message = err instanceof Error ? err.message : 'Adapt failed'
     return { ok: false, error: message }
   }
-}
-
-async function applyAdaptEdits(
-  planId: string,
-  weekCount: number,
-  adapt: AdaptPlanOutput,
-): Promise<number> {
-  let applied = 0
-  for (const edit of adapt.sessionEdits) {
-    if (
-      edit.weekIndex < 0 ||
-      edit.weekIndex >= weekCount ||
-      edit.dayOfWeek < 0 ||
-      edit.dayOfWeek > 6
-    ) {
-      continue
-    }
-
-    if (edit.action === 'add') {
-      if (!edit.title || !edit.type) continue
-      const maxSort = await prisma.trainingPlanSession.aggregate({
-        where: {
-          planId,
-          weekIndex: edit.weekIndex,
-          dayOfWeek: edit.dayOfWeek,
-        },
-        _max: { sortOrder: true },
-      })
-      await prisma.trainingPlanSession.create({
-        data: {
-          planId,
-          weekIndex: edit.weekIndex,
-          dayOfWeek: edit.dayOfWeek,
-          sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
-          type: edit.type,
-          sessionType: edit.sessionType ?? 'CUSTOM',
-          title: edit.title.slice(0, 120),
-          description: edit.description ?? null,
-          plannedDistance: edit.plannedDistance ?? null,
-          plannedDuration: edit.plannedDuration ?? null,
-          coachNotes: edit.coachNotes ?? null,
-        },
-      })
-      applied += 1
-      continue
-    }
-
-    const candidates = await prisma.trainingPlanSession.findMany({
-      where: {
-        planId,
-        weekIndex: edit.weekIndex,
-        dayOfWeek: edit.dayOfWeek,
-        ...(edit.matchTitle
-          ? { title: { equals: edit.matchTitle, mode: 'insensitive' } }
-          : {}),
-      },
-      orderBy: { sortOrder: 'asc' },
-      take: 1,
-    })
-    const target = candidates[0]
-    if (!target) continue
-
-    if (edit.action === 'remove') {
-      await prisma.trainingPlanSession.delete({ where: { id: target.id } })
-      applied += 1
-      continue
-    }
-
-    await prisma.trainingPlanSession.update({
-      where: { id: target.id },
-      data: {
-        ...(edit.type ? { type: edit.type } : {}),
-        ...(edit.sessionType ? { sessionType: edit.sessionType } : {}),
-        ...(edit.title ? { title: edit.title.slice(0, 120) } : {}),
-        ...(edit.description !== undefined
-          ? { description: edit.description }
-          : {}),
-        ...(edit.plannedDistance !== undefined
-          ? { plannedDistance: edit.plannedDistance }
-          : {}),
-        ...(edit.plannedDuration !== undefined
-          ? { plannedDuration: edit.plannedDuration }
-          : {}),
-        ...(edit.coachNotes !== undefined
-          ? { coachNotes: edit.coachNotes }
-          : {}),
-      },
-    })
-    applied += 1
-  }
-
-  if (adapt.guidelines?.trim()) {
-    const existing = await prisma.trainingPlan.findUnique({
-      where: { id: planId },
-      select: { description: true },
-    })
-    const note = `Adapt notes:\n${adapt.guidelines.trim()}`
-    await prisma.trainingPlan.update({
-      where: { id: planId },
-      data: {
-        description: existing?.description
-          ? `${existing.description}\n\n${note}`.slice(0, 4000)
-          : note.slice(0, 4000),
-        updatedAt: new Date(),
-      },
-    })
-  } else {
-    await prisma.trainingPlan.update({
-      where: { id: planId },
-      data: { updatedAt: new Date() },
-    })
-  }
-
-  return applied
 }

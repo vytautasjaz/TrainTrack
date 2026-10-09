@@ -1,8 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, getISOWeek } from 'date-fns'
 import {
   addDateOnlyDays,
   parseDateOnly,
@@ -19,19 +18,28 @@ import {
   HomeMobileSectionHeader,
 } from '@/components/ui/mobile-accordion-body'
 import {
+  WeekCarouselNav,
   WeekSwipePane,
   WeekSwipeSlide,
 } from '@/components/dashboard/week-swipe-pane'
 import { useMorphArray } from '@/components/dashboard/week-nav-morph'
 import { cn } from '@/lib/utils'
+import {
+  DASHBOARD_WEEK_NAV_CENTER,
+  DASHBOARD_WEEK_NAV_COUNT,
+} from '@/lib/dashboard-week-nav'
 
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const
 const CHART_W = 320
 const CHART_H = 72
 const PAD_X = 12
 const PAD_Y = 12
-const OFFSETS = [-1, 0, 1] as const
-const CENTER_INDEX = 1
+const WEEK_COUNT = DASHBOARD_WEEK_NAV_COUNT
+const CENTER_INDEX = DASHBOARD_WEEK_NAV_CENTER
+const OFFSETS = Array.from(
+  { length: WEEK_COUNT },
+  (_, i) => i - CENTER_INDEX,
+) as readonly number[]
 
 const SHELL =
   'overflow-hidden rounded-[0.9rem] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-surface,#fff)] px-4 py-3.5 shadow-[var(--tt-shadow)] md:rounded-[10px] md:p-4'
@@ -266,7 +274,13 @@ export function AthleteTrainingLoadCard({
             ? `${format(start, 'd')}–${format(end, 'd MMM')}`
             : `${format(start, 'd MMM')} – ${format(end, 'd MMM')}`
       const label =
-        off === 0 ? 'This week' : off === -1 ? 'Last week' : 'Next week'
+        off === 0
+          ? 'This week'
+          : off === -1
+            ? 'Last week'
+            : off === 1
+              ? 'Next week'
+              : `Week ${getISOWeek(start)}`
       return {
         off,
         startKey,
@@ -281,15 +295,6 @@ export function AthleteTrainingLoadCard({
       }
     })
   }, [anchorWeekStartKey, workouts, todayKey, thresholds, metric])
-
-  const yMax = useMemo(
-    () =>
-      Math.max(
-        ...weeks.flatMap((w) => [...w.dailyPlanned, ...w.dailyActual]),
-        1,
-      ),
-    [weeks],
-  )
 
   const week = weeks[active]!
   const unitLabel = metric === 'tss' ? 'TSS' : 'min'
@@ -365,26 +370,14 @@ export function AthleteTrainingLoadCard({
         collapsible={false}
         subtitle={`${week.label} · ${week.range}`}
         trailing={
-          <>
-            <button
-              type="button"
-              className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
-              aria-label="Previous week"
-              onClick={() => goByArrow(Math.max(0, active - 1))}
-              disabled={active <= 0}
-            >
-              <ChevronLeft className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-            <button
-              type="button"
-              className="rounded p-0.5 text-[var(--tt-ink-faint,#9a9a9a)] enabled:hover:text-[var(--tt-ink,#111)] disabled:opacity-30"
-              aria-label="Next week"
-              onClick={() => goByArrow(Math.min(weeks.length - 1, active + 1))}
-              disabled={active >= weeks.length - 1}
-            >
-              <ChevronRight className="h-3.5 w-3.5" strokeWidth={1.75} />
-            </button>
-          </>
+          <WeekCarouselNav
+            canPrev={active > 0}
+            canNext={active < weeks.length - 1}
+            isToday={active === CENTER_INDEX}
+            onPrev={() => goByArrow(Math.max(0, active - 1))}
+            onNext={() => goByArrow(Math.min(weeks.length - 1, active + 1))}
+            onToday={() => goByArrow(CENTER_INDEX)}
+          />
         }
       />
 
@@ -462,7 +455,7 @@ export function AthleteTrainingLoadCard({
                 key={`${slide.startKey}-${metric}-${isVisible ? morphGen : 'idle'}`}
                 plannedDaily={data.dailyPlanned}
                 actualDaily={data.dailyActual}
-                yMax={yMax}
+                yMax={Math.max(...data.dailyPlanned, ...data.dailyActual, 1)}
                 showActual={showActual}
                 morphFrom={isVisible ? dailyMorphFrom : null}
               />

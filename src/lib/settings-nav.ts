@@ -1,6 +1,7 @@
 export type SettingsSectionId =
   | 'profile'
   | 'sign-in'
+  | 'privacy'
   | 'zones'
   | 'weather'
   | 'plan'
@@ -17,6 +18,7 @@ export type SettingsNavItem = {
 export const ATHLETE_SETTINGS_NAV: SettingsNavItem[] = [
   { id: 'profile', label: 'Profile' },
   { id: 'sign-in', label: 'Sign-in' },
+  { id: 'privacy', label: 'Privacy' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'zones', label: 'Training zones' },
   { id: 'weather', label: 'Weather' },
@@ -40,6 +42,7 @@ const LEGACY_HASH_MAP: Record<string, SettingsSectionId> = {
   'pending-requests': 'profile',
   'invite-athlete': 'profile',
   'sign-in': 'sign-in',
+  privacy: 'privacy',
   zones: 'zones',
   weather: 'weather',
   plan: 'plan',

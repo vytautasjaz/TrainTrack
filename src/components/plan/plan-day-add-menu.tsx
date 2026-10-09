@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, useTransition } from 'react'
 import { createPortal } from 'react-dom'
-import { CalendarRange, Flag, StickyNote } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { CalendarRange, Flag, Sparkles, StickyNote } from 'lucide-react'
 import { RaceIntent, WorkoutType } from '@prisma/client'
 import { WorkoutEditorDialog } from '@/components/workout-editor/workout-editor-dialog'
 import { DayNoteModal } from '@/components/plan/day-note-modal'
@@ -15,6 +16,7 @@ import {
   weekAddPlusButtonClass,
   weekAddPlusIconButtonClass,
 } from '@/components/plan/week-add-plus'
+import { createAiSuggestedCalendarWorkouts } from '@/app/actions/ai-calendar'
 import { SPORT_ROW_ORDER, WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import {
   dayNoteKindHasContent,
@@ -96,6 +98,7 @@ export function PlanDayAddMenu({
   revealOnHover = false,
   className,
 }: PlanDayAddMenuProps) {
+  const router = useRouter()
   const canAddWorkout = !isCoach
   const canShowNoteOption = canAddNote
   const canAddRecoveryOption = isCoach && !recoveryWorkout
@@ -110,6 +113,8 @@ export function PlanDayAddMenu({
   const [raceOpen, setRaceOpen] = useState(false)
   const [menuPos, setMenuPos] = useState<MenuPosition | null>(null)
   const [portalReady, setPortalReady] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [aiPending, startAiTransition] = useTransition()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuPanelRef = useRef<HTMLDivElement>(null)
   /** Pointer position when opening — keeps the menu next to the + / click, not the cell edge. */
@@ -235,6 +240,22 @@ export function PlanDayAddMenu({
     setRaceOpen(true)
   }
 
+  function addAiSuggested() {
+    setAiError(null)
+    setMenuOpen(false)
+    startAiTransition(async () => {
+      const result = await createAiSuggestedCalendarWorkouts({
+        dateKeys: [dateKey],
+        athleteId,
+      })
+      if (!result.ok) {
+        setAiError(result.error)
+        return
+      }
+      router.refresh()
+    })
+  }
+
   const menuPanel =
     menuOpen && (isCoach || canAddWorkout) && menuPos && portalReady
       ? createPortal(
@@ -251,12 +272,30 @@ export function PlanDayAddMenu({
                 : 'translateX(-100%)',
             }}
           >
+            {isCoach ? (
+              <MenuItem
+                label={aiPending ? 'Suggesting…' : 'AI suggested workout'}
+                icon={
+                  <Sparkles
+                    className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    strokeWidth={2}
+                  />
+                }
+                onClick={addAiSuggested}
+                className="font-medium"
+              />
+            ) : null}
             {(isCoach ? COACH_ADD_SPORTS : ATHLETE_ADD_SPORTS).map((sport) => (
               <MenuItem
                 key={sport}
                 label={WORKOUT_TYPE_LABELS[sport]}
                 icon={<WorkoutSportIcon type={sport} size="xs" />}
                 onClick={() => openWorkoutSport(sport)}
+                className={
+                  isCoach && sport === COACH_ADD_SPORTS[0]
+                    ? 'border-t border-border/50'
+                    : undefined
+                }
               />
             ))}
             {canAddRace && (
@@ -368,6 +407,12 @@ export function PlanDayAddMenu({
       </button>
 
       {menuPanel}
+
+      {aiError ? (
+        <p className="absolute left-0 top-full z-20 mt-1 max-w-[12rem] rounded-[6px] border border-[var(--tt-line,#ebebeb)] bg-white px-2 py-1 text-[11px] text-[var(--tt-red,#da2f36)] shadow-sm">
+          {aiError}
+        </p>
+      ) : null}
 
       {workoutOpen && workoutSport && (
         <WorkoutEditorDialog

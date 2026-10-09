@@ -1,7 +1,7 @@
 'use client'
 
 import type { CSSProperties } from 'react'
-import { Clock } from 'lucide-react'
+import { Activity, Clock } from 'lucide-react'
 import { WorkoutType, PlannedMetricSource, type WorkoutType as WT } from '@prisma/client'
 import type {
   TrainingPlanPhaseDetail,
@@ -21,6 +21,8 @@ import {
   type PlanIntensityBreakdown,
 } from '@/lib/training-plan-intensity-breakdown'
 import { resolveTrainingPlanSessionMetricsForAthlete } from '@/lib/training-plan-session-metrics'
+import { estimatePlannedSessionTss } from '@/lib/training-load/session-tss'
+import { useSessionLoadThresholds } from '@/components/plan/session-load-thresholds-context'
 import { cn, formatDuration } from '@/lib/utils'
 import { usePlanCanvasSportMetricPrefs } from '@/hooks/use-plan-canvas-sport-metric-prefs'
 import { defaultSportMetricMode } from '@/lib/plan-canvas-stats-metric'
@@ -322,6 +324,7 @@ export function PlanCanvasWeekStats({
   style,
 }: PlanCanvasWeekStatsProps) {
   const { modeFor, toggleSport } = usePlanCanvasSportMetricPrefs(planId)
+  const loadThresholds = useSessionLoadThresholds()
   const bySport = new Map<
     WT,
     {
@@ -334,6 +337,7 @@ export function PlanCanvasWeekStats({
   >()
 
   let totalDuration = 0
+  let totalTss = 0
   for (const s of sessions) {
     const metrics = sessionMetrics(s, estimationPreferences)
     const dur =
@@ -355,6 +359,14 @@ export function PlanCanvasWeekStats({
             : 0
         : 0
     totalDuration += dur
+    const sessionTss = estimatePlannedSessionTss({
+      type: s.type,
+      sessionType: s.sessionType,
+      structure: s.structure,
+      plannedDuration: dur > 0 ? dur : s.plannedDuration,
+      thresholds: loadThresholds,
+    })
+    if (sessionTss != null) totalTss += sessionTss
     const cur = bySport.get(s.type) ?? {
       duration: 0,
       distanceKm: 0,
@@ -411,6 +423,7 @@ export function PlanCanvasWeekStats({
   const MainSportIcon = mainSport ? WORKOUT_TYPE_ICONS[mainSport] : null
   const volumeLabel =
     totalDuration > 0 ? formatDuration(totalDuration) : '—'
+  const tssLabel = totalTss > 0 ? String(Math.round(totalTss)) : '—'
 
   return (
     <div
@@ -455,7 +468,7 @@ export function PlanCanvasWeekStats({
             aria-hidden
           />
         ) : null}
-        {/* Expanded: volume + main-sport mileage */}
+        {/* Expanded: volume + TSS + main-sport mileage */}
         <div
           className={cn(
             'grid transition-[grid-template-rows,opacity,margin] duration-[var(--tt-motion-normal,280ms)] ease-[cubic-bezier(0.22,1,0.36,1)]',
@@ -465,8 +478,8 @@ export function PlanCanvasWeekStats({
           )}
         >
           <div className="min-h-0 overflow-hidden">
-            <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[6px] bg-foreground/8">
-              <div className="flex items-center gap-1.5 bg-[color-mix(in_oklab,var(--color-muted)_40%,var(--color-card))] px-1.5 py-1.5">
+            <div className="grid grid-cols-3 gap-px overflow-hidden rounded-[6px] bg-foreground/8">
+              <div className="flex items-center gap-1 bg-[color-mix(in_oklab,var(--color-muted)_40%,var(--color-card))] px-1 py-1.5">
                 <Clock
                   className="h-3 w-3 shrink-0 text-muted-foreground"
                   strokeWidth={2.25}
@@ -481,7 +494,22 @@ export function PlanCanvasWeekStats({
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5 bg-[color-mix(in_oklab,var(--color-muted)_40%,var(--color-card))] px-1.5 py-1.5">
+              <div className="flex items-center gap-1 bg-[color-mix(in_oklab,var(--color-muted)_40%,var(--color-card))] px-1 py-1.5">
+                <Activity
+                  className="h-3 w-3 shrink-0 text-muted-foreground"
+                  strokeWidth={2.25}
+                  aria-hidden
+                />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold tabular-nums leading-tight text-foreground">
+                    {tssLabel}
+                  </p>
+                  <p className="text-[8px] leading-tight text-muted-foreground">
+                    TSS
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 bg-[color-mix(in_oklab,var(--color-muted)_40%,var(--color-card))] px-1 py-1.5">
                 {MainSportIcon ? (
                   <MainSportIcon
                     className={cn(
@@ -502,7 +530,7 @@ export function PlanCanvasWeekStats({
                   />
                 )}
                 <div className="min-w-0">
-                  <p className="text-[10px] font-semibold tabular-nums leading-tight text-foreground">
+                  <p className="truncate text-[10px] font-semibold tabular-nums leading-tight text-foreground">
                     {mileageLabel}
                   </p>
                   <p className="truncate text-[8px] leading-tight text-muted-foreground">

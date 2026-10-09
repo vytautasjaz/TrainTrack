@@ -4,7 +4,67 @@ import {
   type SubscriptionPlan,
   type UserMembership,
 } from '@prisma/client'
+import { listSkillSlugs } from '@/lib/ai/skills/registry'
 import { prisma } from '@/lib/prisma'
+
+/** Local/dev: skip paid membership gate so coach-engine drafts work without admin assign. */
+export function isAiEntitlementsBypass(): boolean {
+  const flag = process.env.AI_ENTITLEMENTS_BYPASS?.trim().toLowerCase()
+  if (flag === '1' || flag === 'true' || flag === 'yes') return true
+  if (flag === '0' || flag === 'false' || flag === 'no') return false
+  return process.env.NODE_ENV === 'development'
+}
+
+function bypassQuotaSnapshot(userId: string): AiQuotaSnapshot {
+  const now = new Date()
+  const periodEnd = new Date(now)
+  periodEnd.setFullYear(periodEnd.getFullYear() + 1)
+  const skillSlugs = listSkillSlugs()
+  const plan = {
+    id: 'ai-entitlements-bypass',
+    slug: 'dev-bypass',
+    name: 'Dev bypass',
+    description: 'Local entitlement bypass (AI_ENTITLEMENTS_BYPASS / development).',
+    priceCents: 0,
+    interval: 'month',
+    aiDraftsPerMonth: 999,
+    aiAdaptsPerMonth: 999,
+    maxPlanWeeks: 52,
+    enabledSkillSlugs: skillSlugs,
+    isActive: true,
+    sortOrder: 0,
+    createdAt: now,
+    updatedAt: now,
+  } satisfies SubscriptionPlan
+
+  const membership = {
+    id: 'ai-entitlements-bypass',
+    userId,
+    planId: plan.id,
+    status: MembershipStatus.ACTIVE,
+    currentPeriodStart: now,
+    currentPeriodEnd: periodEnd,
+    stripeCustomerId: null,
+    stripeSubscriptionId: null,
+    createdAt: now,
+    updatedAt: now,
+    plan,
+  } satisfies MembershipWithPlan
+
+  return {
+    membership,
+    draftsUsed: 0,
+    adaptsUsed: 0,
+    draftsLimit: plan.aiDraftsPerMonth,
+    adaptsLimit: plan.aiAdaptsPerMonth,
+    draftsRemaining: plan.aiDraftsPerMonth,
+    adaptsRemaining: plan.aiAdaptsPerMonth,
+    maxPlanWeeks: plan.maxPlanWeeks,
+    enabledSkillSlugs: skillSlugs,
+    periodStart: now,
+    periodEnd,
+  }
+}
 
 export class AiPaywallError extends Error {
   readonly code = 'AI_PAYWALL' as const
@@ -81,6 +141,8 @@ export async function getAiQuotaSnapshot(
   userId: string,
   at: Date = new Date(),
 ): Promise<AiQuotaSnapshot> {
+  if (isAiEntitlementsBypass()) return bypassQuotaSnapshot(userId)
+
   const membership = await getActiveMembership(userId, at)
   if (!membership) {
     return {

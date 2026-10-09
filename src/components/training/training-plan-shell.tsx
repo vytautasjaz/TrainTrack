@@ -11,8 +11,10 @@ import {
 } from '@/components/training/training-library-context'
 import { PlanSportFilterProvider } from '@/components/training/plan-sport-filter-context'
 import { ShowFeedbackProvider } from '@/components/training/show-feedback-context'
+import { SessionLoadThresholdsProvider } from '@/components/plan/session-load-thresholds-context'
 import { TrainingLibraryPanel } from '@/components/training/training-library-panel'
 import { cn } from '@/lib/utils'
+import type { SessionLoadThresholds } from '@/lib/training-load/session-tss'
 
 export type {
   TrainingLibraryAthleteOption,
@@ -26,6 +28,7 @@ type TrainingPlanShellProps = {
   folders?: TrainingLibraryFolderItem[]
   athleteId?: string
   athletes?: TrainingLibraryAthleteOption[]
+  loadThresholds?: SessionLoadThresholds | null
   children: ReactNode
 }
 
@@ -150,6 +153,7 @@ export function TrainingPlanShell({
   folders = [],
   athleteId,
   athletes = [],
+  loadThresholds,
   children,
 }: TrainingPlanShellProps) {
   const body = (
@@ -172,7 +176,11 @@ export function TrainingPlanShell({
 
   return (
     <ShowFeedbackProvider>
-      <PlanSportFilterProvider>{body}</PlanSportFilterProvider>
+      <PlanSportFilterProvider>
+        <SessionLoadThresholdsProvider value={loadThresholds}>
+          {body}
+        </SessionLoadThresholdsProvider>
+      </PlanSportFilterProvider>
     </ShowFeedbackProvider>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { MapPin, Target } from 'lucide-react'
+import { Activity, MapPin, Target } from 'lucide-react'
 import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import {
   getRescheduleBadgeLabel,
@@ -10,13 +10,16 @@ import {
   getWorkoutCardDuration,
   getWorkoutCardHero,
   getWorkoutCardSubtitle,
+  getWorkoutCardTss,
   getWorkoutCompletionPercent,
   isWorkoutCardCompleted,
   isWorkoutCardSkipped,
   workoutHasLoggedActuals,
 } from '@/lib/workout-card'
 import { getWorkoutPlanMetrics } from '@/lib/workout-plan-metrics'
+import { useSessionLoadThresholds } from '@/components/plan/session-load-thresholds-context'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import { WorkoutCardCoachNote } from '@/components/plan/workout-card-coach-note'
 import { cn } from '@/lib/utils'
 
 function sportRailColor(type: WorkoutType): string {
@@ -95,6 +98,7 @@ export function HomePrescriptionWorkoutCard({
   className?: string
 }) {
   const status = workout.status
+  const loadThresholds = useSessionLoadThresholds()
   const done = isWorkoutCardCompleted(status)
   const skipped = isWorkoutCardSkipped(status)
   const ghost = Boolean(workout.isRescheduleGhost)
@@ -140,6 +144,7 @@ export function HomePrescriptionWorkoutCard({
       : null
   const actualSecondary =
     showLogged && secondary?.actual ? secondary.actual : null
+  const tss = getWorkoutCardTss(workout, status, loadThresholds)
   const showRescheduleBadge = Boolean(getRescheduleBadgeLabel(workout))
 
   return (
@@ -212,6 +217,8 @@ export function HomePrescriptionWorkoutCard({
           </p>
         ) : null}
 
+        <WorkoutCardCoachNote note={workout.coachNotes} />
+
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] leading-snug text-[var(--tt-ink-soft,#6b6b6b)]">
           {done && actualMetric ? (
             <>
@@ -233,6 +240,22 @@ export function HomePrescriptionWorkoutCard({
                       {secondary.planned}
                     </span>
                   ) : null}
+                </span>
+              ) : null}
+              {tss ? (
+                <span className="inline-flex items-center gap-1 tabular-nums text-[var(--tt-good,#1a9f5c)]/80">
+                  <Activity
+                    className="h-3 w-3 text-[var(--tt-ink-faint,#9a9a9a)]"
+                    strokeWidth={1.75}
+                  />
+                  {tss.actual}
+                  {tss.planned ? (
+                    <span className="text-[var(--tt-good,#1a9f5c)]/55">
+                      {' / '}
+                      {tss.planned}
+                    </span>
+                  ) : null}
+                  {' TSS'}
                 </span>
               ) : null}
               {pct > 0 ? (
@@ -261,6 +284,15 @@ export function HomePrescriptionWorkoutCard({
                     strokeWidth={1.75}
                   />
                   {zone}
+                </span>
+              ) : null}
+              {tss ? (
+                <span className="inline-flex items-center gap-1 tabular-nums">
+                  <Activity
+                    className="h-3 w-3 text-[var(--tt-ink-faint,#9a9a9a)]"
+                    strokeWidth={1.75}
+                  />
+                  {tss.actual} TSS
                 </span>
               ) : null}
             </>

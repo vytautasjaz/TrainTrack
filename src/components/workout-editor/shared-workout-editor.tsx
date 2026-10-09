@@ -67,6 +67,7 @@ import {
   type WorkoutLibraryFolderPickerItem,
   type WorkoutTemplatePickerItem,
 } from "@/app/actions/workout-builder";
+import { adminSaveCoachEngineWorkoutBuilder } from "@/app/actions/admin-ai-library";
 import {
   createTrainingPlanSession,
   updateTrainingPlanSession,
@@ -356,6 +357,8 @@ export function SharedWorkoutEditor({
   const isEdit = Boolean(workout) || Boolean(entityId);
   const isTemplate = mode === "template";
   const isTrainingPlan = mode === "training-plan";
+  const isAiLibrary = mode === "ai-library";
+  const isLibraryLike = isTemplate || isAiLibrary;
   const [sportType, setSportType] = useState<WorkoutType>(
     workout?.type ?? initialSport,
   );
@@ -439,7 +442,7 @@ export function SharedWorkoutEditor({
   const structureHeroKeyRef = useRef<string | null>(null);
   /** Skip simple-metric re-estimation after hydrating a saved workout. */
   const simpleMetricsHydratedRef = useRef<string | null>(null);
-  const showChatTab = !athleteMode && !isTemplate && !isTrainingPlan && Boolean(workout?.id);
+  const showChatTab = !athleteMode && !isLibraryLike && !isTrainingPlan && Boolean(workout?.id);
   const {
     thread: coachingThread,
     ready: coachingThreadReady,
@@ -1235,9 +1238,26 @@ export function SharedWorkoutEditor({
       return;
     }
 
-    // Restore Auto from the opposite manual metric (fresh estimate).
+    // Restore Auto — structure blocks win over inventing km from duration × pace.
     setDistanceManual(false);
     setDistanceInput("");
+    if (structureDrivesHero) {
+      if (sportType === WorkoutType.SWIM && swimForm.swimStructure) {
+        const meters = workoutDistanceMetersDraft(swimForm.swimStructure);
+        const km = meters > 0 ? meters / 1000 : 0;
+        setAutoDistanceInput(meters > 0 ? String(meters) : "");
+        setDistanceKm(km);
+        return;
+      }
+      const km =
+        Math.round(
+          estimateStructureDistanceKm(structure, preferences, sportType) * 10,
+        ) / 10;
+      const formatted = km > 0 ? formatDistanceInputValue(km) : "";
+      setAutoDistanceInput(formatted);
+      setDistanceKm(km);
+      return;
+    }
     if (canAutoEstimate && durationManual && durationMin > 0) {
       const estimated = estimateDistanceFromDuration(durationMin);
       const formatted = formatDistanceEstimate(estimated);
@@ -1272,9 +1292,38 @@ export function SharedWorkoutEditor({
       return;
     }
 
-    // Restore Auto from the opposite manual metric (fresh estimate).
+    // Restore Auto — structure blocks win over inventing time from distance × pace.
     setDurationManual(false);
     setDurationInput("");
+    if (structureDrivesHero) {
+      if (sportType === WorkoutType.SWIM && swimForm.swimStructure) {
+        const meters = workoutDistanceMetersDraft(swimForm.swimStructure);
+        const km = meters / 1000;
+        const css = preferences?.swimCssSecPer100m;
+        const minutes =
+          typeof css === "number" && css > 0 && meters > 0
+            ? estimateDurationMinutesFromDistanceKm(
+                km,
+                preferences,
+                undefined,
+                sportType,
+              )
+            : 0;
+        const formatted =
+          minutes > 0 ? formatDurationInput(minutes, durationUnit) : "";
+        setAutoDurationInput(formatted);
+        setDurationMin(minutes);
+        return;
+      }
+      const minutes = Math.round(
+        estimateStructureDurationMinutes(structure, preferences, sportType),
+      );
+      const formatted =
+        minutes > 0 ? formatDurationInput(minutes, durationUnit) : "";
+      setAutoDurationInput(formatted);
+      setDurationMin(minutes);
+      return;
+    }
     if (canAutoEstimate && distanceManual && distanceKm > 0) {
       const estimated = estimateDurationFromDistance(distanceKm);
       const formatted =
@@ -1804,6 +1853,25 @@ export function SharedWorkoutEditor({
           return;
         }
 
+        if (isAiLibrary) {
+          if (!entityId) throw new Error("AI library workout id required");
+          await adminSaveCoachEngineWorkoutBuilder(entityId, {
+            title: payload.title,
+            description: payload.description,
+            sportType: WorkoutType.SWIM,
+            sessionType: SessionType.CUSTOM,
+            tags: payload.tags,
+            swimStructure: payload.swimStructure,
+            estimatedDuration: payload.plannedDuration ?? undefined,
+            estimatedDistanceKm:
+              payload.plannedDistanceMeters != null
+                ? payload.plannedDistanceMeters / 1000
+                : null,
+          });
+          onSaved?.();
+          return;
+        }
+
         if (isTrainingPlan) {
           if (planId == null || weekIndex == null || dayOfWeek == null) {
             throw new Error("Plan slot required");
@@ -1915,6 +1983,25 @@ export function SharedWorkoutEditor({
         } else {
           await saveTemplateBuilder(payload);
         }
+        onSaved?.();
+        return;
+      }
+
+      if (isAiLibrary) {
+        if (!entityId) throw new Error("AI library workout id required");
+        await adminSaveCoachEngineWorkoutBuilder(entityId, {
+          title: resolvedTitle,
+          description: resolvedDescription || undefined,
+          sportType,
+          sessionType: resolvedSession,
+          tags: buildTags(),
+          structure:
+            persistDetails || persistInclude
+              ? structureToSave
+              : emptyStructure(),
+          estimatedDuration: durationMin > 0 ? durationMin : undefined,
+          estimatedDistanceKm: distanceKm > 0 ? distanceKm : null,
+        });
         onSaved?.();
         return;
       }
@@ -2112,7 +2199,7 @@ export function SharedWorkoutEditor({
             Preview
           </Button>
         ) : null}
-        {!athleteMode && !isTemplate && !previewOpen ? (
+        {!athleteMode && !isLibraryLike && !previewOpen ? (
           <Button
             type="button"
             variant="ghost"
@@ -2426,7 +2513,7 @@ export function SharedWorkoutEditor({
           <X className="h-4 w-4" />
         </button>
       ) : null}
-      {isTemplate ? (
+      {isLibraryLike ? (
         <div
           className={cn(
             "flex flex-row items-start justify-between gap-3 border-b border-white/[0.08] bg-[var(--tt-workout-hero-bg,#151827)] px-5 py-4 text-white/[0.92] sm:px-6",
@@ -2435,10 +2522,16 @@ export function SharedWorkoutEditor({
         >
           <div>
             <h2 className="text-lg font-semibold text-white">
-              {isEdit ? "Edit template" : "New template"}
+              {isAiLibrary
+                ? "Edit AI library workout"
+                : isEdit
+                  ? "Edit template"
+                  : "New template"}
             </h2>
             <p className="text-sm text-white/55">
-              {WORKOUT_TYPE_LABELS[sportType]}
+              {isAiLibrary && entityId
+                ? `${entityId} · ${WORKOUT_TYPE_LABELS[sportType]}`
+                : WORKOUT_TYPE_LABELS[sportType]}
             </p>
           </div>
         </div>
@@ -2451,7 +2544,7 @@ export function SharedWorkoutEditor({
           subtitle={subtitle}
           titleAuto={titleAuto}
           subtitleAuto={subtitleAuto}
-          dateLabel={!isTemplate ? dateLabel : null}
+          dateLabel={!isLibraryLike ? dateLabel : null}
           workoutTypeControl={workoutTypeControl}
           sportOptions={!athleteMode ? sportOptions : undefined}
           onSportChange={!athleteMode ? handleSportChange : undefined}

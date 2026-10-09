@@ -1,4 +1,4 @@
-import { AthleteLogType, SessionType, WorkoutStatus, WorkoutType } from '@prisma/client'
+import { AthleteLogType, Prisma, SessionType, WorkoutStatus, WorkoutType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { addDateOnlyDays, parseDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
@@ -11,22 +11,32 @@ import {
   triathlonLegsCreateData,
   workoutTypeForRaceLeg,
 } from '@/lib/race-legs'
-import { fetchAllRecentActivities, fetchStravaActivity, fetchStravaActivityStreams, getValidAccessToken, stravaActivityUrl } from './client'
+import { fetchAllRecentActivities, fetchStravaActivity, fetchStravaActivityLaps, fetchStravaActivityStreams, getValidAccessToken, stravaActivityUrl } from './client'
 import { syncStravaAvatarForUser } from './avatar'
 import { mapStravaTypeToWorkoutType, workoutTypesCompatible } from './map-sport'
-import type { StravaActivity } from './types'
+import { stravaRoutePolyline, type StravaActivity } from './types'
+import { polylineFromLatLng } from '@/lib/polyline'
 import {
   computeHrZoneSeconds,
   resolveHrZoneBounds,
   type HrZoneSeconds,
 } from '@/lib/training-load/hr-zone-tss'
 import { downsampleStreamSeries } from '@/lib/strava/stream-chart'
+import {
+  buildActivityLapsCache,
+  isLapsCacheRecord,
+  parseLapsCache,
+  type ActivityLapsCache,
+} from '@/lib/strava/laps'
+import {
+  normalizeAthletePrivacyPrefs,
+  shouldSkipStravaActivityForPrivacy,
+} from '@/lib/athlete-privacy'
+import { findWorkoutForActivityInPool } from '@/lib/strava/match-workout'
 
 /** How many days before/after the plan date to offer when manually linking Strava. */
 const STRAVA_LINK_LOOKBACK_DAYS = 7
 const STRAVA_LINK_LOOKAHEAD_DAYS = 7
-/** Nearby unfinished planned sessions auto-sync may match off the activity day. */
-const STRAVA_MATCH_NEARBY_DAYS = 3
 
 /** Minimum time between automatic (login/app-load) syncs per athlete connection. */
 export const STRAVA_AUTO_SYNC_INTERVAL_MS = 60 * 60 * 1000
@@ -77,7 +87,7 @@ function optionalFinite(value: number | null | undefined): number | null {
 
 /** Persistable Strava extras beyond distance/duration (for display + future use). */
 function stravaMetricsFromActivity(activity: StravaActivity) {
-  const summaryPolyline = activity.map?.summary_polyline?.trim() || null
+  const summaryPolyline = stravaRoutePolyline(activity.map)
   return {
     averageHeartrate: optionalFinite(activity.average_heartrate),
     maxHeartrate: optionalFinite(activity.max_heartrate),
@@ -149,8 +159,8 @@ async function loadStravaMatchPool(athleteId: string, activities: StravaActivity
   const keys = activities.map(activityDateKey)
   const minKey = keys.reduce((a, b) => (a < b ? a : b))
   const maxKey = keys.reduce((a, b) => (a > b ? a : b))
-  const fromDate = addDateOnlyDays(parseDateOnly(minKey), -STRAVA_MATCH_NEARBY_DAYS)
-  const toDate = addDateOnlyDays(parseDateOnly(maxKey), STRAVA_MATCH_NEARBY_DAYS)
+  const fromDate = parseDateOnly(minKey)
+  const toDate = parseDateOnly(maxKey)
   return prisma.workout.findMany({
     where: {
       athleteId,
@@ -175,73 +185,6 @@ async function loadStravaMatchPool(athleteId: string, activities: StravaActivity
 }
 
 type StravaMatchPoolRow = Awaited<ReturnType<typeof loadStravaMatchPool>>[number]
-
-function findWorkoutForActivityInPool(
-  pool: StravaMatchPoolRow[],
-  activity: StravaActivity,
-  claimedWorkoutIds: Set<string>,
-) {
-  const activityType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
-  if (!activityType) return null
-
-  const dateKey = activityDateKey(activity)
-  const workoutDate = parseDateOnly(dateKey)
-  const available = pool.filter((w) => !claimedWorkoutIds.has(w.id))
-
-  const sameDay = available.filter((w) => toDateKey(w.date) === dateKey)
-
-  const pickCompatible = (
-    candidates: StravaMatchPoolRow[],
-    statuses: WorkoutStatus[],
-  ) =>
-    candidates.find(
-      (w) =>
-        statuses.includes(w.status) &&
-        workoutTypesCompatible(w.type, activityType) &&
-        !w.result?.stravaActivityId,
-    ) ?? null
-
-  const sameDayPlanned = pickCompatible(sameDay, [WorkoutStatus.PLANNED])
-  if (sameDayPlanned) return { workout: sameDayPlanned, offDay: false as const }
-
-  const sameDayIncomplete = sameDay.find(
-    (w) =>
-      w.status === WorkoutStatus.COMPLETED &&
-      workoutTypesCompatible(w.type, activityType) &&
-      !w.result?.stravaActivityId &&
-      !w.result?.actualDistance,
-  )
-  if (sameDayIncomplete) return { workout: sameDayIncomplete, offDay: false as const }
-
-  const sameDaySkipped = pickCompatible(sameDay, [WorkoutStatus.SKIPPED])
-  if (sameDaySkipped) return { workout: sameDaySkipped, offDay: false as const }
-
-  const fromKey = toDateKey(addDateOnlyDays(workoutDate, -STRAVA_MATCH_NEARBY_DAYS))
-  const toKey = toDateKey(addDateOnlyDays(workoutDate, STRAVA_MATCH_NEARBY_DAYS))
-  const nearby = available.filter((w) => {
-    const key = toDateKey(w.date)
-    return (
-      key !== dateKey &&
-      key >= fromKey &&
-      key <= toKey &&
-      (w.status === WorkoutStatus.PLANNED || w.status === WorkoutStatus.SKIPPED) &&
-      !w.selfLogged
-    )
-  })
-
-  const nearbyMatch = nearby.find(
-    (w) =>
-      workoutTypesCompatible(w.type, activityType) && !w.result?.stravaActivityId,
-  )
-  if (nearbyMatch) return { workout: nearbyMatch, offDay: true as const }
-
-  return null
-}
-
-async function findWorkoutForActivity(athleteId: string, activity: StravaActivity) {
-  const pool = await loadStravaMatchPool(athleteId, [activity])
-  return findWorkoutForActivityInPool(pool, activity, new Set())
-}
 
 async function createSelfLoggedWorkoutFromActivity(
   athleteId: string,
@@ -288,6 +231,7 @@ async function fetchAndCacheActivityStreams(
   accessToken: string,
   activityId: number,
   bounds: NonNullable<ReturnType<typeof resolveHrZoneBounds>> | null,
+  sport: WorkoutType,
 ): Promise<{
   hrZoneSeconds: HrZoneSeconds | null
   streamsCache: {
@@ -295,9 +239,14 @@ async function fetchAndCacheActivityStreams(
     watts: ReturnType<typeof packStreamSeries>
     altitude: ReturnType<typeof packStreamSeries>
   }
+  lapsCache: ActivityLapsCache
+  routePolyline: string | null
 } | null> {
   try {
-    const streams = await fetchStravaActivityStreams(accessToken, activityId)
+    const [streams, rawLaps] = await Promise.all([
+      fetchStravaActivityStreams(accessToken, activityId),
+      fetchStravaActivityLaps(accessToken, activityId).catch(() => []),
+    ])
     const streamsCache = {
       heartrate: packStreamSeries(streams.heartrate, streams.time),
       watts: packStreamSeries(streams.watts, streams.time),
@@ -307,7 +256,21 @@ async function fetchAndCacheActivityStreams(
       bounds && streams.heartrate
         ? computeHrZoneSeconds(streams.heartrate, streams.time, bounds)
         : null
-    return { hrZoneSeconds, streamsCache }
+    const lapsCache = buildActivityLapsCache({
+      sport,
+      laps: rawLaps,
+      distanceM: streams.distance,
+      timeSec: streams.time,
+      altitudeM: streams.altitude,
+      heartrate: streams.heartrate,
+      velocityMps: streams.velocity,
+    })
+    return {
+      hrZoneSeconds,
+      streamsCache,
+      lapsCache,
+      routePolyline: polylineFromLatLng(streams.latlng),
+    }
   } catch (err) {
     console.warn('Strava streams fetch skipped:', err)
     return null
@@ -364,41 +327,41 @@ async function applyActivityToWorkout(
   const durationMin = secondsToMinutes(activity.moving_time || activity.elapsed_time)
   const activityName = activity.name?.trim() || null
 
-  // List summaries usually include the map polyline. Only hit detail when GPS is missing.
+  // Write the full activity once: calories, GPS, and description live in the DB
+  // after this so the UI never needs another Strava call.
   let activityDescription = activity.description?.trim() || null
   let detailedCalories = optionalFinite(activity.calories)
-  let summaryPolyline = activity.map?.summary_polyline?.trim() || null
-  if (!summaryPolyline) {
-    try {
-      const detailed = await fetchStravaActivity(accessToken, activity.id)
-      activityDescription = activityDescription || detailed.description?.trim() || null
-      detailedCalories = detailedCalories ?? optionalFinite(detailed.calories)
-      summaryPolyline =
-        summaryPolyline || detailed.map?.summary_polyline?.trim() || null
-      Object.assign(activity, {
-        average_heartrate: activity.average_heartrate ?? detailed.average_heartrate,
-        max_heartrate: activity.max_heartrate ?? detailed.max_heartrate,
-        average_speed: activity.average_speed ?? detailed.average_speed,
-        max_speed: activity.max_speed ?? detailed.max_speed,
-        total_elevation_gain:
-          activity.total_elevation_gain ?? detailed.total_elevation_gain,
-        average_cadence: activity.average_cadence ?? detailed.average_cadence,
-        kilojoules: activity.kilojoules ?? detailed.kilojoules,
-        average_watts: activity.average_watts ?? detailed.average_watts,
-        weighted_average_watts:
-          activity.weighted_average_watts ?? detailed.weighted_average_watts,
-        suffer_score: activity.suffer_score ?? detailed.suffer_score,
-        calories: activity.calories ?? detailed.calories,
-        map: activity.map?.summary_polyline ? activity.map : detailed.map,
-      })
-    } catch (err) {
-      console.warn('Strava activity detail fetch skipped:', err)
-    }
+  let summaryPolyline = stravaRoutePolyline(activity.map)
+  try {
+    const detailed = await fetchStravaActivity(accessToken, activity.id)
+    activityDescription = activityDescription || detailed.description?.trim() || null
+    detailedCalories = detailedCalories ?? optionalFinite(detailed.calories)
+    summaryPolyline = summaryPolyline || stravaRoutePolyline(detailed.map)
+    Object.assign(activity, {
+      average_heartrate: activity.average_heartrate ?? detailed.average_heartrate,
+      max_heartrate: activity.max_heartrate ?? detailed.max_heartrate,
+      average_speed: activity.average_speed ?? detailed.average_speed,
+      max_speed: activity.max_speed ?? detailed.max_speed,
+      total_elevation_gain:
+        activity.total_elevation_gain ?? detailed.total_elevation_gain,
+      average_cadence: activity.average_cadence ?? detailed.average_cadence,
+      kilojoules: activity.kilojoules ?? detailed.kilojoules,
+      average_watts: activity.average_watts ?? detailed.average_watts,
+      weighted_average_watts:
+        activity.weighted_average_watts ?? detailed.weighted_average_watts,
+      suffer_score: activity.suffer_score ?? detailed.suffer_score,
+      calories: activity.calories ?? detailed.calories,
+      map: stravaRoutePolyline(detailed.map) ? detailed.map : activity.map,
+    })
+    summaryPolyline = stravaRoutePolyline(activity.map) || summaryPolyline
+  } catch (err) {
+    console.warn('Strava activity detail fetch skipped:', err)
   }
 
   const workoutRow = await prisma.workout.findUnique({
     where: { id: workoutId },
     select: {
+      type: true,
       athleteId: true,
       athlete: {
         select: {
@@ -416,14 +379,20 @@ async function applyActivityToWorkout(
     accessToken,
     activity.id,
     hrBounds,
+    workoutRow?.type ?? WorkoutType.RUN,
   )
   const hrZoneSeconds = packed?.hrZoneSeconds ?? null
   const streamsCache = packed?.streamsCache ?? null
+  const lapsCache = packed?.lapsCache ?? null
+  summaryPolyline = summaryPolyline || packed?.routePolyline || null
 
-  await prisma.workout.update({
-    where: { id: workoutId },
-    data: { status: WorkoutStatus.COMPLETED },
+  const alreadyLinked = await prisma.workoutResult.findUnique({
+    where: { stravaActivityId: activityId },
+    select: { workoutId: true },
   })
+  if (alreadyLinked && alreadyLinked.workoutId !== workoutId) {
+    throw new Error('That Strava activity is already linked to another workout')
+  }
 
   const existing = await prisma.workoutResult.findUnique({ where: { workoutId } })
   // Older syncs copied the Strava title into athleteNotes — clear that so it is not
@@ -441,36 +410,46 @@ async function applyActivityToWorkout(
       summaryPolyline || stravaMetricsFromActivity(activity).summaryPolyline,
   }
 
-  await prisma.workoutResult.upsert({
-    where: { workoutId },
-    create: {
-      workoutId,
-      actualDistance: distanceKm,
-      actualDuration: durationMin,
-      logType: AthleteLogType.COMPLETED,
-      stravaActivityId: activityId,
-      stravaActivityUrl: stravaActivityUrl(activity.id),
-      stravaActivityName: activityName,
-      stravaActivityDescription: activityDescription,
-      ...metrics,
-      ...(hrZoneSeconds ? { hrZoneSeconds } : {}),
-      ...(streamsCache ? { stravaStreamsCache: streamsCache } : {}),
-      completedAt: new Date(activity.start_date),
-    },
-    update: {
-      actualDistance: distanceKm,
-      actualDuration: durationMin,
-      logType: AthleteLogType.COMPLETED,
-      stravaActivityId: activityId,
-      stravaActivityUrl: stravaActivityUrl(activity.id),
-      stravaActivityName: activityName,
-      stravaActivityDescription: activityDescription,
-      ...metrics,
-      ...(hrZoneSeconds ? { hrZoneSeconds } : {}),
-      ...(streamsCache ? { stravaStreamsCache: streamsCache } : {}),
-      completedAt: new Date(activity.start_date),
-      ...(clearAutoCopiedNotes ? { athleteNotes: null } : {}),
-    },
+  // Status + result together so a unique-constraint race cannot leave a
+  // "completed" planned session with no / failed Strava link.
+  await prisma.$transaction(async (tx) => {
+    await tx.workout.update({
+      where: { id: workoutId },
+      data: { status: WorkoutStatus.COMPLETED },
+    })
+    await tx.workoutResult.upsert({
+      where: { workoutId },
+      create: {
+        workoutId,
+        actualDistance: distanceKm,
+        actualDuration: durationMin,
+        logType: AthleteLogType.COMPLETED,
+        stravaActivityId: activityId,
+        stravaActivityUrl: stravaActivityUrl(activity.id),
+        stravaActivityName: activityName,
+        stravaActivityDescription: activityDescription,
+        ...metrics,
+        ...(hrZoneSeconds ? { hrZoneSeconds } : {}),
+        ...(streamsCache ? { stravaStreamsCache: streamsCache } : {}),
+        ...(lapsCache ? { stravaLapsCache: lapsCache } : {}),
+        completedAt: new Date(activity.start_date),
+      },
+      update: {
+        actualDistance: distanceKm,
+        actualDuration: durationMin,
+        logType: AthleteLogType.COMPLETED,
+        stravaActivityId: activityId,
+        stravaActivityUrl: stravaActivityUrl(activity.id),
+        stravaActivityName: activityName,
+        stravaActivityDescription: activityDescription,
+        ...metrics,
+        ...(hrZoneSeconds ? { hrZoneSeconds } : {}),
+        ...(streamsCache ? { stravaStreamsCache: streamsCache } : {}),
+        ...(lapsCache ? { stravaLapsCache: lapsCache } : {}),
+        completedAt: new Date(activity.start_date),
+        ...(clearAutoCopiedNotes ? { athleteNotes: null } : {}),
+      },
+    })
   })
 }
 
@@ -479,10 +458,21 @@ export async function syncStravaActivitiesForUser(
   athleteId: string,
   options?: StravaSyncOptions,
 ): Promise<StravaSyncResult> {
-  const athlete = await prisma.athlete.findUnique({ where: { id: athleteId } })
+  const athlete = await prisma.athlete.findUnique({
+    where: { id: athleteId },
+    select: {
+      userId: true,
+      hrZone1Max: true,
+      hrZone2Max: true,
+      hrZone3Max: true,
+      hrZone4Max: true,
+      privacyPrefs: true,
+    },
+  })
   if (!athlete) {
     throw new Error('Athlete not found')
   }
+  const privacyPrefs = normalizeAthletePrivacyPrefs(athlete.privacyPrefs)
   if (athlete.userId !== userId) {
     throw new Error('Strava can only be synced for your own athlete profile')
   }
@@ -531,9 +521,34 @@ export async function syncStravaActivitiesForUser(
       skipped += 1
       return
     }
+    if (shouldSkipStravaActivityForPrivacy(activity, privacyPrefs)) {
+      skipped += 1
+      return
+    }
 
     const existing = await prisma.workoutResult.findUnique({
       where: { stravaActivityId: String(activity.id) },
+      select: {
+        id: true,
+        averageHeartrate: true,
+        maxHeartrate: true,
+        averageSpeedMps: true,
+        maxSpeedMps: true,
+        elevationGainM: true,
+        sufferScore: true,
+        averageCadence: true,
+        kilojoules: true,
+        calories: true,
+        averageWatts: true,
+        weightedAverageWatts: true,
+        summaryPolyline: true,
+        hrZoneSeconds: true,
+        stravaStreamsCache: true,
+        stravaLapsCache: true,
+        actualDuration: true,
+        stravaActivityName: true,
+        workout: { select: { type: true } },
+      },
     })
     if (existing) {
       // Backfill only missing essentials. Skip description-only gaps (saves detail calls).
@@ -544,6 +559,12 @@ export async function syncStravaActivitiesForUser(
       const needsPolyline = !existing.summaryPolyline?.trim()
       const needsHrZones = existing.hrZoneSeconds == null && hrBounds != null
       const needsStreams = !hasStreamsCache(existing.stravaStreamsCache)
+      const parsedLaps = parseLapsCache(existing.stravaLapsCache)
+      const needsLaps = !isLapsCacheRecord(existing.stravaLapsCache)
+      const needsOverlay = Boolean(
+        isLapsCacheRecord(existing.stravaLapsCache) &&
+          (!parsedLaps || parsedLaps.version < 5),
+      )
       const durationMin = secondsToMinutes(activity.moving_time || activity.elapsed_time)
       const needsDurationPrecision =
         existing.actualDuration == null ||
@@ -554,7 +575,9 @@ export async function syncStravaActivitiesForUser(
         needsPolyline ||
         needsDurationPrecision ||
         needsHrZones ||
-        needsStreams
+        needsStreams ||
+        needsLaps ||
+        needsOverlay
       ) {
         try {
           // Detail only when GPS polyline is missing from the list payload.
@@ -573,11 +596,12 @@ export async function syncStravaActivitiesForUser(
               activity.elapsed_time,
           )
           const packed =
-            needsStreams || needsHrZones
+            needsStreams || needsHrZones || needsLaps || needsOverlay || needsPolyline
               ? await fetchAndCacheActivityStreams(
                   accessToken,
                   activity.id,
                   needsHrZones ? hrBounds : null,
+                  existing.workout.type,
                 )
               : null
           await prisma.workoutResult.update({
@@ -591,14 +615,20 @@ export async function syncStravaActivitiesForUser(
               ...(needsDurationPrecision
                 ? { actualDuration: preciseDuration || durationMin }
                 : {}),
-              ...(needsPolyline && metrics.summaryPolyline
-                ? { summaryPolyline: metrics.summaryPolyline }
+              ...(needsPolyline && (metrics.summaryPolyline || packed?.routePolyline)
+                ? {
+                    summaryPolyline:
+                      metrics.summaryPolyline || packed?.routePolyline || null,
+                  }
                 : {}),
               ...(packed?.hrZoneSeconds
                 ? { hrZoneSeconds: packed.hrZoneSeconds }
                 : {}),
               ...(packed?.streamsCache
                 ? { stravaStreamsCache: packed.streamsCache }
+                : {}),
+              ...(packed
+                ? { stravaLapsCache: packed.lapsCache }
                 : {}),
               ...(needsMetrics
                 ? {
@@ -667,23 +697,30 @@ async function processNewStravaActivity(opts: {
   claimedWorkoutIds: Set<string>
 }): Promise<'matched' | 'imported' | 'skipped'> {
   const { activity, accessToken, athleteId, matchPool, claimedWorkoutIds } = opts
+
+  // Re-check before attach/import — concurrent syncs can race past the earlier lookup.
+  const alreadyLinked = await prisma.workoutResult.findUnique({
+    where: { stravaActivityId: String(activity.id) },
+    select: { workoutId: true },
+  })
+  if (alreadyLinked) return 'skipped'
+
   const match = findWorkoutForActivityInPool(matchPool, activity, claimedWorkoutIds)
   if (match) {
     claimedWorkoutIds.add(match.workout.id)
-    if (match.offDay) {
-      await moveAthleteWorkoutToDateWithGhost(
-        match.workout.id,
-        parseDateOnly(activityDateKey(activity)),
-      )
+    try {
+      if (match.workout.status === WorkoutStatus.SKIPPED) {
+        await prisma.workout.update({
+          where: { id: match.workout.id },
+          data: { status: WorkoutStatus.PLANNED },
+        })
+      }
+      await applyActivityToWorkout(match.workout.id, activity, accessToken)
+      return 'matched'
+    } catch (err) {
+      console.warn('Strava activity match attach skipped:', err)
+      return 'skipped'
     }
-    if (match.workout.status === WorkoutStatus.SKIPPED) {
-      await prisma.workout.update({
-        where: { id: match.workout.id },
-        data: { status: WorkoutStatus.PLANNED },
-      })
-    }
-    await applyActivityToWorkout(match.workout.id, activity, accessToken)
-    return 'matched'
   }
 
   const activityType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
@@ -867,14 +904,15 @@ export type StravaActivityPickItem = ReturnType<typeof formatActivityPreview> & 
 }
 
 /**
- * Clear Strava link from a workout and restore it to PLANNED so it can be
- * re-matched or manually attached.
+ * Clear Strava link from a workout.
+ * Self-logged imports are removed from the plan entirely (they only exist
+ * because of Strava). Planned sessions are restored to PLANNED for re-link.
  */
 export async function unlinkStravaFromWorkoutForAthlete(
   userId: string,
   athleteId: string,
   workoutId: string,
-) {
+): Promise<{ removed: boolean }> {
   const workout = await prisma.workout.findFirst({
     where: { id: workoutId, athleteId },
     include: { result: true },
@@ -890,6 +928,11 @@ export async function unlinkStravaFromWorkoutForAthlete(
     select: { id: true },
   })
   if (!athlete) throw new Error('You can only detach Strava from your own workouts')
+
+  if (workout.selfLogged) {
+    await prisma.workout.delete({ where: { id: workoutId } })
+    return { removed: true }
+  }
 
   await prisma.$transaction([
     prisma.workout.update({
@@ -915,6 +958,8 @@ export async function unlinkStravaFromWorkoutForAthlete(
         averageWatts: null,
         weightedAverageWatts: null,
         summaryPolyline: null,
+        stravaLapsCache: Prisma.DbNull,
+        stravaStreamsCache: Prisma.DbNull,
         actualDistance: null,
         actualDuration: null,
         logType: null,
@@ -922,6 +967,7 @@ export async function unlinkStravaFromWorkoutForAthlete(
       },
     }),
   ])
+  return { removed: false }
 }
 
 /**
@@ -937,9 +983,10 @@ export async function listStravaActivitiesForWorkoutForAthlete(
 ): Promise<StravaActivityPickItem[]> {
   const athlete = await prisma.athlete.findFirst({
     where: { id: athleteId, userId },
-    select: { id: true },
+    select: { id: true, privacyPrefs: true },
   })
   if (!athlete) throw new Error('You can only link Strava to your own workouts')
+  const privacyPrefs = normalizeAthletePrivacyPrefs(athlete.privacyPrefs)
 
   const workout = await prisma.workout.findFirst({
     where: { id: workoutId, athleteId },
@@ -972,7 +1019,8 @@ export async function listStravaActivitiesForWorkoutForAthlete(
   })
   const activities = activitiesRaw.filter((activity) => {
     const key = activityDateKey(activity)
-    return key >= fromKey && key <= toKey
+    if (key < fromKey || key > toKey) return false
+    return !shouldSkipStravaActivityForPrivacy(activity, privacyPrefs)
   })
 
   const activityIds = activities.map((a) => String(a.id))
@@ -1024,9 +1072,10 @@ export async function attachStravaActivityToWorkoutForAthlete(
 ) {
   const athlete = await prisma.athlete.findFirst({
     where: { id: athleteId, userId },
-    select: { id: true },
+    select: { id: true, privacyPrefs: true },
   })
   if (!athlete) throw new Error('You can only link Strava to your own workouts')
+  const privacyPrefs = normalizeAthletePrivacyPrefs(athlete.privacyPrefs)
 
   const workout = await prisma.workout.findFirst({
     where: { id: workoutId, athleteId },
@@ -1057,6 +1106,11 @@ export async function attachStravaActivityToWorkoutForAthlete(
   const activity = await fetchStravaActivity(accessToken, numericId)
   if (activity.commute) {
     throw new Error('Commute activities cannot be linked to planned workouts')
+  }
+  if (shouldSkipStravaActivityForPrivacy(activity, privacyPrefs)) {
+    throw new Error(
+      'That Strava activity is excluded by your privacy settings (private or followers-only).',
+    )
   }
 
   const activityType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
@@ -1207,8 +1261,17 @@ export async function listStravaActivitiesForRaceForAthlete(
     currentActivityId = leg.stravaActivityId
   }
 
+  const athlete = await prisma.athlete.findFirst({
+    where: { id: athleteId, userId },
+    select: { privacyPrefs: true },
+  })
+  if (!athlete) throw new Error('Athlete not found')
+  const privacyPrefs = normalizeAthletePrivacyPrefs(athlete.privacyPrefs)
+
   const dateKey = toDateKey(race.date)
-  const activities = await fetchSameDayActivities(userId, dateKey)
+  const activities = (await fetchSameDayActivities(userId, dateKey)).filter(
+    (activity) => !shouldSkipStravaActivityForPrivacy(activity, privacyPrefs),
+  )
   const activityIds = activities.map((a) => String(a.id))
   const links = await findRaceActivityLinks(activityIds)
 
@@ -1489,9 +1552,10 @@ export async function importStravaActivityAsWorkoutForAthlete(
 ): Promise<{ workoutId: string }> {
   const athlete = await prisma.athlete.findFirst({
     where: { id: athleteId, userId },
-    select: { id: true },
+    select: { id: true, privacyPrefs: true },
   })
   if (!athlete) throw new Error('You can only import Strava activities for your own account')
+  const privacyPrefs = normalizeAthletePrivacyPrefs(athlete.privacyPrefs)
 
   const connection = await prisma.stravaConnection.findUnique({ where: { userId } })
   if (!connection) throw new Error('Strava is not connected')
@@ -1517,6 +1581,11 @@ export async function importStravaActivityAsWorkoutForAthlete(
   const activity = await fetchStravaActivity(accessToken, numericId)
   if (activity.commute) {
     throw new Error('Commute activities cannot be imported as workouts')
+  }
+  if (shouldSkipStravaActivityForPrivacy(activity, privacyPrefs)) {
+    throw new Error(
+      'That Strava activity is excluded by your privacy settings (private or followers-only).',
+    )
   }
 
   const workoutType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)

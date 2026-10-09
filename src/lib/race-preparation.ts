@@ -1,8 +1,40 @@
 import type { SeasonPhase } from '@prisma/client'
 import {
+  isDateOnlyKey,
+  parseDateOnly,
+  startOfWeekDateOnly,
+  todayDateOnly,
+} from '@/lib/dates'
+import {
   SEASON_PHASE_LABELS,
   displaySeasonPhaseName,
 } from '@/lib/season-planner'
+
+/**
+ * Select sentinel: fill preparation weeks from the current week through race week
+ * (inclusive), matching planner prep-window semantics.
+ */
+export const PREP_WEEKS_FROM_THIS_WEEK = '__from_this_week__'
+
+/**
+ * Count preparation weeks from this week through the race week (inclusive).
+ * Same meaning as planner prep: race week counts as week 1 of the countdown.
+ * Returns null if the race date is missing or already before this week.
+ */
+export function preparationWeeksFromThisWeekToRace(
+  raceDateKey: string,
+  today: Date = todayDateOnly(),
+): number | null {
+  if (!isDateOnlyKey(raceDateKey)) return null
+  const raceWeekStart = startOfWeekDateOnly(parseDateOnly(raceDateKey))
+  const thisWeekStart = startOfWeekDateOnly(today)
+  if (raceWeekStart.getTime() < thisWeekStart.getTime()) return null
+  const weekMs = 7 * 24 * 60 * 60 * 1000
+  const weekDiff = Math.round(
+    (raceWeekStart.getTime() - thisWeekStart.getTime()) / weekMs,
+  )
+  return Math.min(52, Math.max(1, weekDiff + 1))
+}
 
 /** One training block inside a race preparation window (start → race). */
 export type RacePrepBlock = {

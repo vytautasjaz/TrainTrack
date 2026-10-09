@@ -446,6 +446,9 @@ export type TrainingPlanListItem = {
   forAthleteName: string | null
   sessionCount: number
   phaseCount: number
+  /** ISO timestamp — when the plan was first created / generated. */
+  createdAt: string
+  /** ISO timestamp — last edit or materialize. */
   updatedAt: string
 }
 

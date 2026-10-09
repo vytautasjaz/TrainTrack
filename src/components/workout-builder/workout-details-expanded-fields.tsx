@@ -12,6 +12,8 @@ import {
   DurationFieldGroup,
   IntensityFieldGroup,
   ProgressiveBlockRow,
+  blockToDurationSegment,
+  durationSegmentToBlock,
   type IntensityOption,
 } from '@/components/workout-builder/builder-segment-editor'
 import { NumberInput } from '@/components/ui/number-input'
@@ -178,32 +180,14 @@ export function WorkoutDetailsExpandedFields({
     )
   }
 
-  const segment =
-    block.durationType === 'distance'
-      ? {
-          mode: 'distance' as const,
-          value: block.distance ?? 0,
-          unit: (block.distanceUnit === 'm' ? 'm' : 'km') as 'm' | 'km',
-        }
-      : { mode: 'time' as const, value: block.time ?? 0, unit: 'min' as const }
-
+  const segment = blockToDurationSegment(block)
   const target = primaryTarget({ targets: block.targets }, sportType)
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <DurationFieldGroup
         segment={segment}
-        onChange={(next) => {
-          if (next.unit === 'm' || next.unit === 'km') {
-            update({
-              durationType: 'distance',
-              distance: next.value,
-              distanceUnit: next.unit,
-            })
-          } else {
-            update({ durationType: 'time', time: next.value })
-          }
-        }}
+        onChange={(next) => update(durationSegmentToBlock(next))}
       />
       {block.type !== 'REST' ? (
         <IntensityFieldGroup

@@ -18,6 +18,18 @@ export type StravaAthleteSummary = {
   profile_medium?: string
 }
 
+export function stravaRoutePolyline(
+  map?: {
+    polyline?: string | null
+    summary_polyline?: string | null
+  } | null,
+): string | null {
+  const summary = map?.summary_polyline?.trim()
+  if (summary) return summary
+  const detailed = map?.polyline?.trim()
+  return detailed || null
+}
+
 export function pickStravaAvatarUrl(athlete: StravaAthleteSummary): string | null {
   const url = athlete.profile || athlete.profile_medium
   if (!url || url.includes('avatar/athlete/large.png') || url.includes('avatar/athlete/medium.png')) {
@@ -40,6 +52,10 @@ export type StravaActivity = {
   elapsed_time: number
   /** True when the athlete marked the activity as a commute on Strava. */
   commute?: boolean
+  /** True when visibility is “Only you” on Strava. */
+  private?: boolean
+  /** everyone | followers_only | only_me */
+  visibility?: string | null
   average_speed?: number
   max_speed?: number
   total_elevation_gain?: number
@@ -53,7 +69,35 @@ export type StravaActivity = {
   suffer_score?: number
   map?: {
     id?: string
+    polyline?: string | null
     summary_polyline?: string | null
     resource_state?: number
   } | null
+  laps?: StravaLap[]
+  splits_metric?: StravaSplit[]
+  splits_standard?: StravaSplit[]
+}
+
+export type StravaLap = {
+  id?: number
+  name?: string
+  lap_index?: number
+  split?: number
+  distance: number
+  elapsed_time: number
+  moving_time?: number
+  average_speed?: number
+  average_heartrate?: number
+  average_watts?: number
+  total_elevation_gain?: number
+}
+
+export type StravaSplit = {
+  split: number
+  distance: number
+  elapsed_time: number
+  moving_time?: number
+  average_speed?: number
+  elevation_difference?: number
+  average_heartrate?: number
 }

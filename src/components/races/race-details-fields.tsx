@@ -39,7 +39,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { RaceLegView } from '@/lib/race-legs'
 import type { RaceCourseType, RaceType, SeasonPhase, WorkoutType } from '@prisma/client'
 import {
+  PREP_WEEKS_FROM_THIS_WEEK,
   RACE_PREP_BLOCK_PHASES,
+  preparationWeeksFromThisWeekToRace,
   suggestPreparationBlocks,
   sumPrepBlockWeeks,
   type RacePrepBlock,
@@ -181,6 +183,9 @@ export function RaceDetailsFields({
   const [prepWeeks, setPrepWeeks] = useState(
     initial?.preparationWeeks != null ? String(initial.preparationWeeks) : '',
   )
+  /** When true, weeks stay synced to “this week → race week” as the date changes. */
+  const [prepFromThisWeek, setPrepFromThisWeek] = useState(false)
+  const [prepWeeksHint, setPrepWeeksHint] = useState<string | null>(null)
   const initialBlocks = initial?.preparationBlocks ?? null
   const [prepBlocksEnabled, setPrepBlocksEnabled] = useState(
     () => Boolean(initialBlocks && initialBlocks.length > 0),
@@ -188,6 +193,25 @@ export function RaceDetailsFields({
   const [prepBlocks, setPrepBlocks] = useState<RacePrepBlock[]>(
     () => (initialBlocks && initialBlocks.length > 0 ? initialBlocks : []),
   )
+
+  useEffect(() => {
+    if (!prepFromThisWeek) return
+    const n = preparationWeeksFromThisWeekToRace(date)
+    if (n == null) {
+      setPrepWeeks('')
+      setPrepWeeksHint(
+        date
+          ? 'Race week is already past — pick a future race date.'
+          : 'Pick a race date to count weeks from this week.',
+      )
+      return
+    }
+    setPrepWeeks(String(n))
+    setPrepWeeksHint(`${n} ${n === 1 ? 'week' : 'weeks'} from this week through race week.`)
+    if (prepBlocksEnabled) {
+      setPrepBlocks(suggestPreparationBlocks(n))
+    }
+  }, [date, prepFromThisWeek, prepBlocksEnabled])
   const coverInputRef = useRef<HTMLInputElement>(null)
   const pickInputRef = useRef<HTMLInputElement>(null)
   const savedCoverUrl = initial?.coverImageUrl ?? null
@@ -624,11 +648,36 @@ export function RaceDetailsFields({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField label="Preparation time">
+            <input type="hidden" name="preparationWeeks" value={prepWeeks} />
             <Select
-              name="preparationWeeks"
-              value={prepWeeks}
+              value={prepFromThisWeek ? PREP_WEEKS_FROM_THIS_WEEK : prepWeeks}
               onChange={(e) => {
                 const next = e.target.value
+                if (next === PREP_WEEKS_FROM_THIS_WEEK) {
+                  setPrepFromThisWeek(true)
+                  const n = preparationWeeksFromThisWeekToRace(date)
+                  if (n == null) {
+                    setPrepWeeks('')
+                    setPrepWeeksHint(
+                      date
+                        ? 'Race week is already past — pick a future race date.'
+                        : 'Pick a race date to count weeks from this week.',
+                    )
+                    setPrepBlocksEnabled(false)
+                    setPrepBlocks([])
+                    return
+                  }
+                  setPrepWeeks(String(n))
+                  setPrepWeeksHint(
+                    `${n} ${n === 1 ? 'week' : 'weeks'} from this week through race week.`,
+                  )
+                  if (prepBlocksEnabled) {
+                    setPrepBlocks(suggestPreparationBlocks(n))
+                  }
+                  return
+                }
+                setPrepFromThisWeek(false)
+                setPrepWeeksHint(null)
                 setPrepWeeks(next)
                 const n = Number.parseInt(next, 10)
                 if (!Number.isFinite(n) || n < 1) {
@@ -642,12 +691,18 @@ export function RaceDetailsFields({
               }}
             >
               <option value="">Not set</option>
+              <option value={PREP_WEEKS_FROM_THIS_WEEK}>From this week</option>
               {PREP_WEEK_OPTIONS.map((w) => (
                 <option key={w} value={w}>
                   {w} {w === 1 ? 'week' : 'weeks'}
                 </option>
               ))}
             </Select>
+            {prepWeeksHint ? (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {prepWeeksHint}
+              </p>
+            ) : null}
           </FormField>
 
           <FormField label="Link">

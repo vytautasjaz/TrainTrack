@@ -30,6 +30,11 @@ env/netlify.env
 *.sln
 public/uploads/avatars/*
 !public/uploads/avatars/.gitkeep
+public/uploads/race-covers/*
+!public/uploads/race-covers/.gitkeep
+
+# Generated marathon plan review batches (scripts/generate-beginner-marathon-csvs.mts)
+tmp/
 
 
 # Local Netlify folder

@@ -17,12 +17,15 @@ import { useOptionalPlanSportFilter } from '@/components/training/plan-sport-fil
 import { WorkoutInlineFeedback } from '@/components/plan/workout-inline-feedback'
 import { WorkoutCardMetricIcon } from '@/components/plan/workout-card-metric-icon'
 import { WorkoutCardEssenceLine } from '@/components/plan/workout-card-essence-line'
+import { WorkoutCardCoachNote } from '@/components/plan/workout-card-coach-note'
 import { useOptionalWeekCardSize } from '@/components/plan/week-card-size-context'
+import { useSessionLoadThresholds } from '@/components/plan/session-load-thresholds-context'
 import {
   getWorkoutCardDuration,
   getWorkoutCardEssence,
   getWorkoutCardHero,
   getWorkoutCardSubtitle,
+  getWorkoutCardTss,
   getWorkoutCompletionPercent,
   isWorkoutCardCompleted,
   isWorkoutCardSkipped,
@@ -91,6 +94,7 @@ export function WeekPlanWorkoutCard({
   const durationNotation = useDurationNotation()
   const ctxSize = useOptionalWeekCardSize()?.cardSize
   const size: WeekCardSize = sizeProp ?? ctxSize ?? defaultWeekCardSize()
+  const loadThresholds = useSessionLoadThresholds()
 
   const completed = isWorkoutCardCompleted(status)
   const skipped = isWorkoutCardSkipped(status)
@@ -134,7 +138,13 @@ export function WeekPlanWorkoutCard({
       : showSecondary && hero?.kind === 'distance' && secondary
         ? { value: secondary.actual, planned: secondary.planned }
         : null
-  const showMetrics = Boolean(distanceMetric || durationMetric)
+  const tssMetric = (() => {
+    if (!showLoggedMetrics) return null
+    const tss = getWorkoutCardTss(workout, status, loadThresholds)
+    if (!tss) return null
+    return { value: tss.actual, planned: tss.planned }
+  })()
+  const showMetrics = Boolean(distanceMetric || durationMetric || tssMetric)
 
   const pad =
     size === 'l'
@@ -224,7 +234,7 @@ export function WeekPlanWorkoutCard({
   const metricIconSize = size === 's' ? 'h-2.5 w-2.5' : 'h-3 w-3'
 
   function renderMetric(
-    kind: 'distance' | 'duration',
+    kind: 'distance' | 'duration' | 'tss',
     metric: { value: string; planned?: string | null },
   ) {
     return (
@@ -241,12 +251,16 @@ export function WeekPlanWorkoutCard({
               {metric.planned}
             </span>
           ) : null}
+          {kind === 'tss' ? (
+            <span className={metricFaintClass}>{' TSS'}</span>
+          ) : null}
         </span>
       </p>
     )
   }
 
-  const bothMetrics = Boolean(distanceMetric && durationMetric)
+  const metricCount = [distanceMetric, durationMetric, tssMetric].filter(Boolean).length
+  const bothMetrics = metricCount > 1
 
   const blockSurface = surfaces.workoutBlock
 
@@ -277,6 +291,10 @@ export function WeekPlanWorkoutCard({
           ))}
         </div>
       ) : null}
+      <WorkoutCardCoachNote
+        note={workout.coachNotes}
+        compact={size === 's'}
+      />
       {showMetrics ? (
         <div
           className={cn(
@@ -284,7 +302,7 @@ export function WeekPlanWorkoutCard({
             bothMetrics
               ? 'flex flex-col items-start gap-0.5'
               : 'flex items-center gap-3',
-            showEssence
+            showEssence || Boolean(workout.coachNotes?.trim())
               ? 'mt-1.5 border-t border-[var(--tt-line,#ebebeb)] pt-1.5'
               : 'mt-1.5',
             size === 's' && !showEssence && 'mt-0.5',
@@ -292,6 +310,7 @@ export function WeekPlanWorkoutCard({
         >
           {distanceMetric ? renderMetric('distance', distanceMetric) : null}
           {durationMetric ? renderMetric('duration', durationMetric) : null}
+          {tssMetric ? renderMetric('tss', tssMetric) : null}
         </div>
       ) : null}
       {showStructure ? (

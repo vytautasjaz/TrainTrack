@@ -1,31 +1,45 @@
 import type { AiSkillAudience, AiSkillDefinition } from '@/lib/ai/skills/types'
 import {
-  run5kBuildSkill,
-  runHalfMarathonSkill,
-  runMarathonSkill,
-} from '@/lib/ai/skills/skills/run-skills'
+  CODE_SKILLS,
+  getCodeSkill,
+  listCodeSkills,
+} from '@/lib/ai/skills/registry-base'
 import {
-  hyroxGeneralSkill,
-  multiSportBaseSkill,
-} from '@/lib/ai/skills/skills/hyrox-and-multi'
-import { adaptPlanSkill } from '@/lib/ai/skills/skills/adapt-plan'
+  applySkillOverride,
+  isSkillActive,
+  skillSortOrder,
+} from '@/lib/ai/skills/skill-store'
 
-const SKILLS: AiSkillDefinition[] = [
-  run5kBuildSkill,
-  runHalfMarathonSkill,
-  runMarathonSkill,
-  hyroxGeneralSkill,
-  multiSportBaseSkill,
-  adaptPlanSkill,
-]
+export { listCodeSkills, getCodeSkill, CODE_SKILLS }
 
-const bySlug = new Map(SKILLS.map((s) => [s.slug, s]))
+function resolvedSkills(): AiSkillDefinition[] {
+  return CODE_SKILLS.map((s, index) => ({ skill: applySkillOverride(s), index }))
+    .filter(({ skill }) => isSkillActive(skill.slug))
+    .sort(
+      (a, b) =>
+        skillSortOrder(a.skill.slug, a.index) -
+          skillSortOrder(b.skill.slug, b.index) ||
+        a.skill.slug.localeCompare(b.skill.slug),
+    )
+    .map(({ skill }) => skill)
+}
 
 export function listSkills(opts?: {
   audience?: AiSkillAudience | 'any'
   kind?: 'draft' | 'adapt'
+  /** Include inactive admin-disabled skills (admin UIs). */
+  includeInactive?: boolean
 }): AiSkillDefinition[] {
-  return SKILLS.filter((s) => {
+  const source = opts?.includeInactive
+    ? CODE_SKILLS.map((s, index) => applySkillOverride(s)).sort(
+        (a, b) =>
+          skillSortOrder(a.slug, CODE_SKILLS.findIndex((x) => x.slug === a.slug)) -
+            skillSortOrder(b.slug, CODE_SKILLS.findIndex((x) => x.slug === b.slug)) ||
+          a.slug.localeCompare(b.slug),
+      )
+    : resolvedSkills()
+
+  return source.filter((s) => {
     if (opts?.kind && s.kind !== opts.kind) return false
     if (!opts?.audience || opts.audience === 'any') return true
     if (s.audience === 'both') return true
@@ -34,11 +48,23 @@ export function listSkills(opts?: {
 }
 
 export function listSkillSlugs(): string[] {
-  return SKILLS.map((s) => s.slug)
+  return listSkills({ includeInactive: true }).map((s) => s.slug)
 }
 
 export function getSkill(slug: string): AiSkillDefinition | null {
-  return bySlug.get(slug) ?? null
+  const base = getCodeSkill(slug)
+  if (!base) return null
+  if (!isSkillActive(slug)) return null
+  return applySkillOverride(base)
+}
+
+/** Like getSkill but returns inactive skills too (admin / internal). */
+export function getSkillIncludingInactive(
+  slug: string,
+): AiSkillDefinition | null {
+  const base = getCodeSkill(slug)
+  if (!base) return null
+  return applySkillOverride(base)
 }
 
 export function requireSkill(slug: string): AiSkillDefinition {

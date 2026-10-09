@@ -14,10 +14,11 @@ import { toDateKey } from '@/lib/dates'
 import { formatRaceFeedbackReportBody } from '@/lib/race-feedback-report'
 import { athleteOwnedByCoachWhere } from '@/lib/session'
 import {
-  redactPlanWorkoutNotesForViewer,
+  applyPlanWorkoutViewerPolicy,
   toPlanWorkoutDetail,
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
+import type { NormalizedAthletePrivacyPrefs } from '@/lib/athlete-privacy'
 import { parseWorkoutFeeling } from '@/lib/workout-feeling'
 import {
   COACHING_MESSAGE_MAX_LEN,
@@ -431,11 +432,16 @@ export function serializeInboxThread(
     athlete?: { id: string; name: string; avatarUrl?: string | null }
   },
   role: 'athlete' | 'coach',
+  options?: { athletePrivacy?: NormalizedAthletePrivacyPrefs },
 ) {
   const last = thread.messages[thread.messages.length - 1]
   const workoutDetail: PlanWorkoutDetail | null = thread.workout
     ? {
-        ...redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(thread.workout), role),
+        ...applyPlanWorkoutViewerPolicy(
+          toPlanWorkoutDetail(thread.workout),
+          role,
+          { privacy: options?.athletePrivacy },
+        ),
         coachingChat:
           threadHasChatConversation(thread.messages)
             ? {

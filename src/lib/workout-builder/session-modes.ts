@@ -14,14 +14,18 @@ export function isSimpleSessionType(sessionType: SessionType): boolean {
   return SIMPLE_SESSION_TYPES.includes(sessionType)
 }
 
-/** Run/bike (and tri) workouts can optionally use the block builder from the plan modal. */
+/** Sports that can use the block builder (warmup / main / cooldown + intensity graph). */
 export function sportSupportsWorkoutBuilder(
   sportType: WorkoutType = SportEnum.RUN,
 ): boolean {
   return (
     sportType === SportEnum.RUN ||
     sportType === SportEnum.BIKE ||
-    sportType === SportEnum.TRIATHLON
+    sportType === SportEnum.TRIATHLON ||
+    sportType === SportEnum.HYROX ||
+    sportType === SportEnum.STRENGTH ||
+    sportType === SportEnum.RECOVERY ||
+    sportType === SportEnum.REST
   )
 }
 

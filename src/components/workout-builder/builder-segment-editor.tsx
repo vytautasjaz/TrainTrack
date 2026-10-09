@@ -150,12 +150,23 @@ export function IntensityFieldGroup({
     })
   }
 
-  const valueOptions =
-    mode === 'zone'
-      ? HR_ZONE_PRESETS.map((zone) => ({ value: zone, label: zone }))
-      : mode === 'rpe'
-        ? RPE_PRESETS.map((preset) => ({ value: preset, label: preset }))
-        : []
+  const valueOptions = (() => {
+    const base =
+      mode === 'zone'
+        ? HR_ZONE_PRESETS.map((zone) => ({ value: zone, label: zone }))
+        : mode === 'rpe'
+          ? RPE_PRESETS.map((preset) => ({ value: preset, label: preset }))
+          : []
+    const current = (target.value ?? '').trim()
+    if (
+      current &&
+      base.length > 0 &&
+      !base.some((o) => o.value.toLowerCase() === current.toLowerCase())
+    ) {
+      return [...base, { value: current, label: current }]
+    }
+    return base
+  })()
 
   function renderValueControl() {
     // Choice modes: Zones (Z1–Z6) and Effort — never free text.
@@ -318,17 +329,6 @@ export function RepeatsRow({ value, onChange }: RepeatsRowProps) {
   )
 }
 
-export function blockToDurationSegment(block: WorkoutBlock): Segment {
-  if (block.durationType === 'distance') {
-    return {
-      mode: 'distance',
-      value: block.distance ?? 0,
-      unit: block.distanceUnit === 'm' ? 'm' : 'km',
-    }
-  }
-  return { mode: 'time', value: block.time ?? 0, unit: 'min' }
-}
-
 export function durationSegmentToBlock(segment: Segment): Partial<WorkoutBlock> {
   if (segment.unit === 'm' || segment.unit === 'km') {
     return {
@@ -337,7 +337,32 @@ export function durationSegmentToBlock(segment: Segment): Partial<WorkoutBlock> 
       distanceUnit: segment.unit,
     }
   }
-  return { durationType: 'time', time: segment.value }
+  const minutes =
+    segment.unit === 'sec' ? segment.value / 60 : segment.value
+  return { durationType: 'time', time: minutes }
+}
+
+export function blockToDurationSegment(block: WorkoutBlock): Segment {
+  if (block.durationType === 'distance') {
+    return {
+      mode: 'distance',
+      value: block.distance ?? 0,
+      unit: block.distanceUnit === 'm' ? 'm' : 'km',
+    }
+  }
+  const minutes = block.time ?? 0
+  const seconds = minutes * 60
+  const wholeSeconds = Math.round(seconds)
+  // Keep short non-minute rests in seconds so 90" does not display as 1.5 min.
+  if (
+    minutes > 0 &&
+    minutes < 5 &&
+    Math.abs(seconds - wholeSeconds) < 0.05 &&
+    wholeSeconds % 60 !== 0
+  ) {
+    return { mode: 'time', value: wholeSeconds, unit: 'sec' }
+  }
+  return { mode: 'time', value: minutes, unit: 'min' }
 }
 
 type BlockCardProps = {

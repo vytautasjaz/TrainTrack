@@ -14,12 +14,13 @@ import {
 import { WorkoutType } from '@prisma/client'
 import { loadCoachHomeActivityFeed, loadMoreCoachHomeActivity } from '@/app/actions/coach-home'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
+import { CoachHomeMobileAccordionBody } from '@/components/coach/coach-home-panel'
 import {
   ActivityDayHeading,
   ActivityFeedWorkoutCard,
   sportRailColor,
 } from '@/components/activity/activity-feed-workout-card'
-import { CoachHomeMobileAccordionBody } from '@/components/coach/coach-home-panel'
+import { SessionLoadThresholdsProvider } from '@/components/plan/session-load-thresholds-context'
 import { StravaWordmark } from '@/components/plan/strava-mark'
 import { PriorityBadge } from '@/components/races/priority-badge'
 import { RaceDetailSheet } from '@/components/races/race-detail-sheet'
@@ -638,12 +639,14 @@ function ActivityFeedCard({
     return <RaceFeedCard row={row} showDate={showDate} />
   }
   return (
-    <ActivityFeedWorkoutCard
-      row={row}
-      isCoach
-      showDate={showDate}
-      loadThresholds={loadThresholds}
-    />
+    <SessionLoadThresholdsProvider value={loadThresholds}>
+      <ActivityFeedWorkoutCard
+        row={row}
+        isCoach
+        showDate={showDate}
+        loadThresholds={loadThresholds}
+      />
+    </SessionLoadThresholdsProvider>
   )
 }
 

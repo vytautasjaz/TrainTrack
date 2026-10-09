@@ -32,6 +32,12 @@ export default async function AdminLayout({
               <Link href="/admin/memberships" className="hover:text-[var(--tt-ink,#111)]">
                 Memberships
               </Link>
+              <Link href="/admin/ai-library" className="hover:text-[var(--tt-ink,#111)]">
+                AI library
+              </Link>
+              <Link href="/admin/ai-skills" className="hover:text-[var(--tt-ink,#111)]">
+                AI skills
+              </Link>
               <Link href="/admin/settings" className="hover:text-[var(--tt-ink,#111)]">
                 Settings
               </Link>

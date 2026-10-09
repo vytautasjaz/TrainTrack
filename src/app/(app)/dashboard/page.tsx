@@ -3,6 +3,7 @@ import { getSession, resolveAthleteId, isCoachView} from '@/lib/session'
 import { getAthleteDashboard, getCoachHomeData } from '@/lib/queries'
 import { CoachHomePageContent } from '@/components/coach/coach-home-page'
 import { AthleteDashboardWorkouts } from '@/components/dashboard/athlete-dashboard-workouts'
+import { SessionLoadThresholdsProvider } from '@/components/plan/session-load-thresholds-context'
 import { AthleteActivityFeed } from '@/components/dashboard/athlete-activity-feed'
 import { AthleteDashboardHeader } from '@/components/dashboard/athlete-dashboard-header'
 import { AthleteRaceFollowUp } from '@/components/dashboard/athlete-race-follow-up'
@@ -109,6 +110,7 @@ export default async function DashboardPage() {
           hasWeatherCoords={hasWeatherCoords}
         />
 
+        <SessionLoadThresholdsProvider value={data.trainingLoadThresholds}>
         <div className="tt-home-mobile-sheet space-y-4 md:contents md:space-y-0">
           <div className="tt-dashboard-grid">
             <div className="min-w-0 space-y-4 md:space-y-7">
@@ -174,6 +176,7 @@ export default async function DashboardPage() {
             </aside>
           </div>
         </div>
+        </SessionLoadThresholdsProvider>
       </div>
     </div>
   )
