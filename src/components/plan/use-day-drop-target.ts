@@ -75,14 +75,16 @@ export function useDayDropTarget({
     dnd.moveWorkoutToCell(dnd.dragItem.id, dateKey)
   }
 
+  // Soft wash (no ring) — valid targets tint lightly; hover deepens the fill.
   const dropHighlightClass = cn(
+    'transition-colors duration-150',
     canDrop &&
       isOver &&
-      'bg-[color-mix(in_oklab,var(--color-muted)_32%,var(--color-card))] ring-2 ring-inset ring-foreground/55',
+      'bg-[rgb(17_19_21_/0.07)]',
     canDrop &&
       !isOver &&
       isDragging &&
-      'ring-2 ring-inset ring-foreground/25',
+      'bg-[rgb(17_19_21_/0.035)]',
   )
 
   return {

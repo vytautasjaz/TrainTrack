@@ -9,7 +9,12 @@ import { NotificationPrefsForm } from '@/components/settings/notification-prefs-
 import { AthletePrivacyPrefsForm } from '@/components/settings/athlete-privacy-prefs-form'
 import { PlanViewModePreferenceForm } from '@/components/settings/plan-view-mode-preference-form'
 import { TrainingDefaultViewForm } from '@/components/settings/training-default-view-form'
+import { UnitSystemPreferenceForm } from '@/components/settings/unit-system-preference-form'
 import { WeekCardSizePreferenceForm } from '@/components/settings/week-card-size-preference-form'
+import {
+  DEFAULT_SWIM_DISTANCE_UNIT,
+  DEFAULT_UNIT_SYSTEM,
+} from '@/lib/units'
 import { SettingsShell } from '@/components/settings/settings-shell'
 import {
   SettingsCoachBuilderSection,
@@ -70,6 +75,8 @@ export default async function SettingsPage({ searchParams }: PageProps) {
       passwordHash: true,
       accounts: { select: { provider: true } },
       planningLeadDays: true,
+      unitSystem: true,
+      swimDistanceUnit: true,
       workoutBuilderPrefs: true,
       coachProfile: {
         select: {
@@ -300,6 +307,13 @@ export default async function SettingsPage({ searchParams }: PageProps) {
               ) : null,
             plan: !coachView ? (
               <>
+                <UnitSystemPreferenceForm
+                  embedded
+                  initial={user.unitSystem ?? DEFAULT_UNIT_SYSTEM}
+                  initialSwim={
+                    user.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT
+                  }
+                />
                 <TrainingDefaultViewForm embedded role="athlete" />
                 <WeekCardSizePreferenceForm embedded />
                 <PlanViewModePreferenceForm embedded />
@@ -332,6 +346,13 @@ export default async function SettingsPage({ searchParams }: PageProps) {
             ),
             planning: coachView ? (
               <>
+                <UnitSystemPreferenceForm
+                  embedded
+                  initial={user.unitSystem ?? DEFAULT_UNIT_SYSTEM}
+                  initialSwim={
+                    user.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT
+                  }
+                />
                 <TrainingDefaultViewForm embedded role="coach" />
                 <WeekCardSizePreferenceForm embedded />
                 <SettingsCoachPlanningSection planningLeadDays={planningLeadDays} />

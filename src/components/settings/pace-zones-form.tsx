@@ -9,11 +9,12 @@ import {
   PreferenceZoneRow,
   PREFERENCE_VALUE_INPUT_CLASS,
 } from '@/components/settings/preference-zone-row'
+import { useUnitSystem } from '@/components/units/units-context'
 import {
-  formatPaceMinPerKm,
   PACE_ZONE_FIELDS,
   type AthletePreferences,
 } from '@/lib/athlete-preferences'
+import { formatPace, formatPaceUnit } from '@/lib/units'
 import { updatePaceZones } from '@/app/actions/preferences'
 import {
   usePreferenceForm,
@@ -31,6 +32,8 @@ export function PaceZonesForm({
   onDirtyChange,
   registerSave,
 }: PaceZonesFormProps) {
+  const unitSystem = useUnitSystem()
+  const paceUnit = formatPaceUnit(unitSystem)
   const { formRef, error, saved, isPending, markDirty, handleSubmit } = usePreferenceForm(
     updatePaceZones,
     { errorFallback: 'Could not save paces.', onDirtyChange, registerSave },
@@ -45,13 +48,15 @@ export function PaceZonesForm({
     >
       <PreferenceZoneList>
         {PACE_ZONE_FIELDS.map(({ key, name, label }) => (
-          <PreferenceZoneRow key={key} label={label} unit="/km">
+          <PreferenceZoneRow key={key} label={label} unit={paceUnit}>
             <Input
               name={name}
               type="text"
               inputMode="decimal"
-              placeholder="5:30"
-              defaultValue={formatPaceMinPerKm(preferences[key])}
+              placeholder={unitSystem === 'IMPERIAL' ? '8:51' : '5:30'}
+              defaultValue={formatPace(preferences[key], unitSystem, {
+                withUnit: false,
+              })}
               variant="ghost"
               align="right"
               aria-label={`${label} pace`}
@@ -61,7 +66,9 @@ export function PaceZonesForm({
         ))}
       </PreferenceZoneList>
       <Caption>
-        Target paces as min/km (e.g. 5:30). Used to estimate workout duration from distance.
+        {unitSystem === 'IMPERIAL'
+          ? 'Target paces as min/mi (e.g. 8:51). Used to estimate workout duration from distance.'
+          : 'Target paces as min/km (e.g. 5:30). Used to estimate workout duration from distance.'}
       </Caption>
       {error && <FormMessage variant="error">{error}</FormMessage>}
       {saved && !error && <FormMessage variant="success">Paces saved.</FormMessage>}

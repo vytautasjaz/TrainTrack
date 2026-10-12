@@ -1,20 +1,13 @@
 import { redirect } from 'next/navigation'
-import { getSession, resolveAthleteId, isCoachView} from '@/lib/session'
+import { getSession, resolveAthleteId, isCoachView } from '@/lib/session'
 import { getAthleteDashboard, getCoachHomeData } from '@/lib/queries'
 import { CoachHomePageContent } from '@/components/coach/coach-home-page'
-import { AthleteDashboardWorkouts } from '@/components/dashboard/athlete-dashboard-workouts'
+import { AthleteHomeV2 } from '@/components/dashboard/v2/athlete-home-v2'
 import { SessionLoadThresholdsProvider } from '@/components/plan/session-load-thresholds-context'
-import { AthleteActivityFeed } from '@/components/dashboard/athlete-activity-feed'
-import { AthleteDashboardHeader } from '@/components/dashboard/athlete-dashboard-header'
-import { AthleteRaceFollowUp } from '@/components/dashboard/athlete-race-follow-up'
-import { AthleteWeekStatsCard } from '@/components/dashboard/athlete-week-stats-card'
-import { AthleteNextRacesCard } from '@/components/dashboard/athlete-next-races-card'
-import { AthleteTrainingLoadCard } from '@/components/dashboard/athlete-training-load-card'
-import { toPlanWorkoutDetail, redactPlanWorkoutNotesForViewer } from '@/lib/plan-workout'
-import { prisma } from '@/lib/prisma'
-import { addDateOnlyDays, startOfWeekDateOnly, todayDateKey, todayDateOnly, toDateKey } from '@/lib/dates'
-import { getYrWeatherSummaries } from '@/lib/weather/yr'
-import type { WeatherDaySummary } from '@/lib/weather/places'
+import {
+  toPlanWorkoutDetail,
+  redactPlanWorkoutNotesForViewer,
+} from '@/lib/plan-workout'
 
 function formatGreetingName(name: string) {
   const first = name.trim().split(/\s+/)[0] ?? name
@@ -50,134 +43,48 @@ export default async function DashboardPage() {
   const weekStatsWorkouts = data.weekStatsWindowWorkouts.map((w) =>
     redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
   )
-  const athleteWeather = await prisma.athlete.findUnique({
-    where: { id: athleteId },
-    select: {
-      weatherLat: true,
-      weatherLon: true,
-      weatherLocationName: true,
-      showWeather: true,
-    },
-  })
-  const todayWorkouts = data.todayWorkouts.map((w) =>
-    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
-  )
   const weekPlanWorkouts = data.weekPlanWorkouts.map((w) =>
     redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
   )
-  const activityFeedWorkouts = data.recentCompletedWorkouts.map((w) =>
-    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
-  )
-  let weatherByDate: Record<string, WeatherDaySummary> = {}
-  const showWeather = athleteWeather?.showWeather ?? true
-  const hasWeatherCoords =
-    athleteWeather?.weatherLat != null && athleteWeather.weatherLon != null
-  if (showWeather && hasWeatherCoords) {
-    const thisWeekStart = startOfWeekDateOnly(todayDateOnly())
-    const weekKeys = Array.from({ length: 63 }, (_, i) =>
-      toDateKey(addDateOnlyDays(thisWeekStart, i - 28)),
-    )
-    const dateKeys = [
-      todayDateKey(),
-      ...weekKeys,
-      ...todayWorkouts.map((w) => w.dateKey),
-      ...weekPlanWorkouts.map((w) => w.dateKey),
-    ]
-    try {
-      const weatherMap = await getYrWeatherSummaries({
-        lat: athleteWeather.weatherLat!,
-        lon: athleteWeather.weatherLon!,
-        dateKeys: [...new Set(dateKeys.filter(Boolean))],
-      })
-      weatherByDate = Object.fromEntries(weatherMap.entries())
-    } catch (error) {
-      console.error('Dashboard weather fetch failed', error)
-      weatherByDate = {}
-    }
-  }
-
-  const todayWeather = weatherByDate[todayDateKey()] ?? null
 
   return (
-    <div className="tt-dashboard-page tt-athlete-home-page -mx-4 px-4 pb-6 sm:-mx-4 sm:px-4 sm:pb-8 lg:-mx-8 lg:px-8">
-      <div className="tt-dashboard-content tt-athlete-home-content">
-        <AthleteDashboardHeader
-          greeting={formatGreeting()}
-          name={formatGreetingName(session.name)}
-          showWeather={showWeather}
-          todayWeather={todayWeather}
-          weatherLocationName={athleteWeather?.weatherLocationName ?? null}
-          hasWeatherCoords={hasWeatherCoords}
+    <div className="tt-dashboard-page -mx-4 px-4 pb-4 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8 lg:pb-6">
+      <SessionLoadThresholdsProvider value={data.trainingLoadThresholds}>
+        <AthleteHomeV2
+          weekPlanWorkouts={weekPlanWorkouts}
+          weekStatsWorkouts={weekStatsWorkouts}
+          weekStatsAnchorStartKey={data.weekStatsAnchorStartKey}
+          weekStatsWindowStartKey={data.weekStatsWindowStartKey}
+          weekStatsWindowEndKey={data.weekStatsWindowEndKey}
+          dayNotes={data.dayNotes}
+          seasonEvents={data.seasonEvents}
+          weatherByDate={data.weatherByDate}
+          showWeather={data.showWeather}
+          weatherLocationName={data.weatherLocationName}
+          nextRaces={(data.nextRaces ?? []).map((race) => ({
+            id: race.id,
+            name: race.name,
+            date: race.date,
+            location: race.location,
+            goal: 'goal' in race ? (race.goal as string | null) : null,
+            type: 'type' in race ? (race.type as string | null) : null,
+          }))}
+          thresholds={data.trainingLoadThresholds}
+          planSportRows={data.planSportRows}
+          swimCssSecPer100m={data.swimCssSecPer100m}
+          pendingRaceFollowUps={data.pendingRaceFollowUps.map((race) => ({
+            id: race.id,
+            name: race.name,
+            date: race.date,
+            location: race.location ?? null,
+            type: race.type,
+            goal: race.goal ?? null,
+            stravaActivityUrl: race.stravaActivityUrl,
+            stravaActivityName: race.stravaActivityName,
+            legs: 'legs' in race ? race.legs : [],
+          }))}
         />
-
-        <SessionLoadThresholdsProvider value={data.trainingLoadThresholds}>
-        <div className="tt-home-mobile-sheet space-y-4 md:contents md:space-y-0">
-          <div className="tt-dashboard-grid">
-            <div className="min-w-0 space-y-4 md:space-y-7">
-              {data.pendingRaceFollowUps.length > 0 ? (
-                <AthleteRaceFollowUp
-                  races={data.pendingRaceFollowUps.map((race) => ({
-                    id: race.id,
-                    name: race.name,
-                    date: race.date,
-                    location: race.location,
-                    type: race.type,
-                    goal: race.goal,
-                    stravaActivityUrl: race.stravaActivityUrl,
-                    stravaActivityName: race.stravaActivityName,
-                    legs: 'legs' in race ? race.legs : [],
-                  }))}
-                />
-              ) : null}
-
-              <AthleteDashboardWorkouts
-                todayWorkouts={todayWorkouts}
-                weekPlanWorkouts={weekPlanWorkouts}
-                weatherByDate={weatherByDate}
-                showWeather={showWeather}
-              />
-
-              {data.activityFeedEnabled ? (
-                <AthleteActivityFeed
-                  workouts={activityFeedWorkouts}
-                  loadThresholds={data.trainingLoadThresholds}
-                />
-              ) : null}
-            </div>
-
-            <aside className="min-w-0">
-              {/* Match Today section title row so races top border lines up with first workout card */}
-              <div className="mb-3 hidden lg:block" aria-hidden>
-                <p className="invisible select-none text-[0.6875rem] font-medium uppercase leading-none tracking-[0.08em]">
-                  Today
-                </p>
-              </div>
-              <div className="space-y-3 md:space-y-3">
-                <AthleteNextRacesCard
-                  races={(data.nextRaces ?? []).map((race) => ({
-                    id: race.id,
-                    name: race.name,
-                    date: race.date,
-                    location: race.location,
-                  }))}
-                />
-                <AthleteWeekStatsCard
-                  workouts={weekStatsWorkouts}
-                  anchorWeekStartKey={data.weekStatsAnchorStartKey}
-                  planSportRows={data.planSportRows}
-                  swimCssSecPer100m={data.swimCssSecPer100m}
-                />
-                <AthleteTrainingLoadCard
-                  workouts={weekStatsWorkouts}
-                  anchorWeekStartKey={data.weekStatsAnchorStartKey}
-                  thresholds={data.trainingLoadThresholds}
-                />
-              </div>
-            </aside>
-          </div>
-        </div>
-        </SessionLoadThresholdsProvider>
-      </div>
+      </SessionLoadThresholdsProvider>
     </div>
   )
 }

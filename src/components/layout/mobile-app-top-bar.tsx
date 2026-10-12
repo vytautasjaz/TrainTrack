@@ -59,7 +59,7 @@ export function MobileAppTopBar({
   return (
     <div
       ref={chromeRef}
-      className="sticky top-0 z-40 bg-[var(--tt-home-hero-bg,#151827)]"
+      className="sticky top-0 z-40 border-b border-[var(--tt-v2-grid-line-strong)] bg-[var(--tt-v2-nav-bg,#111315)]"
       data-app-sticky-chrome
       data-mobile-topbar="dark"
     >

@@ -13,12 +13,19 @@ import {
 import { cn } from "@/lib/utils";
 
 const TONE_SEGMENT_CLASS = {
-  muted: "bg-neutral-400/55 dark:bg-neutral-400/45",
-  completed: "bg-emerald-500/70",
-  skipped: "bg-red-400/75",
+  muted: "bg-neutral-400/40 dark:bg-neutral-400/35",
+  completed: "bg-emerald-500/40",
+  skipped: "bg-red-400/50",
+  /** Monochrome in the parent’s `--tt-sport-color` (day/session card). */
+  sport: "bg-[var(--tt-sport-color,#9ca3af)]/40",
 } as const;
 
-export type StructureChartTone = "default" | "muted" | "completed" | "skipped";
+export type StructureChartTone =
+  | "default"
+  | "muted"
+  | "completed"
+  | "skipped"
+  | "sport";
 
 type ChartSize = "xs" | "card" | "cardLg" | "sm" | "md";
 
@@ -42,9 +49,9 @@ type WorkoutStructureChartProps = {
 
 /** `sm`/`md` preserve builder & detail chart heights; `xs`/`card*` are plan data-card sizes. */
 const HEIGHT: Record<ChartSize, string> = {
-  xs: "h-3",
-  card: "h-4",
-  cardLg: "h-5",
+  xs: "h-2.5",
+  card: "h-3",
+  cardLg: "h-4",
   sm: "h-7",
   md: "h-9",
 };
@@ -71,7 +78,10 @@ export function WorkoutStructureChart({
   const chartModel = model;
   const chartHeight = HEIGHT[size];
   const monochrome =
-    tone === "muted" || tone === "completed" || tone === "skipped";
+    tone === "muted" ||
+    tone === "completed" ||
+    tone === "skipped" ||
+    tone === "sport";
   const sortable =
     Boolean(onReorderBlocks) &&
     !monochrome &&

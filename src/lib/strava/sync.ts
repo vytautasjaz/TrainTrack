@@ -232,6 +232,7 @@ async function fetchAndCacheActivityStreams(
   activityId: number,
   bounds: NonNullable<ReturnType<typeof resolveHrZoneBounds>> | null,
   sport: WorkoutType,
+  unitPrefs?: import('@/lib/units').SplitUnitPrefs,
 ): Promise<{
   hrZoneSeconds: HrZoneSeconds | null
   streamsCache: {
@@ -264,6 +265,7 @@ async function fetchAndCacheActivityStreams(
       altitudeM: streams.altitude,
       heartrate: streams.heartrate,
       velocityMps: streams.velocity,
+      unitPrefs,
     })
     return {
       hrZoneSeconds,
@@ -369,17 +371,27 @@ async function applyActivityToWorkout(
           hrZone2Max: true,
           hrZone3Max: true,
           hrZone4Max: true,
+          user: {
+            select: { unitSystem: true, swimDistanceUnit: true },
+          },
         },
       },
     },
   })
   const hrBounds = resolveHrZoneBounds(workoutRow?.athlete ?? {})
+  const unitPrefs = {
+    unitSystem: workoutRow?.athlete?.user?.unitSystem,
+    swimDistanceUnit: workoutRow?.athlete?.user?.swimDistanceUnit,
+  }
   // Always pack streams at sync time so feed charts never need Strava.
+  // Auto-split length follows the athlete's unit prefs at import — existing
+  // caches are never rewritten when prefs change later.
   const packed = await fetchAndCacheActivityStreams(
     accessToken,
     activity.id,
     hrBounds,
     workoutRow?.type ?? WorkoutType.RUN,
+    unitPrefs,
   )
   const hrZoneSeconds = packed?.hrZoneSeconds ?? null
   const streamsCache = packed?.streamsCache ?? null
@@ -487,6 +499,15 @@ export async function syncStravaActivitiesForUser(
     await syncStravaAvatarForUser(userId, athleteId)
   } catch (err) {
     console.warn('Strava avatar sync skipped:', err)
+  }
+
+  const userUnits = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { unitSystem: true, swimDistanceUnit: true },
+  })
+  const unitPrefs = {
+    unitSystem: userUnits?.unitSystem,
+    swimDistanceUnit: userUnits?.swimDistanceUnit,
   }
 
   const hrBounds = resolveHrZoneBounds({
@@ -602,6 +623,8 @@ export async function syncStravaActivitiesForUser(
                   activity.id,
                   needsHrZones ? hrBounds : null,
                   existing.workout.type,
+                  // Only used when writing a brand-new laps cache (needsLaps).
+                  unitPrefs,
                 )
               : null
           await prisma.workoutResult.update({
@@ -627,7 +650,8 @@ export async function syncStravaActivitiesForUser(
               ...(packed?.streamsCache
                 ? { stravaStreamsCache: packed.streamsCache }
                 : {}),
-              ...(packed
+              // Never rewrite an existing laps/splits cache when prefs change.
+              ...(needsLaps && packed?.lapsCache
                 ? { stravaLapsCache: packed.lapsCache }
                 : {}),
               ...(needsMetrics

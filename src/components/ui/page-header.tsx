@@ -1,5 +1,9 @@
 import type { HTMLAttributes, ReactNode } from 'react'
 import { DisplayTitle, EyebrowTitle } from '@/components/ui/typography'
+import {
+  titleWithOrangeDot,
+  withOrangeTitleDot,
+} from '@/components/ui/title-with-dot'
 import { cn } from '@/lib/utils'
 
 type PageHeaderSize = 'default' | 'compact'
@@ -50,7 +54,7 @@ export function PageHeader({
             {eyebrow ? <PageHeaderEyebrow>{eyebrow}</PageHeaderEyebrow> : null}
             {title ? (
               <PageHeaderTitle size={size} className={eyebrow ? 'mt-1' : undefined}>
-                {title}
+                {titleWithOrangeDot(title)}
               </PageHeaderTitle>
             ) : null}
             {description ? (
@@ -77,17 +81,23 @@ export function PageHeaderEyebrow({
   )
 }
 
-/** Page H1 — Bebas Neue, uppercase. Prefer this over raw `h1` / one-off classes. */
+/**
+ * Page H1. Prefer this over raw `h1` / one-off classes.
+ * Trailing `.` in string children is brand orange (design system).
+ */
 export function PageHeaderTitle({
   size = 'default',
   className,
+  children,
   ...props
 }: HTMLAttributes<HTMLHeadingElement> & { size?: PageHeaderSize }) {
   return (
     <DisplayTitle
       className={cn(size === 'compact' && 'title-display--compact', className)}
       {...props}
-    />
+    >
+      {withOrangeTitleDot(children)}
+    </DisplayTitle>
   )
 }
 

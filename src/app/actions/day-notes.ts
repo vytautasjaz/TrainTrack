@@ -1,16 +1,28 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { DayNoteStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { parseDateOnly } from '@/lib/dates'
+import { cacheTags } from '@/lib/cache-tags'
+import { parseDateOnly, toDateKey } from '@/lib/dates'
 import {
   getCoachAthletes,
   requireSession,
   isCoachView,
   requireCoachOwnsAthlete,
 } from '@/lib/session'
-import type { DayNoteKind } from '@/lib/day-notes'
+import {
+  dayNoteHasVisibleContent,
+  redactDayNoteForViewer,
+  type DayNoteData,
+  type DayNoteKind,
+  type DayNoteViewer,
+} from '@/lib/day-notes'
+
+export type DayNoteWriteResult = {
+  dateKey: string
+  note: DayNoteData | null
+}
 
 /**
  * Note kind follows the active workspace (view mode), not merely whether the
@@ -38,10 +50,25 @@ async function resolveDayNoteAthleteId(formData: FormData) {
   throw new Error('Unauthorized')
 }
 
-function revalidateDayNotePaths() {
+function revalidateDayNoteSurfaces(athleteId: string) {
+  revalidateTag(cacheTags.athleteHome(athleteId))
+  revalidateTag(cacheTags.athletePlan(athleteId))
   revalidatePath('/training')
   revalidatePath('/dashboard')
   revalidatePath('/plan')
+}
+
+async function loadRedactedDayNote(
+  athleteId: string,
+  parsedDate: Date,
+  viewer: DayNoteViewer,
+): Promise<DayNoteData | null> {
+  const row = await prisma.dayNote.findUnique({
+    where: { athleteId_date: { athleteId, date: parsedDate } },
+  })
+  if (!row) return null
+  const note = redactDayNoteForViewer(row, viewer)
+  return dayNoteHasVisibleContent(note) ? note : null
 }
 
 function hasCoachNotes(row: { coachNotes: string | null } | null | undefined) {
@@ -120,7 +147,9 @@ export async function listCoachAthletesForDayNote(): Promise<
   return athletes.map((a) => ({ id: a.id, name: a.name }))
 }
 
-export async function upsertDayNote(formData: FormData) {
+export async function upsertDayNote(
+  formData: FormData,
+): Promise<DayNoteWriteResult> {
   const { session, athleteId, kind } = await resolveDayNoteAthleteId(formData)
   const date = formData.get('date') as string
   const notesRaw = (formData.get('notes') as string)?.trim()
@@ -128,9 +157,11 @@ export async function upsertDayNote(formData: FormData) {
   const isPrivate = formData.get('notesPrivate') === 'true'
   const unavailable = formData.get('unavailable') === 'on'
   const noteKind: DayNoteKind = kind
+  const viewer: DayNoteViewer = noteKind
 
   if (!date) throw new Error('Date is required')
   const parsedDate = parseDateOnly(date)
+  const dateKey = toDateKey(parsedDate)
 
   if (noteKind === 'athlete') {
     const existing = await prisma.dayNote.findUnique({
@@ -154,8 +185,11 @@ export async function upsertDayNote(formData: FormData) {
           },
         })
       }
-      revalidateDayNotePaths()
-      return
+      revalidateDayNoteSurfaces(athleteId)
+      return {
+        dateKey,
+        note: await loadRedactedDayNote(athleteId, parsedDate, viewer),
+      }
     }
 
     await prisma.dayNote.upsert({
@@ -173,8 +207,11 @@ export async function upsertDayNote(formData: FormData) {
         athleteNotesPrivate: isPrivate,
       },
     })
-    revalidateDayNotePaths()
-    return
+    revalidateDayNoteSurfaces(athleteId)
+    return {
+      dateKey,
+      note: await loadRedactedDayNote(athleteId, parsedDate, viewer),
+    }
   }
 
   // Coach note — optionally apply the same text to several athletes.
@@ -189,23 +226,31 @@ export async function upsertDayNote(formData: FormData) {
       notes,
       isPrivate,
     })
+    revalidateDayNoteSurfaces(id)
   }
-  revalidateDayNotePaths()
+  return {
+    dateKey,
+    note: await loadRedactedDayNote(athleteId, parsedDate, viewer),
+  }
 }
 
 /** Clears the current role's note fields; deletes the row when nothing remains. */
-export async function deleteDayNote(formData: FormData) {
+export async function deleteDayNote(
+  formData: FormData,
+): Promise<DayNoteWriteResult> {
   const { athleteId, kind } = await resolveDayNoteAthleteId(formData)
   const date = formData.get('date') as string
   if (!date) throw new Error('Date is required')
   const parsedDate = parseDateOnly(date)
+  const dateKey = toDateKey(parsedDate)
+  const viewer: DayNoteViewer = kind
 
   const existing = await prisma.dayNote.findUnique({
     where: { athleteId_date: { athleteId, date: parsedDate } },
   })
   if (!existing) {
-    revalidateDayNotePaths()
-    return
+    revalidateDayNoteSurfaces(athleteId)
+    return { dateKey, note: null }
   }
 
   if (kind === 'athlete') {
@@ -237,5 +282,9 @@ export async function deleteDayNote(formData: FormData) {
     })
   }
 
-  revalidateDayNotePaths()
+  revalidateDayNoteSurfaces(athleteId)
+  return {
+    dateKey,
+    note: await loadRedactedDayNote(athleteId, parsedDate, viewer),
+  }
 }

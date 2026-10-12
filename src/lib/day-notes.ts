@@ -18,6 +18,9 @@ export function isDayNoteUnavailable(status: DayNoteStatus): boolean {
   return status === DayNoteStatus.BUSY
 }
 
+/** Calendar / chip label when a day is marked busy. */
+export const DAY_NOTE_UNAVAILABLE_LABEL = 'Unavailable to train'
+
 export function getDayNoteKindText(
   note: DayNoteData,
   kind: DayNoteKind,
@@ -29,11 +32,15 @@ export function getDayNoteKindText(
 
 export function getDayNoteDisplayText(note: DayNoteData): string {
   const athlete = note.athleteNotes?.trim()
-  if (athlete) return athlete
   const coach = note.coachNotes?.trim()
-  if (coach) return coach
-  if (isDayNoteUnavailable(note.status)) return 'Unavailable'
-  return ''
+  const parts: string[] = []
+  if (athlete) parts.push(athlete)
+  else if (isDayNoteUnavailable(note.status)) parts.push(DAY_NOTE_UNAVAILABLE_LABEL)
+  if (coach) parts.push(coach)
+  if (parts.length === 0 && isDayNoteUnavailable(note.status)) {
+    return DAY_NOTE_UNAVAILABLE_LABEL
+  }
+  return parts.join('\n')
 }
 
 /** True when the viewer should see anything in the Notes row for this day. */

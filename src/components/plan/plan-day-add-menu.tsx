@@ -30,7 +30,7 @@ const COACH_ADD_SPORTS = SPORT_ROW_ORDER.filter(
   (t) => t !== WorkoutType.REST && t !== WorkoutType.RECOVERY,
 )
 
-/** Sports athletes can self-add from the day menu (text description only). */
+/** Sports athletes can self-add from the day menu (full editor, self-logged). */
 const ATHLETE_ADD_SPORTS = COACH_ADD_SPORTS
 
 type PlanDayAddMenuProps = {
@@ -40,6 +40,7 @@ type PlanDayAddMenuProps = {
   athleteId?: string
   dayNote?: DayNoteData | null
   recoveryWorkout?: PlanWorkoutDetail | null
+  onNoteChange?: (dateKey: string, note: DayNoteData | null) => void
   /** Prefer opening above (`top`) or below (`bottom`). Flips automatically if clipped. */
   menuPlacement?: 'top' | 'bottom'
   /** Lighter + for table add row. */
@@ -92,6 +93,7 @@ export function PlanDayAddMenu({
   athleteId,
   dayNote,
   recoveryWorkout,
+  onNoteChange,
   menuPlacement = 'bottom',
   variant = 'default',
   hitArea = 'icon',
@@ -420,7 +422,7 @@ export function PlanDayAddMenu({
           onOpenChange={handleWorkoutOpenChange}
           date={dateKey}
           sport={workoutSport}
-          athleteMode={!isCoach}
+          selfLoggedCreate={!isCoach}
         />
       )}
       {canShowNoteOption && (
@@ -431,6 +433,7 @@ export function PlanDayAddMenu({
           athleteId={athleteId}
           open={noteOpen}
           onOpenChange={setNoteOpen}
+          onNoteChange={onNoteChange}
         />
       )}
       {canAddEvent && (

@@ -5,6 +5,7 @@ import { cacheTags } from '@/lib/cache-tags'
 import { DASHBOARD_WEEK_NAV_LIMIT } from '@/lib/dashboard-week-nav'
 import {
   addDateOnlyDays,
+  eachDateOnlyDay,
   endOfMonthDateOnly,
   endOfWeekDateOnly,
   startOfMonthDateOnly,
@@ -13,6 +14,8 @@ import {
   toDateKey,
   toIsoString,
 } from '@/lib/dates'
+import type { WeatherDaySummary } from '@/lib/weather/places'
+import { getYrWeatherSummaries } from '@/lib/weather/yr'
 import type { DayNoteData, DayNoteViewer } from '@/lib/day-notes'
 import { redactDayNoteForViewer } from '@/lib/day-notes'
 import { AthleteStatus, RaceIntent, WorkoutStatus, WorkoutType, CoachingAuthorRole, CoachingMessageKind, CoachingThreadStatus, Prisma } from '@prisma/client'
@@ -477,6 +480,53 @@ async function getAthleteDashboardUncached(
     DASHBOARD_WEEK_NAV_LIMIT * 7,
   )
 
+  const athletePlanPromise = prisma.athlete.findUnique({
+    where: { id: athleteId },
+    select: {
+      planSportRows: true,
+      swimCssSecPer100m: true,
+      bikeFtpWatts: true,
+      paceThresholdMinPerKm: true,
+      hrMax: true,
+      hrResting: true,
+      hrZone1Max: true,
+      hrZone2Max: true,
+      hrZone3Max: true,
+      hrZone4Max: true,
+      weatherLat: true,
+      weatherLon: true,
+      weatherLocationName: true,
+      showWeather: true,
+    },
+  })
+
+  /** YR compact forecast spans ~10 days; skip past / far-future keys. */
+  const weatherPromise = (async (): Promise<
+    Record<string, WeatherDaySummary>
+  > => {
+    const config = await athletePlanPromise
+    if (
+      config?.showWeather === false ||
+      config?.weatherLat == null ||
+      config?.weatherLon == null
+    ) {
+      return {}
+    }
+    const dateKeys = eachDateOnlyDay(today, addDateOnlyDays(today, 9)).map(
+      (d) => toDateKey(d),
+    )
+    try {
+      const map = await getYrWeatherSummaries({
+        lat: config.weatherLat,
+        lon: config.weatherLon,
+        dateKeys,
+      })
+      return Object.fromEntries(map)
+    } catch {
+      return {}
+    }
+  })()
+
   const [
     todayWorkouts,
     nextRaces,
@@ -487,6 +537,9 @@ async function getAthleteDashboardUncached(
     weekRaces,
     monthRaces,
     athletePlan,
+    dayNotesRaw,
+    seasonEvents,
+    weatherByDate,
   ] = await Promise.all([
       prisma.workout.findMany({
         where: { athleteId, date: today },
@@ -548,22 +601,20 @@ async function getAthleteDashboardUncached(
         : Promise.resolve([]),
       getRacesForRange(athleteId, weekStart, weekEnd),
       getRacesForRange(athleteId, monthStart, monthEnd),
-      prisma.athlete.findUnique({
-        where: { id: athleteId },
-        select: {
-          planSportRows: true,
-          swimCssSecPer100m: true,
-          bikeFtpWatts: true,
-          paceThresholdMinPerKm: true,
-          hrMax: true,
-          hrResting: true,
-          hrZone1Max: true,
-          hrZone2Max: true,
-          hrZone3Max: true,
-          hrZone4Max: true,
-        },
-      }),
+      athletePlanPromise,
+      getDayNotesForRange(athleteId, weekStatsWindowStart, weekStatsWindowEnd),
+      getSeasonEventsForRange(
+        athleteId,
+        weekStatsWindowStart,
+        weekStatsWindowEnd,
+        'athlete',
+      ),
+      weatherPromise,
     ])
+
+  const dayNotes = [...groupDayNotesByDate(dayNotesRaw, 'athlete').entries()].map(
+    ([dateKey, note]) => ({ dateKey, ...note }),
+  )
 
   const nextWeekEnd = addDateOnlyDays(weekEnd, 28)
   const planWindowStart = addDateOnlyDays(weekStart, -28)
@@ -665,6 +716,13 @@ async function getAthleteDashboardUncached(
     unreadCoachReplies: await getUnreadCoachReplies(athleteId),
     weekStatsWindowWorkouts,
     weekStatsAnchorStartKey: toDateKey(weekStart),
+    weekStatsWindowStartKey: toDateKey(weekStatsWindowStart),
+    weekStatsWindowEndKey: toDateKey(weekStatsWindowEnd),
+    dayNotes,
+    seasonEvents,
+    weatherByDate,
+    showWeather: athletePlan?.showWeather ?? true,
+    weatherLocationName: athletePlan?.weatherLocationName?.trim() || null,
     planSportRows: athletePlan?.planSportRows ?? [],
     swimCssSecPer100m: athletePlan?.swimCssSecPer100m ?? null,
     activityFeedEnabled,
@@ -1191,8 +1249,16 @@ export async function getCoachHomeActivityFeedPage(
     }
   })
 
+  const coachUnits = await prisma.user.findUnique({
+    where: { id: coachId },
+    select: { unitSystem: true },
+  })
+
   let rows = mergeCoachHomeActivityFeed(
-    buildCoachHomeActivityTableRows(activityFeed),
+    buildCoachHomeActivityTableRows(
+      activityFeed,
+      coachUnits?.unitSystem ?? 'METRIC',
+    ),
     buildCoachHomeRaceActivityRows(
       recentRaceRows.map(
         (race): CoachHomeRaceFeedSource => ({
@@ -1839,6 +1905,7 @@ const SEASON_EVENT_SELECT = {
   startDate: true,
   endDate: true,
   isPrivate: true,
+  createdByRole: true,
   allDay: true,
   startTime: true,
   endTime: true,

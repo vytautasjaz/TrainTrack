@@ -23,14 +23,14 @@ import {
   formatSeasonEventWhenLine,
   type SeasonEventData,
 } from '@/lib/season-planner'
-import { toDateKey } from '@/lib/dates'
+import { asDate, toDateKey } from '@/lib/dates'
 import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { SIDEBAR_HERO_STYLE } from '@/lib/sidebar-hero'
 
-function formatDisplayDate(date: Date): string {
-  return date.toLocaleDateString('en-GB', {
+function formatDisplayDate(date: Date | string): string {
+  return asDate(date).toLocaleDateString('en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -38,7 +38,7 @@ function formatDisplayDate(date: Date): string {
   })
 }
 
-function formatDisplayRange(start: Date, end: Date): string {
+function formatDisplayRange(start: Date | string, end: Date | string): string {
   const startKey = toDateKey(start)
   const endKey = toDateKey(end)
   const startLabel = formatDisplayDate(start)

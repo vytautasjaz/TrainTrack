@@ -1,6 +1,12 @@
 import 'server-only'
 
-import { formatWeatherPlaceLabel, type WeatherPlace, type WeatherSlotSummary, type WeatherDaySummary } from '@/lib/weather/places'
+import {
+  formatWeatherPlaceLabel,
+  type WeatherPlace,
+  type WeatherSlotSummary,
+  type WeatherHourSummary,
+  type WeatherDaySummary,
+} from '@/lib/weather/places'
 
 type YrTimeseriesEntry = {
   time: string
@@ -33,7 +39,7 @@ type YrResponse = {
   }
 }
 
-export type { WeatherSlotSummary, WeatherDaySummary }
+export type { WeatherSlotSummary, WeatherHourSummary, WeatherDaySummary }
 
 type CachedForecast = {
   expiresAtMs: number
@@ -80,20 +86,7 @@ function pickNearestEntry(
   return best
 }
 
-function summarizeEntry(
-  entry: YrTimeseriesEntry | null,
-  label: 'Morning' | 'Day' | 'Evening',
-): WeatherSlotSummary {
-  if (!entry) {
-    return {
-      label,
-      emoji: '—',
-      temperatureC: null,
-      precipitationProbability: null,
-      precipitationMm: null,
-    }
-  }
-
+function entryMetrics(entry: YrTimeseriesEntry) {
   const temperatureRaw = entry.data.instant?.details?.air_temperature
   const probabilityRaw =
     entry.data.next_1_hours?.details?.probability_of_precipitation ??
@@ -108,7 +101,6 @@ function summarizeEntry(
     entry.data.next_12_hours?.summary?.symbol_code
 
   return {
-    label,
     emoji: yrSymbolToMeteoconIcon(symbol),
     temperatureC:
       typeof temperatureRaw === 'number' && Number.isFinite(temperatureRaw)
@@ -123,6 +115,34 @@ function summarizeEntry(
         ? Math.round(precipMmRaw * 10) / 10
         : null,
   }
+}
+
+function summarizeEntry(
+  entry: YrTimeseriesEntry | null,
+  label: 'Morning' | 'Day' | 'Evening',
+): WeatherSlotSummary {
+  if (!entry) {
+    return {
+      label,
+      emoji: '—',
+      temperatureC: null,
+      precipitationProbability: null,
+      precipitationMm: null,
+    }
+  }
+  return { label, ...entryMetrics(entry) }
+}
+
+function summarizeHour(entry: YrTimeseriesEntry): WeatherHourSummary | null {
+  const metrics = entryMetrics(entry)
+  if (
+    metrics.temperatureC == null &&
+    metrics.precipitationMm == null &&
+    metrics.precipitationProbability == null
+  ) {
+    return null
+  }
+  return { timeIso: entry.time, ...metrics }
 }
 
 async function fetchForecast(lat: number, lon: number): Promise<YrResponse> {
@@ -167,10 +187,20 @@ export async function getYrWeatherSummaries(opts: {
 
   const output = new Map<string, WeatherDaySummary>()
   for (const dateKey of uniqueDateKeys) {
+    const dayEntries = entries.filter((entry) =>
+      entry.time.startsWith(`${dateKey}T`),
+    )
     const slots: WeatherSlotSummary[] = TARGET_HOURS_UTC.map(({ hour, label }) =>
       summarizeEntry(pickNearestEntry(entries, dateKey, hour), label),
     )
-    output.set(dateKey, { dateKey, slots })
+    const hours = dayEntries
+      .map(summarizeHour)
+      .filter((hour): hour is WeatherHourSummary => hour != null)
+    output.set(dateKey, {
+      dateKey,
+      slots,
+      hours: hours.length > 0 ? hours : undefined,
+    })
   }
   return output
 }

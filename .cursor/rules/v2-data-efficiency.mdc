@@ -1,0 +1,36 @@
+---
+description: V2 — minimize network and DB work; single data loads, no redundant client fetches
+alwaysApply: true
+---
+
+# V2 data efficiency
+
+**Goal:** as few network/DB round-trips as possible. Prefer one server load per screen over chatty client fetches.
+
+## Do
+
+- **Server Components load data once** — e.g. `getAthleteDashboard` already batches home needs; pass props down.
+- **Derive client UI from props** (week offset, filters) — no refetch to flip weeks when the window is already loaded.
+- **Parallelize independent server work** with `Promise.all` inside query helpers; avoid sequential waterfalls.
+- **Reuse caches** — `unstable_cache` / tag revalidation (`athleteHome`, etc.); invalidate on write, don’t bypass casually.
+- **Share layout data carefully** — don’t re-query the same athlete/session facts in every child if the parent already has them (pass props or React `cache()`).
+- **Batch related reads** in `src/lib/queries.ts` (or domain query modules) instead of N small calls from the page.
+
+## Don’t
+
+- `fetch('/api/…')` from the client for data the RSC already has (or could have).
+- Per-card or per-day network calls on mount (N+1).
+- Duplicate Prisma in `layout` + `page` for the same entity without `cache()`.
+- Add polling/websockets unless the product explicitly needs live updates.
+- Ship “refresh everything” buttons that re-hit the DB when a local state update would do.
+
+## When an API is required
+
+- Prefer one endpoint that returns the **view model** for the screen (DTO), not many tiny resources.
+- Mobile/API parity: extend existing home/training DTOs rather than new round-trips per widget.
+
+## Checklist before merging UI
+
+- [ ] Count server queries on the happy path (aim: **1 primary query** per screen).
+- [ ] Week/day navigation works **offline of the network** within the prefetched window.
+- [ ] No new client `useEffect` → `fetch` for initial paint data.

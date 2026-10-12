@@ -7,6 +7,7 @@ import {
   useTransition,
   type ReactNode,
 } from 'react'
+import { useRouter } from 'next/navigation'
 import { WorkoutType } from '@prisma/client'
 import {
   moveWorkoutToDate,
@@ -57,6 +58,8 @@ type PlanWeekDndContextValue = {
   moveWorkoutToCell: (workoutId: string, dateKey: string) => void
   scheduleTemplateToCell: (templateId: string, dateKey: string) => void
   savePlanWorkoutToLibrary: (workoutId: string) => void
+  /** Optimistic same-day reorder — ordered workout/race ids for that date. */
+  onDayReordered?: (dateKey: string, orderedIds: string[]) => void
 }
 
 const PlanWeekDndContext = createContext<PlanWeekDndContextValue | null>(null)
@@ -64,23 +67,42 @@ const PlanWeekDndContext = createContext<PlanWeekDndContextValue | null>(null)
 export function PlanWeekDndProvider({
   children,
   mode = 'coach',
+  onWorkoutMoved,
+  onDayReordered,
 }: {
   children: ReactNode
   mode?: PlanWeekDndMode
+  /** Optimistic UI — called with the target date before the server action. */
+  onWorkoutMoved?: (workoutId: string, dateKey: string) => void
+  /** Optimistic same-day reorder (ids in display order). */
+  onDayReordered?: (dateKey: string, orderedIds: string[]) => void
 }) {
   const existing = useContext(PlanWeekDndContext)
   if (existing) return <>{children}</>
 
-  return <PlanWeekDndProviderInner mode={mode}>{children}</PlanWeekDndProviderInner>
+  return (
+    <PlanWeekDndProviderInner
+      mode={mode}
+      onWorkoutMoved={onWorkoutMoved}
+      onDayReordered={onDayReordered}
+    >
+      {children}
+    </PlanWeekDndProviderInner>
+  )
 }
 
 function PlanWeekDndProviderInner({
   children,
   mode,
+  onWorkoutMoved,
+  onDayReordered,
 }: {
   children: ReactNode
   mode: PlanWeekDndMode
+  onWorkoutMoved?: (workoutId: string, dateKey: string) => void
+  onDayReordered?: (dateKey: string, orderedIds: string[]) => void
 }) {
+  const router = useRouter()
   const [dragItem, setDragItem] = useState<DragItem | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [isMoving, startTransition] = useTransition()
@@ -109,6 +131,7 @@ function PlanWeekDndProviderInner({
       try {
         await action()
         setDragItem(null)
+        router.refresh()
       } catch (error) {
         setActionError(toUserMessage(error, fallbackMessage))
       }
@@ -116,16 +139,29 @@ function PlanWeekDndProviderInner({
   }
 
   function moveWorkoutToCell(workoutId: string, dateKey: string) {
-    runAction(async () => {
-      if (mode === 'athlete') {
-        const formData = new FormData()
-        formData.set('workoutId', workoutId)
-        formData.set('rescheduledDate', dateKey)
-        await rescheduleWorkout(formData)
-      } else {
-        await moveWorkoutToDate(workoutId, dateKey)
+    const fromKey =
+      dragItem?.kind === 'plan' && dragItem.id === workoutId
+        ? dragItem.dateKey
+        : null
+    onWorkoutMoved?.(workoutId, dateKey)
+    setActionError(null)
+    startTransition(async () => {
+      try {
+        if (mode === 'athlete') {
+          const formData = new FormData()
+          formData.set('workoutId', workoutId)
+          formData.set('rescheduledDate', dateKey)
+          await rescheduleWorkout(formData)
+        } else {
+          await moveWorkoutToDate(workoutId, dateKey)
+        }
+        setDragItem(null)
+        router.refresh()
+      } catch (error) {
+        if (fromKey) onWorkoutMoved?.(workoutId, fromKey)
+        setActionError(toUserMessage(error, 'Could not move workout'))
       }
-    }, 'Could not move workout')
+    })
   }
 
   function scheduleTemplateToCell(templateId: string, dateKey: string) {
@@ -161,6 +197,7 @@ function PlanWeekDndProviderInner({
         moveWorkoutToCell,
         scheduleTemplateToCell,
         savePlanWorkoutToLibrary,
+        onDayReordered,
       }}
     >
       {children}

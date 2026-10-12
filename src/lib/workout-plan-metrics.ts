@@ -2,6 +2,12 @@ import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { formatDistance, formatDuration } from '@/lib/utils'
 import { formatSwimDistance } from '@/lib/swim-workout/format'
+import {
+  DEFAULT_SWIM_DISTANCE_UNIT,
+  DEFAULT_UNIT_SYSTEM,
+  type SwimDistanceUnit,
+  type UnitSystem,
+} from '@/lib/units'
 
 export type WorkoutPlanMetrics = {
   duration: string | null
@@ -16,12 +22,14 @@ function formatWorkoutDistance(
   workout: PlanWorkoutDetail,
   km: number | null | undefined,
   meters: number | null | undefined,
+  unitSystem: UnitSystem,
+  swimUnit: SwimDistanceUnit,
 ): string | null {
   if (workout.type === WorkoutType.SWIM && meters != null && meters > 0) {
-    return formatSwimDistance(meters)
+    return formatSwimDistance(meters, swimUnit) || null
   }
   if (km != null && km > 0) {
-    const formatted = formatDistance(km)
+    const formatted = formatDistance(km, unitSystem)
     return formatted === '—' ? null : formatted
   }
   return null
@@ -36,6 +44,8 @@ function formatWorkoutDuration(min: number | null | undefined): string | null {
 export function getWorkoutPlanMetrics(
   workout: PlanWorkoutDetail,
   status: WorkoutStatus = workout.status,
+  unitSystem: UnitSystem = DEFAULT_UNIT_SYSTEM,
+  swimUnit: SwimDistanceUnit = DEFAULT_SWIM_DISTANCE_UNIT,
 ): WorkoutPlanMetrics {
   const isCompleted = status === WorkoutStatus.COMPLETED
   const result = workout.result
@@ -47,6 +57,8 @@ export function getWorkoutPlanMetrics(
     workout,
     workout.plannedDistance,
     workout.plannedDistanceMeters,
+    unitSystem,
+    swimUnit,
   )
   const plannedDuration = isSelfLogged ? null : rawPlannedDuration
   const plannedDistance = isSelfLogged ? null : rawPlannedDistance
@@ -63,6 +75,8 @@ export function getWorkoutPlanMetrics(
     workout,
     result?.actualDistance,
     actualDistanceMeters,
+    unitSystem,
+    swimUnit,
   )
 
   // Self-added: prefer actual when done; otherwise show the entered values as the session size

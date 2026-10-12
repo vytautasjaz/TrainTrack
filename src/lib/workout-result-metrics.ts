@@ -1,11 +1,24 @@
 import { WorkoutType } from '@prisma/client'
-import { formatPaceMinPerKm } from '@/lib/athlete-preferences'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import {
   estimateSessionLoad,
   type SessionLoadThresholds,
 } from '@/lib/training-load/session-tss'
-import { formatDistance } from '@/lib/utils'
+import {
+  DEFAULT_SWIM_DISTANCE_UNIT,
+  DEFAULT_UNIT_SYSTEM,
+  formatDistanceValue,
+  formatElevationValue,
+  formatPace,
+  formatPaceUnit,
+  formatSpeedKph,
+  formatSpeedUnit,
+  formatSwimDistanceValue,
+  formatSwimPace,
+  formatSwimPaceUnit,
+  type SwimDistanceUnit,
+  type UnitSystem,
+} from '@/lib/units'
 
 export type WorkoutResultMetricSlot = {
   label: string
@@ -23,7 +36,11 @@ function formatClock(durationMin: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
-function paceOrSpeed(workout: PlanWorkoutDetail): WorkoutResultMetricSlot | null {
+function paceOrSpeed(
+  workout: PlanWorkoutDetail,
+  unitSystem: UnitSystem,
+  swimUnit: SwimDistanceUnit,
+): WorkoutResultMetricSlot | null {
   const result = workout.result
   const distanceKm = result?.actualDistance
   const durationMin = result?.actualDuration
@@ -42,8 +59,8 @@ function paceOrSpeed(workout: PlanWorkoutDetail): WorkoutResultMetricSlot | null
     if (kph == null || !Number.isFinite(kph) || kph <= 0) return null
     return {
       label: 'Avg speed',
-      value: kph >= 10 ? kph.toFixed(1) : kph.toFixed(2),
-      unit: 'km/h',
+      value: formatSpeedKph(kph, unitSystem, { withUnit: false }),
+      unit: formatSpeedUnit(unitSystem),
     }
   }
 
@@ -57,33 +74,40 @@ function paceOrSpeed(workout: PlanWorkoutDetail): WorkoutResultMetricSlot | null
   }
 
   if (workout.type === WorkoutType.SWIM) {
-    const pace = formatPaceMinPerKm(durationMin / (distanceKm * 10))
+    const minPer100m = durationMin / (distanceKm * 10)
+    const pace = formatSwimPace(minPer100m, swimUnit, { withUnit: false })
     if (!pace) return null
-    return { label: 'Avg pace', value: pace, unit: '/100m' }
+    return {
+      label: 'Avg pace',
+      value: pace,
+      unit: formatSwimPaceUnit(swimUnit),
+    }
   }
 
-  const pace = formatPaceMinPerKm(durationMin / distanceKm)
+  const minPerKm = durationMin / distanceKm
+  const pace = formatPace(minPerKm, unitSystem, { withUnit: false })
   if (!pace) return null
-  return { label: 'Avg pace', value: pace, unit: '/km' }
+  return { label: 'Avg pace', value: pace, unit: formatPaceUnit(unitSystem) }
 }
 
-function distanceSlot(workout: PlanWorkoutDetail): WorkoutResultMetricSlot | null {
+function distanceSlot(
+  workout: PlanWorkoutDetail,
+  unitSystem: UnitSystem,
+  swimUnit: SwimDistanceUnit,
+): WorkoutResultMetricSlot | null {
   const result = workout.result
   if (workout.type === WorkoutType.SWIM && result?.actualDistance != null && result.actualDistance > 0) {
-    return {
-      label: 'Distance',
-      value: String(Math.round(result.actualDistance * 1000)),
-      unit: 'm',
-    }
+    const parts = formatSwimDistanceValue(
+      result.actualDistance * 1000,
+      swimUnit,
+    )
+    if (!parts) return null
+    return { label: 'Distance', value: parts.value, unit: parts.unit }
   }
   if (result?.actualDistance != null && result.actualDistance > 0) {
-    const formatted = formatDistance(result.actualDistance)
-    if (!formatted || formatted === '—') return null
-    const match = formatted.trim().match(/^(.+?)\s+(km|m)$/i)
-    if (match) {
-      return { label: 'Distance', value: match[1]!, unit: match[2]!.toLowerCase() }
-    }
-    return { label: 'Distance', value: formatted }
+    const parts = formatDistanceValue(result.actualDistance, unitSystem)
+    if (!parts) return null
+    return { label: 'Distance', value: parts.value, unit: parts.unit }
   }
   return null
 }
@@ -95,30 +119,32 @@ function distanceSlot(workout: PlanWorkoutDetail): WorkoutResultMetricSlot | nul
 export function stravaSyncedMetricSlots(
   workout: PlanWorkoutDetail,
   thresholds: SessionLoadThresholds = {},
+  unitSystem: UnitSystem = DEFAULT_UNIT_SYSTEM,
+  swimUnit: SwimDistanceUnit = DEFAULT_SWIM_DISTANCE_UNIT,
 ): { primary: WorkoutResultMetricSlot[]; extra: WorkoutResultMetricSlot[] } {
   const result = workout.result
   if (!result) return { primary: [], extra: [] }
 
-  const distance = distanceSlot(workout)
+  const distance = distanceSlot(workout, unitSystem, swimUnit)
   const time =
     result.actualDuration != null && result.actualDuration > 0
       ? { label: 'Time', value: formatClock(result.actualDuration) }
       : null
-  const pace = paceOrSpeed(workout)
+  const pace = paceOrSpeed(workout, unitSystem, swimUnit)
   const watts =
     result.weightedAverageWatts ?? result.averageWatts ?? null
   const power =
     watts != null && watts > 0
       ? { label: 'Avg power', value: String(Math.round(watts)), unit: 'W' }
       : null
-  const elev =
-    result.elevationGainM != null && result.elevationGainM >= 1
-      ? {
-          label: 'Elev gain',
-          value: String(Math.round(result.elevationGainM)),
-          unit: 'm',
-        }
-      : null
+  const elevParts = formatElevationValue(result.elevationGainM, unitSystem)
+  const elev = elevParts
+    ? {
+        label: 'Elev gain',
+        value: elevParts.value,
+        unit: elevParts.unit,
+      }
+    : null
   const load = estimateSessionLoad(workout, thresholds, { preferPlanned: false })
   const tss =
     load && load.tss > 0

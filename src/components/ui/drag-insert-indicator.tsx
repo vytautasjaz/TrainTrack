@@ -20,7 +20,7 @@ export function DragInsertIndicator({
         className,
       )}
     >
-      <div className="h-0.5 rounded-full bg-[var(--tt-ink,#111111)] shadow-[0_0_0_1px_rgba(255,255,255,0.65)]" />
+      <div className="h-px bg-[var(--tt-ink-faint,#9ca3af)]" />
     </div>
   )
 }
@@ -42,7 +42,7 @@ export function DragInsertIndicatorVertical({
         className,
       )}
     >
-      <div className="h-full w-0.5 rounded-full bg-[var(--tt-ink,#111111)] shadow-[0_0_0_1px_rgba(255,255,255,0.65)]" />
+      <div className="h-full w-px bg-[var(--tt-ink-faint,#9ca3af)]" />
     </div>
   )
 }

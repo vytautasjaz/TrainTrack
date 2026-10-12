@@ -1,18 +1,24 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { CalendarFeedType, Prisma } from '@prisma/client'
+import { revalidateAthletePlanSurfaces } from '@/lib/cache-tags'
+import {
+  CalendarFeedType,
+  Prisma,
+  type SwimDistanceUnit,
+  type UnitSystem,
+} from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { isSwimDistanceUnit, isUnitSystem } from '@/lib/units'
 import {
   BIKE_SPEED_ZONE_FIELDS,
   HR_ZONE_FIELDS,
   PACE_ZONE_FIELDS,
-  parseBikeSpeedKph,
-  parsePaceMinPerKm,
   parseSwimCssSecPer100m,
   type AthletePreferences,
   pickAthletePreferences,
 } from '@/lib/athlete-preferences'
+import { parsePaceToMinPerKm, parseSpeedToKph } from '@/lib/units'
 import {
   mergeWorkoutBuilderPrefsJson,
   parseWorkoutBuilderPrefs,
@@ -66,7 +72,7 @@ function parseCoordinate(
 }
 
 export async function updatePaceZones(formData: FormData) {
-  const { athleteId } = await requireAthleteForPreferences()
+  const { session, athleteId } = await requireAthleteForPreferences()
 
   const data: Record<string, number | null> = {}
   for (const { key, name } of PACE_ZONE_FIELDS) {
@@ -75,9 +81,13 @@ export async function updatePaceZones(formData: FormData) {
       data[key] = null
       continue
     }
-    const parsed = parsePaceMinPerKm(raw)
+    const parsed = parsePaceToMinPerKm(raw, session.unitSystem)
     if (parsed == null) {
-      throw new Error(`Invalid pace for ${name}. Use format like 5:30.`)
+      throw new Error(
+        session.unitSystem === 'IMPERIAL'
+          ? `Invalid pace for ${name}. Use format like 8:51.`
+          : `Invalid pace for ${name}. Use format like 5:30.`,
+      )
     }
     data[key] = parsed
   }
@@ -92,7 +102,7 @@ export async function updatePaceZones(formData: FormData) {
 }
 
 export async function updateBikeSpeedZones(formData: FormData) {
-  const { athleteId } = await requireAthleteForPreferences()
+  const { session, athleteId } = await requireAthleteForPreferences()
 
   const data: Record<string, number | null> = {}
   for (const { key, name } of BIKE_SPEED_ZONE_FIELDS) {
@@ -101,9 +111,13 @@ export async function updateBikeSpeedZones(formData: FormData) {
       data[key] = null
       continue
     }
-    const parsed = parseBikeSpeedKph(raw)
+    const parsed = parseSpeedToKph(raw, session.unitSystem)
     if (parsed == null) {
-      throw new Error(`Invalid bike speed for ${name}. Use value like 28.5.`)
+      throw new Error(
+        session.unitSystem === 'IMPERIAL'
+          ? `Invalid bike speed for ${name}. Use value like 17.5.`
+          : `Invalid bike speed for ${name}. Use value like 28.5.`,
+      )
     }
     data[key] = parsed
   }
@@ -179,8 +193,7 @@ export async function updateAthleteWeatherLocation(formData: FormData) {
     })
     revalidatePath('/settings/preferences')
     revalidatePath('/settings/account')
-    revalidatePath('/training')
-    revalidatePath('/dashboard')
+    revalidateAthletePlanSurfaces(athleteId)
     return
   }
 
@@ -213,8 +226,7 @@ export async function updateAthleteWeatherLocation(formData: FormData) {
 
   revalidatePath('/settings/preferences')
   revalidatePath('/settings/account')
-  revalidatePath('/training')
-  revalidatePath('/dashboard')
+  revalidateAthletePlanSurfaces(athleteId)
 }
 
 export async function updateAthleteShowWeather(formData: FormData) {
@@ -441,6 +453,48 @@ export async function updateCoachPlanningLeadDays(formData: FormData) {
 
   revalidatePath('/settings/preferences')
   revalidatePath('/dashboard')
+}
+
+export async function updateUnitSystem(next: UnitSystem): Promise<UnitSystem> {
+  const session = await requireSession()
+  if (!isUnitSystem(next)) {
+    throw new Error('Choose Metric or Imperial.')
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: session.userId },
+    data: { unitSystem: next },
+    select: { unitSystem: true },
+  })
+
+  revalidatePath('/settings')
+  revalidatePath('/dashboard')
+  revalidatePath('/training')
+  revalidatePath('/progress')
+  revalidatePath('/history')
+  return updated.unitSystem
+}
+
+export async function updateSwimDistanceUnit(
+  next: SwimDistanceUnit,
+): Promise<SwimDistanceUnit> {
+  const session = await requireSession()
+  if (!isSwimDistanceUnit(next)) {
+    throw new Error('Choose Meters or Yards for swim.')
+  }
+
+  const updated = await prisma.user.update({
+    where: { id: session.userId },
+    data: { swimDistanceUnit: next },
+    select: { swimDistanceUnit: true },
+  })
+
+  revalidatePath('/settings')
+  revalidatePath('/dashboard')
+  revalidatePath('/training')
+  revalidatePath('/progress')
+  revalidatePath('/history')
+  return updated.swimDistanceUnit
 }
 
 async function loadCoachWorkoutBuilderPrefsJson() {

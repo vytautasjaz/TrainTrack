@@ -5,6 +5,7 @@ import { Lock, Plus } from 'lucide-react'
 import {
   dayNoteHasVisibleContent,
   dayNoteKindHasContent,
+  DAY_NOTE_UNAVAILABLE_LABEL,
   getDayNoteKindText,
   isDayNoteUnavailable,
   type DayNoteData,
@@ -61,7 +62,7 @@ function noteTextClass(
     !flat && !compact && 'text-sm',
     showFullText || flat ? 'whitespace-pre-wrap break-words' : 'truncate',
     unavailable
-      ? 'italic text-red-600 dark:text-red-400'
+      ? 'italic text-brand'
       : !flat && 'text-amber-950 dark:text-amber-100',
   )
 }
@@ -237,8 +238,14 @@ export function DayNoteSection({
           {showAthleteChip ? (
             <NoteChip
               kind="athlete"
-              text={athleteText || 'Unavailable'}
-              unavailable={unavailable && !athleteText}
+              text={
+                athleteText
+                  ? unavailable
+                    ? `${athleteText}\n${DAY_NOTE_UNAVAILABLE_LABEL}`
+                    : athleteText
+                  : DAY_NOTE_UNAVAILABLE_LABEL
+              }
+              unavailable={unavailable}
               isPrivate={athletePrivate}
               showFullText={showFullText || cell}
               compact={compact}

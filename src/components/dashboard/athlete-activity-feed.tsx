@@ -15,6 +15,7 @@ import {
   ActivityFeedWorkoutCard,
 } from '@/components/activity/activity-feed-workout-card'
 import { MobileAccordionBody } from '@/components/ui/mobile-accordion-body'
+import { useUnitSystem } from '@/components/units/units-context'
 import { cn } from '@/lib/utils'
 
 /** Same-width mobile bubble used by feed items. */
@@ -31,8 +32,12 @@ export function AthleteActivityFeed({
   loadThresholds = {},
 }: AthleteActivityFeedProps) {
   const [mobileOpen, setMobileOpen] = useState(true)
+  const unitSystem = useUnitSystem()
 
-  const rows = useMemo(() => buildAthleteHomeActivityRows(workouts), [workouts])
+  const rows = useMemo(
+    () => buildAthleteHomeActivityRows(workouts, unitSystem),
+    [workouts, unitSystem],
+  )
   const groups = useMemo(() => groupActivityRowsByDay(rows), [rows])
 
   return (

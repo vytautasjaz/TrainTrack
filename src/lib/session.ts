@@ -1,8 +1,18 @@
 import { cache } from 'react'
-import { CoachAthleteLinkStatus, UserRole, AthleteStatus } from '@prisma/client'
+import {
+  CoachAthleteLinkStatus,
+  UserRole,
+  AthleteStatus,
+  type SwimDistanceUnit,
+  type UnitSystem,
+} from '@prisma/client'
 import { cookies } from 'next/headers'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
+import {
+  DEFAULT_SWIM_DISTANCE_UNIT,
+  DEFAULT_UNIT_SYSTEM,
+} from '@/lib/units'
 
 export type AppViewMode = 'coach' | 'athlete'
 
@@ -21,6 +31,10 @@ export type SessionContext = {
   viewMode: AppViewMode
   onboardingSkipped: boolean
   needsOnboarding: boolean
+  /** Viewer distance / pace / speed display preference. */
+  unitSystem: UnitSystem
+  /** Viewer swim distance display preference (m vs yd). */
+  swimDistanceUnit: SwimDistanceUnit
 }
 
 /** Slim athlete row for shell / athlete picker (avoid full Athlete payloads). */
@@ -130,6 +144,8 @@ async function getSessionUncached(): Promise<SessionContext | null> {
         name: true,
         onboardingSkippedAt: true,
         disabledAt: true,
+        unitSystem: true,
+        swimDistanceUnit: true,
         athleteProfile: { select: { id: true } },
         coachProfile: { select: { id: true } },
       },
@@ -176,6 +192,8 @@ async function getSessionUncached(): Promise<SessionContext | null> {
       onboardingSkipped,
       needsOnboarding:
         !isAdminUser && !hasAthlete && !hasCoach && !onboardingSkipped,
+      unitSystem: dbUser.unitSystem ?? DEFAULT_UNIT_SYSTEM,
+      swimDistanceUnit: dbUser.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT,
     }
   }
 

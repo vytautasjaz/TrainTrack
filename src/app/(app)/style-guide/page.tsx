@@ -20,9 +20,20 @@ import { SessionType, WorkoutStatus, WorkoutType } from '@prisma/client'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { getWorkoutCompletionPercent } from '@/lib/workout-card'
 import { cn } from '@/lib/utils'
+import { radius, space, v2 } from '@/lib/design-tokens'
+import {
+  V2MetricCard,
+  V2Panel,
+  V2ProgressRow,
+  V2Tag,
+  V2WeekBoard,
+} from '@/components/ui/v2'
 
 const TOC = [
   { id: 'principles', label: 'Principles' },
+  { id: 'v2', label: 'V2 shell' },
+  { id: 'radius', label: 'Radius' },
+  { id: 'spacing', label: 'Spacing' },
   { id: 'brand', label: 'Brand' },
   { id: 'color', label: 'Color' },
   { id: 'weather', label: 'Weather icons' },
@@ -75,9 +86,10 @@ function SpecCard({
   return (
     <div
       className={cn(
-        'flex flex-col gap-3 rounded-[10px] border border-[#e2e3e1] bg-white p-5',
+        'flex flex-col gap-3 border border-[#e2e3e1] bg-white p-5',
         className,
       )}
+      style={{ borderRadius: radius.lg } as CSSProperties}
     >
       <p className="title-eyebrow">{label}</p>
       <div className="min-w-0 flex-1">{children}</div>
@@ -251,12 +263,193 @@ export default function StyleGuidePage() {
                 ].map(([t, d]) => (
                   <div
                     key={t}
-                    className="rounded-[10px] border border-[#e2e3e1] bg-white px-4 py-3.5"
+                    className="rounded-[var(--radius-md)] border border-[#e2e3e1] bg-white px-4 py-3.5"
                   >
                     <p className="title-card">{t}</p>
                     <p className="mt-1 text-[13px] leading-snug text-[#737986]">{d}</p>
                   </div>
                 ))}
+              </div>
+            </GuideSection>
+
+            <GuideSection
+              id="v2"
+              title="V2 shell"
+              description="Dark top-nav product line (branch v2). Change look via --tt-v2-* tokens and src/components/ui/v2 — not one-off hex in pages. Docs: docs/V2-STANDARDS.md."
+            >
+              <div
+                className="space-y-4 p-5"
+                style={
+                  {
+                    background: 'var(--tt-v2-hero-bg)',
+                    borderRadius: radius.lg,
+                  } as CSSProperties
+                }
+              >
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <V2MetricCard label="Weekly Distance" value="48 km" delta={12}>
+                    <span className="text-[11px] text-[var(--tt-v2-ink-faint)]">spark</span>
+                  </V2MetricCard>
+                  <V2MetricCard label="Training Load" value="312" delta={8} />
+                  <V2MetricCard label="Completion" value="6/7" hint="This week" />
+                  <V2MetricCard label="Next Race">
+                    <p className="mt-1 text-[15px] font-semibold text-white">HYROX Helsinki</p>
+                    <p className="mt-0.5 text-[12px] text-[var(--tt-v2-ink-soft)]">73 days</p>
+                  </V2MetricCard>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <V2Tag>Z3-4</V2Tag>
+                  <V2Tag tone="bike">Endurance</V2Tag>
+                  <V2Tag tone="strength">Strength</V2Tag>
+                  <V2Tag tone="recovery">Recovery</V2Tag>
+                </div>
+                <V2WeekBoard>
+                  <div className={cn(v2.surfaces.dayCard, 'inline-block max-w-[11rem] p-3')}>
+                    <p className="text-[13px] font-semibold">Easy Run</p>
+                    <p className="mt-1 text-[12px] text-[var(--tt-v2-light-ink-soft)]">
+                      8 km · 0:45
+                    </p>
+                    <div className="mt-2 flex gap-1">
+                      <V2Tag>Z1-2</V2Tag>
+                      <V2Tag>Easy</V2Tag>
+                    </div>
+                  </div>
+                </V2WeekBoard>
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <V2Panel title="This Week" tone="light">
+                    <div className="mt-3 space-y-3">
+                      <V2ProgressRow
+                        tone="light"
+                        label="Distance"
+                        valueLabel="48 / 60 km"
+                        ratio={0.8}
+                      />
+                      <V2ProgressRow
+                        tone="light"
+                        label="Workouts"
+                        valueLabel="6 / 7"
+                        ratio={0.86}
+                      />
+                    </div>
+                  </V2Panel>
+                  <V2Panel title="Next Race" tone="light">
+                    <p className="mt-2 text-[15px] font-semibold text-[var(--tt-v2-light-ink)]">
+                      HYROX Helsinki
+                    </p>
+                    <p className="mt-1 text-[12px] text-[var(--tt-v2-light-ink-soft)]">
+                      Light panels on the faded lower page
+                    </p>
+                  </V2Panel>
+                </div>
+                <p className="text-[12px] text-[var(--tt-v2-ink-soft)]">
+                  Page fade: dark hero → light bottom. Week hero uses{' '}
+                  <code className="text-[var(--tt-v2-ink)]">V2WeekBoard</code>. Tokens:{' '}
+                  <code className="text-[var(--tt-v2-ink)]">--tt-v2-*</code>.
+                </p>
+              </div>
+            </GuideSection>
+
+            <GuideSection
+              id="radius"
+              title="Radius"
+              description="Token-driven corners. Change --radius-* once; v2 primitives follow. Prefer rounded-[var(--radius-xl)] for cards over Tailwind rounded-xl."
+            >
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {(
+                  [
+                    ['xs', radius.xs, '2px — bars (rectangular)'],
+                    ['sm', radius.sm, '4px — tags, icon btns'],
+                    ['md', radius.md, '6px — controls, inputs'],
+                    ['lg', radius.lg, '8px — compact surfaces'],
+                    ['xl', radius.xl, '14px — cards, widgets'],
+                    ['2xl', radius['2xl'], '16px — week board, sheets'],
+                    ['pill', radius.pill, 'Avatars only'],
+                  ] as const
+                ).map(([name, value, note]) => (
+                  <div
+                    key={name}
+                    className="border border-[#e2e3e1] bg-white p-4"
+                    style={{ borderRadius: value } as CSSProperties}
+                  >
+                    <p className="title-eyebrow">--radius-{name}</p>
+                    <p className="mt-2 font-mono text-[13px] text-[#111111]">{value}</p>
+                    <p className="mt-1 text-[12px] text-[#737986]">{note}</p>
+                    <div
+                      className="mt-3 h-10 border border-[#e2e3e1] bg-[#f5f5f5]"
+                      style={{ borderRadius: value } as CSSProperties}
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-[var(--radius-xl)] border border-[#e2e3e1] bg-[#fafafa] px-4 py-3 text-[13px] leading-relaxed text-[#737986]">
+                <strong className="text-[#111111]">Do:</strong> cards/widgets{' '}
+                <code className="text-[#111111]">xl</code>, panels/boards{' '}
+                <code className="text-[#111111]">2xl</code>, tags{' '}
+                <code className="text-[#111111]">sm</code>.{' '}
+                <strong className="text-[#111111]">Don’t:</strong> invent{' '}
+                <code className="text-[#111111]">rounded-2xl</code> /{' '}
+                <code className="text-[#111111]">rounded-[1rem]</code> on product UI.
+              </div>
+            </GuideSection>
+
+            <GuideSection
+              id="spacing"
+              title="Spacing"
+              description="8px base scale + semantic roles. Prefer --tt-space-tight / .tt-space-after-title for widget title → body over mt-2."
+            >
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {(
+                  [
+                    ['micro', space.micro, '4px — icon ↔ label'],
+                    ['tight', space.tight, '8px — title → body'],
+                    ['snug', space.snug, '12px — related in-card'],
+                    ['stack', space.stack, '16px — default stack'],
+                    ['section', space.section, '24px — major sections'],
+                    ['block', space.block, '32px — page blocks'],
+                  ] as const
+                ).map(([name, value, note]) => (
+                  <div
+                    key={name}
+                    className="border border-[#e2e3e1] bg-white p-4"
+                    style={{ borderRadius: radius.xl } as CSSProperties}
+                  >
+                    <p className="title-eyebrow">--tt-space-{name}</p>
+                    <p className="mt-2 font-mono text-[13px] text-[#111111]">
+                      {value}
+                    </p>
+                    <p className="mt-1 text-[12px] text-[#737986]">{note}</p>
+                    <div className="mt-3 flex items-end gap-1">
+                      <div className="h-6 w-6 bg-[#e3e6e9]" />
+                      <div
+                        className="bg-[var(--tt-v2-accent)]"
+                        style={
+                          {
+                            width: value,
+                            height: '1.5rem',
+                          } as CSSProperties
+                        }
+                      />
+                      <div className="h-6 w-6 bg-[#e3e6e9]" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div
+                className="mt-4 border border-[#e2e3e1] bg-white p-4"
+                style={{ borderRadius: radius.xl } as CSSProperties}
+              >
+                <p className="tt-v2-eyebrow text-[#9ca3af]">Widget title</p>
+                <div className="tt-space-after-title rounded-[var(--radius-md)] border border-dashed border-[#e3e6e9] bg-[#fafafa] px-3 py-2 text-[13px] text-[#737986]">
+                  Body uses <code className="text-[#111111]">.tt-space-after-title</code>{' '}
+                  ({space.afterTitle})
+                </div>
+              </div>
+              <div className="mt-3 rounded-[var(--radius-xl)] border border-[#e2e3e1] bg-[#fafafa] px-4 py-3 text-[13px] leading-relaxed text-[#737986]">
+                <strong className="text-[#111111]">Do:</strong> semantic roles +{' '}
+                <code className="text-[#111111]">--tt-v2-grid-gutter</code> for
+                modular home columns.{' '}
+                <strong className="text-[#111111]">Don’t:</strong> invent{' '}
+                <code className="text-[#111111]">mt-[13px]</code> / one-off gaps.
               </div>
             </GuideSection>
 
@@ -401,17 +594,24 @@ export default function StyleGuidePage() {
             <GuideSection
               id="surfaces"
               title="Surfaces"
-              description="Radii: cards 10–12px · buttons/inputs 8px · icon wells 10px · pills 999px. Shadows almost never."
+              description="Radii: cards 14px · panels 16px · controls 6–8px · pills 999px. Soft layered shadows + hover lift."
             >
               <div className="grid gap-4 sm:grid-cols-3">
-                <div className="rounded-[10px] border border-[#e2e3e1] bg-white p-5">
+                <div
+                  className="rounded-[var(--radius-xl)] border border-[#e2e3e1] bg-white p-5"
+                  style={
+                    {
+                      boxShadow: 'var(--tt-v2-shadow-card)',
+                    } as CSSProperties
+                  }
+                >
                   <p className="title-card">Dashboard card</p>
                   <p className="mt-2 text-[13px] text-[#737986]">
-                    white · 1px #E2E3E1 · radius 10px · no shadow
+                    white · 1px #E2E3E1 · radius 14px · soft shadow
                   </p>
                 </div>
                 <div
-                  className="rounded-[10px] border border-[#e2e3e1] bg-white p-5"
+                  className="rounded-[var(--radius-xl)] border border-[#e2e3e1] bg-white p-5"
                   style={{ borderLeft: '3px solid #12b8a6' }}
                 >
                   <p className="title-card">Today workout</p>
@@ -419,7 +619,7 @@ export default function StyleGuidePage() {
                     sport left edge · white fill · no gradient wash
                   </p>
                 </div>
-                <div className="overflow-hidden rounded-[10px] border border-[#e3e4e2] bg-white">
+                <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[#e3e4e2] bg-white">
                   <div
                     className="border-b border-[#eeeeec] px-4 py-3"
                     style={{ borderLeft: '3px solid #f4511e' }}
@@ -437,7 +637,7 @@ export default function StyleGuidePage() {
             </GuideSection>
 
             <GuideSection id="buttons" title="Buttons">
-              <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-[#e2e3e1] bg-white p-5">
+              <div className="flex flex-wrap items-center gap-3 rounded-[var(--radius-lg)] border border-[#e2e3e1] bg-white p-5">
                 <button type="button" className="tt-dashboard-log-btn">
                   Log workout
                 </button>
@@ -468,9 +668,9 @@ export default function StyleGuidePage() {
                 ).map(([label, type, hex]) => (
                   <div
                     key={label}
-                    className="flex flex-col items-start gap-2.5 rounded-[10px] border border-[#e2e3e1] bg-white p-4"
+                    className="flex flex-col items-start gap-2.5 rounded-[var(--radius-lg)] border border-[#e2e3e1] bg-white p-4"
                   >
-                    <WorkoutSportIcon type={type} size="sm" className="h-[38px] w-[38px] rounded-[10px]" />
+                    <WorkoutSportIcon type={type} size="sm" className="h-[38px] w-[38px] rounded-[var(--radius-lg)]" />
                     <div>
                       <p className="title-card">{label}</p>
                       <p className="mt-0.5 flex items-center gap-1.5 text-[11px] tabular-nums text-[#737986]">
@@ -599,7 +799,7 @@ export default function StyleGuidePage() {
 
             <GuideSection id="rules" title="Rules">
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="rounded-[10px] border border-[#86d39a]/60 bg-[#f0faf4] p-5">
+                <div className="rounded-[var(--radius-lg)] border border-[#86d39a]/60 bg-[#f0faf4] p-5">
                   <p className="title-eyebrow text-[#1b7a3d]">Do</p>
                   <ul className="mt-3 space-y-2 text-[13px] leading-snug text-[#111111]">
                     <li>Pick type by semantic role</li>
@@ -609,7 +809,7 @@ export default function StyleGuidePage() {
                     <li>Use title-section for all content section headings</li>
                   </ul>
                 </div>
-                <div className="rounded-[10px] border border-[#f5a3a3]/70 bg-[#fdf2f2] p-5">
+                <div className="rounded-[var(--radius-lg)] border border-[#f5a3a3]/70 bg-[#fdf2f2] p-5">
                   <p className="title-eyebrow text-[#b42318]">Don&apos;t</p>
                   <ul className="mt-3 space-y-2 text-[13px] leading-snug text-[#111111]">
                     <li>Barlow in nav, tables, or calendar headers</li>

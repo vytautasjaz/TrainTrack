@@ -24,8 +24,11 @@ import {
 import {
   HomeMobileSectionHeader,
 } from '@/components/ui/mobile-accordion-body'
+import { V2WidgetHeader } from '@/components/ui/v2'
+import { v2 } from '@/lib/design-tokens'
 import {
   WeekCarouselNav,
+  WeekCarouselThisWeekButton,
   WeekSwipePane,
   WeekSwipeSlide,
 } from '@/components/dashboard/week-swipe-pane'
@@ -52,6 +55,8 @@ type AthleteWeekStatsCardProps = {
   anchorWeekStartKey: string
   planSportRows?: WorkoutType[]
   swimCssSecPer100m?: number | null
+  /** `v2` = light panel + eyebrow header for athlete home v2. */
+  tone?: 'default' | 'v2'
   className?: string
 }
 
@@ -94,9 +99,19 @@ function buildWeekStats(
   const start = parseDateOnly(keys[0]!)
   const end = parseDateOnly(keys[6]!)
   const rangeLabel =
+    start.getFullYear() === end.getFullYear() &&
     start.getMonth() === end.getMonth()
-      ? `${format(start, 'd')}–${format(end, 'd MMM')}`
-      : `${format(start, 'd MMM')}–${format(end, 'd MMM')}`
+      ? `${format(start, 'd')} – ${format(end, 'd MMMM yyyy')}`
+      : start.getFullYear() === end.getFullYear()
+        ? `${format(start, 'd MMMM')} – ${format(end, 'd MMMM yyyy')}`
+        : `${format(start, 'd MMMM yyyy')} – ${format(end, 'd MMMM yyyy')}`
+  const rangeLabelCompact =
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth()
+      ? `${format(start, 'd')} – ${format(end, 'd MMM')}`
+      : start.getFullYear() === end.getFullYear()
+        ? `${format(start, 'd MMM')} – ${format(end, 'd MMM')}`
+        : `${format(start, 'd MMM yy')} – ${format(end, 'd MMM yy')}`
 
   let plannedMin = 0
   let completedMin = 0
@@ -126,6 +141,7 @@ function buildWeekStats(
     weekNum,
     title,
     rangeLabel,
+    rangeLabelCompact,
     sports: sportList,
     planDays: days,
     allWorkouts: all,
@@ -150,8 +166,10 @@ export function AthleteWeekStatsCard({
   anchorWeekStartKey,
   planSportRows = [],
   swimCssSecPer100m = null,
+  tone = 'default',
   className,
 }: AthleteWeekStatsCardProps) {
+  const isV2 = tone === 'v2'
   const [active, setActive] = useState(CENTER_INDEX)
   /** Carousel track — only moves on swipe; arrows morph bars in place. */
   const [paneActive, setPaneActive] = useState(CENTER_INDEX)
@@ -254,26 +272,53 @@ export function AthleteWeekStatsCard({
     }
   }, [])
 
-  return (
-    <section className={cn(SHELL, className)}>
-      <HomeMobileSectionHeader
-        title={week.title}
-        collapsible={false}
-        subtitle={week.rangeLabel}
-        trailing={
-          <WeekCarouselNav
-            canPrev={canPrev}
-            canNext={canNext}
-            isToday={active === CENTER_INDEX}
-            onPrev={() => goByArrow(Math.max(0, active - 1))}
-            onNext={() => goByArrow(Math.min(WEEK_COUNT - 1, active + 1))}
-            onToday={() => goByArrow(CENTER_INDEX)}
-          />
-        }
+  const awayFromThisWeek = active !== CENTER_INDEX
+  const nav = (
+    <>
+      {awayFromThisWeek ? (
+        <WeekCarouselThisWeekButton
+          className="mr-1.5"
+          onClick={() => goByArrow(CENTER_INDEX)}
+        />
+      ) : null}
+      <WeekCarouselNav
+        canPrev={canPrev}
+        canNext={canNext}
+        isToday={!awayFromThisWeek}
+        rangeLabel={week.rangeLabel}
+        rangeLabelCompact={week.rangeLabelCompact}
+        onPrev={() => goByArrow(Math.max(0, active - 1))}
+        onNext={() => goByArrow(Math.min(WEEK_COUNT - 1, active + 1))}
       />
+    </>
+  )
+
+  const trackClass = isV2
+    ? 'tt-v2-home-track mt-1 h-1.5 overflow-hidden'
+    : 'mt-1 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]'
+  const footerTrackClass = isV2
+    ? 'tt-v2-home-track mt-1.5 h-1.5 overflow-hidden'
+    : 'mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]'
+
+  return (
+    <section
+      className={cn(
+        isV2 ? cn(v2.surfaces.widgetLight, 'tt-v2-home-widget') : SHELL,
+        className,
+      )}
+    >
+      {isV2 ? (
+        <V2WidgetHeader title={week.title} trailing={nav} />
+      ) : (
+        <HomeMobileSectionHeader
+          title={week.title}
+          collapsible={false}
+          trailing={nav}
+        />
+      )}
 
       <WeekSwipePane
-        className="mt-3"
+        className="tt-space-after-title"
         active={paneActive}
         count={WEEK_COUNT}
         onActiveChange={onActiveChange}
@@ -328,7 +373,7 @@ export function AthleteWeekStatsCard({
                             {metric.unit ? ` ${metric.unit}` : ''}
                           </span>
                         </p>
-                        <div className="mt-1 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
+                        <div className={trackClass}>
                           <MorphProgressBar
                             pct={pct}
                             morphFrom={morph?.[sport] ?? null}
@@ -341,7 +386,7 @@ export function AthleteWeekStatsCard({
                 </div>
               )}
 
-              <div className="mt-3 grid grid-cols-2 gap-3 border-t border-[var(--tt-line,#ebebeb)] pt-2.5">
+              <div className="mt-3 border-t border-[var(--tt-line,#ebebeb)] pt-2.5">
                 <div className="min-w-0">
                   <div className="flex items-baseline justify-between gap-2">
                     <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
@@ -356,47 +401,15 @@ export function AthleteWeekStatsCard({
                       </span>
                     </p>
                   </div>
-                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
+                  <div className={footerTrackClass}>
                     <MorphProgressBar
                       pct={data.overall.pct}
                       morphFrom={morph?.__overall ?? null}
-                      className="bg-[var(--tt-ink-soft,#6b6b6b)]"
-                    />
-                  </div>
-                </div>
-                <div className="min-w-0">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
-                      TSS
-                    </p>
-                    <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
-                      {data.tss.planned > 0 ? (
-                        data.tss.actual > 0 ? (
-                          <>
-                            <span className="font-semibold text-[var(--tt-ink,#111)]">
-                              {data.tss.actual}
-                            </span>
-                            <span>
-                              /{data.tss.planned} · {data.tss.pct}%
-                            </span>
-                          </>
-                        ) : (
-                          <span className="font-semibold text-[var(--tt-ink,#111)]">
-                            {data.tss.planned}
-                          </span>
-                        )
-                      ) : (
-                        <span className="font-semibold text-[var(--tt-ink,#111)]">
-                          —
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                  <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]">
-                    <MorphProgressBar
-                      pct={data.tss.pct}
-                      morphFrom={morph?.__tss ?? null}
-                      className="bg-[var(--tt-ink-soft,#6b6b6b)]"
+                      className={
+                        isV2
+                          ? 'tt-v2-home-track-fill'
+                          : 'bg-[var(--tt-ink-soft,#6b6b6b)]'
+                      }
                     />
                   </div>
                 </div>

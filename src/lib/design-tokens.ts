@@ -1,9 +1,8 @@
 /**
- * TrainTrack visual language (redesign):
- * - UI font: Inter (`--font-sans`) — body, nav, sections, captions
- * - Display font: Bebas Neue (`--font-display`) — page H1 only (~Level 1)
- * - Prefer `PageHeader` / `PageHeaderTitle` over raw title classes
- * - Title hierarchy: see `.cursor/rules/typography-hierarchy.mdc` and `title-*` in globals.css
+ * TrainTrack design system (docs/DESIGN-SYSTEM.md):
+ * - Inter only (`--font-sans` / `--font-display`) — weights 400–800
+ * - Page titles: Inter 800 (`.title-display`)
+ * - Prefer `PageHeader` / primitives in `ui/v2` over one-off chrome
  */
 export const typography = {
   /** Level 1 page H1 (Bebas) — same as pageTitle */
@@ -112,4 +111,116 @@ export const controls = {
   pillItemActive: 'pill-select-item-active',
   pillItemInactive: 'pill-select-item-inactive',
   pillItemBrand: 'pill-select-item-brand',
+} as const
+
+/**
+ * V2 shell tokens (CSS vars in globals.css).
+ * Palette: charcoal nav, brand orange, light content — docs/DESIGN-SYSTEM.md
+ * Live: `/style-guide#v2` · docs/V2-STANDARDS.md
+ */
+export const v2 = {
+  colors: {
+    brand: '#F0440A',
+    charcoal: '#111315',
+    pageBg: '#F5F6F7',
+    textPrimary: '#15192B',
+    textSecondary: '#6B7280',
+    border: '#E3E6E9',
+    navBg: 'var(--tt-v2-nav-bg)',
+    accent: 'var(--tt-v2-accent)',
+    heroBg: 'var(--tt-v2-hero-bg)',
+    pageBottom: 'var(--tt-v2-page-bottom)',
+    surface: 'var(--tt-v2-surface)',
+    surface2: 'var(--tt-v2-surface-2)',
+    ink: 'var(--tt-v2-ink)',
+    inkSoft: 'var(--tt-v2-ink-soft)',
+    inkFaint: 'var(--tt-v2-ink-faint)',
+    weekBoard: 'var(--tt-v2-week-board)',
+    card: 'var(--tt-v2-card)',
+    cardInk: 'var(--tt-v2-card-ink)',
+    lightInk: 'var(--tt-v2-light-ink)',
+    lightInkSoft: 'var(--tt-v2-light-ink-soft)',
+    lightPanel: 'var(--tt-v2-light-panel)',
+  },
+  shadows: {
+    metric: 'var(--tt-v2-shadow-metric)',
+    card: 'var(--tt-v2-shadow-card)',
+    board: 'var(--tt-v2-shadow-board)',
+    panel: 'var(--tt-v2-shadow-panel)',
+    today: 'var(--tt-v2-shadow-today)',
+  },
+  surfaces: {
+    page: 'tt-athlete-home-v2',
+    pageShell: 'tt-athlete-home-v2-shell',
+    metric: 'tt-v2-metric',
+    widget: 'tt-v2-widget',
+    widgetLight: 'tt-v2-widget tt-v2-widget--light',
+    weekBoard: 'tt-v2-week-board',
+    dayCard: 'tt-v2-day-card',
+    dayCardToday: 'tt-v2-day-card tt-v2-day-card--today',
+    progress: 'tt-v2-progress',
+    progressLight: 'tt-v2-progress tt-v2-progress--light',
+    tag: 'tt-v2-tag',
+    /** 7-day modular layout helpers */
+    modStack: 'tt-v2-mod-stack',
+    modGrid: 'tt-v2-mod-grid',
+    modWidgets: 'tt-v2-mod-widgets',
+  },
+  /** Modular page grid — 7 day cols + gutters; keep spans in sync with shell ::before */
+  grid: {
+    cols: 7,
+    gutter: 'var(--tt-v2-grid-gutter)',
+    size: 'var(--tt-v2-grid-size)',
+    line: 'var(--tt-v2-grid-line)',
+  },
+  topNavHeight: 'var(--tt-top-nav-height)',
+  /** Tight radius scale — use these, not one-off rounded-* rem values */
+  radius: {
+    none: 'var(--radius-none)',
+    xs: 'var(--radius-xs)',
+    sm: 'var(--radius-sm)',
+    md: 'var(--radius-md)',
+    lg: 'var(--radius-lg)',
+    xl: 'var(--radius-xl)',
+    '2xl': 'var(--radius-2xl)',
+    pill: 'var(--radius-pill)',
+    workout: 'var(--radius-workout)',
+  },
+  /**
+   * Semantic spacing — prefer over ad-hoc mt-2 / gap-3.
+   * `afterTitle` = widget eyebrow → body (`tt-space-after-title`).
+   */
+  space: {
+    micro: 'var(--tt-space-micro)',
+    tight: 'var(--tt-space-tight)',
+    snug: 'var(--tt-space-snug)',
+    stack: 'var(--tt-space-stack)',
+    section: 'var(--tt-space-section)',
+    block: 'var(--tt-space-block)',
+    afterTitle: 'var(--tt-space-tight)',
+  },
+} as const
+
+/** App-wide radius (same scale as `v2.radius`). Prefer in className: `rounded-[var(--radius-md)]`. */
+export const radius = {
+  none: 'var(--radius-none)',
+  xs: 'var(--radius-xs)',
+  sm: 'var(--radius-sm)',
+  md: 'var(--radius-md)',
+  lg: 'var(--radius-lg)',
+  xl: 'var(--radius-xl)',
+  '2xl': 'var(--radius-2xl)',
+  pill: 'var(--radius-pill)',
+  workout: 'var(--radius-workout)',
+} as const
+
+/** Semantic spacing roles (same as `v2.space`). */
+export const space = {
+  micro: 'var(--tt-space-micro)',
+  tight: 'var(--tt-space-tight)',
+  snug: 'var(--tt-space-snug)',
+  stack: 'var(--tt-space-stack)',
+  section: 'var(--tt-space-section)',
+  block: 'var(--tt-space-block)',
+  afterTitle: 'var(--tt-space-tight)',
 } as const

@@ -1,5 +1,7 @@
 # TrainTrack Redesign Tokens
 
+> **Canonical design system:** [`docs/DESIGN-SYSTEM.md`](./DESIGN-SYSTEM.md) (Inter-only, brand orange `#F0440A`, charcoal `#111315`). Values below are historical; prefer DESIGN-SYSTEM + CSS vars in `globals.css`.
+
 Source: design mockups under `/design-mockups` · aesthetic from Athlete Home comps + typography guide.
 
 ## Color
@@ -64,7 +66,7 @@ Do not use Bebas in dense rows or small cards — hard to read at small size.
 
 ## Radius & elevation
 
-- Radius: `8–10px` cards, `6px` controls
+- Radius: `14px` cards, `16px` panels, `6px` controls
 - Shadow: soft single-layer lift on cards (`--tt-shadow`) — keep borders; avoid heavy multi-layer glow
 
 ## Accent rules

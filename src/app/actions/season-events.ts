@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { CoachingAuthorRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly, toDateKey } from '@/lib/dates'
 import {
@@ -185,6 +186,9 @@ export async function createSeasonEvent(formData: FormData) {
       startDate,
       endDate,
       isPrivate,
+      createdByRole: isCoach
+        ? CoachingAuthorRole.COACH
+        : CoachingAuthorRole.ATHLETE,
       allDay,
       startTime,
       endTime,

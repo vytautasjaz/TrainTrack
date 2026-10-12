@@ -75,6 +75,7 @@ import {
 import { formatPlanSlotLabel } from "@/lib/training-plan";
 import { SaveToLibraryDialog } from "@/components/workout-editor/save-to-library-dialog";
 import {
+  createAthleteSwimWorkoutFromModal,
   createSwimWorkoutFromModal,
   saveSwimTemplateFromModal,
   updateSwimWorkoutFromModal,
@@ -344,6 +345,7 @@ export function SharedWorkoutEditor({
   workout = null,
   entityId,
   athleteMode = false,
+  selfLoggedCreate = false,
   planId,
   weekIndex,
   dayOfWeek,
@@ -538,7 +540,7 @@ export function SharedWorkoutEditor({
           /* Athlete/non-coach workspace — keep defaults */
         });
     }
-    if (athleteMode) return;
+    if (athleteMode || selfLoggedCreate) return;
     void getCoachLibraryForPicker()
       .then(({ templates: items, folders }) => {
         setTemplates(items);
@@ -548,7 +550,7 @@ export function SharedWorkoutEditor({
         setTemplates([]);
         setLibraryFolders([]);
       });
-  }, [athleteMode, athletePreferencesProp]);
+  }, [athleteMode, selfLoggedCreate, athletePreferencesProp]);
 
   useEffect(() => {
     if (!workout?.id) return;
@@ -1813,7 +1815,7 @@ export function SharedWorkoutEditor({
     startTransition(async () => {
       setSaveError(null);
       try {
-      if (athleteMode) {
+      if (athleteMode && !selfLoggedCreate) {
         await createAthleteWorkoutFromModal({
           title: title.trim() || WORKOUT_TYPE_LABELS[sportType],
           sportType,
@@ -1901,6 +1903,12 @@ export function SharedWorkoutEditor({
           } else {
             await createTrainingPlanSession(sessionPayload);
           }
+          onSaved?.();
+          return;
+        }
+
+        if (selfLoggedCreate && !isEdit) {
+          await createAthleteSwimWorkoutFromModal(payload);
           onSaved?.();
           return;
         }
@@ -2070,6 +2078,8 @@ export function SharedWorkoutEditor({
 
       if (isEdit && workout) {
         await updateWorkoutFromModal({ ...payload, workoutId: workout.id });
+      } else if (selfLoggedCreate) {
+        await createAthleteWorkoutFromModal(payload);
       } else {
         await createWorkoutFromModal(payload);
       }
@@ -2199,7 +2209,7 @@ export function SharedWorkoutEditor({
             Preview
           </Button>
         ) : null}
-        {!athleteMode && !isLibraryLike && !previewOpen ? (
+        {!athleteMode && !selfLoggedCreate && !isLibraryLike && !previewOpen ? (
           <Button
             type="button"
             variant="ghost"
@@ -3057,7 +3067,7 @@ export function SharedWorkoutEditor({
     </div>
   );
 
-  const canShowLibrary = !isEdit && !athleteMode;
+  const canShowLibrary = !isEdit && !athleteMode && !selfLoggedCreate;
 
   return (
     <div

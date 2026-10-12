@@ -713,6 +713,8 @@ export type SeasonEventData = {
   endDate: Date
   /** True when only the athlete can see the event. */
   isPrivate?: boolean
+  /** Who created the event — coach events get a filled calendar icon on home. */
+  createdByRole?: 'ATHLETE' | 'COACH'
   allDay?: boolean
   startTime?: string | null
   endTime?: string | null

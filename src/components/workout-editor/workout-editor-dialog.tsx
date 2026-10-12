@@ -22,6 +22,8 @@ type WorkoutEditorDialogProps = {
   /** Library template id when editing an existing template */
   entityId?: string
   athleteMode?: boolean
+  /** Full editor UI; save marks the workout as athlete self-added. */
+  selfLoggedCreate?: boolean
   /** plan (default), template (coach library), or ai-library (admin AI catalog) */
   mode?: Extract<WorkoutEditorMode, 'plan' | 'template' | 'ai-library'>
 }
@@ -34,6 +36,7 @@ export function WorkoutEditorDialog({
   workout = null,
   entityId,
   athleteMode = false,
+  selfLoggedCreate = false,
   mode = 'plan',
 }: WorkoutEditorDialogProps) {
   const isTemplate = mode === 'template'
@@ -79,6 +82,7 @@ export function WorkoutEditorDialog({
             workout={workout}
             entityId={entityId}
             athleteMode={athleteMode}
+            selfLoggedCreate={selfLoggedCreate}
             onSaved={() => onOpenChange(false)}
             onCancel={() => onOpenChange(false)}
           />

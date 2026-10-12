@@ -230,7 +230,7 @@ export function TrainingListAddMenu({
           onOpenChange={handleWorkoutOpenChange}
           date={dateKey}
           sport={workoutSport}
-          athleteMode={!isCoach}
+          selfLoggedCreate={!isCoach}
         />
       ) : null}
     </div>

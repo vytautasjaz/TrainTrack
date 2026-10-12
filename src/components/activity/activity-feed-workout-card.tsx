@@ -36,6 +36,8 @@ import {
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
 import { getSessionTypeLabel } from '@/lib/workout-builder/session-modes'
+import { useUnitSystem } from '@/components/units/units-context'
+import { formatElevationM } from '@/lib/units'
 import {
   estimateSessionLoad,
   type SessionLoadThresholds,
@@ -111,6 +113,7 @@ function formatFeedCardDateMeta(opts: {
 function feedMetricSlots(
   row: CoachHomeWorkoutActivityRow,
   thresholds: SessionLoadThresholds = {},
+  unitSystem: ReturnType<typeof useUnitSystem> = 'METRIC',
 ): Array<{ label: string; value: string }> {
   const result = row.workout.result
   const all = [...row.primaryMetrics, ...row.secondaryMetrics]
@@ -130,7 +133,7 @@ function feedMetricSlots(
   const power = find('Avg power')
   const elev =
     result?.elevationGainM != null && result.elevationGainM >= 1
-      ? `${Math.round(result.elevationGainM)} m`
+      ? formatElevationM(result.elevationGainM, unitSystem)
       : null
   const calories =
     result?.calories != null && result.calories > 0
@@ -328,6 +331,7 @@ export function ActivityFeedWorkoutCard({
   showDate = false,
   loadThresholds = {},
 }: ActivityFeedWorkoutCardProps) {
+  const unitSystem = useUnitSystem()
   const skipped = row.status === 'skipped'
   const hasChat = workoutHasCoachingChat(row.workout)
   const selfAdded = Boolean(row.workout.selfLogged)
@@ -338,7 +342,7 @@ export function ActivityFeedWorkoutCard({
     !skipped &&
     (Boolean(summaryPolyline) ||
       Boolean(stravaActivityId))
-  const metricSlots = feedMetricSlots(row, loadThresholds)
+  const metricSlots = feedMetricSlots(row, loadThresholds, unitSystem)
   const subtitle = feedWorkoutSubtitle(row.activityType, row.workout.sessionType)
   const chatRole = isCoach ? 'coach' : 'athlete'
   const canAthleteFeedback = !isCoach && athleteCanLeaveWorkoutComment(row.workout, false)

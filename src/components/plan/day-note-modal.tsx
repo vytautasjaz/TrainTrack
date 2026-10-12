@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import { Lock } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Calendar, EyeOff, Lock, Trash2 } from 'lucide-react'
 import {
   deleteDayNote,
   listCoachAthletesForDayNote,
   upsertDayNote,
 } from '@/app/actions/day-notes'
 import {
+  DAY_NOTE_UNAVAILABLE_LABEL,
   dayNoteKindHasContent,
   isDayNoteUnavailable,
   type DayNoteData,
@@ -37,6 +39,8 @@ type DayNoteModalProps = {
   athleteId?: string
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Immediate client update (e.g. athlete home week board). */
+  onNoteChange?: (dateKey: string, note: DayNoteData | null) => void
 }
 
 export function DayNoteModal({
@@ -47,7 +51,9 @@ export function DayNoteModal({
   athleteId,
   open,
   onOpenChange,
+  onNoteChange,
 }: DayNoteModalProps) {
+  const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -134,9 +140,11 @@ export function DayNoteModal({
         fd.set('date', dateKey)
         fd.set('noteKind', noteKind)
         if (athleteId) fd.set('athleteId', athleteId)
-        await deleteDayNote(fd)
+        const result = await deleteDayNote(fd)
+        onNoteChange?.(result.dateKey, result.note)
         setConfirmOpen(false)
         onOpenChange(false)
+        router.refresh()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not remove note')
       }
@@ -155,7 +163,13 @@ export function DayNoteModal({
         <DialogContent className="max-w-md gap-0 p-4">
           <DialogHeader className="mb-3">
             <DialogTitle>{title}</DialogTitle>
-            <DialogDescription>{dateKey}</DialogDescription>
+            <DialogDescription className="flex items-center gap-1.5 text-[11px]">
+              <Calendar
+                className="h-3 w-3 shrink-0 opacity-70"
+                aria-hidden
+              />
+              {dateKey}
+            </DialogDescription>
           </DialogHeader>
 
           {readOnly ? (
@@ -164,10 +178,11 @@ export function DayNoteModal({
                 className={cn(
                   'rounded-lg border border-amber-200/70 bg-amber-50 px-3 py-2.5 text-sm whitespace-pre-wrap break-words',
                   'text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100',
-                  unavailable && !existingText && 'italic text-red-600 dark:text-red-400',
+                  unavailable && !existingText && 'italic text-brand',
                 )}
               >
-                {existingText || (unavailable ? 'Unavailable' : 'No note')}
+                {existingText ||
+                  (unavailable ? DAY_NOTE_UNAVAILABLE_LABEL : 'No note')}
               </div>
               {existingPrivate ? (
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -177,8 +192,8 @@ export function DayNoteModal({
                 </p>
               ) : null}
               {unavailable && existingText ? (
-                <p className="text-xs italic text-red-600 dark:text-red-400">
-                  Marked unavailable
+                <p className="text-xs italic text-brand">
+                  {DAY_NOTE_UNAVAILABLE_LABEL}
                 </p>
               ) : null}
               <div className="border-t border-border/60 pt-3">
@@ -203,8 +218,10 @@ export function DayNoteModal({
                 }
                 startTransition(async () => {
                   try {
-                    await upsertDayNote(formData)
+                    const result = await upsertDayNote(formData)
+                    onNoteChange?.(result.dateKey, result.note)
                     onOpenChange(false)
+                    router.refresh()
                   } catch (err) {
                     setError(err instanceof Error ? err.message : 'Could not save note')
                   }
@@ -227,7 +244,7 @@ export function DayNoteModal({
                 <Textarea
                   name="notes"
                   defaultValue={existingText}
-                  rows={4}
+                  rows={6}
                   autoFocus
                   placeholder={
                     isAthleteKind
@@ -241,6 +258,7 @@ export function DayNoteModal({
                 hideFrom={isAthleteKind ? 'coach' : 'athlete'}
                 name="notesPrivate"
                 defaultChecked={existingPrivate}
+                className={isAthleteKind ? 'px-3 py-2.5' : undefined}
               />
 
               {canOfferMultiAthlete ? (
@@ -342,40 +360,73 @@ export function DayNoteModal({
               {isAthleteKind ? (
                 <label
                   className={cn(
-                    'flex cursor-pointer items-center gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm transition',
-                    'has-[:checked]:border-muted-foreground/40 has-[:checked]:bg-muted/30',
+                    'grid cursor-pointer grid-cols-[auto_auto_minmax(0,1fr)] items-start gap-x-2.5 gap-y-0.5 rounded-lg bg-muted/50 px-3 py-2.5 text-xs transition',
+                    'has-[:checked]:bg-muted/70',
                   )}
                 >
                   <input
                     type="checkbox"
                     name="unavailable"
                     defaultChecked={unavailable}
-                    className="rounded border-border"
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-brand"
                   />
-                  <span className="text-muted-foreground">Mark as unavailable</span>
+                  <EyeOff
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                    strokeWidth={2}
+                    aria-hidden
+                  />
+                  <span className="min-w-0">
+                    <span className="block font-medium text-foreground">
+                      Mark as unavailable
+                    </span>
+                    <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                      This athlete will be shown as unavailable for training
+                    </span>
+                  </span>
                 </label>
               ) : null}
 
-              <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-3">
-                <Button type="submit" variant="secondary" size="sm" disabled={pending}>
-                  {pending
-                    ? 'Saving…'
-                    : multiAthleteActive && selectedAthleteIds.length > 1
-                      ? `Save for ${selectedAthleteIds.length}`
-                      : 'Save'}
-                </Button>
+              <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-3">
                 {hasExisting ? (
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="text-muted-foreground"
+                    className="border-destructive/35 text-destructive hover:bg-destructive/10"
                     disabled={pending}
                     onClick={() => setConfirmOpen(true)}
                   >
+                    <Trash2 className="h-3.5 w-3.5" />
                     Remove
                   </Button>
-                ) : null}
+                ) : (
+                  <span />
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={pending}
+                    onClick={() => onOpenChange(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    disabled={pending}
+                  >
+                    {pending
+                      ? 'Saving…'
+                      : multiAthleteActive && selectedAthleteIds.length > 1
+                        ? `Save for ${selectedAthleteIds.length}`
+                        : hasExisting
+                          ? 'Save changes'
+                          : 'Save'}
+                  </Button>
+                </div>
               </div>
             </form>
           )}

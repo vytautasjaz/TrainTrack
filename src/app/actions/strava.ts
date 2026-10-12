@@ -355,9 +355,13 @@ export async function getWorkoutStravaLaps(
     }
   }
 
+  // Only when no stored splits exist — uses current prefs for display; does not write back.
   const kmFromPacked = splitsFromCachedStreams(
     workout.result.stravaStreamsCache,
-    splitIntervalMeters(workout.type),
+    splitIntervalMeters(workout.type, {
+      unitSystem: session.unitSystem,
+      swimDistanceUnit: session.swimDistanceUnit,
+    }),
   )
   if (kmFromPacked.length >= 2) {
     return {

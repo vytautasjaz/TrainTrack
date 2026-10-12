@@ -5,7 +5,13 @@ import { redirect } from 'next/navigation'
 import { Prisma, SessionType, SwimEnvironment, WorkoutType, PlannedMetricSource } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
-import { requireSession, resolveAthleteId, isCoachView, requireCoachOwnsAthlete } from '@/lib/session'
+import {
+  requireAthleteSession,
+  requireSession,
+  resolveAthleteId,
+  isCoachView,
+  requireCoachOwnsAthlete,
+} from '@/lib/session'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 import { swimWorkoutFormSchema, swimTemplateFormSchema } from '@/lib/swim-workout/schema'
 import { workoutDistanceMeters } from '@/lib/swim-workout/calculations'
@@ -156,6 +162,48 @@ export async function createSwimWorkoutFromModal(payload: unknown) {
       coachNotesPrivate: Boolean(parsed.coachNotesPrivate),
       swimStructure: swimStructureJson(parsed.swimStructure),
       templateId: parsed.templateId,
+    },
+  })
+
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
+  revalidateSwimLibrary()
+  return workout.id
+}
+
+/** Athlete self-add — same swim modal payload as coach, always `selfLogged`. */
+export async function createAthleteSwimWorkoutFromModal(payload: unknown) {
+  const session = await requireAthleteSession()
+  const athleteId = session.athleteId
+
+  const parsed = swimWorkoutFormSchema.parse(payload)
+  const scheduledDate = parseDateOnly(parsed.scheduledDate ?? new Date().toISOString().slice(0, 10))
+  const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
+
+  const meters = resolvedDistanceMeters(parsed)
+  const workout = await prisma.workout.create({
+    data: {
+      athleteId,
+      date: scheduledDate,
+      sortOrder,
+      type: WorkoutType.SWIM,
+      sessionType: SessionType.CUSTOM,
+      title: parsed.title,
+      description: parsed.description || null,
+      swimEnvironment: parsed.swimEnvironment,
+      plannedDistanceMeters: meters,
+      plannedDistanceMetersSource:
+        meters != null && meters > 0 ? PlannedMetricSource.MANUAL : null,
+      plannedDuration: parsed.plannedDuration ?? null,
+      plannedDurationSource:
+        parsed.plannedDuration != null && parsed.plannedDuration > 0
+          ? PlannedMetricSource.MANUAL
+          : null,
+      coachNotes: parsed.coachNotes ?? null,
+      coachNotesPrivate: Boolean(parsed.coachNotesPrivate),
+      swimStructure: swimStructureJson(parsed.swimStructure),
+      templateId: parsed.templateId,
+      selfLogged: true,
     },
   })
 

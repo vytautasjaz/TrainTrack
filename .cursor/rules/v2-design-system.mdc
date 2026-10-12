@@ -1,0 +1,43 @@
+---
+description: V2 redesign — reusable components, tokens, and global style changes
+alwaysApply: true
+---
+
+# V2 design system
+
+On branch `v2`, UI must be **token + component driven**. One visual change should land in tokens/primitives — not scattered class edits.
+
+**Canon:** `docs/DESIGN-SYSTEM.md` + style-guide image (Inter, brand orange `#F0440A`, charcoal `#111315`, light `#F5F6F7`).
+
+## Source of truth
+
+1. **CSS variables** — `--tt-v2-*` / `@theme` in `src/app/globals.css`
+2. **TS aliases** — `v2` export in `src/lib/design-tokens.ts`
+3. **Primitives** — `src/components/ui/v2/*` (MetricCard, Tag, Progress, Panel, IntensityBars, …)
+4. **Live guide** — `/style-guide#v2` and `docs/V2-STANDARDS.md`
+
+## Do
+
+- Build screens from **v2 primitives** + shared plan cards (`WeekPlanWorkoutCard`, sport icons).
+- Put new recurring chrome in `ui/v2` **before** duplicating JSX.
+- Change color/radius/type via **tokens / primitive props**, then update the style-guide sample.
+- Prefer semantic classes (`tt-v2-*`) over one-off hex in TSX.
+- **Typography:** Inter only (400–800). Page titles = weight 800. Tabular nums for metrics.
+- **Title period:** trailing `.` on page titles is brand orange (`tt-title-dot` / `PageHeaderTitle` auto).
+- **Radius:** cards `var(--radius-xl)` (14px); large panels `var(--radius-2xl)` (16px). Progress / intensity = rectangular (`--radius-xs`), not pill.
+- **Spacing:** semantic roles (`--tt-space-tight` title→body, `--tt-space-snug` in-card, `--tt-space-stack` / `--tt-space-section` for stacks). Prefer tokens over `mt-2` / `gap-3`. See `.cursor/rules/spacing-scale.mdc`.
+- **Surfaces:** 1px borders (`#E3E6E9` / `--tt-v2-light-panel-line`); avoid heavy shadows.
+- **Color:** brand orange for CTA/progress/run; charcoal for nav/dark metrics; sport colors for identity only.
+
+## Don’t
+
+- Copy-paste metric/widget markup between pages.
+- Hardcode brand hex in components — use `var(--tt-v2-…)` / `v2.colors.*` / `--color-accent`.
+- Invent a second nav, card, or tag style for one screen.
+- Use Bebas Neue or a second display font.
+- Use pill radii on progress bars or large Tailwind radii on cards.
+- Edit the plan file under `.cursor/plans/` unless the user asks.
+
+## Page composition
+
+Dark shell pages: wrap with `tt-athlete-home-v2` / `V2PageShell`. Light product pages keep migrating to the same tokens; reuse `ui/v2` where chrome matches.

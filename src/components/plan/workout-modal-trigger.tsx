@@ -46,6 +46,7 @@ export function WorkoutModalTrigger({
   onDragEnd,
 }: WorkoutModalTriggerProps) {
   const [open, setOpen] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const suppressClick = useRef(false)
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null)
   const pointerMovedRef = useRef(false)
@@ -54,8 +55,9 @@ export function WorkoutModalTrigger({
   const armedByPointerDownRef = useRef(false)
 
   const sharedClassName = cn(
-    'text-left',
-    draggable && 'cursor-grab active:cursor-grabbing',
+    'cursor-pointer text-left',
+    draggable && 'active:cursor-grabbing',
+    isDragging && 'cursor-grabbing',
     className,
   )
 
@@ -70,10 +72,12 @@ export function WorkoutModalTrigger({
     }
     suppressClick.current = true
     pointerMovedRef.current = true
+    setIsDragging(true)
     onDragStart?.(e)
   }
 
   function handleDragEnd(e: React.DragEvent) {
+    setIsDragging(false)
     onDragEnd?.(e)
     window.setTimeout(() => {
       suppressClick.current = false
@@ -122,8 +126,9 @@ export function WorkoutModalTrigger({
   function handlePointerUp(e: React.PointerEvent) {
     pointerDownRef.current = null
     if (e.button !== 0) return
-    // Draggable cards often skip the click event; treat a stationary pointer-up as a tap.
-    if (draggable) tryOpenModal(e)
+    // HTML5-draggable cards (and week-swipe neighbors) often skip `click` —
+    // treat a stationary pointer-up as a tap for all cards.
+    tryOpenModal(e)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -149,6 +154,7 @@ export function WorkoutModalTrigger({
         role="button"
         tabIndex={0}
         title={title}
+        data-week-swipe-ignore
         draggable={draggable}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}

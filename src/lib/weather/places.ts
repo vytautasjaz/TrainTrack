@@ -16,9 +16,20 @@ export type WeatherSlotSummary = {
   precipitationMm: number | null
 }
 
+/** Single forecast step (hourly near-term; 6h steps further out). */
+export type WeatherHourSummary = {
+  timeIso: string
+  emoji: string
+  temperatureC: number | null
+  precipitationProbability: number | null
+  precipitationMm: number | null
+}
+
 export type WeatherDaySummary = {
   dateKey: string
   slots: WeatherSlotSummary[]
+  /** Detailed steps for the day when available from the forecast. */
+  hours?: WeatherHourSummary[]
 }
 
 export function formatWeatherPlaceLabel(opts: {
@@ -67,7 +78,10 @@ export function formatWeatherLocationCompact(label: string): string {
   return code ? `${city}, ${code}` : `${city}, ${country}`
 }
 
-export function formatWeatherPrecip(slot: WeatherSlotSummary): string {
+export function formatWeatherPrecip(slot: {
+  precipitationProbability: number | null
+  precipitationMm: number | null
+}): string {
   if (slot.precipitationMm != null && slot.precipitationMm >= 0.2) {
     const mm =
       slot.precipitationMm >= 10

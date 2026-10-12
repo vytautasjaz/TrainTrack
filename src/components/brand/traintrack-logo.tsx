@@ -43,7 +43,7 @@ export function TrainTrackMark({
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d={DIAMOND_D} fill="#F4511E" />
+      <path d={DIAMOND_D} fill="#F0440A" />
     </svg>
   )
 }

@@ -31,6 +31,15 @@ import {
   type WorkoutCompletionSource,
 } from '@/lib/workout-history'
 import { daysUntil, formatDistance, formatDuration } from '@/lib/utils'
+import {
+  DEFAULT_UNIT_SYSTEM,
+  formatElevationM,
+  formatPace,
+  formatPaceUnit,
+  formatSpeedKph,
+  formatSpeedUnit,
+  type UnitSystem,
+} from '@/lib/units'
 import { formatPaceMinPerKm } from '@/lib/athlete-preferences'
 import { formatSwimDistance } from '@/lib/swim-workout/format'
 import { parseWorkoutFeeling } from '@/lib/workout-feeling'
@@ -610,9 +619,10 @@ export function sortCoachHomePlanningCoverageRows(
 export function formatCoachHomeActivityDetails(
   workout: PlanWorkoutDetail,
   kind: 'completed' | 'skipped',
+  unitSystem: UnitSystem = DEFAULT_UNIT_SYSTEM,
 ): string {
   if (kind === 'skipped') return '—'
-  const built = buildCoachHomeActivityDetailParts(workout, kind)
+  const built = buildCoachHomeActivityDetailParts(workout, kind, unitSystem)
   const lines = [built.actualSummary, built.plannedSummary].filter(Boolean)
   const chips = built.metricChips.map((c) => `${c.value}${c.label ? ` ${c.label}` : ''}`)
   const parts = [...lines, ...chips]
@@ -623,12 +633,13 @@ function formatActivityDistance(
   workout: PlanWorkoutDetail,
   km: number | null | undefined,
   meters: number | null | undefined,
+  unitSystem: UnitSystem = DEFAULT_UNIT_SYSTEM,
 ): string | null {
   if (workout.type === WorkoutType.SWIM && meters != null && meters > 0) {
     return formatSwimDistance(meters)
   }
   if (km != null && km > 0) {
-    const formatted = formatDistance(km)
+    const formatted = formatDistance(km, unitSystem)
     return formatted === '—' ? null : formatted
   }
   return null
@@ -645,6 +656,7 @@ function activityPaceOrSpeed(
   distanceKm: number | null | undefined,
   durationMin: number | null | undefined,
   averageSpeedMps: number | null | undefined,
+  unitSystem: UnitSystem = DEFAULT_UNIT_SYSTEM,
 ): { label: string; value: string } | null {
   if (workout.type === WorkoutType.BIKE) {
     const kph =
@@ -658,8 +670,8 @@ function activityPaceOrSpeed(
           : null
     if (kph == null || !Number.isFinite(kph) || kph <= 0) return null
     return {
-      label: 'km/h',
-      value: kph >= 10 ? kph.toFixed(1) : kph.toFixed(2),
+      label: formatSpeedUnit(unitSystem),
+      value: formatSpeedKph(kph, unitSystem, { withUnit: false }),
     }
   }
 
@@ -683,9 +695,11 @@ function activityPaceOrSpeed(
     workout.type === WorkoutType.TRIATHLON ||
     workout.type === WorkoutType.HYROX
   ) {
-    const pace = formatPaceMinPerKm(durationMin / distanceKm)
+    const pace = formatPace(durationMin / distanceKm, unitSystem, {
+      withUnit: false,
+    })
     if (!pace) return null
-    return { label: '/km', value: pace }
+    return { label: formatPaceUnit(unitSystem), value: pace }
   }
 
   return null
@@ -736,6 +750,7 @@ function activityCompletionRatio(workout: PlanWorkoutDetail): number | null {
 function buildActivityFeedMetricSlots(
   workout: PlanWorkoutDetail,
   kind: 'completed' | 'skipped',
+  unitSystem: UnitSystem = DEFAULT_UNIT_SYSTEM,
 ): {
   primaryMetrics: CoachHomeActivityMetric[]
   secondaryMetrics: CoachHomeActivityMetric[]
@@ -765,6 +780,7 @@ function buildActivityFeedMetricSlots(
     workout,
     result?.actualDistance,
     actualDistanceMeters,
+    unitSystem,
   )
   const durationClock = formatActivityClock(result?.actualDuration)
   const durationLabel = formatActivityDuration(result?.actualDuration)
@@ -773,10 +789,11 @@ function buildActivityFeedMetricSlots(
     result?.actualDistance,
     result?.actualDuration,
     result?.averageSpeedMps,
+    unitSystem,
   )
   const elev =
     result?.elevationGainM != null && result.elevationGainM >= 10
-      ? `${Math.round(result.elevationGainM)} m`
+      ? formatElevationM(result.elevationGainM, unitSystem)
       : null
   const watts =
     result?.averageWatts != null && result.averageWatts > 0
@@ -879,6 +896,7 @@ function buildActivityFeedMetricSlots(
 export function buildCoachHomeActivityDetailParts(
   workout: PlanWorkoutDetail,
   kind: 'completed' | 'skipped',
+  unitSystem: UnitSystem = DEFAULT_UNIT_SYSTEM,
 ): {
   plannedSummary: string | null
   actualSummary: string | null
@@ -891,13 +909,14 @@ export function buildCoachHomeActivityDetailParts(
 } {
   const result = workout.result
   const stravaActivityUrl = result?.stravaActivityUrl ?? null
-  const slots = buildActivityFeedMetricSlots(workout, kind)
+  const slots = buildActivityFeedMetricSlots(workout, kind, unitSystem)
 
   if (kind === 'skipped') {
     const plannedDistance = formatActivityDistance(
       workout,
       workout.plannedDistance,
       workout.plannedDistanceMeters,
+      unitSystem,
     )
     const plannedDuration = formatActivityDuration(workout.plannedDuration)
     const plannedParts = [plannedDistance, plannedDuration].filter(Boolean)
@@ -916,6 +935,7 @@ export function buildCoachHomeActivityDetailParts(
         workout,
         workout.plannedDistance,
         workout.plannedDistanceMeters,
+        unitSystem,
       )
   const plannedDuration = workout.selfLogged
     ? null
@@ -932,6 +952,7 @@ export function buildCoachHomeActivityDetailParts(
     workout,
     result?.actualDistance,
     actualDistanceMeters,
+    unitSystem,
   )
   const actualDuration = formatActivityDuration(result?.actualDuration)
   const actualParts = [actualDistance, actualDuration].filter(Boolean)
@@ -942,6 +963,7 @@ export function buildCoachHomeActivityDetailParts(
     result?.actualDistance,
     result?.actualDuration,
     result?.averageSpeedMps,
+    unitSystem,
   )
   if (pace) metricChips.push(pace)
 
@@ -960,7 +982,7 @@ export function buildCoachHomeActivityDetailParts(
   if (result?.elevationGainM != null && result.elevationGainM >= 10) {
     metricChips.push({
       label: 'elev',
-      value: `${Math.round(result.elevationGainM)} m`,
+      value: formatElevationM(result.elevationGainM, unitSystem),
     })
   }
 
@@ -991,9 +1013,14 @@ export function formatCoachHomeActivitySource(
 
 export function buildCoachHomeActivityTableRows(
   items: CoachHomeActivityFeedItem[],
+  unitSystem: UnitSystem = DEFAULT_UNIT_SYSTEM,
 ): CoachHomeWorkoutActivityRow[] {
   return items.map((item) => {
-    const parts = buildCoachHomeActivityDetailParts(item.workout, item.kind)
+    const parts = buildCoachHomeActivityDetailParts(
+      item.workout,
+      item.kind,
+      unitSystem,
+    )
     const feedback = coachHomeActivityFeedback(item)
     return {
       entryKind: 'workout' as const,
@@ -1005,7 +1032,7 @@ export function buildCoachHomeActivityTableRows(
       avatarUrl: item.avatarUrl,
       activityType: item.workout.type,
       activityTitle: item.workout.title,
-      details: formatCoachHomeActivityDetails(item.workout, item.kind),
+      details: formatCoachHomeActivityDetails(item.workout, item.kind, unitSystem),
       sourceLabel: formatCoachHomeActivitySource(item.source, item.kind),
       status: item.kind,
       hasFeedback: Boolean(

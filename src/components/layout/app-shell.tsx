@@ -1,9 +1,15 @@
 import { Suspense } from 'react'
-import { AppNav, AppMobileBottomNav } from '@/components/layout/app-nav'
+import { AppMobileBottomNav } from '@/components/layout/app-nav'
+import { AppTopNav } from '@/components/layout/app-top-nav'
 import { DocumentChromeCleanup } from '@/components/layout/document-chrome-cleanup'
 import { MobileAppTopBar } from '@/components/layout/mobile-app-top-bar'
 import { ViewModeSwitchProvider } from '@/components/layout/view-mode-switch-context'
 import { DurationNotationProvider } from '@/components/workout-builder/duration-notation-context'
+import { UnitsProvider } from '@/components/units/units-context'
+import {
+  DEFAULT_SWIM_DISTANCE_UNIT,
+  DEFAULT_UNIT_SYSTEM,
+} from '@/lib/units'
 import { CoachAthleteBarGate } from '@/components/coach/coach-athlete-bar-gate'
 import { StravaAutoSync } from '@/components/integrations/strava-auto-sync'
 import {
@@ -133,18 +139,24 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       </Suspense>
     ) : null
 
+  const unitSystem = session?.unitSystem ?? DEFAULT_UNIT_SYSTEM
+  const swimDistanceUnit =
+    session?.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT
+
   return (
     <ViewModeSwitchProvider>
+      <UnitsProvider
+        unitSystem={unitSystem}
+        swimDistanceUnit={swimDistanceUnit}
+      >
       <DurationNotationProvider notation={durationNotation}>
-      <div className="app-gradient flex min-h-dvh">
+      <div className="app-gradient flex min-h-dvh flex-col" data-v2-shell>
       {session?.hasAthlete ? <StravaAutoSync /> : null}
       <Suspense fallback={null}>
         <DocumentChromeCleanup />
       </Suspense>
       <Suspense fallback={null}>
-        <AppNav
-          showPreferences={showPreferences}
-          showConnectCoach={showConnectCoach && !coach}
+        <AppTopNav
           isCoach={coach}
           canSwitchView={canSwitchView}
           viewMode={viewMode}
@@ -159,7 +171,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
           viewMode={viewMode}
         />
       </Suspense>
-      <div className="flex min-h-dvh min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] portrait:max-lg:pb-[calc(4.5rem+env(safe-area-inset-bottom))] landscape:max-lg:pb-2 lg:pb-0" data-app-main-column>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] portrait:max-lg:pb-[calc(4.5rem+env(safe-area-inset-bottom))] landscape:max-lg:pb-2 lg:pb-0" data-app-main-column>
         <MobileAppTopBar
           showPreferences={showPreferences}
           showConnectCoach={showConnectCoach && !coach}
@@ -179,6 +191,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       </div>
       </div>
       </DurationNotationProvider>
+      </UnitsProvider>
     </ViewModeSwitchProvider>
   )
 }

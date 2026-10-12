@@ -1,4 +1,4 @@
-import { WorkoutStatus } from '@prisma/client'
+import { WorkoutStatus, type UnitSystem } from '@prisma/client'
 import {
   buildCoachHomeActivityTableRows,
   type CoachHomeWorkoutActivityRow,
@@ -6,9 +6,11 @@ import {
 import type { CoachHomeActivityFeedItem } from '@/lib/coach-roster'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import { getWorkoutCompletionSource } from '@/lib/workout-history'
+import { DEFAULT_UNIT_SYSTEM } from '@/lib/units'
 
 export function buildAthleteHomeActivityRows(
   workouts: PlanWorkoutDetail[],
+  unitSystem: UnitSystem = DEFAULT_UNIT_SYSTEM,
 ): CoachHomeWorkoutActivityRow[] {
   const items: CoachHomeActivityFeedItem[] = workouts.map((workout) => {
     const kind = workout.status === WorkoutStatus.SKIPPED ? 'skipped' : 'completed'
@@ -31,7 +33,7 @@ export function buildAthleteHomeActivityRows(
   })
 
   // Athlete feed always shows the athlete’s own notes (including private).
-  return buildCoachHomeActivityTableRows(items).map((row) => {
+  return buildCoachHomeActivityTableRows(items, unitSystem).map((row) => {
     const ownNotes = row.workout.result?.athleteNotes?.trim() || null
     return {
       ...row,

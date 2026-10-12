@@ -1,22 +1,16 @@
 import type { Metadata, Viewport } from 'next'
-import { Bebas_Neue, Inter } from 'next/font/google'
+import { Inter } from 'next/font/google'
 import { PwaProvider } from '@/components/pwa/pwa-provider-lazy'
 import { InboxPushBridge } from '@/components/inbox/inbox-push-bridge'
 import { ThemeProvider } from '@/components/theme-provider'
 import { NavigationProgress } from '@/components/ui/navigation-progress'
 import './globals.css'
 
+/** Inter only — design system (weights 400–800). Display titles use weight 800. */
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-ui',
-  weight: ['400', '500', '600', '700'],
-  display: 'swap',
-})
-
-const bebasNeue = Bebas_Neue({
-  subsets: ['latin'],
-  variable: '--font-display-family',
-  weight: '400',
+  weight: ['400', '500', '600', '700', '800'],
   display: 'swap',
 })
 
@@ -45,24 +39,20 @@ export const viewport: Viewport = {
   maximumScale: 1,
   viewportFit: 'cover',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0f0f0f' },
+    { media: '(prefers-color-scheme: light)', color: '#F5F6F7' },
+    { media: '(prefers-color-scheme: dark)', color: '#111315' },
   ],
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={`${inter.variable} ${bebasNeue.variable}`}
-    >
-      <body className="pwa-safe">
+    <html lang="en" suppressHydrationWarning className={inter.variable}>
+      <body className="pwa-safe font-sans antialiased">
         {/* PWA splash — inline script adds tt-splash--done before hydrate; suppress mismatch */}
         <div id="tt-splash" aria-hidden="true" suppressHydrationWarning>
           <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" width="72" height="72">
-            <path d="M20 68L50 32L80 68" stroke="#111111" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M50 64L59 73L50 82L41 73L50 64Z" fill="#da2f36" />
+            <path d="M20 68L50 32L80 68" stroke="#111315" strokeWidth="11" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M50 64L59 73L50 82L41 73L50 64Z" fill="#F0440A" />
           </svg>
           <span>TrainTrack</span>
         </div>

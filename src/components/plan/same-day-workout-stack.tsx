@@ -26,6 +26,7 @@ type SameDayWorkoutStackProps = {
   enabled: boolean
   className?: string
   renderItem: (workout: PlanWorkoutDetail, meta: {
+    index: number
     isDropTarget: boolean
     isDragging: boolean
     isLast: boolean
@@ -33,8 +34,8 @@ type SameDayWorkoutStackProps = {
 }
 
 /**
- * Coach same-day reorder: drop a dragged plan workout onto another on the
- * same date to switch/insert order. Cross-day moves stay on DayDropSection.
+ * Same-day reorder: drop a dragged plan workout onto another on the same
+ * date to switch/insert order. Cross-day moves stay on day drop targets.
  */
 export function SameDayWorkoutStack({
   dateKey,
@@ -85,11 +86,14 @@ export function SameDayWorkoutStack({
     if (!dragId) return
 
     const dest = targetIndexFromInsert(from, nextInsertAt)
+    const prevIds = ordered.map((w) => w.id)
     const next = [...ordered]
     const [moved] = next.splice(from, 1)
     if (!moved) return
     next.splice(dest, 0, moved)
+    const nextIds = next.map((w) => w.id)
     setOrdered(next)
+    dnd?.onDayReordered?.(dateKey, nextIds)
     clearInsert()
     setError(null)
 
@@ -116,6 +120,7 @@ export function SameDayWorkoutStack({
         router.refresh()
       } catch (err) {
         setOrdered(workouts)
+        dnd?.onDayReordered?.(dateKey, prevIds)
         setError(toUserMessage(err, 'Could not reorder workouts'))
       }
     })
@@ -171,6 +176,7 @@ export function SameDayWorkoutStack({
             {/* Line sits at the top edge = “insert before this card”. */}
             <DragInsertIndicator show={showInsertAt(index)} />
             {renderItem(w, {
+              index,
               isDropTarget: showInsertAt(index) || showInsertAt(index + 1),
               isDragging,
               isLast: index === ordered.length - 1,

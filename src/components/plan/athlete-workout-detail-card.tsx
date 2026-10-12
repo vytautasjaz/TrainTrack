@@ -73,6 +73,10 @@ import { cn } from "@/lib/utils";
 import type { PlanColorMode } from "@/lib/plan-sport-filter";
 import { useSessionLoadThresholds } from "@/components/plan/session-load-thresholds-context";
 import {
+  useSwimDistanceUnit,
+  useUnitSystem,
+} from "@/components/units/units-context";
+import {
   stravaSyncedMetricSlots,
   type WorkoutResultMetricSlot,
 } from "@/lib/workout-result-metrics";
@@ -513,8 +517,15 @@ export function AthleteWorkoutDetailCard({
     };
   }, [showStravaActions]);
 
+  const unitSystem = useUnitSystem();
+  const swimUnit = useSwimDistanceUnit();
   const config = getSportEditorConfig(workout.type);
-  const metrics = getWorkoutPlanMetrics(workout, workout.status);
+  const metrics = getWorkoutPlanMetrics(
+    workout,
+    workout.status,
+    unitSystem,
+    swimUnit,
+  );
   const subtitle = getWorkoutCardSubtitle(workout);
   const hasSwimStructure = hasSwimStructureContent(workout.swimStructure);
   const approx = approxMetricsFromTags(workout.tags);
@@ -669,7 +680,12 @@ export function AthleteWorkoutDetailCard({
         : null;
   const stravaSlots =
     completed && stravaSynced
-      ? stravaSyncedMetricSlots(workout, loadThresholds)
+      ? stravaSyncedMetricSlots(
+          workout,
+          loadThresholds,
+          unitSystem,
+          swimUnit,
+        )
       : null;
   const withPlanned = (slot: WorkoutResultMetricSlot): WorkoutResultMetricSlot => {
     if (slot.label === "Distance") {

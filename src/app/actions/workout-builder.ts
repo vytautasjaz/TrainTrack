@@ -425,68 +425,99 @@ const ATHLETE_ADD_SPORT_TYPES: WorkoutType[] = [
   WorkoutType.TRIATHLON,
 ]
 
-export type AthleteCreateWorkoutPayload = Pick<
-  CreateWorkoutModalPayload,
-  'title' | 'sportType' | 'sessionType' | 'scheduledDate' | 'plannedDistance' | 'plannedDuration'
-> & {
-  description?: string
-}
+/** Full coach-parity create payload; always marks the row as athlete self-added. */
+export type AthleteCreateWorkoutPayload = CreateWorkoutModalPayload
 
 export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkoutPayload) {
-  const session = await requireAthleteSession()
+  try {
+    const session = await requireAthleteSession()
 
-  if (!ATHLETE_ADD_SPORT_TYPES.includes(payload.sportType)) {
-    throw new Error('Invalid sport type')
-  }
-  // Athletes submit distance/duration/description only (no block builder).
-  // Allow any session type valid for the sport — including CUSTOM when unset in the UI.
-  if (!sessionTypesForSport(payload.sportType).includes(payload.sessionType)) {
-    throw new Error('Invalid session type')
-  }
+    if (!ATHLETE_ADD_SPORT_TYPES.includes(payload.sportType)) {
+      throw new Error('Invalid sport type')
+    }
+    if (!sessionTypesForSport(payload.sportType).includes(payload.sessionType)) {
+      throw new Error('Invalid session type')
+    }
 
-  const scheduledDate = parseDateOnly(payload.scheduledDate)
-  const sortOrder = await getNextWorkoutSortOrder(session.athleteId, scheduledDate)
-  const athletePreferences = await loadAthletePreferencesForBuilder(session.athleteId)
-  const metrics = resolvePlannedWorkoutMetrics({
-    plannedDistance: payload.plannedDistance,
-    plannedDuration: payload.plannedDuration,
-    structure: null,
-    preferences: athletePreferences,
-    sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
-    sessionType: payload.sessionType,
-    sportType: payload.sportType,
-    distanceSource: payload.plannedDistance
-      ? PlannedMetricSource.MANUAL
-      : null,
-    durationSource: payload.plannedDuration
-      ? PlannedMetricSource.MANUAL
-      : null,
-  })
-
-  await prisma.workout.create({
-    data: {
-      athleteId: session.athleteId,
-      date: scheduledDate,
-      sortOrder,
-      type: payload.sportType,
+    const athleteId = session.athleteId
+    const scheduledDate = parseModalScheduledDate(payload.scheduledDate)
+    const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
+    const structure = parseStructure(payload.structure)
+    const hasIncludeItems = (structure.includeItems?.length ?? 0) > 0
+    const saveStructure = hasStructureContent(structure) || hasIncludeItems
+    const athletePreferences = await loadAthletePreferencesForBuilder(athleteId)
+    const metrics = resolvePlannedWorkoutMetrics({
+      plannedDistance: payload.plannedDistance,
+      plannedDuration: payload.plannedDuration,
+      structure: saveStructure ? structure : null,
+      preferences: athletePreferences,
+      sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
       sessionType: payload.sessionType,
-      title: payload.title,
-      description: payload.description?.trim() || null,
-      plannedDistance: metrics.plannedDistance,
-      plannedDuration: metrics.plannedDuration,
-      plannedDistanceSource: metrics.distanceSource,
-      plannedDurationSource: metrics.durationSource,
-      selfLogged: true,
-      tags: syncApproxTagsFromSources([], {
-        distance: metrics.distanceSource,
-        duration: metrics.durationSource,
-      }),
-    },
-  })
+      sportType: payload.sportType,
+      allowPaceEstimate: payload.allowPaceEstimate,
+      distanceSource: payload.plannedDistanceSource,
+      durationSource: payload.plannedDurationSource,
+    })
+    const tags = syncApproxTagsFromSources(payload.tags, {
+      distance: metrics.distanceSource,
+      duration: metrics.durationSource,
+    })
+    const title = modalWorkoutTitle(payload.title, 'Workout')
 
-  revalidatePath('/training')
-  revalidatePath('/dashboard')
-  await onTrainingCalendarDataChanged(session.athleteId)
+    if (!saveStructure) {
+      await prisma.workout.create({
+        data: {
+          athleteId,
+          templateId: payload.templateId,
+          date: scheduledDate,
+          sortOrder,
+          type: payload.sportType,
+          sessionType: payload.sessionType,
+          title,
+          description: payload.description?.trim() || null,
+          plannedDistance: metrics.plannedDistance ?? null,
+          plannedDuration: metrics.plannedDuration ?? null,
+          plannedDistanceSource: metrics.distanceSource,
+          plannedDurationSource: metrics.durationSource,
+          coachNotes: payload.coachNotes,
+          coachNotesPrivate: Boolean(payload.coachNotesPrivate),
+          selfLogged: true,
+          tags,
+        },
+      })
+    } else {
+      await prisma.workout.create({
+        data: {
+          athleteId,
+          templateId: payload.templateId,
+          date: scheduledDate,
+          sortOrder,
+          type: payload.sportType,
+          sessionType: payload.sessionType,
+          title,
+          description: payload.description?.trim() || null,
+          plannedDuration: metrics.plannedDuration ?? null,
+          plannedDistance: metrics.plannedDistance ?? null,
+          plannedDistanceSource: metrics.distanceSource,
+          plannedDurationSource: metrics.durationSource,
+          coachNotes: structure.coachNotes ?? payload.coachNotes,
+          coachNotesPrivate: Boolean(payload.coachNotesPrivate),
+          structure: structure as Prisma.InputJsonValue,
+          structureDiagram: structureDiagramPrismaValue(structure, {
+            durationMinutes: metrics.plannedDuration,
+          }),
+          selfLogged: true,
+          tags,
+        },
+      })
+    }
+
+    revalidatePath('/training')
+    revalidatePath('/dashboard')
+    await onTrainingCalendarDataChanged(athleteId)
+  } catch (error) {
+    rethrowActionError('createAthleteWorkoutFromModal', error, 'Could not save workout')
+  }
 }
 
 export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {

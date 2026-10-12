@@ -9,6 +9,7 @@ import {
   Settings,
   Users,
   Wrench,
+  ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -139,6 +140,30 @@ export function getMainNav(isCoach: boolean): NavItem[] {
     { href: '/season', label: 'Season', icon: Flag },
     { href: '/progress', label: 'Stats', icon: LineChart },
     TOOLS_NAV,
+  ]
+}
+
+/**
+ * Flat desktop top-nav links (v2 shell). Athlete labels match the redesign mockup;
+ * coach keeps product IA flattened from getMainNav.
+ */
+export function getTopNav(isCoach: boolean): NavItem[] {
+  if (isCoach) {
+    return [
+      HOME_NAV,
+      { href: '/inbox', label: 'Inbox', icon: MessageSquare },
+      { href: '/athletes', label: 'Athletes', icon: Users },
+      { href: '/workouts', label: 'Library', icon: Library },
+      { href: '/tools', label: 'Tools', icon: Wrench },
+    ]
+  }
+  return [
+    HOME_NAV,
+    { href: '/training', label: 'Calendar', icon: CalendarRange },
+    { href: '/workouts', label: 'Workouts', icon: Library },
+    { href: '/workouts/plans', label: 'Training Plans', icon: ClipboardList },
+    { href: '/season', label: 'Races', icon: Flag },
+    { href: '/progress', label: 'Analytics', icon: LineChart },
   ]
 }
 

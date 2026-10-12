@@ -5,109 +5,115 @@
 @custom-variant landscape (@media (orientation: landscape));
 
 @theme {
-  /* UI = Inter (next/font → --font-ui); Display = Bebas Neue (next/font → --font-display-family).
-     Always give var() a fallback — if --font-display-family is missing, an invalid var()
-     drops the entire font-family and headings inherit Inter from body. */
+  /*
+   * TrainTrack Design System — Inter only (next/font → --font-ui).
+   * Display titles = Inter 800 via --font-display (same family).
+   * Source: docs/DESIGN-SYSTEM.md + style guide image.
+   */
   --font-sans: var(--font-ui, 'Inter'), 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-display-family, 'Bebas Neue'), 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-ui, 'Inter'), 'Inter', ui-sans-serif, system-ui, sans-serif;
 
-  /* Neutrals — redesign tokens (docs/REDESIGN-TOKENS.md) */
-  --color-background: #ffffff;
-  --color-foreground: #111111;
+  /* Neutrals */
+  --color-background: #f5f6f7;
+  --color-foreground: #15192b;
   --color-card: #ffffff;
-  --color-card-foreground: #111111;
+  --color-card-foreground: #15192b;
   --color-surface: #ffffff;
-  --color-surface-subtle: #f5f5f5;
-  --color-muted: #f5f5f5;
-  --color-muted-foreground: #6b6b6b;
-  --color-border: #ebebeb;
-  --color-border-subtle: #f0f0f0;
-  --color-primary: #111111;
+  --color-surface-subtle: #f5f6f7;
+  --color-muted: #f5f6f7;
+  --color-muted-foreground: #6b7280;
+  --color-border: #e3e6e9;
+  --color-border-subtle: #eef0f2;
+  --color-primary: #111315;
   --color-primary-foreground: #ffffff;
 
-  /* Brand / accent — CTA red (sport identity stays on --color-sport-*) */
-  --color-accent: #da2f36;
+  /* Brand orange — primary actions, progress, run accents */
+  --color-accent: #f0440a;
   --color-accent-foreground: #ffffff;
-  --color-accent-subtle: rgb(218 47 54 / 0.06);
-  --color-accent-light: rgb(218 47 54 / 0.1);
-  --color-accent-medium: rgb(218 47 54 / 0.16);
-  --color-brand: #da2f36;
+  --color-accent-subtle: rgb(240 68 10 / 0.06);
+  --color-accent-light: rgb(240 68 10 / 0.1);
+  --color-accent-medium: rgb(240 68 10 / 0.16);
+  --color-brand: #f0440a;
   --color-brand-foreground: #ffffff;
-  --color-brand-soft: rgb(218 47 54 / 0.1);
-  --color-brand-muted: rgb(218 47 54 / 0.16);
+  --color-brand-soft: rgb(240 68 10 / 0.1);
+  --color-brand-muted: rgb(240 68 10 / 0.16);
 
   --color-hero: #ffffff;
-  --color-hero-foreground: #111111;
+  --color-hero-foreground: #15192b;
   --color-destructive: #ef4444;
-  --color-success: #1a9f5c;
-  --color-chart-brand: #da2f36;
-  --color-chart-planned: #a1a1aa;
-  --color-chart-success: #1a9f5c;
+  --color-success: #16a34a;
+  --color-chart-brand: #f0440a;
+  --color-chart-planned: #d1d5db;
+  --color-chart-success: #16a34a;
 
-  /* Semantic text (also available as utilities via theme) */
-  --color-text-primary: #111111;
-  --color-text-secondary: #6b6b6b;
-  --color-text-tertiary: #9a9a9a;
+  /* Semantic text */
+  --color-text-primary: #15192b;
+  --color-text-secondary: #6b7280;
+  --color-text-tertiary: #9ca3af;
 
-  /* Sport semantic colors — bg/border are opaque mixes so day/phase washes
-   * under cards don't tint the sport chrome. */
-  --color-sport-run: #f4511e;
-  --color-sport-run-bg: color-mix(in srgb, #f4511e 8%, white);
-  --color-sport-run-border: color-mix(in srgb, #f4511e 22%, white);
-  --color-sport-swim: #1e9bde;
-  --color-sport-swim-bg: color-mix(in srgb, #1e9bde 8%, white);
-  --color-sport-swim-border: color-mix(in srgb, #1e9bde 22%, white);
-  --color-sport-bike: #16b8a6;
-  --color-sport-bike-bg: color-mix(in srgb, #16b8a6 8%, white);
-  --color-sport-bike-border: color-mix(in srgb, #16b8a6 22%, white);
+  /* Sport semantic colors — bg/border opaque mixes for washes */
+  --color-sport-run: #f0440a;
+  --color-sport-run-bg: color-mix(in srgb, #f0440a 8%, white);
+  --color-sport-run-border: color-mix(in srgb, #f0440a 22%, white);
+  --color-sport-swim: #8b5cf6;
+  --color-sport-swim-bg: color-mix(in srgb, #8b5cf6 8%, white);
+  --color-sport-swim-border: color-mix(in srgb, #8b5cf6 22%, white);
+  --color-sport-bike: #3b82f6;
+  --color-sport-bike-bg: color-mix(in srgb, #3b82f6 8%, white);
+  --color-sport-bike-border: color-mix(in srgb, #3b82f6 22%, white);
   --color-sport-strength: #8b5cf6;
   --color-sport-strength-bg: color-mix(in srgb, #8b5cf6 8%, white);
   --color-sport-strength-border: color-mix(in srgb, #8b5cf6 22%, white);
   --color-sport-hyrox: #d97706;
   --color-sport-hyrox-bg: color-mix(in srgb, #d97706 8%, white);
   --color-sport-hyrox-border: color-mix(in srgb, #d97706 22%, white);
-  /* Reserved — no WorkoutType yet */
-  --color-sport-ski: #4f7fd9;
+  --color-sport-ski: #3b82f6;
   --color-sport-ski-bg: #eff6ff;
   --color-sport-ski-border: #bfdbfe;
-  --color-sport-tri: #7c5cff;
+  --color-sport-tri: #8b5cf6;
   --color-sport-tri-bg: #f5f3ff;
   --color-sport-tri-border: #ddd6fe;
-  --color-sport-recovery: #8b5cf6;
-  --color-sport-recovery-bg: color-mix(in srgb, #8b5cf6 8%, white);
-  --color-sport-recovery-border: color-mix(in srgb, #8b5cf6 22%, white);
+  --color-sport-recovery: #6b7280;
+  --color-sport-recovery-bg: color-mix(in srgb, #6b7280 8%, white);
+  --color-sport-recovery-border: color-mix(in srgb, #6b7280 22%, white);
   --color-sport-rest: #a1a1aa;
   --color-sport-rest-bg: #fafafa;
-  --color-sport-rest-border: #e4e4e7;
-  --color-sport-race: #f4511e;
+  --color-sport-rest-border: #e3e6e9;
+  --color-sport-race: #f0440a;
 
-  /* Table headers — navy cousin of the dark app sidebar rail */
-  --color-sidebar: #2a3144;
+  /* Charcoal nav / dark panels */
+  --color-sidebar: #111315;
   --color-sidebar-foreground: #f4f6fb;
-  --color-tt-muted: #a1a1aa;
+  --color-tt-muted: #9ca3af;
   --color-tt-completed-bg: #f0faf4;
   --color-tt-completed-border: #86d39a;
   --color-tt-skipped-bg: #fdf2f2;
   --color-tt-skipped-border: #f5a3a3;
   --color-tt-adjusted-bg: #fffbeb;
-  /* Shared left accent width (sport / completion / skipped) */
   --tt-card-rail: 3px;
 
-  /* Radius — restrained */
+  /*
+   * Radius — cards 14px, large panels 16px.
+   * xs 2 · sm 4 · md 6 · lg 8 · xl 14 (cards) · 2xl 16 (panels)
+   * Progress / intensity bars = rectangular (xs–sm), not pill.
+   */
   --radius-none: 0;
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 0.75rem;
-  --radius-xl: 0.75rem;
-  --radius-2xl: 1rem;
-  --radius-3xl: 1rem;
-  --radius-workout: 4px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 16px;
+  --radius-pill: 9999px;
+  --radius-workout: 10px;
+  --minimal-radius: var(--radius-lg);
 
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.03);
-  --shadow-float: 0 1px 2px rgb(0 0 0 / 0.03);
-  --shadow-nav: 0 -1px 0 rgb(17 17 17 / 0.06);
+  --shadow-card: 0 1px 2px rgb(17 19 21 / 0.03);
+  --shadow-float: 0 1px 4px rgb(17 19 21 / 0.04);
+  --shadow-nav: 0 -1px 0 rgb(17 19 21 / 0.06);
 
-  /* 4px spacing scale */
+  /* 8px-based spacing scale — raw steps */
   --tt-space-4: 0.25rem;
   --tt-space-8: 0.5rem;
   --tt-space-12: 0.75rem;
@@ -118,6 +124,18 @@
   --tt-space-40: 2.5rem;
   --tt-space-48: 3rem;
   --tt-space-64: 4rem;
+
+  /*
+   * Semantic spacing roles — prefer these over ad-hoc mt-2 / gap-3.
+   * Live: /style-guide#spacing · docs/DESIGN-SYSTEM.md
+   */
+  --tt-space-micro: var(--tt-space-4); /* 4px — icon/chip inline gaps */
+  --tt-space-tight: var(--tt-space-8); /* 8px — widget title → body */
+  --tt-space-snug: var(--tt-space-12); /* 12px — related blocks in a card */
+  --tt-space-stack: var(--tt-space-16); /* 16px — default vertical stack */
+  --tt-space-section: var(--tt-space-24); /* 24px — major sections */
+  --tt-space-block: var(--tt-space-32); /* 32px — page block breaks */
+
   --tt-motion-fast: 160ms;
   --tt-motion-normal: 180ms;
 }
@@ -139,53 +157,96 @@
 }
 
 .dark {
-  --color-background: #0f1117;
+  --color-background: #111315;
   --color-foreground: #f4f6fb;
-  --color-card: #1a1d26;
+  --color-card: #1a1d22;
   --color-card-foreground: #f4f6fb;
-  --color-surface: #1a1d26;
+  --color-surface: #1a1d22;
   --color-surface-subtle: #252932;
   --color-muted: #252932;
   --color-muted-foreground: #9ca3af;
   --color-border: #2d3139;
   --color-border-subtle: #252932;
   --color-primary: #f4f6fb;
-  --color-primary-foreground: #111827;
-  --color-accent: #da2f36;
+  --color-primary-foreground: #111315;
+  --color-accent: #f0440a;
   --color-accent-foreground: #ffffff;
-  --color-accent-subtle: rgb(218 47 54 / 0.14);
-  --color-accent-light: rgb(218 47 54 / 0.2);
-  --color-accent-medium: rgb(218 47 54 / 0.28);
-  --color-brand: #da2f36;
+  --color-accent-subtle: rgb(240 68 10 / 0.14);
+  --color-accent-light: rgb(240 68 10 / 0.2);
+  --color-accent-medium: rgb(240 68 10 / 0.28);
+  --color-brand: #f0440a;
   --color-brand-foreground: #ffffff;
-  --color-brand-soft: rgb(218 47 54 / 0.18);
-  --color-brand-muted: rgb(218 47 54 / 0.28);
-  --color-hero: #1a1d26;
+  --color-brand-soft: rgb(240 68 10 / 0.18);
+  --color-brand-muted: rgb(240 68 10 / 0.28);
+  --color-hero: #1a1d22;
   --color-hero-foreground: #f4f6fb;
   --color-text-primary: #f4f6fb;
   --color-text-secondary: #9ca3af;
   --color-text-tertiary: #6b7280;
-  --color-chart-brand: #da2f36;
+  --color-chart-brand: #f0440a;
   --color-chart-planned: hsl(215 14% 55%);
   --color-chart-success: #4ade80;
-  --color-success: #1a9f5c;
+  --color-success: #16a34a;
 }
 
 html {
-  --sidebar-width: 18.25rem; /* 292px — matches mock shell */
-  /* Redesign token aliases (docs/REDESIGN-TOKENS.md) */
-  --tt-bg: #ffffff;
-  --tt-sidebar: #f5f5f5;
+  /* Display titles share Inter (legacy --font-display-family alias). */
+  --font-display-family: var(--font-ui, 'Inter');
+  /* v2 desktop shell uses top nav — no left sidebar gutter */
+  --sidebar-width: 0px;
+  --tt-top-nav-height: 3.5rem;
+  /* Design system shell — charcoal + brand orange + light content */
+  --tt-v2-nav-bg: #111315;
+  --tt-v2-accent: #f0440a;
+  --tt-v2-hero-bg: #111315;
+  --tt-v2-page-bottom: #f5f6f7;
+  --tt-v2-surface: #111315;
+  --tt-v2-surface-2: #1a1d22;
+  --tt-v2-ink: #f4f6fb;
+  --tt-v2-ink-soft: #a0a6b3;
+  --tt-v2-ink-faint: #7a8190;
+  --tt-v2-week-board: #ffffff;
+  --tt-v2-card: #ffffff;
+  --tt-v2-card-ink: #15192b;
+  --tt-v2-light-ink: #15192b;
+  --tt-v2-light-ink-soft: #6b7280;
+  --tt-v2-light-ink-faint: #9ca3af;
+  --tt-v2-light-panel: #ffffff;
+  --tt-v2-light-panel-line: #e3e6e9;
+  --tt-v2-focus-card: #111315;
+  /* Sport washes */
+  --tt-v2-wash-run: #fff1eb;
+  --tt-v2-wash-bike: #eff6ff;
+  --tt-v2-wash-swim: #f5f3ff;
+  --tt-v2-wash-strength: #f5f3ff;
+  --tt-v2-wash-recovery: #f3f4f6;
+  /* Soft elevation — whisper, not drama */
+  --tt-v2-shadow-none: none;
+  --tt-v2-shadow-metric: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  --tt-v2-shadow-card: 0 1px 2px rgb(17 19 21 / 0.03);
+  --tt-v2-shadow-card-hover: 0 1px 3px rgb(17 19 21 / 0.04), 0 4px 12px rgb(17 19 21 / 0.05);
+  --tt-v2-shadow-board: 0 1px 2px rgb(17 19 21 / 0.025);
+  --tt-v2-shadow-panel: 0 1px 2px rgb(17 19 21 / 0.03);
+  --tt-v2-shadow-panel-hover: 0 1px 3px rgb(17 19 21 / 0.04), 0 5px 14px rgb(17 19 21 / 0.05);
+  --tt-v2-shadow-today: 0 0 0 1.5px var(--tt-v2-accent);
+  --tt-v2-radius-xs: var(--radius-xs);
+  --tt-v2-radius-sm: var(--radius-sm);
+  --tt-v2-radius-md: var(--radius-md);
+  --tt-v2-radius-lg: var(--radius-lg);
+  --tt-v2-radius-xl: var(--radius-xl);
+  --tt-v2-radius-pill: var(--radius-pill);
+  /* Legacy aliases → design system palette */
+  --tt-bg: #f5f6f7;
+  --tt-sidebar: #f5f6f7;
   --tt-surface: #ffffff;
-  --tt-ink: #111111;
-  --tt-ink-soft: #6b6b6b;
-  --tt-ink-faint: #9a9a9a;
-  --tt-line: #ebebeb;
-  --tt-line-strong: #dddddd;
-  --tt-red: #da2f36;
-  --tt-good: #1a9f5c;
-  --tt-good-soft: rgb(26 159 92 / 0.12);
-  /* Inline workout feedback — lighter than completed card wash */
+  --tt-ink: #15192b;
+  --tt-ink-soft: #6b7280;
+  --tt-ink-faint: #9ca3af;
+  --tt-line: #e3e6e9;
+  --tt-line-strong: #d1d5db;
+  --tt-red: #f0440a;
+  --tt-good: #16a34a;
+  --tt-good-soft: rgb(22 163 74 / 0.12);
   --tt-feedback-soft: color-mix(in srgb, var(--color-card, #fff) 97%, var(--tt-good));
   --tt-feedback-soft-completed: color-mix(
     in srgb,
@@ -195,24 +256,1167 @@ html {
   --tt-feedback-neutral: color-mix(
     in srgb,
     var(--color-card, #fff) 98.5%,
-    var(--tt-ink-soft, #6b6b6b)
+    var(--tt-ink-soft, #6b7280)
   );
-  --tt-red-soft: rgb(218 47 54 / 0.08);
-  /* Week column wash under today — quieter than header red */
-  --tt-today-wash: rgb(218 47 54 / 0.035);
-  /* Soft cell wash — same family as week first-column labels, 40% muted */
+  --tt-red-soft: rgb(240 68 10 / 0.08);
+  --tt-today-wash: rgb(240 68 10 / 0.04);
   --tt-weekend: color-mix(
     in srgb,
-    var(--color-muted, #f5f5f5) 40%,
+    var(--color-muted, #f5f6f7) 40%,
     var(--color-card, #fff)
   );
-  --tt-shadow: 0 1px 2px rgb(0 0 0 / 0.03), 0 2px 8px rgb(0 0 0 / 0.03);
-  /* Slightly deeper lift for interactive Home prescription cards on hover */
-  --tt-shadow-lift: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 12px rgb(0 0 0 / 0.05);
+  --tt-shadow: none;
+  --tt-shadow-lift: 0 1px 2px rgb(17 19 21 / 0.04);
 }
 
+/* Legacy sidebar collapse no longer expands a rail under v2 top nav. */
 html[data-sidebar-collapsed='true'] {
-  --sidebar-width: 4.5rem;
+  --sidebar-width: 0px;
+}
+
+/*
+ * Shared modular grid tokens (nav + athlete home).
+ * Content origin = --tt-v2-shell-pad-x so columns line up through the chrome.
+ */
+[data-v2-shell] {
+  --tt-v2-grid-cols: 7;
+  --tt-v2-grid-gutter: 12px;
+  --tt-v2-grid-size: var(--tt-v2-grid-gutter);
+  /* Inset from viewport to the outer (red) content rails — tighter on phones */
+  --tt-v2-shell-pad-x: 16px;
+  --tt-v2-shell-pad-y: 16px;
+  --tt-v2-shell-pad-top: var(--tt-v2-grid-gutter);
+  /* Small gap between red rails and the 7-day columns */
+  --tt-v2-side-gap: var(--tt-v2-grid-gutter);
+  --tt-v2-grid-line: rgb(255 255 255 / 0.06);
+  --tt-v2-grid-line-strong: rgb(255 255 255 / 0.09);
+  /* 7 day tracks — side gap applied via padding on the same grids */
+  --tt-v2-mod-columns: repeat(var(--tt-v2-grid-cols), minmax(0, 1fr));
+  /*
+   * Fixed-height charcoal → light wash (hero + ~one week board).
+   * Long soft mid ramp so the grey band eases out instead of banding.
+   * Height token lives on .tt-athlete-home-v2.
+   */
+  --tt-v2-home-fade:
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      transparent 18%,
+      rgb(17 19 21 / 0.55) 28%,
+      rgb(17 19 21 / 0.28) 40%,
+      rgb(75 85 99 / 0.32) 52%,
+      rgb(156 163 175 / 0.45) 64%,
+      rgb(209 213 219 / 0.7) 76%,
+      rgb(229 231 235 / 0.9) 88%,
+      var(--tt-v2-page-bottom) 100%
+    ),
+    var(--tt-v2-hero-bg);
+}
+
+@media (min-width: 768px) {
+  [data-v2-shell] {
+    --tt-v2-shell-pad-x: 24px;
+    --tt-v2-shell-pad-y: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  [data-v2-shell] {
+    --tt-v2-grid-gutter: 16px;
+    --tt-v2-shell-pad-x: 40px;
+    --tt-v2-shell-pad-y: 40px;
+    --tt-v2-shell-pad-top: var(--tt-v2-grid-gutter);
+    --tt-v2-side-gap: var(--tt-v2-grid-gutter);
+  }
+}
+
+.tt-app-top-nav {
+  position: relative;
+  isolation: isolate;
+  background: var(--tt-v2-nav-bg);
+  color: var(--tt-v2-ink);
+  border-bottom: 1px solid var(--tt-v2-grid-line-strong);
+}
+
+.tt-app-top-nav > .tt-v2-grid-overlay {
+  z-index: 0;
+}
+
+/*
+ * Same content box as the home shell: max-w 110rem + shell pad-x.
+ * Day columns come from V2GridOverlay (identical tracks to page content).
+ */
+.tt-app-top-nav-inner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: var(--tt-v2-mod-columns);
+  column-gap: var(--tt-v2-grid-gutter);
+  align-items: center;
+  width: 100%;
+  max-width: 110rem;
+  height: var(--tt-top-nav-height);
+  margin-inline: auto;
+  /* Outer pad to red rails + side gap into day columns */
+  padding-inline: calc(
+    var(--tt-v2-shell-pad-x) + var(--tt-v2-side-gap)
+  );
+}
+
+.tt-app-top-nav-brand,
+.tt-app-top-nav-links,
+.tt-app-top-nav-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.tt-app-top-nav-brand {
+  grid-column: 1 / span 2;
+  min-width: 0;
+}
+
+.tt-app-top-nav-links {
+  grid-column: 3 / span 3;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+}
+
+.tt-app-top-nav-actions {
+  grid-column: 6 / span 2;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+/*
+ * Grid overlay — vertical rails only inside the active content box
+ * (centered max 110rem). Side gutters stay clear.
+ *   pad → [RED rail] → side-gap → 7 days → side-gap → [RED] → pad
+ */
+.tt-v2-grid-overlay {
+  --tt-v2-content-max: 110rem;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  z-index: 0;
+  width: min(var(--tt-v2-content-max), 100%);
+  max-width: 100%;
+  transform: translateX(-50%);
+  padding-inline: var(--tt-v2-shell-pad-x);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+/* Outer content rails */
+.tt-v2-grid-overlay::before,
+.tt-v2-grid-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--tt-v2-grid-line-strong);
+}
+
+.tt-v2-grid-overlay::before {
+  left: var(--tt-v2-shell-pad-x);
+}
+
+.tt-v2-grid-overlay::after {
+  right: var(--tt-v2-shell-pad-x);
+}
+
+/* 7 day columns, inset by side-gap from the red rails */
+.tt-v2-grid-overlay__days {
+  display: grid;
+  grid-template-columns: var(--tt-v2-mod-columns);
+  column-gap: var(--tt-v2-grid-gutter);
+  height: 100%;
+  margin-inline: var(--tt-v2-side-gap);
+}
+
+.tt-v2-grid-overlay__days > span {
+  min-width: 0;
+  border-left: 1px solid var(--tt-v2-grid-line);
+  border-right: 1px solid var(--tt-v2-grid-line);
+}
+
+/*
+ * Mobile home is Today + list — no day columns — so drop the 7-track
+ * verticals; keep only the outer content rails, a touch softer.
+ */
+@media (max-width: 767px) {
+  .tt-v2-grid-overlay__days {
+    display: none;
+  }
+
+  .tt-v2-grid-overlay::before,
+  .tt-v2-grid-overlay::after {
+    background: var(--tt-v2-grid-line);
+  }
+}
+
+.tt-athlete-home-v2 {
+  --tt-v2-page-pad: 1.5rem;
+  --tt-v2-content-max: 110rem;
+  /* Hero + single week board + soft mid fade room */
+  --tt-v2-home-fade-height: 38rem;
+  position: relative;
+  isolation: isolate;
+  color: var(--tt-v2-ink);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  background: var(--tt-v2-page-bottom);
+  min-height: calc(100dvh - var(--tt-top-nav-height, 3.5rem));
+}
+
+/* Full-bleed fixed-height wash — does not grow with expanded weeks / widgets */
+.tt-athlete-home-v2::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 0;
+  width: 100vw;
+  height: var(--tt-v2-home-fade-height);
+  transform: translateX(-50%);
+  background: var(--tt-v2-home-fade);
+  pointer-events: none;
+}
+
+@media (max-width: 767px) {
+  .tt-athlete-home-v2 {
+    --tt-v2-home-fade-height: 30rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tt-athlete-home-v2 {
+    --tt-v2-home-fade-height: 44rem;
+  }
+}
+
+.tt-athlete-home-v2 > .tt-v2-grid-overlay {
+  z-index: 0;
+}
+
+/*
+ * Home main: full-bleed — drop main px/pb so the charcoal shell reaches
+ * the viewport edges (shell pad tokens handle inset). Avoids white gutters
+ * on mobile from [data-app-main] px-4.
+ */
+[data-app-main]:has(.tt-athlete-home-v2) {
+  overflow-x: clip;
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
+}
+
+[data-app-main-column]:has(.tt-athlete-home-v2),
+.app-gradient:has(.tt-athlete-home-v2) {
+  background: var(--tt-v2-page-bottom);
+}
+
+/*
+ * Shell already clears the sticky tab bar with light page-bottom padding.
+ * Drop the column’s tab-bar pb so charcoal doesn’t peek as a black strip
+ * under the faded home shell on mobile.
+ */
+[data-app-main-column]:has(.tt-athlete-home-v2) {
+  padding-bottom: 0;
+}
+
+.tt-athlete-home-v2-shell {
+  /*
+   * Content frame (centered on large screens). Fade lives on
+   * .tt-athlete-home-v2 so gutters outside max-width stay continuous.
+   * Same max-width + pad-x as .tt-app-top-nav-inner.
+   * overflow-x:clip — side-gap expands (week board / widgets) must not
+   * create a page-level horizontal scrollbar.
+   */
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: var(--tt-v2-grid-gutter);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  /* Visible so horizontal rules can reach page gutters; page clips overflow. */
+  overflow-x: visible;
+  background: transparent;
+  border-radius: 0;
+  margin-inline: auto;
+  z-index: 1;
+  /* Tight top pad under nav; side-gap so content sits on day columns */
+  padding: var(--tt-v2-shell-pad-top)
+    calc(var(--tt-v2-shell-pad-x) + var(--tt-v2-side-gap))
+    var(--tt-v2-grid-gutter);
+  min-height: calc(100dvh - var(--tt-top-nav-height, 3.5rem));
+}
+
+/* Clear sticky mobile tab bar + home indicator */
+@media (max-width: 1023px) {
+  .tt-athlete-home-v2-shell {
+    padding-bottom: calc(
+      var(--tt-v2-grid-gutter) + 4.75rem + env(safe-area-inset-bottom, 0px)
+    );
+  }
+}
+
+.tt-athlete-home-v2-shell > * {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+/*
+ * Horizontal section bands — full viewport width (breaks out of centered shell).
+ * `50% - 50vw` anchors to the viewport regardless of content max-width.
+ */
+.tt-athlete-home-v2-shell > * + *::before {
+  content: '';
+  position: absolute;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  right: auto;
+  top: calc(-1 * var(--tt-v2-grid-gutter));
+  height: var(--tt-v2-grid-gutter);
+  border-top: 1px solid var(--tt-v2-grid-line-strong);
+  border-bottom: 1px solid var(--tt-v2-grid-line-strong);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Stack sections on gutter rhythm */
+.tt-v2-mod-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tt-v2-grid-gutter);
+}
+
+/* Shared 7-day + gutter template — use everywhere content must snap */
+.tt-v2-mod-grid {
+  display: grid;
+  grid-template-columns: var(--tt-v2-mod-columns);
+  column-gap: var(--tt-v2-grid-gutter);
+  row-gap: 0;
+  width: 100%;
+}
+
+.tt-v2-mod-span-1 {
+  grid-column: span 1;
+}
+.tt-v2-mod-span-2 {
+  grid-column: span 2;
+}
+.tt-v2-mod-span-3 {
+  grid-column: span 3;
+}
+.tt-v2-mod-span-4 {
+  grid-column: span 4;
+}
+.tt-v2-mod-span-5 {
+  grid-column: span 5;
+}
+.tt-v2-mod-span-6 {
+  grid-column: span 6;
+}
+.tt-v2-mod-span-7,
+.tt-v2-mod-span-full {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 1024px) {
+  .tt-athlete-home-v2-shell {
+    max-width: 110rem;
+  }
+}
+
+.tt-v2-hero-band {
+  position: relative;
+  margin-bottom: 0;
+  padding-bottom: 0;
+  width: 100%;
+}
+
+/*
+ * Full-bleed double rule under the hero — same viewport breakout as section bands.
+ */
+.tt-athlete-home-v2-shell > .tt-v2-hero-band::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  right: auto;
+  top: 100%;
+  height: var(--tt-v2-grid-gutter);
+  box-sizing: border-box;
+  border-top: 1px solid var(--tt-v2-grid-line-strong);
+  border-bottom: 1px solid var(--tt-v2-grid-line-strong);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Hero already draws the seam into the flex gap */
+.tt-athlete-home-v2-shell > .tt-v2-hero-band + *::before {
+  content: none;
+}
+
+/*
+ * Brand / title span Mon–Tue: drop the mid-gutter day rails in the nav
+ * so they don’t stub into the nav bottom border.
+ */
+@media (min-width: 1024px) {
+  .tt-app-top-nav .tt-v2-grid-overlay__days > span:first-child {
+    border-right-color: transparent;
+  }
+
+  .tt-app-top-nav .tt-v2-grid-overlay__days > span:nth-child(2) {
+    border-left-color: transparent;
+  }
+}
+
+.tt-v2-pixel-motif {
+  opacity: 0.28;
+  mix-blend-mode: screen;
+}
+
+/*
+ * Week board expands into both side-gaps (align with This week / Next race).
+ * Must beat `shell > * { width:100% }` — otherwise margin-right is dropped when
+ * width+margins are over-constrained (LTR) and only the left expand “works”.
+ */
+.tt-athlete-home-v2-shell > .tt-v2-week-board,
+.tt-v2-week-board {
+  background: var(--tt-v2-week-board);
+  border: 1px solid var(--tt-v2-light-panel-line);
+  border-radius: var(--radius-2xl);
+  margin-inline: calc(-1 * var(--tt-v2-side-gap));
+  width: calc(100% + 2 * var(--tt-v2-side-gap));
+  max-width: none;
+  min-width: 0;
+  padding: var(--tt-v2-grid-gutter) var(--tt-v2-side-gap);
+  box-sizing: border-box;
+  box-shadow: var(--tt-v2-shadow-board);
+  /* Clip adjacent swipe weeks to the white card; today frame fits via .tt-v2-week-swipe bleed. */
+  overflow: hidden;
+}
+
+/*
+ * Home week carousel: bleed half-gutter (+1px) so Mon/Sun today frames stay
+ * inside the pane (visible) while overflow:hidden still clips other weeks.
+ * Inner week-days padding cancels the bleed so day columns stay on the page grid.
+ */
+@media (min-width: 768px) {
+  .tt-v2-week-board .tt-v2-week-swipe {
+    --tt-v2-today-bleed: calc(var(--tt-v2-grid-gutter) / 2 + 1px);
+    margin-inline: calc(-1 * var(--tt-v2-today-bleed));
+    width: calc(100% + 2 * var(--tt-v2-today-bleed));
+    max-width: none;
+    box-sizing: border-box;
+  }
+
+  .tt-v2-week-board .tt-v2-week-swipe .tt-v2-week-days {
+    padding-inline: var(--tt-v2-today-bleed);
+    box-sizing: border-box;
+  }
+}
+
+/* Narrow: stacked workout list (grid hidden) — no H-scroll needed */
+@media (max-width: 767px) {
+  .tt-athlete-home-v2-shell > .tt-v2-week-board,
+  .tt-v2-week-board {
+    overflow-x: clip;
+    /*
+     * No side-gap pad — Today / list content shares the same outer width as
+     * bottom widgets (which expand into side-gaps below).
+     */
+    padding-inline: 0;
+    padding-block: var(--tt-v2-grid-gutter);
+  }
+
+  .tt-v2-widget,
+  .tt-home-v2-widget {
+    padding: calc(var(--tt-v2-grid-gutter) * 1.1)
+      calc(var(--tt-v2-grid-gutter) * 1.15)
+      calc(var(--tt-v2-grid-gutter) * 0.75);
+  }
+
+  /* Widget header: keep title + week/race nav on one row when possible */
+  .tt-v2-widget--light .tt-v2-eyebrow + * {
+    min-width: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tt-athlete-home-v2-shell > .tt-v2-week-board,
+  .tt-v2-week-board {
+    padding-block: var(--tt-v2-grid-gutter);
+    padding-inline: var(--tt-v2-side-gap);
+  }
+}
+
+/* Multi-week expand — same week design, smooth height */
+.tt-v2-week-expand {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tt-v2-week-expand[data-open='true'] {
+  grid-template-rows: 1fr;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-v2-week-expand {
+    transition-duration: 0.01ms;
+  }
+}
+
+.tt-v2-week-expand-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tt-v2-week-expand-inner > .tt-v2-week-extra {
+  padding-top: 0.85rem;
+  margin-top: 0.35rem;
+  border-top: 1px solid rgb(17 17 17 / 0.06);
+}
+
+.tt-v2-week-extra + .tt-v2-week-extra {
+  margin-top: 1rem;
+  padding-top: 1rem;
+}
+
+/* Day columns = same 7 tracks + gutters as the page modular grid */
+.tt-v2-week-days {
+  display: grid;
+  min-width: 40rem;
+  grid-template-columns: var(--tt-v2-mod-columns);
+  column-gap: var(--tt-v2-grid-gutter);
+  align-items: stretch;
+  row-gap: 0;
+}
+
+@media (min-width: 768px) {
+  .tt-v2-week-days {
+    min-width: 0;
+  }
+}
+
+.tt-v2-week-days > .tt-v2-day-column {
+  position: relative;
+  padding-inline: 0;
+  border-right: none;
+  min-width: 0;
+}
+
+/* Vertical day separators — centered in the modular grid gutter */
+.tt-v2-week-days > .tt-v2-day-column:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: calc(var(--tt-v2-grid-gutter) / -2);
+  width: 1px;
+  transform: translateX(50%);
+  background: var(--tt-v2-light-panel-line);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/*
+ * Today frame snaps to gutter midlines (half-gutter out each side) —
+ * same center line as the day separators.
+ */
+.tt-v2-week-days > .tt-v2-day-column[data-today='true'] {
+  border-color: transparent;
+  background: transparent;
+  border-radius: 0;
+  z-index: 2;
+  width: auto;
+  margin-inline: 0;
+}
+
+.tt-v2-week-days > .tt-v2-day-column[data-today='true']::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline: calc(var(--tt-v2-grid-gutter) / -2);
+  border: 1px solid var(--tt-v2-accent);
+  border-radius: var(--radius-lg);
+  background: #fff;
+  pointer-events: none;
+  z-index: 0;
+  box-sizing: border-box;
+}
+
+.tt-v2-week-days > .tt-v2-day-column[data-today='true'] > * {
+  position: relative;
+  z-index: 1;
+}
+
+.tt-v2-week-days > .tt-v2-day-column[data-today='true']::after,
+.tt-v2-week-days > .tt-v2-day-column:has(+ [data-today='true'])::after {
+  display: none;
+}
+
+.tt-v2-week-expand-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.5rem 0.35rem;
+  border: none;
+  background: transparent;
+  color: var(--tt-v2-light-ink-soft);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.tt-v2-week-expand-toggle:hover {
+  color: var(--tt-v2-accent);
+}
+
+.tt-v2-week-expand-toggle svg {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tt-v2-week-expand-toggle[data-open='true'] svg {
+  transform: rotate(180deg);
+}
+
+.tt-v2-week-board .tt-v2-day-label {
+  color: var(--tt-v2-light-ink-soft);
+}
+
+.tt-v2-week-board .tt-v2-day-label[data-today='true'] {
+  color: var(--tt-v2-accent);
+}
+
+/* Day-header add — circular + reveals on column hover (quiet grey) */
+.tt-v2-week-board .tt-v2-day-add button {
+  height: 1.5rem;
+  width: 1.5rem;
+  border-radius: 9999px;
+  background: rgb(17 19 21 / 0.035);
+  color: var(--tt-v2-light-ink-faint);
+}
+
+.tt-v2-week-board .tt-v2-day-add button:hover,
+.tt-v2-week-board .tt-v2-day-add button:focus-visible,
+.tt-v2-week-board .tt-v2-day-add button[aria-expanded='true'] {
+  background: rgb(17 19 21 / 0.08);
+  color: var(--tt-v2-light-ink-soft);
+}
+
+.tt-v2-week-board .tt-v2-day-add button span {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* Today / focus day column — thin orange ring + soft lift */
+.tt-v2-day-column {
+  min-width: 0;
+  border-radius: var(--tt-v2-radius-md);
+  padding: 0.4rem 0.35rem 0.5rem;
+  border: 1.5px solid transparent;
+}
+
+.tt-v2-day-column[data-today='true'] {
+  background: #fff;
+  border-color: var(--tt-v2-accent);
+  border-width: 1px;
+  box-shadow: none;
+  border-radius: var(--radius-lg);
+}
+
+/* Shared v2 primitives (also aliased as tt-home-v2-* for older class names) */
+.tt-v2-metric,
+.tt-home-v2-metric {
+  background: color-mix(in srgb, #0a0b0d 55%, var(--tt-v2-surface));
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: var(--radius-lg);
+  padding: 0.875rem 1rem;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.04);
+}
+
+/* Hero metrics — Fri–Sun (span 3 on the page grid) */
+.tt-v2-hero-metrics {
+  grid-column: 1 / -1;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Mobile / tablet: grid-row hairline above Distance · Load · Done */
+@media (max-width: 1023px) {
+  .tt-v2-hero-metrics {
+    margin-top: 0;
+    padding-top: 0.35rem;
+    border-top: 1px solid var(--tt-v2-grid-line-strong);
+  }
+
+  .tt-v2-hero-row {
+    row-gap: 0.35rem;
+  }
+}
+
+.tt-v2-hero-metric-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: var(--tt-v2-grid-gutter);
+  width: 100%;
+}
+
+.tt-v2-hero-metric-strip > .tt-v2-metric,
+.tt-v2-hero-metric-strip > .tt-home-v2-metric {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  padding: var(--tt-v2-grid-gutter);
+  padding-bottom: calc(var(--tt-v2-grid-gutter) * 0.5);
+  min-width: 0;
+  min-height: 0;
+}
+
+/*
+ * Phone hero metrics: glue each chart to its number (not the next cell),
+ * and separate Distance / Load / Done with hairlines + padding.
+ */
+@media (max-width: 639px) {
+  .tt-v2-hero-metric-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 0;
+  }
+
+  .tt-v2-hero-metric-strip > .tt-v2-metric,
+  .tt-v2-hero-metric-strip > .tt-home-v2-metric {
+    position: relative;
+    padding: 0.35rem 0.55rem 0.3rem;
+  }
+
+  .tt-v2-hero-metric-strip > .tt-v2-metric:not(:last-child)::after,
+  .tt-v2-hero-metric-strip > .tt-home-v2-metric:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 0.25rem;
+    right: 0;
+    bottom: 0.2rem;
+    width: 1px;
+    background: rgb(255 255 255 / 0.12);
+    pointer-events: none;
+  }
+
+  .tt-v2-hero-metric-strip .tt-v2-eyebrow {
+    font-size: 0.5625rem;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+  }
+
+  .tt-v2-hero-metric-strip .tt-v2-metric__row {
+    margin-top: 0.4rem;
+    /* Keep value + chart as one cluster (not spread across the cell) */
+    justify-content: flex-start;
+    align-items: flex-end;
+    gap: 0.4rem;
+  }
+
+  .tt-v2-hero-metric-strip .tt-v2-metric__copy {
+    flex: 0 1 auto;
+    max-width: 100%;
+  }
+
+  .tt-v2-hero-metric-strip .tt-v2-metric__value {
+    font-size: 1.0625rem;
+    line-height: 1.1;
+  }
+
+  .tt-v2-hero-metric-strip .tt-v2-metric__delta,
+  .tt-v2-hero-metric-strip .tt-v2-metric__hint {
+    margin-top: 0.25rem;
+    font-size: 0.625rem;
+    line-height: 1.2;
+  }
+
+  .tt-v2-hero-metric-strip .tt-v2-metric__chart {
+    transform: scale(0.8);
+    transform-origin: left bottom;
+    margin-bottom: 0.1rem;
+  }
+}
+
+.tt-v2-day-card,
+.tt-home-v2-day-card {
+  --tt-sport-color: var(--color-sport-recovery);
+  background: var(--tt-v2-card);
+  color: var(--tt-v2-card-ink);
+  border: 1px solid var(--color-sport-recovery-border);
+  border-radius: var(--radius-workout);
+  box-shadow: var(--tt-v2-shadow-card);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+a.tt-v2-day-card:hover,
+button.tt-v2-day-card:hover,
+.tt-v2-day-card[role='button']:hover,
+.tt-v2-day-card:has(a:hover),
+.tt-v2-day-card[data-interactive='true']:hover,
+.tt-home-v2-day-card:is(a, button, [role='button']):hover {
+  box-shadow: var(--tt-v2-shadow-card-hover);
+  border-color: color-mix(in srgb, var(--tt-sport-color) 32%, var(--tt-v2-light-panel-line));
+  transform: translateY(-1px);
+}
+
+a.tt-v2-day-card:focus-visible,
+button.tt-v2-day-card:focus-visible,
+.tt-v2-day-card[role='button']:focus-visible,
+.tt-home-v2-day-card:is(a, button, [role='button']):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--tt-sport-color) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.tt-v2-day-card[data-tone='run'],
+.tt-v2-day-card--run {
+  --tt-sport-color: var(--color-sport-run);
+  background: var(--tt-v2-wash-run);
+  border-color: var(--color-sport-run-border);
+}
+.tt-v2-day-card[data-tone='bike'],
+.tt-v2-day-card--bike {
+  --tt-sport-color: var(--color-sport-bike);
+  background: var(--tt-v2-wash-bike);
+  border-color: var(--color-sport-bike-border);
+}
+.tt-v2-day-card[data-tone='swim'],
+.tt-v2-day-card--swim {
+  --tt-sport-color: var(--color-sport-swim);
+  background: var(--tt-v2-wash-swim);
+  border-color: var(--color-sport-swim-border);
+}
+.tt-v2-day-card[data-tone='strength'],
+.tt-v2-day-card--strength {
+  --tt-sport-color: var(--color-sport-strength);
+  background: var(--tt-v2-wash-strength);
+  border-color: var(--color-sport-strength-border);
+}
+.tt-v2-day-card[data-tone='recovery'],
+.tt-v2-day-card--recovery {
+  --tt-sport-color: var(--color-sport-recovery);
+  background: var(--tt-v2-wash-recovery);
+  border-color: var(--color-sport-recovery-border);
+}
+.tt-v2-day-card[data-tone='hike'],
+.tt-v2-day-card--hike {
+  --tt-sport-color: var(--color-sport-recovery);
+  background: var(--tt-v2-wash-recovery);
+  border-color: var(--color-sport-recovery-border);
+}
+
+/* Completed — soft green wash; border weight matches sport cards */
+.tt-v2-day-card[data-completed='true'],
+.tt-v2-day-card--completed {
+  --tt-sport-color: var(--tt-good, #16a34a);
+  --tt-sparkline: var(--tt-good, #16a34a);
+  background: var(--color-tt-completed-bg, #f0faf4);
+  border-color: color-mix(in srgb, var(--tt-good, #16a34a) 22%, white);
+  color: var(--tt-good, #16a34a);
+}
+
+.tt-v2-day-card[data-completed='true'] .tt-v2-day-card__title,
+.tt-v2-day-card--completed .tt-v2-day-card__title {
+  color: var(--tt-good, #16a34a);
+}
+
+.tt-v2-widget,
+.tt-home-v2-widget {
+  background: color-mix(in srgb, var(--tt-v2-surface) 92%, black);
+  border: 1px solid rgb(255 255 255 / 0.06);
+  border-radius: var(--radius-xl);
+  padding: calc(var(--tt-v2-grid-gutter) * 1.25)
+    calc(var(--tt-v2-grid-gutter) * 1.35)
+    calc(var(--tt-v2-grid-gutter) * 0.85);
+}
+
+/* Light panels on the faded lower page (This Week / Weekly load / Next race) */
+.tt-v2-widget--light {
+  background: var(--tt-v2-light-panel);
+  border: 1px solid var(--tt-v2-light-panel-line);
+  color: var(--tt-v2-light-ink);
+  box-shadow: var(--tt-v2-shadow-panel);
+}
+
+/* V1 home cards remapped onto v2 light panels (This week / Weekly load / Next race). */
+.tt-v2-home-widget {
+  --tt-ink: var(--tt-v2-light-ink);
+  --tt-ink-soft: var(--tt-v2-light-ink-soft);
+  --tt-ink-faint: var(--tt-v2-light-ink-faint);
+  --tt-line: var(--tt-v2-light-panel-line);
+  --tt-line-strong: rgb(17 17 17 / 0.12);
+  --tt-surface: var(--tt-v2-light-panel);
+  --tt-red: var(--tt-v2-accent);
+  /* Planned = gray, actual = brand orange (not status green) */
+  --tt-good: var(--tt-v2-accent);
+  --tt-shadow: var(--tt-v2-shadow-panel);
+  --tt-shadow-lift: var(--tt-v2-shadow-card);
+  overflow: hidden;
+}
+
+.tt-v2-home-widget .tt-v2-home-track {
+  background: #e3e6e9;
+  border-radius: var(--radius-xs);
+}
+
+.tt-v2-home-widget .tt-v2-home-track-fill {
+  background: var(--tt-v2-light-ink, #15192b);
+  border-radius: inherit;
+}
+
+.tt-v2-home-widget .tt-v2-home-track-fill--accent {
+  background: color-mix(in srgb, var(--tt-v2-accent, #f0440a) 78%, white);
+  border-radius: inherit;
+}
+
+/*
+ * Hero on the 7-day + gutter grid (overlay):
+ *   title Mon–Tue (span 2) | open Wed–Thu | metrics Fri, Sat, Sun (1 each)
+ */
+.tt-v2-hero-row {
+  display: grid;
+  grid-template-columns: var(--tt-v2-mod-columns);
+  column-gap: var(--tt-v2-grid-gutter);
+  row-gap: var(--tt-v2-grid-gutter);
+  align-items: end;
+  width: 100%;
+}
+
+.tt-v2-hero-row .tt-v2-hero-copy {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  /* Title + week nav Mon–Tue · metrics Fri–Sun (top-aligned) */
+  .tt-v2-hero-row {
+    align-items: start;
+  }
+
+  .tt-v2-hero-row .tt-v2-hero-copy {
+    grid-column: 1 / span 2;
+  }
+
+  /*
+   * Title spans two day columns — keep outer rails, hide only the
+   * mid-gutter seam (incl. shell pad above the copy) so stubs don’t
+   * poke through the nav bottom border.
+   * Mid of first gutter: one day col + half gutter.
+   */
+  .tt-athlete-home-v2-shell > .tt-v2-hero-band::before {
+    content: '';
+    position: absolute;
+    left: calc(
+      (100% - 6 * var(--tt-v2-grid-gutter)) / 7 + var(--tt-v2-grid-gutter) / 2
+    );
+    top: calc(-1 * var(--tt-v2-shell-pad-top));
+    bottom: 0;
+    width: calc(var(--tt-v2-grid-gutter) + 4px);
+    transform: translateX(-50%);
+    background: var(--tt-v2-hero-bg);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .tt-v2-hero-row .tt-v2-hero-metrics {
+    grid-column: 5 / span 3;
+    align-self: start;
+  }
+}
+
+/* Lower widgets — hard snaps: This week 2 · Load 3 · Next race 2 */
+.tt-v2-home-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.5rem;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--tt-v2-light-ink-faint);
+}
+
+.tt-v2-home-footer-link {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.tt-v2-home-footer-link:hover {
+  color: var(--tt-v2-light-ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tt-v2-home-footer-sep {
+  opacity: 0.55;
+  user-select: none;
+}
+
+.tt-v2-mod-widgets {
+  display: grid;
+  grid-template-columns: var(--tt-v2-mod-columns);
+  column-gap: var(--tt-v2-grid-gutter);
+  row-gap: var(--tt-v2-grid-gutter);
+  width: 100%;
+  min-width: 0;
+  align-items: stretch;
+}
+
+.tt-v2-mod-widgets > * {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.tt-v2-mod-widgets > *.h-full {
+  height: 100%;
+}
+
+/*
+ * Mobile: expand into both side-gaps to match the week board outer rails.
+ * Must beat `shell > * { width:100% }` — otherwise margin-right is dropped
+ * when width+margins are over-constrained (LTR) and only the left expand works.
+ * Desktop keeps the 7-col grid origin and bleeds only the end cards.
+ */
+@media (max-width: 767px) {
+  .tt-athlete-home-v2-shell > .tt-v2-mod-widgets,
+  .tt-v2-mod-widgets {
+    margin-inline: calc(-1 * var(--tt-v2-side-gap));
+    width: calc(100% + 2 * var(--tt-v2-side-gap));
+    max-width: none;
+    box-sizing: border-box;
+  }
+}
+
+@media (min-width: 1024px) {
+  /* Combined this-week + load (5) · next race (2) */
+  .tt-v2-mod-widgets > *:nth-child(1) {
+    grid-column: 1 / span 5;
+    margin-left: calc(-1 * var(--tt-v2-side-gap));
+    width: auto;
+  }
+  .tt-v2-mod-widgets > *:nth-child(2) {
+    grid-column: 6 / span 2;
+    margin-right: calc(-1 * var(--tt-v2-side-gap));
+  }
+}
+
+.tt-v2-widget--light .tt-v2-eyebrow {
+  color: var(--tt-v2-light-ink-faint);
+}
+
+.tt-v2-tag,
+.tt-home-v2-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--tt-v2-radius-sm);
+  padding: 0.15rem 0.45rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--tt-v2-accent) 16%, white);
+  color: var(--tt-v2-accent);
+}
+
+.tt-v2-tag[data-tone='bike'],
+.tt-home-v2-tag[data-tone='bike'] {
+  background: color-mix(in srgb, var(--color-sport-bike) 16%, white);
+  color: var(--color-sport-bike);
+}
+
+.tt-v2-tag[data-tone='swim'],
+.tt-v2-tag[data-tone='strength'],
+.tt-home-v2-tag[data-tone='swim'],
+.tt-home-v2-tag[data-tone='strength'] {
+  background: color-mix(in srgb, var(--color-sport-strength) 16%, white);
+  color: var(--color-sport-strength);
+}
+
+.tt-v2-tag[data-tone='recovery'],
+.tt-home-v2-tag[data-tone='recovery'] {
+  background: rgb(100 116 139 / 0.14);
+  color: #64748b;
+}
+
+.tt-v2-progress,
+.tt-home-v2-progress {
+  overflow: hidden;
+  /* Geometric / rectangular bars — not pills */
+  border-radius: var(--radius-xs);
+  background: rgb(255 255 255 / 0.12);
+}
+
+.tt-v2-progress > span,
+.tt-home-v2-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tt-v2-accent);
+}
+
+.tt-v2-progress--light {
+  background: #e3e6e9;
+}
+
+.tt-v2-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tt-v2-ink-faint);
+}
+
+/* Semantic spacing utilities — pair with --tt-space-* roles */
+.tt-space-micro {
+  gap: var(--tt-space-micro);
+}
+.tt-space-tight {
+  gap: var(--tt-space-tight);
+}
+.tt-space-snug {
+  gap: var(--tt-space-snug);
+}
+.tt-space-stack {
+  gap: var(--tt-space-stack);
+}
+.tt-space-section {
+  gap: var(--tt-space-section);
+}
+/** Margin below a widget header before body content */
+.tt-space-after-title {
+  margin-top: var(--tt-space-tight);
 }
 
 /* Week / month can grow a bit when the icon rail frees space, but stay capped. */
@@ -1192,14 +2396,15 @@ body {
 
 /* Home mobile — dark hero + overlapping sheet (athlete + coach) */
 :root {
-  --tt-home-hero-bg: #151827;
+  /* Align with v2 charcoal nav / hero (#111315), not legacy blue-ink #151827 */
+  --tt-home-hero-bg: var(--tt-v2-hero-bg, #111315);
   --tt-coach-hero-bg: var(--tt-home-hero-bg);
 }
 
 .tt-home-page,
 .tt-coach-home-page,
 .tt-athlete-home-page {
-  --tt-home-hero-bg: #151827;
+  --tt-home-hero-bg: var(--tt-v2-hero-bg, #111315);
 }
 
 @media (max-width: 1023px) {
@@ -1234,10 +2439,9 @@ body {
   }
 }
 
-/* Dark mobile top bar — no light hairline over home hero */
+/* Dark mobile top bar — keep v2 grid hairline under chrome (matches desktop nav) */
 [data-app-main-column]:has([data-mobile-topbar='dark']) > [data-app-sticky-chrome],
 [data-app-main-column]:has([data-home-topbar='dark']) > [data-app-sticky-chrome] {
-  border-bottom: none;
   box-shadow: none;
 }
 
@@ -2109,8 +3313,10 @@ html[data-inbox-mobile-detail='true'] .tt-inbox-thread-composer {
   }
 }
 
+/* Page / section title trailing period — brand orange (universal) */
+.tt-title-dot,
 .tt-inbox-title-dot {
-  color: var(--tt-red, #da2f36);
+  color: var(--color-brand, var(--tt-v2-accent, #f0440a));
 }
 
 /* List view mobile frame fills top bar → bottom nav — drop page chrome padding gaps. */
@@ -4206,7 +5412,7 @@ html.tt-week-portrait-lock body {
 /* Skipped week card — Plain: white surface. Color: keep sport tint. */
 .tt-calendar-card-white .tt-week-plan-card.tt-week-plan-card-skipped,
 .tt-calendar-card-completion.tt-calendar-card-white
-  .tt-week-plan-card.tt-week-plan-card-skipped {
+.tt-week-plan-card.tt-week-plan-card-skipped {
   background: var(--color-card, #fff) !important;
   border-color: var(--tt-line-strong, #dddddd) !important;
 }
@@ -4633,16 +5839,15 @@ html.tt-week-portrait-lock body {
  */
 .title-display,
 .title-page {
-  /* Match mock `.tt-mock-h1` — Bebas Neue · 48/54. Prefer next/font var directly
-     (same pattern as #tt-splash) so we never inherit Inter if theme token fails. */
-  font-family: var(--font-display-family, 'Bebas Neue'), 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
-  font-size: 3rem; /* 48px */
-  line-height: 1.125; /* 54 */
-  font-weight: 400;
+  /* Design system page title — Inter 800, responsive 32–56px */
+  font-family: var(--font-sans);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.05;
+  font-weight: 800;
   font-style: normal;
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  color: var(--tt-ink, #111111);
+  text-transform: none;
+  letter-spacing: -0.03em;
+  color: var(--tt-ink, #15192b);
   margin: 0;
 }
 
@@ -5146,7 +6351,7 @@ input[type='number'] {
   --minimal-ink: #111827;
   --minimal-muted: #6b7280;
   --minimal-border: #e5e7eb;
-  --minimal-radius: 6px;
+  --minimal-radius: var(--radius-md);
   --minimal-completed-bg: #f3faf5;
   --minimal-completed-border: #86d39a;
   --minimal-skipped-bg: #fdf2f2;

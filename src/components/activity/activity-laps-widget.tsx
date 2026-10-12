@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from 'react'
 import { WorkoutType } from '@prisma/client'
 import { getWorkoutStravaLaps } from '@/app/actions/strava'
+import { useUnits } from '@/components/units/units-context'
 import {
   formatSplitDistance,
   formatSplitElapsed,
@@ -306,6 +307,8 @@ function SplitBars({
   showElev: boolean
   showHr: boolean
 }) {
+  const { unitSystem, swimDistanceUnit } = useUnits()
+  const unitPrefs = { unitSystem, swimDistanceUnit }
   const uid = useId().replace(/:/g, '')
   const speeds = rows.map((row) => row.avgSpeedMps)
   const min = Math.min(...speeds)
@@ -341,7 +344,11 @@ function SplitBars({
       <div className="relative h-[13.75rem]">
         {showValueLabels
           ? bars.map((bar) => {
-              const pace = formatSplitPaceOrSpeed(sport, bar.avgSpeedMps)
+              const pace = formatSplitPaceOrSpeed(
+                sport,
+                bar.avgSpeedMps,
+                unitPrefs,
+              )
               return (
                 <span
                   key={`val-${bar.index}-${bar.elapsedSec}`}
@@ -431,6 +438,8 @@ function SplitTable({
   rows: ActivitySplitRow[]
   sport: WorkoutType
 }) {
+  const { unitSystem, swimDistanceUnit } = useUnits()
+  const unitPrefs = { unitSystem, swimDistanceUnit }
   const rate = splitRateLabel(sport)
   const showHr = rows.some((row) => row.avgHr != null)
   const showWatts = sport === WorkoutType.BIKE && rows.some((row) => row.avgWatts != null)
@@ -450,14 +459,16 @@ function SplitTable({
         </thead>
         <tbody>
           {rows.map((row) => {
-            const pace = formatSplitPaceOrSpeed(sport, row.avgSpeedMps)
+            const pace = formatSplitPaceOrSpeed(sport, row.avgSpeedMps, unitPrefs)
             return (
               <tr
                 key={`row-${row.index}-${row.elapsedSec}`}
                 className="border-t border-[var(--tt-line)] tabular-nums text-[var(--tt-ink)]"
               >
                 <td className="py-1.5 pr-2 text-[var(--tt-ink-soft)]">{row.label}</td>
-                <td className="py-1.5 pr-2">{formatSplitDistance(row.distanceM, sport)}</td>
+                <td className="py-1.5 pr-2">
+                  {formatSplitDistance(row.distanceM, sport, unitPrefs)}
+                </td>
                 <td className="py-1.5 pr-2">{formatSplitElapsed(row.elapsedSec)}</td>
                 <td className="py-1.5 pr-2">
                   {pace.value}

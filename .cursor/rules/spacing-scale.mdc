@@ -1,0 +1,34 @@
+---
+description: TrainTrack spacing scale — semantic gaps, not ad-hoc mt-*
+globs: src/components/**/*.{tsx,ts,css}, src/app/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# Spacing scale
+
+Source: `src/app/globals.css` (`--tt-space-*`) · TS: `space` / `v2.space` in `design-tokens.ts` · Live: `/style-guide#spacing`
+
+## Raw steps (8px base)
+
+| Token | Value |
+|-------|-------|
+| `--tt-space-4` … `--tt-space-64` | 4 · 8 · 12 · 16 · 20 · 24 · 32 · 40 · 48 · 64 px |
+
+## Semantic roles (prefer these)
+
+| Token / class | Value | Use |
+|---------------|-------|-----|
+| `--tt-space-micro` / `.tt-space-micro` | 4px | Icon ↔ label, chip clusters |
+| `--tt-space-tight` / `.tt-space-after-title` | 8px | **Widget title → body** |
+| `--tt-space-snug` | 12px | Related blocks inside a card |
+| `--tt-space-stack` | 16px | Default vertical stack in a panel |
+| `--tt-space-section` | 24px | Between major sections on a page |
+| `--tt-space-block` | 32px | Page-level block breaks |
+| `--tt-v2-grid-gutter` | 12→16px | Day columns, mod widget gaps, shell gutters |
+
+## Rules
+
+- Prefer `mt-[var(--tt-space-tight)]` or `tt-space-after-title` over `mt-2` / `mt-3` for title→content.
+- Prefer `gap-[var(--tt-space-snug)]` (or `.tt-space-snug`) over inventing `gap-[13px]`.
+- Page modular layout stays on `--tt-v2-grid-gutter` / `tt-v2-mod-*` — don’t replace with `--tt-space-*`.
+- Changing a role once updates every consumer on that token.

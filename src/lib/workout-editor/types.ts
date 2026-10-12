@@ -22,6 +22,11 @@ export type SharedWorkoutEditorProps = {
   /** Library template id when editing a template */
   entityId?: string
   athleteMode?: boolean
+  /**
+   * Athlete create from day menu: full coach editor UI, but save via
+   * self-logged athlete actions (does not use coach-only APIs).
+   */
+  selfLoggedCreate?: boolean
   /** training-plan mode: parent plan + relative slot */
   planId?: string
   weekIndex?: number

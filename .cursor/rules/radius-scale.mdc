@@ -1,0 +1,26 @@
+---
+description: TrainTrack corner radius scale — tight, token-driven, consistent
+globs: src/components/**/*.{tsx,ts,css}, src/app/**/*.{tsx,ts,css}
+alwaysApply: false
+---
+
+# Radius scale
+
+Source: `src/app/globals.css` (`--radius-*`) · TS: `radius` / `v2.radius` in `design-tokens.ts` · Live: `/style-guide#radius`
+
+| Token | Value | Use |
+|-------|-------|-----|
+| `--radius-xs` | 2px | Progress / intensity bars (rectangular) |
+| `--radius-sm` | 4px | Tags, icon buttons, small chips |
+| `--radius-md` | 6px | Controls, inputs, metric chips |
+| `--radius-lg` | 8px | Compact surfaces |
+| `--radius-workout` | 10px | Session / day workout cards |
+| `--radius-xl` | 14px | Widgets, panels |
+| `--radius-2xl` | 16px | Large panels (week board) |
+| `--radius-pill` | 9999px | Avatars only — not progress bars |
+
+## Rules
+
+- Prefer `rounded-[var(--radius-xl)]` for cards (or CSS `border-radius: var(--radius-xl)`).
+- Do **not** use `rounded-xl` / `rounded-2xl` / ad-hoc `rounded-[12px]` on product UI.
+- Changing the scale once updates v2 primitives and anything already on tokens.

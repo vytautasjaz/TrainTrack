@@ -18,16 +18,31 @@ function hasSlotData(slot: WeatherSlotSummary): boolean {
   )
 }
 
-function SlotValue({ slot }: { slot: WeatherSlotSummary }) {
-  const precip = formatWeatherPrecip(slot)
+function SlotTemp({ slot }: { slot: WeatherSlotSummary }) {
   return (
-    <span className="inline-flex items-baseline gap-1 font-medium tabular-nums text-[var(--tt-ink-soft,#6b6b6b)]">
-      <span>{slotTemp(slot)}</span>
-      {precip ? (
-        <span className="text-[9px] font-medium text-[var(--tt-ink-faint,#9a9a9a)]">
-          {precip}
-        </span>
-      ) : null}
+    <span className="font-medium tabular-nums leading-none text-[var(--tt-ink-soft,#6b6b6b)]">
+      {slotTemp(slot)}
+    </span>
+  )
+}
+
+function SlotPrecip({
+  slot,
+  className,
+}: {
+  slot: WeatherSlotSummary
+  className?: string
+}) {
+  const precip = formatWeatherPrecip(slot)
+  if (!precip) return null
+  return (
+    <span
+      className={cn(
+        'text-[9px] font-medium tabular-nums leading-none text-[var(--tt-ink-faint,#9a9a9a)]',
+        className,
+      )}
+    >
+      {precip}
     </span>
   )
 }
@@ -144,13 +159,17 @@ export function ListDayWeatherMini({
           .join(' ')}
       >
         {slots.map((slot) => (
-          <div key={slot.label} className="flex items-center gap-0.5">
+          <div
+            key={slot.label}
+            className="grid grid-cols-[auto_auto] items-center gap-x-0.5 gap-y-0.5"
+          >
             <WeatherGlyph
               glyph={slot.emoji}
               tone="muted"
-              className="h-4 w-4"
+              className="h-5 w-5"
             />
-            <SlotValue slot={slot} />
+            <SlotTemp slot={slot} />
+            <SlotPrecip slot={slot} className="col-start-2" />
           </div>
         ))}
       </div>
@@ -160,7 +179,7 @@ export function ListDayWeatherMini({
   return (
     <div
       className={cn(
-        'flex shrink-0 items-center gap-0.5 text-[10px] text-[var(--tt-ink-faint,#9a9a9a)]',
+        'flex shrink-0 items-start gap-0.5 text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]',
         className,
       )}
       aria-label={slots
@@ -168,18 +187,21 @@ export function ListDayWeatherMini({
         .join(' ')}
     >
       {slots.map((slot, i) => (
-        <div key={slot.label} className="flex items-center gap-0.5">
+        <div key={slot.label} className="flex items-start gap-0.5">
           {i > 0 ? (
-            <span className="mx-0.5 text-[var(--tt-line-strong,#ddd)]" aria-hidden>
+            <span className="mx-0.5 self-center text-[var(--tt-line-strong,#ddd)]" aria-hidden>
               |
             </span>
           ) : null}
-          <WeatherGlyph
-            glyph={slot.emoji}
-            tone="muted"
-            className="h-6 w-6"
-          />
-          <SlotValue slot={slot} />
+          <div className="grid grid-cols-[auto_auto] items-center gap-x-0.5 gap-y-0.5">
+            <WeatherGlyph
+              glyph={slot.emoji}
+              tone="muted"
+              className="h-7 w-7"
+            />
+            <SlotTemp slot={slot} />
+            <SlotPrecip slot={slot} className="col-start-2" />
+          </div>
         </div>
       ))}
     </div>

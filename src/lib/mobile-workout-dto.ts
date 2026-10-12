@@ -40,6 +40,8 @@ import { formatPaceMinPerKm } from '@/lib/athlete-preferences'
 import {
   daySessionLoadActual,
   daySessionLoadPlanned,
+  weekSessionLoadActual,
+  weekSessionLoadPlanned,
   type SessionLoadThresholds,
 } from '@/lib/training-load/session-tss'
 import { DASHBOARD_WEEK_NAV_LIMIT } from '@/lib/dashboard-week-nav'
@@ -574,6 +576,8 @@ export function buildMobileTrainingLoadWeeks(input: {
       toDateKey(addDateOnlyDays(weekStart, i)),
     )
     const plannedWeek = keys.every((k) => k > todayKey)
+    const keySet = new Set(keys)
+    const weekWorkouts = input.workouts.filter((w) => keySet.has(w.dateKey))
     const dailyPlannedTss = keys.map((k) =>
       daySessionLoadPlanned(input.workouts, k, thresholds),
     )
@@ -608,8 +612,9 @@ export function buildMobileTrainingLoadWeeks(input: {
       dailyActualTss,
       dailyPlannedTime,
       dailyActualTime,
-      plannedTotalTss: dailyPlannedTss.reduce((a, b) => a + b, 0),
-      actualTotalTss: dailyActualTss.reduce((a, b) => a + b, 0),
+      // Week totals: sum raw then round once (same as web hero / week overview).
+      plannedTotalTss: weekSessionLoadPlanned(weekWorkouts, thresholds),
+      actualTotalTss: weekSessionLoadActual(weekWorkouts, thresholds),
       plannedTotalTime: dailyPlannedTime.reduce((a, b) => a + b, 0),
       actualTotalTime: dailyActualTime.reduce((a, b) => a + b, 0),
     }

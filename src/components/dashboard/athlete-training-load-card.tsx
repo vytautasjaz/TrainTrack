@@ -12,13 +12,18 @@ import type { PlanWorkoutDetail } from '@/lib/plan-workout'
 import {
   daySessionLoadActual,
   daySessionLoadPlanned,
+  weekSessionLoadActual,
+  weekSessionLoadPlanned,
   type SessionLoadThresholds,
 } from '@/lib/training-load/session-tss'
 import {
   HomeMobileSectionHeader,
 } from '@/components/ui/mobile-accordion-body'
+import { V2WidgetHeader } from '@/components/ui/v2'
+import { v2 } from '@/lib/design-tokens'
 import {
   WeekCarouselNav,
+  WeekCarouselThisWeekButton,
   WeekSwipePane,
   WeekSwipeSlide,
 } from '@/components/dashboard/week-swipe-pane'
@@ -32,8 +37,10 @@ import {
 const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'] as const
 const CHART_W = 320
 const CHART_H = 72
+const CHART_H_COMPACT = 44
 const PAD_X = 12
 const PAD_Y = 12
+const PAD_Y_COMPACT = 8
 const WEEK_COUNT = DASHBOARD_WEEK_NAV_COUNT
 const CENTER_INDEX = DASHBOARD_WEEK_NAV_CENTER
 const OFFSETS = Array.from(
@@ -50,6 +57,10 @@ type AthleteTrainingLoadCardProps = {
   workouts: PlanWorkoutDetail[]
   anchorWeekStartKey: string
   thresholds?: SessionLoadThresholds
+  /** Section title — defaults to “Training load”. */
+  title?: string
+  /** `v2` = light panel + eyebrow header for athlete home v2. */
+  tone?: 'default' | 'v2'
   className?: string
 }
 
@@ -82,18 +93,28 @@ function dayMinutesActual(workouts: PlanWorkoutDetail[], dateKey: string): numbe
   return Math.max(0, Math.round(sum))
 }
 
-function toPoints(daily: number[], yMax: number) {
+function toPoints(
+  daily: number[],
+  yMax: number,
+  chartH: number,
+  padY: number,
+) {
   const innerW = CHART_W - PAD_X * 2
-  const innerH = CHART_H - PAD_Y * 2
+  const innerH = chartH - padY * 2
   const max = Math.max(yMax, 1)
   return daily.map((v, i) => ({
     x: PAD_X + (i / Math.max(1, daily.length - 1)) * innerW,
-    y: PAD_Y + innerH - (v / max) * innerH,
+    y: padY + innerH - (v / max) * innerH,
   }))
 }
 
-function smoothPath(daily: number[], yMax: number): string {
-  const pts = toPoints(daily, yMax)
+function smoothPath(
+  daily: number[],
+  yMax: number,
+  chartH: number,
+  padY: number,
+): string {
+  const pts = toPoints(daily, yMax, chartH, padY)
   if (pts.length < 2) return ''
 
   let d = `M ${pts[0]!.x.toFixed(2)} ${pts[0]!.y.toFixed(2)}`
@@ -111,40 +132,49 @@ function smoothPath(daily: number[], yMax: number): string {
   return d
 }
 
-function LoadChart({
+/** Compact load sparkline — shared by home combined widget. */
+export function TrainingLoadChart({
   plannedDaily,
   actualDaily,
   yMax,
   showActual,
   morphFrom,
+  compact = false,
 }: {
   plannedDaily: number[]
   actualDaily: number[]
   yMax: number
   showActual: boolean
   morphFrom: MorphPair | null
+  compact?: boolean
 }) {
+  const chartH = compact ? CHART_H_COMPACT : CHART_H
+  const padY = compact ? PAD_Y_COMPACT : PAD_Y
   const displayPlanned = useMorphArray(plannedDaily, morphFrom?.planned ?? null)
   const displayActual = useMorphArray(actualDaily, morphFrom?.actual ?? null)
-  const plannedPath = smoothPath(displayPlanned, yMax)
-  const actualPath = smoothPath(displayActual, yMax)
-  const plannedPoints = toPoints(displayPlanned, yMax)
-  const actualPoints = toPoints(displayActual, yMax)
+  const plannedPath = smoothPath(displayPlanned, yMax, chartH, padY)
+  const actualPath = smoothPath(displayActual, yMax, chartH, padY)
+  const plannedPoints = toPoints(displayPlanned, yMax, chartH, padY)
+  const actualPoints = toPoints(displayActual, yMax, chartH, padY)
+  const actualStroke = compact ? 1.15 : 2.1
+  const plannedStroke = compact ? 1 : 1.35
+  const plannedDot = compact ? 2 : 3
+  const actualDot = compact ? 2.5 : 4
 
   return (
-    <div className="mt-4 w-full">
+    <div className={cn('w-full', compact ? 'mt-2' : 'mt-4')}>
       <svg
-        viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+        viewBox={`0 0 ${CHART_W} ${chartH}`}
         className="block h-auto w-full"
-        style={{ aspectRatio: `${CHART_W} / ${CHART_H}` }}
+        style={{ aspectRatio: `${CHART_W} / ${chartH}` }}
         preserveAspectRatio="xMidYMid meet"
         aria-hidden
       >
         <line
           x1={PAD_X}
           x2={CHART_W - PAD_X}
-          y1={CHART_H - PAD_Y}
-          y2={CHART_H - PAD_Y}
+          y1={chartH - padY}
+          y2={chartH - padY}
           stroke="var(--tt-line, #ebebeb)"
           strokeWidth="1"
         />
@@ -153,40 +183,42 @@ function LoadChart({
           d={plannedPath}
           fill="none"
           stroke="var(--tt-ink-faint, #9a9a9a)"
-          strokeWidth="1.35"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeDasharray="5 4"
+          strokeWidth={plannedStroke}
+          strokeLinecap="square"
+          strokeLinejoin="miter"
+          strokeDasharray="4 4"
           opacity="0.55"
         />
         {plannedPoints.map((p, pi) => (
-          <circle
+          <rect
             key={`p-${pi}`}
-            cx={p.x}
-            cy={p.y}
-            r="1.75"
+            x={p.x - plannedDot / 2}
+            y={p.y - plannedDot / 2}
+            width={plannedDot}
+            height={plannedDot}
             fill="var(--tt-ink-faint, #9a9a9a)"
             opacity="0.45"
           />
         ))}
-        {/* Real load — primary green on top */}
+        {/* Actual load — uses --tt-good (orange on v2 home panels) */}
         {showActual ? (
           <>
             <path
               d={actualPath}
               fill="none"
-              stroke="var(--tt-good, #1a9f5c)"
-              strokeWidth="2.1"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              stroke="var(--tt-good, var(--tt-v2-accent, #f0440a))"
+              strokeWidth={actualStroke}
+              strokeLinecap="square"
+              strokeLinejoin="miter"
             />
             {actualPoints.map((p, pi) => (
-              <circle
+              <rect
                 key={`a-${pi}`}
-                cx={p.x}
-                cy={p.y}
-                r="2.4"
-                fill="var(--tt-good, #1a9f5c)"
+                x={p.x - actualDot / 2}
+                y={p.y - actualDot / 2}
+                width={actualDot}
+                height={actualDot}
+                fill="var(--tt-good, var(--tt-v2-accent, #f0440a))"
               />
             ))}
           </>
@@ -205,7 +237,12 @@ function LoadChart({
           </span>
         ))}
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-medium tracking-[0.02em] text-[var(--tt-ink-faint,#9a9a9a)]">
+      <div
+        className={cn(
+          'flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-medium tracking-[0.02em] text-[var(--tt-ink-faint,#9a9a9a)]',
+          compact ? 'mt-1.5' : 'mt-2',
+        )}
+      >
         <span className="inline-flex items-center gap-1.5">
           <span
             className="inline-block h-px w-3 border-t border-dashed border-[var(--tt-ink-faint,#9a9a9a)] opacity-70"
@@ -214,12 +251,12 @@ function LoadChart({
           Planned
         </span>
         {showActual ? (
-          <span className="inline-flex items-center gap-1.5 text-[var(--tt-good,#1a9f5c)]">
+          <span className="inline-flex items-center gap-1.5 text-[var(--tt-good,var(--tt-v2-accent,#f0440a))]">
             <span
-              className="inline-block h-0.5 w-3 rounded-full bg-[var(--tt-good,#1a9f5c)]"
+              className="inline-block h-px w-3 bg-[var(--tt-good,var(--tt-v2-accent,#f0440a))]"
               aria-hidden
             />
-            Real
+            Actual
           </span>
         ) : null}
       </div>
@@ -235,8 +272,11 @@ export function AthleteTrainingLoadCard({
   workouts,
   anchorWeekStartKey,
   thresholds = {},
+  title = 'Training load',
+  tone = 'default',
   className,
 }: AthleteTrainingLoadCardProps) {
+  const isV2 = tone === 'v2'
   /** Logical week being shown (header + morph target). */
   const [active, setActive] = useState(CENTER_INDEX)
   /** Carousel track position — only moves on swipe (arrows morph in place). */
@@ -252,6 +292,8 @@ export function AthleteTrainingLoadCard({
     return OFFSETS.map((off) => {
       const startKey = toDateKey(addDateOnlyDays(anchor, off * 7))
       const keys = weekDateKeys(startKey)
+      const keySet = new Set(keys)
+      const weekWorkouts = workouts.filter((w) => keySet.has(w.dateKey))
       const end = parseDateOnly(keys[6]!)
       const start = parseDateOnly(keys[0]!)
       const plannedWeek = keys.every((k) => k > todayKey)
@@ -265,14 +307,30 @@ export function AthleteTrainingLoadCard({
       const dailyActualTime = keys.map((k) => dayMinutesActual(workouts, k))
       const dailyPlanned = metric === 'tss' ? dailyPlannedTss : dailyPlannedTime
       const dailyActual = metric === 'tss' ? dailyActualTss : dailyActualTime
-      const plannedTotal = dailyPlanned.reduce((a, b) => a + b, 0)
-      const actualTotal = dailyActual.reduce((a, b) => a + b, 0)
+      // Week totals: sum raw then round once (same as hero metrics).
+      // Daily bars still use per-day rounded values for the chart.
+      const plannedTotal =
+        metric === 'tss'
+          ? weekSessionLoadPlanned(weekWorkouts, thresholds)
+          : dailyPlannedTime.reduce((a, b) => a + b, 0)
+      const actualTotal =
+        metric === 'tss'
+          ? weekSessionLoadActual(weekWorkouts, thresholds)
+          : dailyActualTime.reduce((a, b) => a + b, 0)
       const range =
-        format(start, 'd') === format(end, 'd')
-          ? format(start, 'd MMM')
-          : format(start, 'MMM') === format(end, 'MMM')
-            ? `${format(start, 'd')}–${format(end, 'd MMM')}`
-            : `${format(start, 'd MMM')} – ${format(end, 'd MMM')}`
+        start.getFullYear() === end.getFullYear() &&
+        start.getMonth() === end.getMonth()
+          ? `${format(start, 'd')} – ${format(end, 'd MMMM yyyy')}`
+          : start.getFullYear() === end.getFullYear()
+            ? `${format(start, 'd MMMM')} – ${format(end, 'd MMMM yyyy')}`
+            : `${format(start, 'd MMMM yyyy')} – ${format(end, 'd MMMM yyyy')}`
+      const rangeCompact =
+        start.getFullYear() === end.getFullYear() &&
+        start.getMonth() === end.getMonth()
+          ? `${format(start, 'd')} – ${format(end, 'd MMM')}`
+          : start.getFullYear() === end.getFullYear()
+            ? `${format(start, 'd MMM')} – ${format(end, 'd MMM')}`
+            : `${format(start, 'd MMM yy')} – ${format(end, 'd MMM yy')}`
       const label =
         off === 0
           ? 'This week'
@@ -290,6 +348,7 @@ export function AthleteTrainingLoadCard({
         plannedTotal,
         actualTotal,
         range,
+        rangeCompact,
         label,
         plannedWeek,
       }
@@ -363,26 +422,46 @@ export function AthleteTrainingLoadCard({
     }
   }, [])
 
-  return (
-    <section className={cn(SHELL, className)}>
-      <HomeMobileSectionHeader
-        title="Training load"
-        collapsible={false}
-        subtitle={`${week.label} · ${week.range}`}
-        trailing={
-          <WeekCarouselNav
-            canPrev={active > 0}
-            canNext={active < weeks.length - 1}
-            isToday={active === CENTER_INDEX}
-            onPrev={() => goByArrow(Math.max(0, active - 1))}
-            onNext={() => goByArrow(Math.min(weeks.length - 1, active + 1))}
-            onToday={() => goByArrow(CENTER_INDEX)}
-          />
-        }
+  const awayFromThisWeek = active !== CENTER_INDEX
+  const nav = (
+    <>
+      {awayFromThisWeek ? (
+        <WeekCarouselThisWeekButton
+          className="mr-1.5"
+          onClick={() => goByArrow(CENTER_INDEX)}
+        />
+      ) : null}
+      <WeekCarouselNav
+        canPrev={active > 0}
+        canNext={active < weeks.length - 1}
+        isToday={!awayFromThisWeek}
+        rangeLabel={week.range}
+        rangeLabelCompact={week.rangeCompact}
+        onPrev={() => goByArrow(Math.max(0, active - 1))}
+        onNext={() => goByArrow(Math.min(weeks.length - 1, active + 1))}
       />
+    </>
+  )
+
+  return (
+    <section
+      className={cn(
+        isV2 ? cn(v2.surfaces.widgetLight, 'tt-v2-home-widget') : SHELL,
+        className,
+      )}
+    >
+      {isV2 ? (
+        <V2WidgetHeader title={title} trailing={nav} />
+      ) : (
+        <HomeMobileSectionHeader
+          title={title}
+          collapsible={false}
+          trailing={nav}
+        />
+      )}
 
       <WeekSwipePane
-        className="mt-2"
+        className="tt-space-after-title"
         active={paneActive}
         count={weeks.length}
         onActiveChange={onActiveChange}
@@ -399,11 +478,21 @@ export function AthleteTrainingLoadCard({
               <div className="flex items-end justify-between gap-2">
                 <div className="min-w-0">
                   <p
-                    className="text-[1.875rem] uppercase leading-none tracking-[-0.01em] text-[var(--tt-ink,#111)] tabular-nums"
-                    style={{ fontFamily: 'var(--font-display)' }}
+                    className={cn(
+                      'tabular-nums leading-none tracking-tight text-[var(--tt-ink,#111)]',
+                      isV2
+                        ? 'text-[1.35rem] font-semibold'
+                        : 'text-[1.875rem] uppercase tracking-[-0.01em]',
+                    )}
+                    style={isV2 ? undefined : { fontFamily: 'var(--font-display)' }}
                   >
                     {headlineTotal}{' '}
-                    <span className="text-base font-normal normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
+                    <span
+                      className={cn(
+                        'font-normal normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]',
+                        isV2 ? 'text-[12px] font-medium' : 'text-base',
+                      )}
+                    >
                       {unitLabel}
                       {data.plannedWeek ? ' plan' : ''}
                     </span>
@@ -439,7 +528,9 @@ export function AthleteTrainingLoadCard({
                           className={cn(
                             'transition',
                             metric === option.id
-                              ? 'text-[var(--tt-ink,#111)]'
+                              ? isV2
+                                ? 'text-[var(--tt-v2-accent)]'
+                                : 'text-[var(--tt-ink,#111)]'
                               : 'text-[var(--tt-ink-faint,#9a9a9a)] hover:text-[var(--tt-ink-soft,#6b6b6b)]',
                           )}
                         >
@@ -451,13 +542,14 @@ export function AthleteTrainingLoadCard({
                 ) : null}
               </div>
 
-              <LoadChart
+              <TrainingLoadChart
                 key={`${slide.startKey}-${metric}-${isVisible ? morphGen : 'idle'}`}
                 plannedDaily={data.dailyPlanned}
                 actualDaily={data.dailyActual}
                 yMax={Math.max(...data.dailyPlanned, ...data.dailyActual, 1)}
                 showActual={showActual}
                 morphFrom={isVisible ? dailyMorphFrom : null}
+                compact={isV2}
               />
             </WeekSwipeSlide>
           )

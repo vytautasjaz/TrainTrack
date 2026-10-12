@@ -10,10 +10,18 @@ function formatCountdown(days: number) {
     return { primary: String(days), label: dayLabel, weeks: null as string | null }
   }
   const weeks = Math.floor(days / 7)
+  const remDays = days % 7
+  const weekPart = weeks === 1 ? '1 week' : `${weeks} weeks`
+  const dayPart =
+    remDays === 0
+      ? null
+      : remDays === 1
+        ? '1 day'
+        : `${remDays} days`
   return {
     primary: String(days),
     label: dayLabel,
-    weeks: weeks === 1 ? '≈ 1 week' : `≈ ${weeks} weeks`,
+    weeks: dayPart ? `${weekPart} ${dayPart}` : weekPart,
   }
 }
 

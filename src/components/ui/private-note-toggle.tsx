@@ -1,5 +1,6 @@
 'use client'
 
+import { Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type PrivateNoteToggleProps = {
@@ -11,6 +12,8 @@ type PrivateNoteToggleProps = {
   onCheckedChange?: (checked: boolean) => void
   /** Overrides the default hideFrom copy. */
   label?: string
+  /** Secondary line under the label. */
+  description?: string
   className?: string
 }
 
@@ -21,6 +24,7 @@ export function PrivateNoteToggle({
   defaultChecked,
   onCheckedChange,
   label: labelOverride,
+  description: descriptionOverride,
   className,
 }: PrivateNoteToggleProps) {
   const label =
@@ -28,11 +32,14 @@ export function PrivateNoteToggle({
     (hideFrom === 'coach'
       ? 'Keep private — don’t show to coach'
       : 'Keep private — don’t show to athlete')
+  const description =
+    descriptionOverride ??
+    (labelOverride ? undefined : 'Only you will be able to see this note')
 
   return (
     <label
       className={cn(
-        'flex cursor-pointer items-start gap-2 text-xs leading-snug text-muted-foreground',
+        'grid cursor-pointer grid-cols-[auto_auto_minmax(0,1fr)] items-start gap-x-2.5 gap-y-0.5 text-xs leading-snug',
         className,
       )}
     >
@@ -49,7 +56,19 @@ export function PrivateNoteToggle({
         }
         className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-brand"
       />
-      <span>{label}</span>
+      <Lock
+        className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+        strokeWidth={2}
+        aria-hidden
+      />
+      <span className="min-w-0">
+        <span className="block font-medium text-foreground">{label}</span>
+        {description ? (
+          <span className="mt-0.5 block text-[11px] text-muted-foreground">
+            {description}
+          </span>
+        ) : null}
+      </span>
     </label>
   )
 }

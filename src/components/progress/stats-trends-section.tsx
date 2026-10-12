@@ -17,6 +17,8 @@ import type {
   ProgressWeekBucket,
 } from '@/lib/progress-stats'
 import { sportColors } from '@/lib/design-tokens'
+import { useUnitSystem } from '@/components/units/units-context'
+import type { UnitSystem } from '@/lib/units'
 import { cn, formatDistance, formatDuration } from '@/lib/utils'
 import { sportUsesPlannedDistance } from '@/lib/plan-week-totals'
 
@@ -195,6 +197,8 @@ function VolumeChart({
   sport: WorkoutType | 'ALL'
   year: number
 }) {
+  const unitSystem = useUnitSystem()
+  const distanceUnit = unitSystem === 'IMPERIAL' ? 'mi' : 'km'
   if (weeks.length === 0) {
     return (
       <div className="rounded-[8px] border border-[var(--tt-line)] bg-white px-4 py-8 text-center text-[13px] text-[var(--tt-ink-soft)]">
@@ -230,12 +234,12 @@ function VolumeChart({
             Weekly volume · {year}
           </p>
           <p className="mt-1 text-[13px] text-[var(--tt-ink-soft)]">
-            {sportLabel} · week of year · planned vs completed (km)
+            {sportLabel} · week of year · planned vs completed ({distanceUnit})
           </p>
         </div>
         <div className="text-right">
           <p className="text-[12px] font-medium tabular-nums text-[var(--tt-ink)]">
-            {formatDistance(totalCompleted)} total
+            {formatDistance(totalCompleted, unitSystem)} total
           </p>
           <p
             className={cn(
@@ -278,8 +282,8 @@ function VolumeChart({
                 <ChartColumnTooltip
                   title={`${w.label} · ${w.range}`}
                   rows={[
-                    { label: 'Planned', value: formatDistance(w.plannedDistance) },
-                    { label: 'Completed', value: formatDistance(w.completedDistance) },
+                    { label: 'Planned', value: formatDistance(w.plannedDistance, unitSystem) },
+                    { label: 'Completed', value: formatDistance(w.completedDistance, unitSystem) },
                     { label: 'Sessions', value: `${w.completed}/${w.planned}` },
                     { label: 'Duration', value: formatDuration(w.completedDuration) },
                   ]}
@@ -312,6 +316,8 @@ function MonthVolumeChart({
   sport: WorkoutType | 'ALL'
   year: number
 }) {
+  const unitSystem = useUnitSystem()
+  const distanceUnit = unitSystem === 'IMPERIAL' ? 'mi' : 'km'
   if (months.length === 0) {
     return (
       <div className="rounded-[8px] border border-[var(--tt-line)] bg-white px-4 py-8 text-center text-[13px] text-[var(--tt-ink-soft)]">
@@ -339,12 +345,12 @@ function MonthVolumeChart({
             Monthly volume · {year}
           </p>
           <p className="mt-1 text-[13px] text-[var(--tt-ink-soft)]">
-            {sportLabel} · compare months · planned vs completed (km)
+            {sportLabel} · compare months · planned vs completed ({distanceUnit})
           </p>
         </div>
         <div className="text-right">
           <p className="text-[12px] font-medium tabular-nums text-[var(--tt-ink)]">
-            {formatDistance(totalCompleted)} total
+            {formatDistance(totalCompleted, unitSystem)} total
           </p>
           {last && prev ? (
             <p
@@ -375,8 +381,8 @@ function MonthVolumeChart({
                 <ChartColumnTooltip
                   title={`${m.label} ${year}`}
                   rows={[
-                    { label: 'Planned', value: formatDistance(m.planned) },
-                    { label: 'Completed', value: formatDistance(m.completed) },
+                    { label: 'Planned', value: formatDistance(m.planned, unitSystem) },
+                    { label: 'Completed', value: formatDistance(m.completed, unitSystem) },
                     { label: 'Completion', value: `${pct}%` },
                   ]}
                 />
@@ -408,6 +414,8 @@ function YearCompareChart({
   sport: WorkoutType | 'ALL'
   years: number[]
 }) {
+  const unitSystem = useUnitSystem()
+  const distanceUnit = unitSystem === 'IMPERIAL' ? 'mi' : 'km'
   const visible = months.filter((m) => years.some((y) => (m.byYear[y]?.completedDistance ?? 0) > 0))
   const max = Math.max(
     ...visible.flatMap((m) => years.map((y) => m.byYear[y]?.completedDistance ?? 0)),
@@ -443,12 +451,12 @@ function YearCompareChart({
             Year over year
           </p>
           <p className="mt-1 text-[13px] text-[var(--tt-ink-soft)]">
-            {sportLabel} · monthly completed volume (km)
+            {sportLabel} · monthly completed volume ({distanceUnit})
           </p>
         </div>
         <div className="text-right">
           <p className="text-[12px] font-medium tabular-nums text-[var(--tt-ink)]">
-            {currentYear} YTD {formatDistance(totals[currentYear])}
+            {currentYear} YTD {formatDistance(totals[currentYear], unitSystem)}
           </p>
           {priorYear ? (
             <p
@@ -477,7 +485,7 @@ function YearCompareChart({
                   label: String(y),
                   value:
                     (m.byYear[y]?.completedDistance ?? 0) > 0
-                      ? formatDistance(m.byYear[y]!.completedDistance)
+                      ? formatDistance(m.byYear[y]!.completedDistance, unitSystem)
                       : '—',
                 }))}
               />
@@ -506,7 +514,7 @@ function YearCompareChart({
   )
 }
 
-function buildWeekMetrics(weeks: ProgressWeekBucket[]) {
+function buildWeekMetrics(weeks: ProgressWeekBucket[], unitSystem: UnitSystem) {
   const last = weeks[weeks.length - 1]
   const prev = weeks[weeks.length - 2]
   if (!last) return []
@@ -523,7 +531,7 @@ function buildWeekMetrics(weeks: ProgressWeekBucket[]) {
   return [
     {
       label: 'Volume',
-      value: formatDistance(last.completedDistance),
+      value: formatDistance(last.completedDistance, unitSystem),
       delta:
         volumeDelta === 0
           ? 'same as last week'
@@ -561,7 +569,7 @@ function buildWeekMetrics(weeks: ProgressWeekBucket[]) {
   ] as const
 }
 
-function buildYearMetrics(months: ProgressMonthRow[], years: number[]) {
+function buildYearMetrics(months: ProgressMonthRow[], years: number[], unitSystem: UnitSystem) {
   const totals = Object.fromEntries(
     years.map((y) => [
       y,
@@ -578,7 +586,7 @@ function buildYearMetrics(months: ProgressMonthRow[], years: number[]) {
   return [
     {
       label: `${current} YTD`,
-      value: formatDistance(totals[current]),
+      value: formatDistance(totals[current], unitSystem),
       delta: prior ? `${yoy > 0 ? '+' : ''}${yoy}% vs ${prior} YTD` : 'current year',
       up: yoy === 0 ? null : yoy > 0,
     },
@@ -586,7 +594,7 @@ function buildYearMetrics(months: ProgressMonthRow[], years: number[]) {
       ? [
           {
             label: `${prior} total`,
-            value: formatDistance(totals[prior]),
+            value: formatDistance(totals[prior], unitSystem),
             delta: 'full year in view',
             up: null,
           },
@@ -596,6 +604,7 @@ function buildYearMetrics(months: ProgressMonthRow[], years: number[]) {
       label: 'This month',
       value: formatDistance(
         months[new Date().getUTCMonth()]?.byYear[current]?.completedDistance ?? 0,
+        unitSystem,
       ),
       delta: 'completed volume',
       up: null,
@@ -620,7 +629,7 @@ function buildYearMetrics(months: ProgressMonthRow[], years: number[]) {
           },
           { label: '—', value: 0 },
         )
-        return formatDistance(peak.value)
+        return formatDistance(peak.value, unitSystem)
       })(),
       up: null,
     },
@@ -628,6 +637,7 @@ function buildYearMetrics(months: ProgressMonthRow[], years: number[]) {
 }
 
 export function StatsTrendsSection({ stats, className }: StatsTrendsSectionProps) {
+  const unitSystem = useUnitSystem()
   const [view, setView] = useState<ViewId>('weeks')
   const [range, setRange] = useState<RangeId>('12w')
   const [sport, setSport] = useState<WorkoutType | 'ALL'>('ALL')
@@ -642,26 +652,29 @@ export function StatsTrendsSection({ stats, className }: StatsTrendsSectionProps
   }, [bucket.weekly, year, range, view])
 
   const metrics = useMemo(() => {
-    if (view === 'years') return buildYearMetrics(bucket.monthly, stats.years)
+    if (view === 'years') return buildYearMetrics(bucket.monthly, stats.years, unitSystem)
     if (view === 'months' && monthRows.length > 0) {
       const last = monthRows[monthRows.length - 1]
       return [
         {
           label: `${last.label} volume`,
-          value: formatDistance(last.completed),
+          value: formatDistance(last.completed, unitSystem),
           delta: 'latest month in view',
           up: null,
         },
         {
           label: 'Year total',
-          value: formatDistance(monthRows.reduce((s, m) => s + m.completed, 0)),
+          value: formatDistance(
+            monthRows.reduce((s, m) => s + m.completed, 0),
+            unitSystem,
+          ),
           delta: `${monthRows.length} months`,
           up: null,
         },
       ]
     }
-    return buildWeekMetrics(weeks)
-  }, [view, bucket.monthly, stats.years, monthRows, weeks])
+    return buildWeekMetrics(weeks, unitSystem)
+  }, [view, bucket.monthly, stats.years, monthRows, weeks, unitSystem])
 
   const sportOptions: { id: WorkoutType | 'ALL'; label: string }[] = [
     { id: 'ALL', label: 'All' },

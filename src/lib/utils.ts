@@ -1,13 +1,21 @@
 import { type ClassValue, clsx } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import {
+  formatDistanceKm,
+  type UnitSystem,
+  DEFAULT_UNIT_SYSTEM,
+} from '@/lib/units'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatDistance(km: number | null | undefined): string {
-  if (km == null || km <= 0) return '—'
-  return `${km % 1 === 0 ? km : km.toFixed(1)} km`
+/** Format stored km. Pass unitSystem when the viewer preference is known. */
+export function formatDistance(
+  km: number | null | undefined,
+  system: UnitSystem = DEFAULT_UNIT_SYSTEM,
+): string {
+  return formatDistanceKm(km, system)
 }
 
 export function formatDuration(min: number | null | undefined): string {

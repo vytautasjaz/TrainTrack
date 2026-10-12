@@ -469,7 +469,7 @@ export function TrainingListView({
 
       <TrainingListPanel
         {...panelProps}
-        panelClassName="fixed inset-x-0 z-30 lg:left-[var(--sidebar-width)]"
+        panelClassName="fixed inset-x-0 z-30 lg:left-0"
         panelStyle={{ top: panelTop, bottom: panelBottom }}
       />
     </>

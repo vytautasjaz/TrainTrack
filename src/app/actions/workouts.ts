@@ -1068,8 +1068,7 @@ export async function moveDayPlanItemRelative(args: {
   placement?: 'before' | 'after'
 }) {
   const session = await requireSession()
-  if (!isCoach(session)) throw new Error('Only coaches can reorder plan items')
-
+  // Coach (selected athlete) or athlete (own calendar) may reorder that day.
   const athleteId = await resolveAthleteId(session)
   if (!athleteId) throw new Error('No athlete selected')
 

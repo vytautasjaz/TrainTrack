@@ -1,7 +1,19 @@
 import { WorkoutType } from '@prisma/client'
-import { formatPaceMinPerKm } from '@/lib/athlete-preferences'
 import { formatElapsedClock } from '@/lib/race-legs'
 import type { StravaLap, StravaSplit } from '@/lib/strava/types'
+import {
+  formatDistanceKm,
+  formatPace,
+  formatPaceUnit,
+  formatSpeedKph,
+  formatSpeedUnit,
+  formatSwimMeters,
+  formatSwimPace,
+  formatSwimPaceUnit,
+  splitIntervalMeters,
+  YARDS_PER_METER,
+  type SplitUnitPrefs,
+} from '@/lib/units'
 
 export type ActivitySplitRow = {
   index: number
@@ -178,9 +190,7 @@ export function splitsFromCachedStreams(
   return []
 }
 
-export function splitIntervalMeters(sport: WorkoutType): number {
-  return sport === WorkoutType.SWIM ? 100 : 1000
-}
+export { splitIntervalMeters } from '@/lib/units/split-interval'
 
 export function hasUsableLaps(laps: ActivitySplitRow[]): boolean {
   return laps.length >= 2
@@ -339,6 +349,8 @@ export function buildActivityLapsCache(args: {
   heartrate?: number[] | null
   velocityMps?: number[] | null
   packedStreams?: unknown
+  /** Viewer prefs at import time — only affects newly built auto-splits. */
+  unitPrefs?: SplitUnitPrefs
 }): ActivityLapsCache {
   const laps = normalizeStravaLaps(args.laps)
   const useLaps = hasUsableLaps(laps)
@@ -347,7 +359,7 @@ export function buildActivityLapsCache(args: {
     : splitsFromDistanceTime(
         args.distanceM,
         args.timeSec,
-        splitIntervalMeters(args.sport),
+        splitIntervalMeters(args.sport, args.unitPrefs),
       )
   const profile =
     overlayProfileFromStreams({
@@ -409,14 +421,24 @@ export function isLapsCacheRecord(raw: unknown): boolean {
   )
 }
 
-export function formatSplitDistance(meters: number, sport: WorkoutType): string {
+export function formatSplitDistance(
+  meters: number,
+  sport: WorkoutType,
+  prefs: SplitUnitPrefs = {},
+): string {
   if (sport === WorkoutType.SWIM) {
-    return `${Math.round(meters)} m`
+    return formatSwimMeters(meters, prefs.swimDistanceUnit ?? undefined)
+  }
+  const unitSystem = prefs.unitSystem ?? 'METRIC'
+  if (unitSystem === 'IMPERIAL') {
+    // Near full-mile splits or longer — show miles
+    if (meters >= 1500) {
+      return formatDistanceKm(meters / 1000, 'IMPERIAL')
+    }
+    return `${Math.round(meters * YARDS_PER_METER)} yd`
   }
   if (meters >= 950) {
-    const km = meters / 1000
-    const rounded = Math.round(km * 100) / 100
-    return `${rounded % 1 === 0 ? rounded : rounded.toFixed(2)} km`
+    return formatDistanceKm(meters / 1000, 'METRIC')
   }
   return `${Math.round(meters)} m`
 }
@@ -424,20 +446,29 @@ export function formatSplitDistance(meters: number, sport: WorkoutType): string 
 export function formatSplitPaceOrSpeed(
   sport: WorkoutType,
   speedMps: number,
+  prefs: SplitUnitPrefs = {},
 ): { value: string; unit: string } {
+  const unitSystem = prefs.unitSystem ?? 'METRIC'
+  const swimUnit = prefs.swimDistanceUnit ?? 'METERS'
   if (sport === WorkoutType.BIKE) {
     const kph = speedMps * 3.6
     return {
-      value: kph >= 10 ? kph.toFixed(1) : kph.toFixed(2),
-      unit: 'km/h',
+      value: formatSpeedKph(kph, unitSystem, { withUnit: false }) || '—',
+      unit: formatSpeedUnit(unitSystem),
     }
   }
   if (sport === WorkoutType.SWIM) {
-    const minPer100 = speedMps > 0 ? 100 / speedMps / 60 : 0
-    return { value: formatPaceMinPerKm(minPer100) || '—', unit: '/100m' }
+    const minPer100m = speedMps > 0 ? 100 / speedMps / 60 : 0
+    return {
+      value: formatSwimPace(minPer100m, swimUnit, { withUnit: false }) || '—',
+      unit: formatSwimPaceUnit(swimUnit),
+    }
   }
   const minPerKm = speedMps > 0 ? 1000 / speedMps / 60 : 0
-  return { value: formatPaceMinPerKm(minPerKm) || '—', unit: '/km' }
+  return {
+    value: formatPace(minPerKm, unitSystem, { withUnit: false }) || '—',
+    unit: formatPaceUnit(unitSystem),
+  }
 }
 
 export function formatSplitElapsed(seconds: number): string {

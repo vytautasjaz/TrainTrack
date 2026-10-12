@@ -9,6 +9,7 @@ import {
   toPlanWorkoutDetailFromHistory,
   type WorkoutHistoryItem,
 } from '@/lib/workout-history'
+import { useUnitSystem } from '@/components/units/units-context'
 import { formatDistance, formatDuration } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { WORKOUT_CARD_CLASS } from '@/lib/workout-display'
@@ -26,9 +27,12 @@ export function HistoryWorkoutCard({
   compact = false,
   className,
 }: HistoryWorkoutCardProps) {
+  const unitSystem = useUnitSystem()
   const source = getWorkoutCompletionSource(workout)
   const metrics = [
-    workout.result.actualDistance ? formatDistance(workout.result.actualDistance) : null,
+    workout.result.actualDistance
+      ? formatDistance(workout.result.actualDistance, unitSystem)
+      : null,
     workout.result.actualDuration ? formatDuration(workout.result.actualDuration) : null,
   ]
     .filter(Boolean)
