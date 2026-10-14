@@ -46,7 +46,7 @@ export function AppTopNav({
       className="tt-app-top-nav sticky top-0 z-40 hidden lg:block"
       data-app-top-nav
     >
-      <V2GridOverlay />
+      <V2GridOverlay className="tt-v2-grid-overlay tt-v2-grid-overlay--top-nav" />
       <div className="tt-app-top-nav-inner">
         <Link
           href="/dashboard"

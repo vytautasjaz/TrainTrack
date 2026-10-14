@@ -190,7 +190,8 @@ function formatBlockPrimary(block: WorkoutBlock): string {
     case 'REPETITION':
       return `${block.repetitions ?? 1} x ${formatSegment(block.work)}`
     case 'FREE_TEXT':
-      return block.text?.trim() || 'Notes'
+      // Empty text = section header / title-only row (do not invent "Notes")
+      return block.text?.trim() || ''
     default:
       return block.type
   }

@@ -26,6 +26,8 @@ type WorkoutEditorDialogProps = {
   selfLoggedCreate?: boolean
   /** plan (default), template (coach library), or ai-library (admin AI catalog) */
   mode?: Extract<WorkoutEditorMode, 'plan' | 'template' | 'ai-library'>
+  /** Called after a successful save (dialog also closes). */
+  onSaved?: () => void
 }
 
 export function WorkoutEditorDialog({
@@ -38,6 +40,7 @@ export function WorkoutEditorDialog({
   athleteMode = false,
   selfLoggedCreate = false,
   mode = 'plan',
+  onSaved,
 }: WorkoutEditorDialogProps) {
   const isTemplate = mode === 'template'
   const isAiLibrary = mode === 'ai-library'
@@ -83,7 +86,10 @@ export function WorkoutEditorDialog({
             entityId={entityId}
             athleteMode={athleteMode}
             selfLoggedCreate={selfLoggedCreate}
-            onSaved={() => onOpenChange(false)}
+            onSaved={() => {
+              onOpenChange(false)
+              onSaved?.()
+            }}
             onCancel={() => onOpenChange(false)}
           />
         ) : null}

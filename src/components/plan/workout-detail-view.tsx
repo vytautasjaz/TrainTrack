@@ -26,7 +26,7 @@ import {
   workoutNeedsDetailFetch,
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
-import { coachOpensPlanWorkoutEditor } from '@/lib/plan-workout-modal'
+import { canEditPlanWorkout } from '@/lib/plan-workout-modal'
 import {
   invalidatePlanWorkoutDetailCache,
   prefetchPlanWorkoutDetail,
@@ -73,6 +73,11 @@ type WorkoutDetailViewProps = {
   compact?: boolean
   /** Compact with minimal right inset (inbox workout rail). */
   compactFlush?: boolean
+  /**
+   * When set (modal), Edit opens the parent editor instead of a nested dialog.
+   * Side panel omits this and uses an in-card editor dialog.
+   */
+  onRequestEdit?: () => void
 }
 
 /**
@@ -91,6 +96,7 @@ export function WorkoutDetailView({
   hideCoachingThread = false,
   compact = false,
   compactFlush = false,
+  onRequestEdit,
 }: WorkoutDetailViewProps) {
   const currentPath = useCurrentPath()
   const colorMode = useResolvedPlanColorMode()
@@ -345,6 +351,7 @@ export function WorkoutDetailView({
             onStravaChange={requestClose}
             showUtilityActions={!isCoach}
             showStatusBadge={completionChrome}
+            canEdit={canEditPlanWorkout(isCoach, workout)}
             colorMode={colorMode}
             showCompletionLayer={showCompletionLayer}
             heroTone={heroTone}
@@ -353,6 +360,13 @@ export function WorkoutDetailView({
             onShare={() => setExportOpen(true)}
             onRescheduleDone={requestClose}
             onClose={showCloseButton ? undefined : requestClose}
+            onRequestEdit={onRequestEdit}
+            onEditSaved={() => {
+              invalidatePlanWorkoutDetailCache(workout.id)
+              void prefetchPlanWorkoutDetail(workout.id).then((detail) => {
+                if (detail) setWorkout(detail)
+              })
+            }}
           />
           {detailLoading ? (
             <p
@@ -422,11 +436,10 @@ export function WorkoutDetailView({
   )
 }
 
-/** True when list view can show this workout in the side panel (not editor/race). */
+/** True when list view can show this workout in the side panel (not race). */
 export function planWorkoutUsesListDetailPanel(
-  isCoach: boolean,
+  _isCoach: boolean,
   workout: PlanWorkoutDetail,
 ): boolean {
-  if (workout.isRace) return false
-  return !coachOpensPlanWorkoutEditor(isCoach, workout)
+  return !workout.isRace
 }

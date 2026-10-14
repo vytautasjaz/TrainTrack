@@ -18,7 +18,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Eye,
+  FileText,
   LayoutGrid,
   ListPlus,
   MessageSquare,
@@ -26,7 +26,7 @@ import {
   Save,
   X,
 } from "lucide-react";
-import { SessionType, WorkoutStatus, WorkoutType } from "@prisma/client";
+import { SessionType, WorkoutType } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FormError } from "@/components/ui/form-error";
@@ -37,7 +37,6 @@ import {
   SelectDropdownContent,
   SelectDropdownItem,
 } from "@/components/ui/select-dropdown";
-import { AthleteWorkoutDetailCard } from "@/components/plan/athlete-workout-detail-card";
 import { CoachWorkoutChatPanel } from "@/components/plan/ask-coach-section";
 import { WorkoutEditorSectionSkeleton } from "@/components/workout-editor/workout-editor-section-skeleton";
 import { useWorkoutCoachingThread } from "@/hooks/use-workout-coaching-thread";
@@ -48,6 +47,7 @@ import { IncludeItemsEditor } from "@/components/workout-editor/include-items-ed
 import { formatIncludeItemsForSubtitle } from "@/components/workout-editor/include-items-summary";
 import { WorkoutBlockBuilder } from "@/components/plan/workout-block-builder";
 import { WorkoutCardSummaryEditor } from "@/components/workout-editor/workout-card-summary-editor";
+import { WorkoutSectionsBuilder } from "@/components/workout-builder/sections/workout-sections-builder";
 import {
   getWorkoutCardEssenceLines,
   pruneCardSummary,
@@ -56,6 +56,16 @@ import { useDurationNotation } from "@/components/workout-builder/duration-notat
 import { WorkoutLibraryPicker } from "@/components/workout-builder/workout-library-picker";
 import { SwimWorkoutDetailsFields } from "@/components/swim-workout/swim-workout-details-fields";
 import {
+  hasStructureV2Content,
+  isWorkoutStructureV2,
+  migrateWorkoutStructureV1ToV2,
+  parseStructureV2,
+} from "@/lib/workout-builder/structure-compat";
+import {
+  emptyStructureV2,
+  type WorkoutStructureV2,
+} from "@/lib/workout-builder/structure-v2";
+import {
   createAthleteWorkoutFromModal,
   createWorkoutFromModal,
   getAthletePreferencesForWorkoutModal,
@@ -63,6 +73,7 @@ import {
   getCoachLibraryForPicker,
   saveWorkoutDraftToLibrary,
   saveTemplateBuilder,
+  updateAthleteWorkoutFromModal,
   updateWorkoutFromModal,
   type WorkoutLibraryFolderPickerItem,
   type WorkoutTemplatePickerItem,
@@ -78,6 +89,7 @@ import {
   createAthleteSwimWorkoutFromModal,
   createSwimWorkoutFromModal,
   saveSwimTemplateFromModal,
+  updateAthleteSwimWorkoutFromModal,
   updateSwimWorkoutFromModal,
 } from "@/app/actions/swim-workout";
 import {
@@ -218,28 +230,34 @@ function workoutShouldOpenDetails(
   if (workout.type === WorkoutType.SWIM) {
     return hasSwimStructureContent(workout.swimStructure);
   }
+  const raw = workout.structureRaw ?? workout.structure;
+  if (isWorkoutStructureV2(raw)) {
+    return hasStructureV2Content(parseStructureV2(raw));
+  }
   if (
     workout.structure &&
     hasStructureContent(parseStructure(workout.structure))
   ) {
     return true;
   }
-  // Strength (and other description-only sports) use Build workout for the notes body.
-  if (
-    getSportEditorConfig(workout.type).descriptionOnly &&
-    Boolean(workout.description?.trim())
-  ) {
-    return true;
-  }
   return false;
 }
 
-/** Include is exclusive with Build workout — only open it when there are no blocks. */
+/**
+ * Second panel (Include for run/bike; Description for strength/HYROX) is exclusive
+ * with Build workout — only open it when there are no structured blocks.
+ */
 function workoutShouldOpenInclude(
   workout: PlanWorkoutDetail | null | undefined,
 ): boolean {
   if (!workout || workout.type === WorkoutType.SWIM) return false;
   if (workoutShouldOpenDetails(workout)) return false;
+  if (
+    workout.type === WorkoutType.STRENGTH ||
+    workout.type === WorkoutType.HYROX
+  ) {
+    return Boolean(workout.description?.trim());
+  }
   return hasIncludeItems(parseStructure(workout.structure));
 }
 
@@ -481,6 +499,7 @@ export function SharedWorkoutEditor({
     bikeKind: null as BikeWorkoutKind | null,
     sportType: initialSport,
     structure: emptyStructure() as WorkoutStructure,
+    structureV2: emptyStructureV2() as WorkoutStructureV2,
     includeItems: [] as WorkoutIncludeItem[],
     swimStructure: null as SwimWorkoutForm["swimStructure"],
     coachNotes: "",
@@ -491,9 +510,11 @@ export function SharedWorkoutEditor({
     detailsOpen: false,
     includeOpen: false,
   });
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [structure, setStructure] =
     useState<WorkoutStructure>(emptyStructure());
+  const [structureV2, setStructureV2] = useState<WorkoutStructureV2>(() =>
+    emptyStructureV2(),
+  );
   const [includeItems, setIncludeItems] = useState<WorkoutIncludeItem[]>([]);
   const [coachNotes, setCoachNotes] = useState("");
   const [coachNotesPrivate, setCoachNotesPrivate] = useState(false);
@@ -513,6 +534,7 @@ export function SharedWorkoutEditor({
     bikeKind,
     sportType,
     structure,
+    structureV2,
     includeItems,
     swimStructure: swimForm.swimStructure,
     coachNotes,
@@ -643,15 +665,20 @@ export function SharedWorkoutEditor({
       clearTimeout(libraryCloseTimerRef.current);
       libraryCloseTimerRef.current = null;
     }
-    // Side-by-side only: lock shell to the editor column so the library
+    // Side-by-side: lock shell height to the editor column so the library
     // scrolls inside and cannot stretch modal height.
     const desktop =
       typeof window !== "undefined" &&
       window.matchMedia("(min-width: 640px)").matches;
-    if (desktop && !heightPinnedRef.current) {
+    if (desktop) {
       const height = editorColumnRef.current?.getBoundingClientRect().height;
       if (height && height > 0) {
-        setShellHeight(clampShellHeight(height));
+        const next = clampShellHeight(height);
+        setShellHeight((prev) =>
+          heightPinnedRef.current && prev != null
+            ? Math.max(prev, next)
+            : next,
+        );
       }
     }
     setLibraryOpen(true);
@@ -732,6 +759,7 @@ export function SharedWorkoutEditor({
       setIncludeOpen(false);
       setChatOpen(false);
       setStructure(emptyStructure());
+      setStructureV2(emptyStructureV2());
       setIncludeItems([]);
       setCoachNotes("");
       setCoachNotesPrivate(false);
@@ -818,6 +846,17 @@ export function SharedWorkoutEditor({
     const parsedStructure = parseStructure(workout.structure);
     setStructure(parsedStructure ?? emptyStructure());
     setIncludeItems(parsedStructure.includeItems ?? []);
+    const raw = workout.structureRaw ?? workout.structure;
+    const sportConfig = getSportEditorConfig(workout.type);
+    if (sportConfig.detailsKind === "sections") {
+      if (isWorkoutStructureV2(raw)) {
+        setStructureV2(parseStructureV2(raw) ?? emptyStructureV2());
+      } else if (hasStructureContent(parsedStructure)) {
+        setStructureV2(migrateWorkoutStructureV1ToV2(parsedStructure));
+      } else {
+        setStructureV2(emptyStructureV2());
+      }
+    }
     const panels = initialEditorPanels(workout);
     setChatOpen(panels.chatOpen);
     setDetailsOpen(panels.detailsOpen);
@@ -847,21 +886,42 @@ export function SharedWorkoutEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workout?.id, initialSport]);
 
+  const usesSectionsEditor = config.detailsKind === "sections";
+  /** Coach plan editor — pick templates while creating or editing a session. */
+  const canShowLibrary =
+    !athleteMode && !selfLoggedCreate && !isLibraryLike && !isTrainingPlan;
+
   const metricsFromDetails = useMemo(() => {
     if (!detailsOpen) return false;
     if (sportType === WorkoutType.SWIM) {
       return Boolean(swimForm.builderEnabled && swimForm.swimStructure);
     }
+    // Strength/HYROX sections don't estimate hero time/distance from blocks.
+    if (usesSectionsEditor) return false;
     return hasStructureContent(structure);
-  }, [detailsOpen, sportType, structure, swimForm]);
+  }, [
+    detailsOpen,
+    sportType,
+    structure,
+    swimForm,
+    usesSectionsEditor,
+  ]);
 
   /** Structure/swim sets drive hero metrics regardless of active editor tab. */
   const structureDrivesHero = useMemo(() => {
     if (sportType === WorkoutType.SWIM) {
       return hasSwimStructureContent(swimForm.swimStructure);
     }
+    // Sections builder (Strength/HYROX): planned time is coach-entered —
+    // V2 blocks don't feed the hero duration estimator yet.
+    if (usesSectionsEditor) return false;
     return hasStructureContent(structure);
-  }, [sportType, structure, swimForm.swimStructure]);
+  }, [
+    sportType,
+    structure,
+    swimForm.swimStructure,
+    usesSectionsEditor,
+  ]);
 
   const canAutoEstimate =
     sportType !== WorkoutType.SWIM ||
@@ -1115,7 +1175,8 @@ export function SharedWorkoutEditor({
   ]);
 
   function handleDurationChange(raw: string) {
-    if (metricsFromDetails || structureDrivesHero) return;
+    // Always allow typing — structure may auto-fill while durationManual is
+    // false, but Strength/HYROX sections (and coach overrides) need free entry.
     clearHydratedMetricGuards();
     const nextValue =
       durationUnit === "hours"
@@ -1146,7 +1207,7 @@ export function SharedWorkoutEditor({
 
     // If distance wasn't manually typed, switch it to Auto and fill estimate
     const distanceHasManualValue = distanceInput.trim().length > 0;
-    if (canAutoEstimate && config.showDistance) {
+    if (canAutoEstimate && config.showDistance && !structureDrivesHero) {
       const estimated = estimateDistanceFromDuration(total);
       const formatted = formatDistanceEstimate(estimated);
       setAutoDistanceInput(formatted);
@@ -1158,7 +1219,7 @@ export function SharedWorkoutEditor({
   }
 
   function handleDistanceChange(raw: string) {
-    if (metricsFromDetails || structureDrivesHero) return;
+    // Always allow typing; structure auto-fill only applies while not manual.
     clearHydratedMetricGuards();
     const cleaned = raw.replace(/[^\d.]/g, "");
     if (!cleaned) {
@@ -1192,7 +1253,7 @@ export function SharedWorkoutEditor({
     }
 
     const durationHasManualValue = durationInput.trim().length > 0;
-    if (canAutoEstimate) {
+    if (canAutoEstimate && !structureDrivesHero) {
       const estimated = estimateDurationFromDistance(km);
       const formatted =
         estimated > 0 ? formatDurationInput(estimated, durationUnit) : "";
@@ -1351,6 +1412,7 @@ export function SharedWorkoutEditor({
       bikeKind: s.bikeKind,
       sportType: s.sportType,
       structure: s.structure,
+      structureV2: s.structureV2,
       includeItems: s.includeItems,
       swimStructure: s.swimStructure,
       coachNotes: s.coachNotes.trim(),
@@ -1387,11 +1449,34 @@ export function SharedWorkoutEditor({
       durationMin > 0 ||
       distanceKm > 0 ||
       hasStructureContent(structure) ||
+      hasStructureV2Content(structureV2) ||
       includeItems.length > 0 ||
       hasSwimStructureContent(swimForm.swimStructure) ||
       Boolean(coachNotes.trim()) ||
       typeSelected
     );
+  }
+
+  /** Structure JSON for modal/library save — v2 for Strength/HYROX. */
+  function buildStructurePayload(): unknown | null {
+    if (usesSectionsEditor) {
+      if (!hasStructureV2Content(structureV2)) return null;
+      return {
+        ...structureV2,
+        version: 2 as const,
+        coachNotes: coachNotes || undefined,
+      };
+    }
+    const persistDetails = hasStructureContent(structure);
+    const persistInclude =
+      includeItems.length > 0 && !hasStructureContent(structure);
+    if (!persistDetails && !persistInclude) return null;
+    return {
+      ...(persistDetails ? structure : emptyStructure()),
+      coachNotes: coachNotes || undefined,
+      includeItems: persistInclude ? includeItems : [],
+      cardSummary: persistDetails ? pruneCardSummary(structure) : undefined,
+    };
   }
 
   function editorHasLibraryOverwriteRisk(nextTemplateId: string): boolean {
@@ -1493,16 +1578,35 @@ export function SharedWorkoutEditor({
       const parsed = parseStructure(item.structure);
       const hasBlocks = hasStructureContent(parsed);
       const hasIncludes = (parsed.includeItems?.length ?? 0) > 0;
+      const sectionsStructure =
+        nextConfig.detailsKind === "sections" && isWorkoutStructureV2(item.structure)
+          ? parseStructureV2(item.structure)
+          : null;
+      const hasSections =
+        nextConfig.detailsKind === "sections" &&
+        (sectionsStructure
+          ? hasStructureV2Content(sectionsStructure)
+          : hasBlocks);
       setStructure(parsed);
-      setIncludeItems(parsed.includeItems ?? []);
-      setSwimForm(defaultSwimWorkoutForm());
-      setDetailsOpen(
-        hasBlocks ||
-          (!hasIncludes &&
-            nextConfig.descriptionOnly &&
-            Boolean(item.description?.trim())),
+      setIncludeItems(
+        nextConfig.detailsKind === "sections" ? [] : (parsed.includeItems ?? []),
       );
-      setIncludeOpen(!hasBlocks && hasIncludes);
+      if (nextConfig.detailsKind === "sections") {
+        if (sectionsStructure) {
+          setStructureV2(sectionsStructure);
+        } else if (hasBlocks) {
+          setStructureV2(migrateWorkoutStructureV1ToV2(parsed));
+        } else {
+          setStructureV2(emptyStructureV2());
+        }
+      }
+      setSwimForm(defaultSwimWorkoutForm());
+      setDetailsOpen(hasSections || (nextConfig.detailsKind !== "sections" && hasBlocks));
+      setIncludeOpen(
+        nextConfig.detailsKind === "sections"
+          ? !hasSections && Boolean(item.description?.trim())
+          : !hasBlocks && hasIncludes,
+      );
     }
     setCoachNotes(item.notes ?? "");
     setCoachNotesPrivate(false);
@@ -1581,113 +1685,6 @@ export function SharedWorkoutEditor({
     );
   }
 
-  /** Live draft → athlete-facing card shape (same resolution as save). */
-  function buildAthletePreview(): PlanWorkoutDetail {
-    const resolvedSession =
-      sportType === WorkoutType.BIKE && bikeKind
-        ? bikeKindMeta(bikeKind).sessionType
-        : (sessionType ?? SessionType.CUSTOM);
-
-    if (sportType === WorkoutType.SWIM) {
-      const meters = resolveSwimPlannedMeters();
-      return {
-        id: workout?.id ?? "preview",
-        title: title.trim() || "Swim",
-        dateKey: date,
-        type: WorkoutType.SWIM,
-        sessionType: resolvedSession,
-        status: workout?.status ?? WorkoutStatus.PLANNED,
-        description: subtitle.trim() || null,
-        plannedDistance: null,
-        plannedDistanceMeters: meters > 0 ? meters : null,
-        plannedDuration: durationMin > 0 ? durationMin : null,
-        swimEnvironment: swimForm.swimEnvironment,
-        coachNotes: coachNotes.trim() || null,
-        coachNotesPrivate,
-        structure: null,
-        swimStructure: hasSwimStructureContent(swimForm.swimStructure)
-          ? (swimForm.swimStructure ?? null)
-          : null,
-        tags: buildTags(),
-        selfLogged: workout?.selfLogged ?? false,
-        rescheduledFromDateKey: workout?.rescheduledFromDateKey ?? null,
-        result: null,
-      };
-    }
-
-    const persistDetails = hasStructureContent(structure);
-    const persistInclude =
-      includeItems.length > 0 && !hasStructureContent(structure);
-    const structureToSave = {
-      ...(persistDetails ? structure : emptyStructure()),
-      coachNotes: coachNotes || undefined,
-      includeItems: persistInclude ? includeItems : [],
-      cardSummary: persistDetails
-        ? pruneCardSummary(structure)
-        : undefined,
-    };
-    const resolvedTitle =
-      title.trim() ||
-      (titleAuto && typeSelected
-        ? sportType === WorkoutType.BIKE && bikeKind
-          ? autoBikeTitleFromPrefs(
-              environment,
-              bikeKind,
-              typePrefs,
-              selectedBikeOptionId,
-            )
-          : sessionType
-            ? customSessionTypeLabel(
-                sessionType,
-                sportType,
-                typePrefs,
-                selectedSessionOptionId,
-              )
-            : ""
-        : "") ||
-      WORKOUT_TYPE_LABELS[sportType];
-    const resolvedDescription =
-      subtitleAuto && typeSelected
-        ? autoSubtitle(
-            sportType,
-            sessionType,
-            bikeKind,
-            durationMin,
-            distanceKm,
-            includeItems,
-            typePrefs,
-            sportType === WorkoutType.BIKE
-              ? selectedBikeOptionId
-              : selectedSessionOptionId,
-          )
-        : subtitle.trim();
-
-    return {
-      id: workout?.id ?? "preview",
-      title: resolvedTitle,
-      dateKey: date,
-      type: sportType,
-      sessionType: resolvedSession,
-      status: workout?.status ?? WorkoutStatus.PLANNED,
-      description: resolvedDescription || null,
-      plannedDistance:
-        config.showDistance && config.distanceUnit === "km" && distanceKm > 0
-          ? distanceKm
-          : null,
-      plannedDistanceMeters: null,
-      plannedDuration: durationMin > 0 ? durationMin : null,
-      swimEnvironment: null,
-      coachNotes: coachNotes.trim() || null,
-      coachNotesPrivate,
-      structure: persistDetails || persistInclude ? structureToSave : null,
-      swimStructure: null,
-      tags: buildTags(),
-      selfLogged: workout?.selfLogged ?? false,
-      rescheduledFromDateKey: workout?.rescheduledFromDateKey ?? null,
-      result: null,
-    };
-  }
-
   function resolveDraftTitle() {
     return (
       title.trim() ||
@@ -1764,17 +1761,7 @@ export function SharedWorkoutEditor({
             plannedDistanceMetersSource: sources.plannedDistanceSource,
           });
         } else {
-          const persistDetails = hasStructureContent(structure);
-          const persistInclude =
-            includeItems.length > 0 && !hasStructureContent(structure);
-          const structureToSave = {
-            ...(persistDetails ? structure : emptyStructure()),
-            coachNotes: coachNotes || undefined,
-            includeItems: persistInclude ? includeItems : [],
-            cardSummary: persistDetails
-              ? pruneCardSummary(structure)
-              : undefined,
-          };
+          const structureToSave = buildStructurePayload();
           await saveWorkoutDraftToLibrary({
             title: input.title,
             description: resolveDraftDescription() || null,
@@ -1791,8 +1778,7 @@ export function SharedWorkoutEditor({
             durationSource: sources.plannedDurationSource,
             distanceSource: sources.plannedDistanceSource,
             notes: coachNotes.trim() || null,
-            structure:
-              persistDetails || persistInclude ? structureToSave : null,
+            structure: structureToSave,
             tags: buildTags(),
           });
         }
@@ -1907,8 +1893,12 @@ export function SharedWorkoutEditor({
           return;
         }
 
-        if (selfLoggedCreate && !isEdit) {
-          await createAthleteSwimWorkoutFromModal(payload);
+        if (selfLoggedCreate) {
+          if (isEdit && workout) {
+            await updateAthleteSwimWorkoutFromModal(workout.id, payload);
+          } else {
+            await createAthleteSwimWorkoutFromModal(payload);
+          }
           onSaved?.();
           return;
         }
@@ -1926,17 +1916,8 @@ export function SharedWorkoutEditor({
         sportType === WorkoutType.BIKE && bikeKind
           ? bikeKindMeta(bikeKind).sessionType
           : (sessionType ?? SessionType.CUSTOM);
-      const persistDetails = hasStructureContent(structure);
-      const persistInclude =
-        includeItems.length > 0 && !hasStructureContent(structure);
-      const structureToSave = {
-        ...(persistDetails ? structure : emptyStructure()),
-        coachNotes: coachNotes || undefined,
-        includeItems: persistInclude ? includeItems : [],
-        cardSummary: persistDetails
-          ? pruneCardSummary(structure)
-          : undefined,
-      };
+      const structureToSave = buildStructurePayload();
+      const persistDetails = Boolean(structureToSave);
       const resolvedTitle =
         title.trim() ||
         (titleAuto && typeSelected
@@ -1980,10 +1961,7 @@ export function SharedWorkoutEditor({
           sportType,
           sessionType: resolvedSession,
           tags: buildTags(),
-          structure:
-            persistDetails || persistInclude
-              ? structureToSave
-              : emptyStructure(),
+          structure: structureToSave ?? emptyStructure(),
           estimatedDuration: durationMin > 0 ? durationMin : undefined,
         };
         if (entityId) {
@@ -2003,10 +1981,7 @@ export function SharedWorkoutEditor({
           sportType,
           sessionType: resolvedSession,
           tags: buildTags(),
-          structure:
-            persistDetails || persistInclude
-              ? structureToSave
-              : emptyStructure(),
+          structure: structureToSave ?? emptyStructure(),
           estimatedDuration: durationMin > 0 ? durationMin : undefined,
           estimatedDistanceKm: distanceKm > 0 ? distanceKm : null,
         });
@@ -2038,8 +2013,7 @@ export function SharedWorkoutEditor({
           plannedDurationSource: sources.plannedDurationSource ?? null,
           coachNotes: coachNotes.trim() || null,
           coachNotesPrivate,
-          structure:
-            persistDetails || persistInclude ? structureToSave : null,
+          structure: structureToSave,
           tags: buildTags(),
           sourceTemplateId: templateId ?? null,
         };
@@ -2069,15 +2043,21 @@ export function SharedWorkoutEditor({
         ...buildMetricSources(),
         coachNotes: coachNotes.trim() || undefined,
         coachNotesPrivate,
-        structure:
-          persistDetails || persistInclude ? structureToSave : undefined,
+        structure: structureToSave ?? undefined,
         templateId,
         allowPaceEstimate: typeSelected || persistDetails,
         tags: buildTags(),
       };
 
       if (isEdit && workout) {
-        await updateWorkoutFromModal({ ...payload, workoutId: workout.id });
+        if (selfLoggedCreate) {
+          await updateAthleteWorkoutFromModal({
+            ...payload,
+            workoutId: workout.id,
+          });
+        } else {
+          await updateWorkoutFromModal({ ...payload, workoutId: workout.id });
+        }
       } else if (selfLoggedCreate) {
         await createAthleteWorkoutFromModal(payload);
       } else {
@@ -2177,16 +2157,6 @@ export function SharedWorkoutEditor({
         <FormError message={saveError} className="mb-2" />
       ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
-      {previewOpen ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setPreviewOpen(false)}
-        >
-          Back to edit
-        </Button>
-      ) : (
         <Button
           type="button"
           variant="ghost"
@@ -2195,91 +2165,37 @@ export function SharedWorkoutEditor({
         >
           Cancel
         </Button>
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        {!athleteMode && !previewOpen ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {!athleteMode && !selfLoggedCreate && !isLibraryLike ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="gap-1.5"
+              disabled={pending || librarySavePending}
+              onClick={() => {
+                setLibrarySaveError(null);
+                setSaveToLibraryOpen(true);
+              }}
+            >
+              <BookmarkPlus className="h-3.5 w-3.5" />
+              {librarySaveOk ? "Saved to library" : "Save to library"}
+            </Button>
+          ) : null}
           <Button
             type="button"
-            variant="ghost"
+            variant="secondary"
             size="sm"
-            className="gap-1.5"
-            onClick={() => setPreviewOpen(true)}
+            disabled={pending}
+            onClick={save}
           >
-            <Eye className="h-3.5 w-3.5" />
-            Preview
+            <Save className="h-3.5 w-3.5" />
+            {pending ? "Saving…" : "Save"}
           </Button>
-        ) : null}
-        {!athleteMode && !selfLoggedCreate && !isLibraryLike && !previewOpen ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="gap-1.5"
-            disabled={pending || librarySavePending}
-            onClick={() => {
-              setLibrarySaveError(null);
-              setSaveToLibraryOpen(true);
-            }}
-          >
-            <BookmarkPlus className="h-3.5 w-3.5" />
-            {librarySaveOk ? "Saved to library" : "Save to library"}
-          </Button>
-        ) : null}
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          disabled={pending}
-          onClick={save}
-        >
-          <Save className="h-3.5 w-3.5" />
-          {pending ? "Saving…" : "Save"}
-        </Button>
-      </div>
+        </div>
       </div>
     </div>
   );
-
-  if (previewOpen && !athleteMode) {
-    return (
-      <div
-        className={cn(
-          "relative flex min-h-0 flex-1 flex-col",
-          !embedded &&
-            "w-full max-w-[42rem] overflow-hidden rounded-[10px] border border-white/20 bg-white shadow-[0_0_0_1px_rgba(15,18,39,0.35),0_24px_64px_rgba(0,0,0,0.42)] sm:w-[42rem]",
-          className,
-        )}
-      >
-        {!embedded && onCancel ? (
-          <button
-            type="button"
-            onClick={() => onCancel()}
-            className="absolute right-3 top-3 z-20 rounded-md p-1.5 text-muted-foreground transition hover:bg-foreground/[0.04] hover:text-foreground"
-            aria-label="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        ) : null}
-        <div
-          className={cn(
-            "flex flex-row items-start justify-between gap-3 border-b border-[var(--tt-line,#ebebeb)] px-5 py-4 sm:px-6",
-            !embedded && "pr-12",
-          )}
-        >
-          <div>
-            <h2 className="text-lg font-semibold">Athlete preview</h2>
-            <p className="text-sm text-muted-foreground">
-              How this workout looks for the athlete
-            </p>
-          </div>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto bg-white">
-          <AthleteWorkoutDetailCard workout={buildAthletePreview()} />
-        </div>
-        {footer}
-      </div>
-    );
-  }
 
   const dateLabel = isTrainingPlan && weekIndex != null && dayOfWeek != null
     ? formatPlanSlotLabel(weekIndex, dayOfWeek)
@@ -2418,6 +2334,7 @@ export function SharedWorkoutEditor({
     setIncludeOpen(false);
     setChatOpen(false);
     setStructure(emptyStructure());
+    setStructureV2(emptyStructureV2());
     setIncludeItems([]);
     setSwimForm(defaultSwimWorkoutForm());
     setTemplateId(undefined);
@@ -2440,6 +2357,10 @@ export function SharedWorkoutEditor({
   function switchToBuildWorkout() {
     setIncludeOpen(false);
     setIncludeItems([]);
+    if (usesSectionsEditor) {
+      setSubtitle("");
+      setSubtitleAuto(true);
+    }
     setChatOpen(false);
     setDetailsOpen(true);
   }
@@ -2447,6 +2368,11 @@ export function SharedWorkoutEditor({
   function switchToInclude() {
     setDetailsOpen(false);
     setStructure(emptyStructure());
+    setStructureV2(emptyStructureV2());
+    setIncludeItems([]);
+    if (usesSectionsEditor) {
+      setSubtitleAuto(false);
+    }
     setChatOpen(false);
     setIncludeOpen(true);
   }
@@ -2492,7 +2418,12 @@ export function SharedWorkoutEditor({
 
   function selectBuildWorkoutTab() {
     if (detailsOpen && !includeOpen && !chatOpen) return;
-    if (includeItems.length > 0) {
+    if (usesSectionsEditor) {
+      if (includeOpen && subtitle.trim() && !subtitleAuto) {
+        setModeConflict("to-build");
+        return;
+      }
+    } else if (includeItems.length > 0) {
       setModeConflict("to-build");
       return;
     }
@@ -2501,7 +2432,10 @@ export function SharedWorkoutEditor({
 
   function selectIncludeTab() {
     if (includeOpen && !detailsOpen && !chatOpen) return;
-    if (hasStructureContent(structure)) {
+    if (
+      hasStructureContent(structure) ||
+      (usesSectionsEditor && hasStructureV2Content(structureV2))
+    ) {
       setModeConflict("to-include");
       return;
     }
@@ -2526,7 +2460,7 @@ export function SharedWorkoutEditor({
       {isLibraryLike ? (
         <div
           className={cn(
-            "flex flex-row items-start justify-between gap-3 border-b border-white/[0.08] bg-[var(--tt-workout-hero-bg,#151827)] px-5 py-4 text-white/[0.92] sm:px-6",
+            "tt-workout-hero tt-workout-hero--dark flex flex-row items-start justify-between gap-3 border-b border-white/[0.08] px-5 py-4 text-white/[0.92] sm:px-6",
             !embedded && "pr-12",
           )}
         >
@@ -2673,13 +2607,22 @@ export function SharedWorkoutEditor({
                   : "bg-transparent text-[var(--tt-ink-faint,#9ca3af)] hover:text-[var(--tt-ink-soft,#6b7280)]",
               )}
             >
-              <ListPlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              Include
-              {includeItems.length > 0 ? (
-                <span className="tabular-nums text-[11px] opacity-70">
-                  {includeItems.length}
-                </span>
-              ) : null}
+              {usesSectionsEditor ? (
+                <>
+                  <FileText className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Description
+                </>
+              ) : (
+                <>
+                  <ListPlus className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                  Include
+                  {includeItems.length > 0 ? (
+                    <span className="tabular-nums text-[11px] opacity-70">
+                      {includeItems.length}
+                    </span>
+                  ) : null}
+                </>
+              )}
             </button>
             {showChatTab ? (
               <>
@@ -2712,7 +2655,7 @@ export function SharedWorkoutEditor({
                 </button>
               </>
             ) : null}
-            {!isEdit ? (
+            {canShowLibrary ? (
               <>
                 <div
                   className="w-px shrink-0 self-stretch bg-[var(--tt-line,#ebebeb)]"
@@ -2811,7 +2754,7 @@ export function SharedWorkoutEditor({
                 </button>
               </>
             ) : null}
-            {!isEdit ? (
+            {canShowLibrary ? (
               <>
                 <div
                   className="w-px shrink-0 self-stretch bg-[var(--tt-line,#ebebeb)]"
@@ -2909,6 +2852,12 @@ export function SharedWorkoutEditor({
           {!athleteMode && sportType !== WorkoutType.SWIM && detailsOpen && !chatOpen ? (
             !workoutReady ? (
               <WorkoutEditorSectionSkeleton variant="blocks" />
+            ) : config.detailsKind === "sections" ? (
+              <WorkoutSectionsBuilder
+                structure={structureV2}
+                onChange={setStructureV2}
+                sportType={sportType}
+              />
             ) : config.detailsKind === "blocks" ? (
               <>
                 <WorkoutBlockBuilder
@@ -2940,12 +2889,30 @@ export function SharedWorkoutEditor({
           {!athleteMode && sportType !== WorkoutType.SWIM && includeOpen && !chatOpen ? (
             !workoutReady ? (
               <WorkoutEditorSectionSkeleton variant="include" />
+            ) : usesSectionsEditor ? (
+              <div className="space-y-2">
+                <p className="text-[12px] leading-snug text-[var(--tt-ink-soft,#6b7280)]">
+                  Write the workout in free text when you don’t need structured
+                  sections or blocks.
+                </p>
+                <Textarea
+                  value={subtitle}
+                  onChange={(e) => {
+                    setSubtitle(e.target.value);
+                    setSubtitleAuto(false);
+                  }}
+                  rows={8}
+                  placeholder="Describe the workout…"
+                  aria-label="Workout description"
+                  className="min-h-[10rem] resize-y text-[13px]"
+                />
+              </div>
             ) : (
-            <IncludeItemsEditor
-              items={includeItems}
-              onChange={setIncludeItems}
-              durationMinutes={durationMin > 0 ? durationMin : undefined}
-            />
+              <IncludeItemsEditor
+                items={includeItems}
+                onChange={setIncludeItems}
+                durationMinutes={durationMin > 0 ? durationMin : undefined}
+              />
             )
           ) : null}
 
@@ -3045,16 +3012,28 @@ export function SharedWorkoutEditor({
         }}
         title={
           modeConflict === "to-include"
-            ? "Can't use Include with a built workout"
-            : "Can't use Build workout with Include"
+            ? usesSectionsEditor
+              ? "Can't use Description with a built workout"
+              : "Can't use Include with a built workout"
+            : usesSectionsEditor
+              ? "Can't use Build workout with Description"
+              : "Can't use Build workout with Include"
         }
         description={
           modeConflict === "to-include"
-            ? "Build workout and Include can't be on at the same time. Switching to Include will remove the workout blocks."
-            : "Build workout and Include can't be on at the same time. Switching to Build workout will remove include items."
+            ? usesSectionsEditor
+              ? "Build workout and Description can't be on at the same time. Switching to Description will remove the workout sections."
+              : "Build workout and Include can't be on at the same time. Switching to Include will remove the workout blocks."
+            : usesSectionsEditor
+              ? "Build workout and Description can't be on at the same time. Switching to Build workout will clear the text description."
+              : "Build workout and Include can't be on at the same time. Switching to Build workout will remove include items."
         }
         confirmLabel={
-          modeConflict === "to-include" ? "Switch to Include" : "Switch to Build workout"
+          modeConflict === "to-include"
+            ? usesSectionsEditor
+              ? "Switch to Description"
+              : "Switch to Include"
+            : "Switch to Build workout"
         }
         cancelLabel="Cancel"
         tone="default"
@@ -3066,8 +3045,6 @@ export function SharedWorkoutEditor({
       />
     </div>
   );
-
-  const canShowLibrary = !isEdit && !athleteMode && !selfLoggedCreate;
 
   return (
     <div
@@ -3089,14 +3066,17 @@ export function SharedWorkoutEditor({
           aria-hidden={!libraryOpen}
           className={cn(
             "min-h-0 overflow-hidden bg-white transition-[width,max-height,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
-            // Desktop: height follows editor column (h-0 + min-h-full), width slides.
-            "sm:h-0 sm:min-h-full sm:self-auto",
             libraryOpen
-              ? "max-h-[min(42vh,22rem)] w-full border-t border-[var(--tt-line,#ebebeb)] opacity-100 sm:max-h-none sm:w-[20rem] sm:border-l sm:border-t-0 sm:opacity-100"
-              : "pointer-events-none max-h-0 w-full border-0 opacity-0 sm:w-0 sm:opacity-100",
+              ? cn(
+                  // Mobile: drawer under the editor
+                  "flex max-h-[min(50vh,26rem)] w-full flex-col border-t border-[var(--tt-line,#ebebeb)] opacity-100",
+                  // Desktop: side panel — stretch with the editor row (no h-0/% traps)
+                  "sm:max-h-none sm:min-h-0 sm:w-[20rem] sm:shrink-0 sm:self-stretch sm:border-l sm:border-t-0",
+                )
+              : "pointer-events-none max-h-0 w-full border-0 opacity-0 sm:max-h-none sm:w-0 sm:shrink-0 sm:self-stretch sm:opacity-100",
           )}
         >
-          <aside className="flex h-full min-h-0 w-full flex-col sm:w-[20rem]">
+          <aside className="flex min-h-0 w-full flex-1 flex-col sm:w-[20rem]">
             <div className="flex shrink-0 items-start justify-between gap-2 border-b border-[var(--tt-line,#ebebeb)] px-3 py-2.5">
               <div className="min-w-0">
                 <p className="text-[0.6875rem] font-medium uppercase tracking-[0.08em] text-[var(--tt-ink-faint,#9a9a9a)]">

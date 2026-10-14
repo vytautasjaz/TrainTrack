@@ -51,7 +51,7 @@ export type SportEditorConfig = {
   allowDurationUnitToggle: boolean
   /** Use bike kind list instead of session types */
   useBikeKinds: boolean
-  detailsKind: 'blocks' | 'swim' | 'notes'
+  detailsKind: 'blocks' | 'sections' | 'swim' | 'notes'
   supportsBuilder: boolean
   descriptionOnly: boolean
 }
@@ -60,6 +60,8 @@ export function getSportEditorConfig(sport: WorkoutType): SportEditorConfig {
   const showDistance = sportUsesPlannedDistance(sport)
   const supportsBuilder =
     sportSupportsWorkoutBuilder(sport) || sport === WorkoutType.SWIM
+  const usesSections =
+    sport === WorkoutType.STRENGTH || sport === WorkoutType.HYROX
   return {
     showDistance: sport === WorkoutType.SWIM ? true : showDistance,
     distanceUnit: sport === WorkoutType.SWIM ? 'm' : 'km',
@@ -69,12 +71,12 @@ export function getSportEditorConfig(sport: WorkoutType): SportEditorConfig {
     detailsKind:
       sport === WorkoutType.SWIM
         ? 'swim'
-        : sportSupportsWorkoutBuilder(sport)
-          ? 'blocks'
-          : 'notes',
+        : usesSections
+          ? 'sections'
+          : sportSupportsWorkoutBuilder(sport)
+            ? 'blocks'
+            : 'notes',
     supportsBuilder,
-    // Strength used to be notes-only; keep the flag for empty new sessions, but
-    // structured AI/library strength still opens the block builder via detailsKind.
-    descriptionOnly: sport === WorkoutType.STRENGTH && !supportsBuilder,
+    descriptionOnly: false,
   }
 }

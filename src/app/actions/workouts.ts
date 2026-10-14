@@ -40,6 +40,15 @@ import {
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
 import { fetchAthletePrivacyPrefs } from '@/lib/athlete-privacy-server'
+import {
+  hasStructureV2Content,
+  isWorkoutStructureV2,
+  parseStructureV2,
+} from '@/lib/workout-builder/structure-compat'
+import {
+  collectStructureV2ExerciseIds,
+  loadExerciseThumbnailMap,
+} from '@/lib/exercises/thumbnails'
 
 const RACE_COVER_MAX_BYTES = 3 * 1024 * 1024
 const RACE_COVER_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -70,7 +79,27 @@ export async function getPlanWorkoutDetail(
   const viewer = isCoachView(session) ? 'coach' : 'athlete'
   const privacy =
     viewer === 'coach' ? await fetchAthletePrivacyPrefs(row.athleteId) : undefined
-  return applyPlanWorkoutViewerPolicy(toPlanWorkoutDetail(row), viewer, { privacy })
+  const detail = applyPlanWorkoutViewerPolicy(
+    toPlanWorkoutDetail(row),
+    viewer,
+    { privacy },
+  )
+
+  // Batch thumbnails with the detail DTO — avoids a second client round-trip
+  // when StructureV2AthletePreview mounts.
+  const structureRaw = detail.structureRaw ?? detail.structure
+  if (isWorkoutStructureV2(structureRaw)) {
+    const structureV2 = parseStructureV2(structureRaw)
+    if (structureV2 && hasStructureV2Content(structureV2)) {
+      const exerciseIds = collectStructureV2ExerciseIds(structureV2)
+      if (exerciseIds.length > 0) {
+        detail.exerciseThumbnails =
+          await loadExerciseThumbnailMap(exerciseIds)
+      }
+    }
+  }
+
+  return detail
 }
 
 function parseRacePreparationFields(formData: FormData): {

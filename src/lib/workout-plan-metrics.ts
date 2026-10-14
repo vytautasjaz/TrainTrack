@@ -1,7 +1,11 @@
 import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import type { PlanWorkoutDetail } from '@/lib/plan-workout'
-import { formatDistance, formatDuration } from '@/lib/utils'
+import { formatDistance } from '@/lib/utils'
 import { formatSwimDistance } from '@/lib/swim-workout/format'
+import {
+  durationUnitFromTags,
+  type WorkoutDurationUnit,
+} from '@/lib/workout-approx-tags'
 import {
   DEFAULT_SWIM_DISTANCE_UNIT,
   DEFAULT_UNIT_SYSTEM,
@@ -35,10 +39,28 @@ function formatWorkoutDistance(
   return null
 }
 
-function formatWorkoutDuration(min: number | null | undefined): string | null {
+/** Prefer how the workout was prescribed: minutes stay minutes, time stays h:mm. */
+function resolvePrescribedDurationUnit(
+  workout: PlanWorkoutDetail,
+): WorkoutDurationUnit {
+  return (
+    durationUnitFromTags(workout.tags) ??
+    (workout.type === WorkoutType.BIKE ? 'hours' : 'min')
+  )
+}
+
+function formatWorkoutDuration(
+  min: number | null | undefined,
+  unit: WorkoutDurationUnit,
+): string | null {
   if (min == null || min <= 0) return null
-  const formatted = formatDuration(min)
-  return formatted === '—' ? null : formatted
+  const safe = Math.max(0, Math.round(min))
+  if (unit === 'hours') {
+    const hours = Math.floor(safe / 60)
+    const minutes = safe % 60
+    return `${hours}:${String(minutes).padStart(2, '0')} h`
+  }
+  return `${safe} min`
 }
 
 export function getWorkoutPlanMetrics(
@@ -51,8 +73,12 @@ export function getWorkoutPlanMetrics(
   const result = workout.result
   // Self-added sessions are athlete-logged volume, not coach plan — never compare vs planned.
   const isSelfLogged = Boolean(workout.selfLogged)
+  const durationUnit = resolvePrescribedDurationUnit(workout)
 
-  const rawPlannedDuration = formatWorkoutDuration(workout.plannedDuration)
+  const rawPlannedDuration = formatWorkoutDuration(
+    workout.plannedDuration,
+    durationUnit,
+  )
   const rawPlannedDistance = formatWorkoutDistance(
     workout,
     workout.plannedDistance,
@@ -63,7 +89,10 @@ export function getWorkoutPlanMetrics(
   const plannedDuration = isSelfLogged ? null : rawPlannedDuration
   const plannedDistance = isSelfLogged ? null : rawPlannedDistance
 
-  const actualDuration = formatWorkoutDuration(result?.actualDuration)
+  const actualDuration = formatWorkoutDuration(
+    result?.actualDuration,
+    durationUnit,
+  )
   // Swim actuals are stored in km; convert to meters so cards match planned (m).
   const actualDistanceMeters =
     workout.type === WorkoutType.SWIM &&

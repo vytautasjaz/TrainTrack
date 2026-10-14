@@ -22,7 +22,7 @@ import {
 import { sportUsesPlannedDistance } from '@/lib/plan-week-totals'
 import { getNextWorkoutSortOrder } from '@/lib/workout-sort'
 import { RECOVERY_DAY_DEFAULT_NOTE } from '@/lib/recovery-day'
-import { hasStructureContent, parseStructure } from '@/lib/workout-builder/utils'
+import { prepareStructureForPersist } from '@/lib/workout-builder/structure-compat'
 import { structureDiagramPrismaValue } from '@/lib/workout-builder/structure-diagram'
 import { sessionTypesForSport } from '@/lib/workout-builder/session-modes'
 import { syncApproxTagsFromSources } from '@/lib/workout-metric-source'
@@ -248,14 +248,13 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
 
     const scheduledDate = parseModalScheduledDate(payload.scheduledDate)
     const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
-    const structure = parseStructure(payload.structure)
-    const hasIncludeItems = (structure.includeItems?.length ?? 0) > 0
-    const saveStructure = hasStructureContent(structure) || hasIncludeItems
+    const prepared = prepareStructureForPersist(payload.structure)
+    const saveStructure = prepared.shouldSave
     const athletePreferences = await loadAthletePreferencesForBuilder(athleteId)
     const metrics = resolvePlannedWorkoutMetrics({
       plannedDistance: payload.plannedDistance,
       plannedDuration: payload.plannedDuration,
-      structure: saveStructure ? structure : null,
+      structure: saveStructure ? prepared.display : null,
       preferences: athletePreferences,
       sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
       sessionType: payload.sessionType,
@@ -269,8 +268,12 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
       duration: metrics.durationSource,
     })
     const title = modalWorkoutTitle(payload.title, 'Workout')
+    const storedCoachNotes =
+      prepared.stored && 'coachNotes' in prepared.stored
+        ? prepared.stored.coachNotes
+        : undefined
 
-    if (!saveStructure) {
+    if (!saveStructure || !prepared.stored) {
       await prisma.workout.create({
         data: {
           athleteId,
@@ -305,10 +308,10 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
           plannedDistance: metrics.plannedDistance ?? null,
           plannedDistanceSource: metrics.distanceSource,
           plannedDurationSource: metrics.durationSource,
-          coachNotes: structure.coachNotes ?? payload.coachNotes,
+          coachNotes: storedCoachNotes ?? payload.coachNotes,
           coachNotesPrivate: Boolean(payload.coachNotesPrivate),
-          structure: structure as Prisma.InputJsonValue,
-          structureDiagram: structureDiagramPrismaValue(structure, {
+          structure: prepared.stored as Prisma.InputJsonValue,
+          structureDiagram: structureDiagramPrismaValue(prepared.display, {
             durationMinutes: metrics.plannedDuration,
           }),
           tags,
@@ -322,6 +325,86 @@ export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload)
   } catch (error) {
     rethrowActionError('createWorkoutFromModal', error, 'Could not save workout')
   }
+}
+
+async function persistWorkoutFromModalUpdate(
+  existing: { id: string; athleteId: string; title: string },
+  payload: CreateWorkoutModalPayload & { workoutId: string },
+) {
+  const scheduledDate = parseModalScheduledDate(payload.scheduledDate)
+  const prepared = prepareStructureForPersist(payload.structure)
+  const saveStructure = prepared.shouldSave
+  const athletePreferences = await loadAthletePreferencesForBuilder(existing.athleteId)
+  const metrics = resolvePlannedWorkoutMetrics({
+    plannedDistance: payload.plannedDistance,
+    plannedDuration: payload.plannedDuration,
+    structure: saveStructure ? prepared.display : null,
+    preferences: athletePreferences,
+    sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
+    sessionType: payload.sessionType,
+    sportType: payload.sportType,
+    allowPaceEstimate: payload.allowPaceEstimate,
+    distanceSource: payload.plannedDistanceSource,
+    durationSource: payload.plannedDurationSource,
+  })
+  const tags = syncApproxTagsFromSources(payload.tags, {
+    distance: metrics.distanceSource,
+    duration: metrics.durationSource,
+  })
+  const title = modalWorkoutTitle(payload.title, existing.title)
+  const storedCoachNotes =
+    prepared.stored && 'coachNotes' in prepared.stored
+      ? prepared.stored.coachNotes
+      : undefined
+
+  if (!saveStructure || !prepared.stored) {
+    await prisma.workout.update({
+      where: { id: payload.workoutId },
+      data: {
+        date: scheduledDate,
+        type: payload.sportType,
+        sessionType: payload.sessionType,
+        title,
+        description: payload.description?.trim() || null,
+        plannedDistance: metrics.plannedDistance ?? null,
+        plannedDuration: metrics.plannedDuration ?? null,
+        plannedDistanceSource: metrics.distanceSource,
+        plannedDurationSource: metrics.durationSource,
+        coachNotes: payload.coachNotes,
+        coachNotesPrivate: Boolean(payload.coachNotesPrivate),
+        structure: Prisma.DbNull,
+        structureDiagram: Prisma.DbNull,
+        tags,
+      },
+    })
+  } else {
+    await prisma.workout.update({
+      where: { id: payload.workoutId },
+      data: {
+        date: scheduledDate,
+        type: payload.sportType,
+        sessionType: payload.sessionType,
+        title,
+        description: payload.description?.trim() || null,
+        plannedDuration: metrics.plannedDuration ?? null,
+        plannedDistance: metrics.plannedDistance ?? null,
+        plannedDistanceSource: metrics.distanceSource,
+        plannedDurationSource: metrics.durationSource,
+        coachNotes: storedCoachNotes ?? payload.coachNotes,
+        coachNotesPrivate: Boolean(payload.coachNotesPrivate),
+        structure: prepared.stored as Prisma.InputJsonValue,
+        structureDiagram: structureDiagramPrismaValue(prepared.display, {
+          durationMinutes: metrics.plannedDuration,
+        }),
+        tags,
+      },
+    })
+  }
+
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
+  revalidatePath(`/workouts/${payload.workoutId}`)
+  await onTrainingCalendarDataChanged(existing.athleteId)
 }
 
 export async function updateWorkoutFromModal(
@@ -340,77 +423,7 @@ export async function updateWorkoutFromModal(
     })
     if (!existing) throw new Error('Workout not found')
 
-    const scheduledDate = parseModalScheduledDate(payload.scheduledDate)
-    const structure = parseStructure(payload.structure)
-    const hasIncludeItems = (structure.includeItems?.length ?? 0) > 0
-    const saveStructure = hasStructureContent(structure) || hasIncludeItems
-    const athletePreferences = await loadAthletePreferencesForBuilder(existing.athleteId)
-    const metrics = resolvePlannedWorkoutMetrics({
-      plannedDistance: payload.plannedDistance,
-      plannedDuration: payload.plannedDuration,
-      structure: saveStructure ? structure : null,
-      preferences: athletePreferences,
-      sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
-      sessionType: payload.sessionType,
-      sportType: payload.sportType,
-      allowPaceEstimate: payload.allowPaceEstimate,
-      distanceSource: payload.plannedDistanceSource,
-      durationSource: payload.plannedDurationSource,
-    })
-    const tags = syncApproxTagsFromSources(payload.tags, {
-      distance: metrics.distanceSource,
-      duration: metrics.durationSource,
-    })
-    const title = modalWorkoutTitle(payload.title, existing.title)
-
-    if (!saveStructure) {
-      await prisma.workout.update({
-        where: { id: payload.workoutId },
-        data: {
-          date: scheduledDate,
-          type: payload.sportType,
-          sessionType: payload.sessionType,
-          title,
-          description: payload.description?.trim() || null,
-          plannedDistance: metrics.plannedDistance ?? null,
-          plannedDuration: metrics.plannedDuration ?? null,
-          plannedDistanceSource: metrics.distanceSource,
-          plannedDurationSource: metrics.durationSource,
-          coachNotes: payload.coachNotes,
-          coachNotesPrivate: Boolean(payload.coachNotesPrivate),
-          structure: Prisma.DbNull,
-          structureDiagram: Prisma.DbNull,
-          tags,
-        },
-      })
-    } else {
-      await prisma.workout.update({
-        where: { id: payload.workoutId },
-        data: {
-          date: scheduledDate,
-          type: payload.sportType,
-          sessionType: payload.sessionType,
-          title,
-          description: payload.description?.trim() || null,
-          plannedDuration: metrics.plannedDuration ?? null,
-          plannedDistance: metrics.plannedDistance ?? null,
-          plannedDistanceSource: metrics.distanceSource,
-          plannedDurationSource: metrics.durationSource,
-          coachNotes: structure.coachNotes ?? payload.coachNotes,
-          coachNotesPrivate: Boolean(payload.coachNotesPrivate),
-          structure: structure as Prisma.InputJsonValue,
-          structureDiagram: structureDiagramPrismaValue(structure, {
-            durationMinutes: metrics.plannedDuration,
-          }),
-          tags,
-        },
-      })
-    }
-
-    revalidatePath('/training')
-    revalidatePath('/dashboard')
-    revalidatePath(`/workouts/${payload.workoutId}`)
-    await onTrainingCalendarDataChanged(existing.athleteId)
+    await persistWorkoutFromModalUpdate(existing, payload)
   } catch (error) {
     rethrowActionError('updateWorkoutFromModal', error, 'Could not save workout')
   }
@@ -428,6 +441,35 @@ const ATHLETE_ADD_SPORT_TYPES: WorkoutType[] = [
 /** Full coach-parity create payload; always marks the row as athlete self-added. */
 export type AthleteCreateWorkoutPayload = CreateWorkoutModalPayload
 
+/** Athlete edits a workout they self-added (same modal payload as create). */
+export async function updateAthleteWorkoutFromModal(
+  payload: AthleteCreateWorkoutPayload & { workoutId: string },
+) {
+  try {
+    const session = await requireAthleteSession()
+
+    if (!ATHLETE_ADD_SPORT_TYPES.includes(payload.sportType)) {
+      throw new Error('Invalid sport type')
+    }
+    if (!sessionTypesForSport(payload.sportType).includes(payload.sessionType)) {
+      throw new Error('Invalid session type')
+    }
+
+    const existing = await prisma.workout.findFirst({
+      where: {
+        id: payload.workoutId,
+        athleteId: session.athleteId,
+        selfLogged: true,
+      },
+    })
+    if (!existing) throw new Error('Workout not found')
+
+    await persistWorkoutFromModalUpdate(existing, payload)
+  } catch (error) {
+    rethrowActionError('updateAthleteWorkoutFromModal', error, 'Could not save workout')
+  }
+}
+
 export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkoutPayload) {
   try {
     const session = await requireAthleteSession()
@@ -442,14 +484,13 @@ export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkou
     const athleteId = session.athleteId
     const scheduledDate = parseModalScheduledDate(payload.scheduledDate)
     const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
-    const structure = parseStructure(payload.structure)
-    const hasIncludeItems = (structure.includeItems?.length ?? 0) > 0
-    const saveStructure = hasStructureContent(structure) || hasIncludeItems
+    const prepared = prepareStructureForPersist(payload.structure)
+    const saveStructure = prepared.shouldSave
     const athletePreferences = await loadAthletePreferencesForBuilder(athleteId)
     const metrics = resolvePlannedWorkoutMetrics({
       plannedDistance: payload.plannedDistance,
       plannedDuration: payload.plannedDuration,
-      structure: saveStructure ? structure : null,
+      structure: saveStructure ? prepared.display : null,
       preferences: athletePreferences,
       sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
       sessionType: payload.sessionType,
@@ -463,8 +504,12 @@ export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkou
       duration: metrics.durationSource,
     })
     const title = modalWorkoutTitle(payload.title, 'Workout')
+    const storedCoachNotes =
+      prepared.stored && 'coachNotes' in prepared.stored
+        ? prepared.stored.coachNotes
+        : undefined
 
-    if (!saveStructure) {
+    if (!saveStructure || !prepared.stored) {
       await prisma.workout.create({
         data: {
           athleteId,
@@ -500,10 +545,10 @@ export async function createAthleteWorkoutFromModal(payload: AthleteCreateWorkou
           plannedDistance: metrics.plannedDistance ?? null,
           plannedDistanceSource: metrics.distanceSource,
           plannedDurationSource: metrics.durationSource,
-          coachNotes: structure.coachNotes ?? payload.coachNotes,
+          coachNotes: storedCoachNotes ?? payload.coachNotes,
           coachNotesPrivate: Boolean(payload.coachNotesPrivate),
-          structure: structure as Prisma.InputJsonValue,
-          structureDiagram: structureDiagramPrismaValue(structure, {
+          structure: prepared.stored as Prisma.InputJsonValue,
+          structureDiagram: structureDiagramPrismaValue(prepared.display, {
             durationMinutes: metrics.plannedDuration,
           }),
           selfLogged: true,
@@ -528,11 +573,16 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
   const data = builderPayloadSchema.parse(payload)
   if (!data.scheduledDate) throw new Error('Scheduled date is required')
 
+  const prepared = prepareStructureForPersist(data.structure)
   const athletePreferences = await loadAthletePreferencesForBuilder(athleteId)
   const estimatedDuration =
     data.estimatedDuration ??
-    estimateStructureDurationMinutes(data.structure, athletePreferences, data.sportType)
-  const structure = data.structure as Prisma.InputJsonValue
+    estimateStructureDurationMinutes(
+      prepared.display,
+      athletePreferences,
+      data.sportType,
+    )
+  const structure = (prepared.stored ?? prepared.display) as Prisma.InputJsonValue
   const durationSource =
     estimatedDuration > 0 ? PlannedMetricSource.STRUCTURE : null
   const tags = syncApproxTagsFromSources(data.tags, {
@@ -551,9 +601,9 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
         date: parseDateOnly(data.scheduledDate),
         plannedDuration: estimatedDuration || undefined,
         plannedDurationSource: durationSource,
-        coachNotes: data.structure.coachNotes,
+        coachNotes: prepared.display.coachNotes ?? data.structure.coachNotes,
         structure,
-        structureDiagram: structureDiagramPrismaValue(data.structure, {
+        structureDiagram: structureDiagramPrismaValue(prepared.display, {
           durationMinutes: estimatedDuration || null,
         }),
         tags,
@@ -578,9 +628,9 @@ export async function saveWorkoutBuilder(payload: unknown, workoutId?: string) {
       sortOrder: await getNextWorkoutSortOrder(athleteId, parseDateOnly(data.scheduledDate)),
       plannedDuration: estimatedDuration || undefined,
       plannedDurationSource: durationSource,
-      coachNotes: data.structure.coachNotes,
+      coachNotes: prepared.display.coachNotes ?? data.structure.coachNotes,
       structure,
-      structureDiagram: structureDiagramPrismaValue(data.structure, {
+      structureDiagram: structureDiagramPrismaValue(prepared.display, {
         durationMinutes: estimatedDuration || null,
       }),
       tags,
@@ -602,16 +652,22 @@ export async function saveTemplateBuilder(payload: unknown, templateId?: string)
   const session = await requireCoach()
 
   const parsed = builderPayloadSchema.omit({ scheduledDate: true }).parse(payload)
+  const prepared = prepareStructureForPersist(parsed.structure)
   const estimatedDuration =
     parsed.estimatedDuration ??
-    estimateStructureDurationMinutes(parsed.structure, undefined, parsed.sportType)
-  const structure = parsed.structure as Prisma.InputJsonValue
+    estimateStructureDurationMinutes(
+      prepared.display,
+      undefined,
+      parsed.sportType,
+    )
+  const structure = (prepared.stored ?? prepared.display) as Prisma.InputJsonValue
   const durationSource =
     estimatedDuration > 0 ? PlannedMetricSource.STRUCTURE : null
   const tags = syncApproxTagsFromSources(parsed.tags, {
     duration: durationSource,
     distance: null,
   })
+  const notes = prepared.display.coachNotes ?? parsed.structure.coachNotes
 
   if (templateId) {
     await prisma.workoutTemplate.update({
@@ -623,7 +679,7 @@ export async function saveTemplateBuilder(payload: unknown, templateId?: string)
         sessionType: parsed.sessionType,
         durationMin: estimatedDuration || undefined,
         durationSource,
-        notes: parsed.structure.coachNotes,
+        notes,
         structure,
         tags,
       },
@@ -642,7 +698,7 @@ export async function saveTemplateBuilder(payload: unknown, templateId?: string)
       sessionType: parsed.sessionType,
       durationMin: estimatedDuration || undefined,
       durationSource,
-      notes: parsed.structure.coachNotes,
+      notes,
       structure,
       tags,
     },

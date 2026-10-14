@@ -15,6 +15,7 @@ import {
   MessageSquare,
   MoreHorizontal,
   Mountain,
+  Pencil,
   Route,
   Share2,
   Unlink,
@@ -32,15 +33,22 @@ import {
   StravaLinkPicker,
 } from "@/components/plan/strava-activity-picker";
 import { AthleteWorkoutQuickActions } from "@/components/plan/athlete-workout-quick-actions";
+import { EditPlanWorkoutButton } from "@/components/plan/edit-plan-workout-button";
 import { StravaSyncedIndicator } from "@/components/plan/strava-synced-indicator";
 import { StatusPill } from "@/components/ui/status-pill";
 import { ActivityLapsWidget } from "@/components/activity/activity-laps-widget";
 import { ActivityRouteMap } from "@/components/plan/activity-route-map";
 import { WorkoutStructureChart } from "@/components/workout-builder/workout-structure-chart";
 import { IncludeItemsSummary } from "@/components/workout-editor/include-items-summary";
+import { StructureV2AthletePreview } from "@/components/plan/structure-v2-athlete-preview";
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
 import { athleteHasQuickLogActions, isStravaSynced } from "@/lib/plan-workout";
 import { isStravaConnected } from "@/app/actions/strava";
+import {
+  hasStructureV2Content,
+  isWorkoutStructureV2,
+  parseStructureV2,
+} from "@/lib/workout-builder/structure-compat";
 import {
   approxMetricsFromTags,
   durationUnitFromTags,
@@ -409,6 +417,8 @@ function StructureRow({
   compactHero?: boolean;
 }) {
   const subtitle = blockSubtitle(block);
+  const multiline = Boolean(subtitle && subtitle.includes("\n"));
+  const isSectionHeader = !subtitle && !block.notes && !block.recoveryNote;
   const durationLabel = block.durationLabel
     ? block.durationApproximate
       ? block.durationLabel
@@ -418,16 +428,31 @@ function StructureRow({
   return (
     <div
       className={cn(
-        "flex items-start gap-3 py-3.5 transition-colors hover:bg-[var(--tt-sidebar)]/80",
+        "flex items-start gap-3 transition-colors hover:bg-[var(--tt-sidebar)]/80",
+        isSectionHeader ? "pb-1 pt-3.5" : "py-3.5",
         compactHero ? "px-2.5" : "px-5",
       )}
     >
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[14px] font-semibold text-[var(--tt-ink)]">
+        <p
+          className={cn(
+            "text-[14px] font-semibold text-[var(--tt-ink)]",
+            isSectionHeader
+              ? "text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]"
+              : "truncate",
+          )}
+        >
           {block.title}
         </p>
         {subtitle ? (
-          <p className="mt-0.5 truncate text-[12px] text-[var(--tt-ink-soft)]">
+          <p
+            className={cn(
+              "mt-0.5 text-[12px] text-[var(--tt-ink-soft)]",
+              multiline
+                ? "whitespace-pre-wrap leading-relaxed"
+                : "truncate",
+            )}
+          >
             {subtitle}
           </p>
         ) : null}
@@ -437,12 +462,12 @@ function StructureRow({
           </p>
         ) : null}
         {block.notes ? (
-          <p className="mt-0.5 text-[12px] leading-snug text-[var(--tt-ink-faint)]">
+          <p className="mt-0.5 whitespace-pre-wrap text-[12px] leading-snug text-[var(--tt-ink-faint)]">
             {block.notes}
           </p>
         ) : null}
       </div>
-      {durationLabel ? (
+      {durationLabel && !isSectionHeader ? (
         <span className="shrink-0 pt-0.5 text-[12px] font-semibold tabular-nums text-[var(--tt-ink-soft)]">
           {durationLabel}
         </span>
@@ -461,6 +486,8 @@ type AthleteWorkoutDetailCardProps = {
   onStravaChange?: () => void;
   /** Reschedule + Share live under the hero ⋮ menu (athlete modal). */
   showUtilityActions?: boolean;
+  /** Show Edit control when the viewer may change this planned session. */
+  canEdit?: boolean;
   /** Completed / Skipped chip next to Strava or Done/Skip (athlete modal only). */
   showStatusBadge?: boolean;
   /** Matches training Color / Plain chrome. */
@@ -477,6 +504,10 @@ type AthleteWorkoutDetailCardProps = {
   onRescheduleDone?: () => void;
   /** Prefer over DialogClose when detail is not inside a Dialog (e.g. list panel). */
   onClose?: () => void;
+  /** Modal parent owns the editor — Edit just requests it (avoids nested dialogs). */
+  onRequestEdit?: () => void;
+  /** Refresh preview after Edit → Save (side-panel self-contained editor). */
+  onEditSaved?: () => void;
 };
 
 export function AthleteWorkoutDetailCard({
@@ -486,6 +517,7 @@ export function AthleteWorkoutDetailCard({
   showStravaActions = false,
   onStravaChange,
   showUtilityActions = false,
+  canEdit = false,
   showStatusBadge = false,
   colorMode: _colorMode = "sport",
   showCompletionLayer = true,
@@ -495,6 +527,8 @@ export function AthleteWorkoutDetailCard({
   onShare,
   onRescheduleDone,
   onClose,
+  onRequestEdit,
+  onEditSaved,
 }: AthleteWorkoutDetailCardProps) {
   const loadThresholds = useSessionLoadThresholds();
   const [stravaConnected, setStravaConnected] = useState(false);
@@ -627,8 +661,18 @@ export function AthleteWorkoutDetailCard({
           ? getSessionTypeLabel(workout.sessionType, workout.type)
           : null;
 
+  const structureRaw = workout.structureRaw ?? workout.structure;
+  const structureV2 =
+    !hasSwimStructure && isWorkoutStructureV2(structureRaw)
+      ? parseStructureV2(structureRaw)
+      : null;
+  const hasV2Structure = Boolean(
+    structureV2 && hasStructureV2Content(structureV2),
+  );
+
   const structureDisplay =
     !hasSwimStructure &&
+    !hasV2Structure &&
     workout.structure &&
     hasStructureContent(workout.structure)
       ? buildAthleteStructureDisplay({
@@ -646,7 +690,10 @@ export function AthleteWorkoutDetailCard({
 
   const fullDescription = workout.description?.trim() || null;
   const showDescriptionDetails =
-    Boolean(fullDescription) && !hasSwimStructure && !hasBuilderStructure;
+    Boolean(fullDescription) &&
+    !hasSwimStructure &&
+    !hasBuilderStructure &&
+    !hasV2Structure;
 
   const showMetricsRow =
     Boolean(intensityLabel) || distanceOnCard || durationOnCard;
@@ -709,7 +756,7 @@ export function AthleteWorkoutDetailCard({
           "tt-workout-hero px-5 pb-5 pt-5",
           compactHero && (compactFlush ? "pl-2.5 pr-1 pb-2 pt-2" : "px-2.5 pb-2 pt-2"),
           darkHero
-            ? "bg-[var(--tt-workout-hero-bg,#151827)] text-white/[0.92]"
+            ? "tt-workout-hero--dark text-white/[0.92]"
             : "bg-white text-[var(--tt-ink)]",
         )}
       >
@@ -717,14 +764,24 @@ export function AthleteWorkoutDetailCard({
           className={cn(
             "relative flex items-start gap-3",
             compactHero
-              ? "pr-8"
-              : statusBadge && (showQuickLog || stravaSynced)
-              ? "pr-[13rem]"
-              : showQuickLog || stravaSynced
-                ? "pr-[7.5rem]"
-                : statusBadge
-                  ? "pr-[9rem]"
-                  : "pr-16",
+              ? canEdit
+                ? "pr-14"
+                : "pr-8"
+              : canEdit && statusBadge && (showQuickLog || stravaSynced)
+                ? "pr-[16.5rem]"
+                : canEdit && (showQuickLog || stravaSynced)
+                  ? "pr-[11rem]"
+                  : canEdit && statusBadge
+                    ? "pr-[12.5rem]"
+                    : canEdit
+                      ? "pr-[6.5rem]"
+                      : statusBadge && (showQuickLog || stravaSynced)
+                        ? "pr-[13rem]"
+                        : showQuickLog || stravaSynced
+                          ? "pr-[7.5rem]"
+                          : statusBadge
+                            ? "pr-[9rem]"
+                            : "pr-16",
           )}
         >
           {darkHero ? (
@@ -787,7 +844,10 @@ export function AthleteWorkoutDetailCard({
               </span>
               {" · "}
               {dateLabel}
-              {subtitle && !showDescriptionDetails && !hasBuilderStructure ? (
+              {subtitle &&
+              !showDescriptionDetails &&
+              !hasBuilderStructure &&
+              !hasV2Structure ? (
                 <>
                   {" · "}
                   {subtitle}
@@ -808,6 +868,41 @@ export function AthleteWorkoutDetailCard({
           </div>
 
           <div className="absolute right-0 top-0 z-10 flex items-center gap-1.5">
+            {canEdit ? (
+              onRequestEdit ? (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onRequestEdit()
+                  }}
+                  className={
+                    compactHero
+                      ? "inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md text-muted-foreground/70 transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/30"
+                      : darkHero
+                        ? "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md bg-white/10 px-2.5 text-xs font-semibold text-white transition hover:bg-white/16 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/30"
+                        : "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border bg-white px-2.5 text-xs font-semibold text-foreground transition hover:bg-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-brand/30"
+                  }
+                  aria-label={`Edit ${workout.title}`}
+                  title="Edit"
+                >
+                  <Pencil
+                    className={compactHero ? "h-3 w-3" : "h-3.5 w-3.5"}
+                    strokeWidth={2}
+                  />
+                  {compactHero ? null : <span>Edit</span>}
+                </button>
+              ) : (
+                <EditPlanWorkoutButton
+                  workout={workout}
+                  selfLoggedCreate={!isCoach}
+                  heroTone={heroTone}
+                  compact={compactHero}
+                  onSaved={onEditSaved}
+                />
+              )
+            ) : null}
             {statusBadge}
             {stravaSynced ? (
               <StravaSyncedIndicator
@@ -1106,8 +1201,11 @@ export function AthleteWorkoutDetailCard({
         />
       ) : null}
 
-      {/* Intensity graph — keep for planned and completed */}
-      {(hasBuilderStructure || hasIncludes) && workout.structure ? (
+      {/* Intensity graph — run/bike builders only (not Strength / HYROX) */}
+      {(hasBuilderStructure || hasIncludes) &&
+      workout.structure &&
+      workout.type !== WorkoutType.STRENGTH &&
+      workout.type !== WorkoutType.HYROX ? (
         <div className={cn(compactHero ? "pt-4" : "pt-6", insetX)}>
           <WorkoutStructureChart
             structure={workout.structure}
@@ -1136,6 +1234,24 @@ export function AthleteWorkoutDetailCard({
             readOnly
           />
         </section>
+      ) : hasV2Structure && structureV2 ? (
+        <>
+          <StructureV2AthletePreview
+            structure={structureV2}
+            compactHero={compactHero}
+            initialThumbnails={workout.exerciseThumbnails}
+          />
+          {hasIncludes && workout.structure?.includeItems ? (
+            <section className={cn(insetMX, "mb-4 mt-2 rounded-[8px] bg-[var(--tt-sidebar)] px-3 py-2.5")}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
+                Include
+              </p>
+              <div className="mt-1.5">
+                <IncludeItemsSummary items={workout.structure.includeItems} />
+              </div>
+            </section>
+          ) : null}
+        </>
       ) : hasBuilderStructure && structureDisplay ? (
         <>
           <div className="divide-y divide-[var(--tt-line)]">

@@ -16,11 +16,14 @@ export function DragInsertIndicator({
     <div
       aria-hidden
       className={cn(
-        'pointer-events-none absolute inset-x-0 top-0 z-20 -translate-y-1/2',
+        'pointer-events-none absolute inset-x-0 top-0 z-30 -translate-y-1/2 px-0.5',
         className,
       )}
     >
-      <div className="h-px bg-[var(--tt-ink-faint,#9ca3af)]" />
+      <div className="flex items-center gap-1">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--tt-ink,#111315)]" />
+        <div className="h-[2px] min-w-0 flex-1 rounded-full bg-[var(--tt-ink,#111315)]" />
+      </div>
     </div>
   )
 }
@@ -73,6 +76,34 @@ export function isMeaningfulInsert(from: number, insertAt: number): boolean {
 /** Convert insert slot (before removal) to destination index after splice. */
 export function targetIndexFromInsert(from: number, insertAt: number): number {
   return from < insertAt ? insertAt - 1 : insertAt
+}
+
+/** Nested list scopes — keep section/block/exercise drags from fighting. */
+export const TT_DRAG_ROOT_ITEM = 'application/x-tt-root-item'
+export const TT_DRAG_SECTION_BLOCK = 'application/x-tt-section-block'
+export const TT_DRAG_BLOCK_EXERCISE = 'application/x-tt-block-exercise'
+
+export function dataTransferHasType(
+  dataTransfer: DataTransfer,
+  type: string,
+): boolean {
+  return Array.from(dataTransfer.types).includes(type)
+}
+
+/**
+ * Insert slot (0…count) from pointer Y against a list of row elements
+ * (covers gaps between spaced children).
+ */
+export function insertIndexFromClientY(
+  clientY: number,
+  rowEls: ArrayLike<Element>,
+  count: number,
+): number {
+  for (let i = 0; i < rowEls.length; i++) {
+    const rect = rowEls[i]!.getBoundingClientRect()
+    if (clientY < rect.top + rect.height / 2) return i
+  }
+  return count
 }
 
 /** HTML5 DnD payload for dragging an add-block chip onto the workout list. */

@@ -1,5 +1,6 @@
 "use client";
 
+import { WorkoutType } from "@prisma/client";
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
 import { hasIncludeItems, hasStructureContent } from "@/lib/workout-builder/utils";
 import { structureDiagramToChartModel } from "@/lib/workout-builder/structure-diagram";
@@ -26,7 +27,13 @@ const CHART_SIZE = {
   month: "xs",
 } as const;
 
+/** Strength / HYROX use section lists — intensity silhouette is for run/bike-style builders. */
+export function sportUsesStructureChart(sport: WorkoutType): boolean {
+  return sport !== WorkoutType.STRENGTH && sport !== WorkoutType.HYROX;
+}
+
 export function workoutHasCardDiagram(workout: PlanWorkoutDetail): boolean {
+  if (!sportUsesStructureChart(workout.type)) return false;
   if (workout.structureDiagram) {
     return structureDiagramToChartModel(workout.structureDiagram) != null;
   }

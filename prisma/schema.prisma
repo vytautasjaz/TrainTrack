@@ -45,6 +45,15 @@ enum WorkoutType {
   REST
 }
 
+/** Provenance for Exercise Intelligence library rows. */
+enum ExerciseSource {
+  TRAINTRACK
+  FREE_EXERCISE_DB
+  EXERCISE_DB
+  USER
+  OTHER
+}
+
 enum WorkoutStatus {
   PLANNED
   COMPLETED
@@ -280,6 +289,8 @@ model User {
   coachAttentionDismissals CoachAttentionDismissal[]
   memberships       UserMembership[]
   aiUsageEvents     AiUsageEvent[]
+  /** Coach-created custom exercises (source = USER). */
+  customExercises   Exercise[]
 }
 
 /** Coach dismissed a Needs attention item on Home (snooze until state changes). */
@@ -711,6 +722,55 @@ model WorkoutTemplateFolder {
 
   @@index([coachId, sport])
   @@unique([coachId, sport, name])
+}
+
+/**
+ * Canonical TrainTrack Exercise Library.
+ * Platform rows: coachId null. User customs: coachId set, source USER.
+ * Workout structure JSON references Exercise.id via exerciseId.
+ */
+model Exercise {
+  id                   String         @id
+  canonicalName        String
+  aliases              String[]       @default([])
+  searchTerms          String[]       @default([])
+  category             String
+  movementPattern      String?
+  equipment            String[]       @default([])
+  primaryMuscles       String[]       @default([])
+  secondaryMuscles     String[]       @default([])
+  prescriptionTypes    String[]       @default([])
+  modalities           String[]       @default([])
+  difficulty           String?
+  instructions         String?
+  shortDescription     String?
+  coachingCues         String[]       @default([])
+  commonMistakes       String[]       @default([])
+  /** { items: ExerciseMediaItem[] } — validated in lib/exercises/media.ts */
+  media                Json?
+  variationType        String?
+  canonicalExerciseId  String?
+  source               ExerciseSource @default(TRAINTRACK)
+  sourceId             String?
+  sourceMetadata       Json?
+  /** null = platform library; set for coach-scoped USER exercises */
+  coachId              String?
+  isActive             Boolean        @default(true)
+  usageCount           Int            @default(0)
+  popularity           Int            @default(0)
+  lastUsedAt           DateTime?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  coach              User?      @relation(fields: [coachId], references: [id], onDelete: Cascade)
+  canonicalExercise  Exercise?  @relation("ExerciseVariations", fields: [canonicalExerciseId], references: [id], onDelete: SetNull)
+  variations         Exercise[] @relation("ExerciseVariations")
+
+  @@index([coachId, isActive])
+  @@index([source])
+  @@index([category])
+  @@index([canonicalExerciseId])
+  @@index([canonicalName])
 }
 
 model WorkoutTemplate {

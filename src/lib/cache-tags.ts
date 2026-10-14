@@ -9,7 +9,12 @@ export const cacheTags = {
   inbox: (userId: string) => `inbox:${userId}`,
   workout: (workoutId: string) => `workout:${workoutId}`,
   appSettings: () => 'app-settings',
+  exerciseLibrary: () => 'exercise-library',
 } as const
+
+export function revalidateExerciseLibrary() {
+  revalidateTag(cacheTags.exerciseLibrary())
+}
 
 export function revalidateAppSettings() {
   revalidateTag(cacheTags.appSettings())

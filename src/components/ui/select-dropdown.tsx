@@ -4,7 +4,9 @@ import * as SelectPrimitive from '@radix-ui/react-select'
 import { cn } from '@/lib/utils'
 
 export const SELECT_DROPDOWN_CONTENT_CLASS =
-  'z-[200] max-h-56 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card py-1 shadow-lg'
+  // pointer-events-auto: Dialog sets body to pointer-events:none; portaled
+  // select content is outside the dialog node and must opt back in.
+  'z-[200] max-h-56 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card py-1 shadow-lg pointer-events-auto'
 
 export type SelectDropdownOption = { value: string; label: string }
 

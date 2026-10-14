@@ -213,9 +213,7 @@ export async function createAthleteSwimWorkoutFromModal(payload: unknown) {
   return workout.id
 }
 
-export async function updateSwimWorkoutFromModal(workoutId: string, payload: unknown) {
-  await getSwimWorkoutForEdit(workoutId)
-
+async function persistSwimWorkoutFromModal(workoutId: string, payload: unknown) {
   const parsed = swimWorkoutFormSchema.parse(payload)
   const scheduledDate = parseDateOnly(
     parsed.scheduledDate ?? new Date().toISOString().slice(0, 10),
@@ -242,6 +240,30 @@ export async function updateSwimWorkoutFromModal(workoutId: string, payload: unk
   revalidatePath('/training')
   revalidatePath('/dashboard')
   revalidateSwimLibrary()
+}
+
+export async function updateSwimWorkoutFromModal(workoutId: string, payload: unknown) {
+  await getSwimWorkoutForEdit(workoutId)
+  await persistSwimWorkoutFromModal(workoutId, payload)
+}
+
+/** Athlete edits a self-added swim workout. */
+export async function updateAthleteSwimWorkoutFromModal(
+  workoutId: string,
+  payload: unknown,
+) {
+  const session = await requireAthleteSession()
+  const existing = await prisma.workout.findFirst({
+    where: {
+      id: workoutId,
+      athleteId: session.athleteId,
+      type: WorkoutType.SWIM,
+      selfLogged: true,
+    },
+    select: { id: true },
+  })
+  if (!existing) throw new Error('Workout not found')
+  await persistSwimWorkoutFromModal(workoutId, payload)
 }
 
 export async function saveSwimWorkout(id: string | null, payload: unknown) {

@@ -1,0 +1,9268 @@
+[
+  {
+    "id": "burpee",
+    "name": "Burpee",
+    "aliases": [],
+    "category": "BODYWEIGHT",
+    "movementPattern": "FULL_BODY",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "burpee"
+    ]
+  },
+  {
+    "id": "chin_up",
+    "name": "Chin Up",
+    "aliases": [],
+    "category": "BODYWEIGHT",
+    "movementPattern": "VERTICAL_PULL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "LATS",
+      "BICEPS"
+    ],
+    "secondaryMuscles": [
+      "FOREARMS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "chin",
+      "up"
+    ]
+  },
+  {
+    "id": "deficit_push_up",
+    "name": "Deficit Push Up",
+    "aliases": [],
+    "category": "BODYWEIGHT",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "BODYWEIGHT"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deficit",
+      "push",
+      "up"
+    ]
+  },
+  {
+    "id": "diamond_push_up",
+    "name": "Diamond Push Up",
+    "aliases": [],
+    "category": "BODYWEIGHT",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "TRICEPS"
+    ],
+    "secondaryMuscles": [
+      "CHEST",
+      "SHOULDERS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "diamond",
+      "push",
+      "up"
+    ]
+  },
+  {
+    "id": "neutral_grip_pull_up",
+    "name": "Neutral Grip Pull Up",
+    "aliases": [],
+    "category": "BODYWEIGHT",
+    "movementPattern": "VERTICAL_PULL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "BODYWEIGHT"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "grip",
+      "neutral",
+      "pull",
+      "up"
+    ]
+  },
+  {
+    "id": "pull_up",
+    "name": "Pull Up",
+    "aliases": [
+      "Pullup",
+      "Pull-ups"
+    ],
+    "category": "BODYWEIGHT",
+    "movementPattern": "VERTICAL_PULL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "LATS"
+    ],
+    "secondaryMuscles": [
+      "BICEPS",
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "pull",
+      "pullup",
+      "up",
+      "ups"
+    ]
+  },
+  {
+    "id": "push_up",
+    "name": "Push Up",
+    "aliases": [
+      "Pushup",
+      "Push-ups",
+      "Press Up"
+    ],
+    "category": "BODYWEIGHT",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "CHEST"
+    ],
+    "secondaryMuscles": [
+      "TRICEPS",
+      "SHOULDERS",
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "press",
+      "push",
+      "pushup",
+      "up",
+      "ups"
+    ]
+  },
+  {
+    "id": "ring_dip",
+    "name": "Ring Dip",
+    "aliases": [],
+    "category": "BODYWEIGHT",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "BODYWEIGHT"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dip",
+      "ring"
+    ]
+  },
+  {
+    "id": "ring_push_up",
+    "name": "Ring Push Up",
+    "aliases": [],
+    "category": "BODYWEIGHT",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "BODYWEIGHT"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "push",
+      "ring",
+      "up"
+    ]
+  },
+  {
+    "id": "scapular_push_up",
+    "name": "Scapular Push Up",
+    "aliases": [],
+    "category": "BODYWEIGHT",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "BODYWEIGHT"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "push",
+      "scapular",
+      "up"
+    ]
+  },
+  {
+    "id": "wide_grip_pull_up",
+    "name": "Wide Grip Pull Up",
+    "aliases": [],
+    "category": "BODYWEIGHT",
+    "movementPattern": "VERTICAL_PULL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "BODYWEIGHT"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "grip",
+      "pull",
+      "up",
+      "wide"
+    ]
+  },
+  {
+    "id": "ab_wheel_rollout",
+    "name": "Ab Wheel Rollout",
+    "aliases": [
+      "Ab Wheel",
+      "Rollout"
+    ],
+    "category": "CORE",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "ab",
+      "rollout",
+      "wheel"
+    ]
+  },
+  {
+    "id": "bear_crawl",
+    "name": "Bear Crawl",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "LOCOMOTION",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "CORE"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bear",
+      "crawl"
+    ]
+  },
+  {
+    "id": "bear_plank",
+    "name": "Bear Plank",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "ISOMETRIC",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "CORE"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bear",
+      "plank"
+    ]
+  },
+  {
+    "id": "bicycle_crunch",
+    "name": "Bicycle Crunch",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bicycle",
+      "crunch"
+    ]
+  },
+  {
+    "id": "bird_dog",
+    "name": "Bird Dog",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "ANTI_ROTATION",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "CORE"
+    ],
+    "secondaryMuscles": [
+      "GLUTES"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bird",
+      "dog"
+    ]
+  },
+  {
+    "id": "copenhagen_plank",
+    "name": "Copenhagen Plank",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "copenhagen",
+      "plank"
+    ]
+  },
+  {
+    "id": "dead_bug",
+    "name": "Dead Bug",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "ANTI_EXTENSION",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "CORE"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bug",
+      "dead"
+    ]
+  },
+  {
+    "id": "dragon_flag",
+    "name": "Dragon Flag",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "ANTI_EXTENSION",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "CORE"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dragon",
+      "flag"
+    ]
+  },
+  {
+    "id": "hanging_knee_raise",
+    "name": "Hanging Knee Raise",
+    "aliases": [
+      "Hanging Knee Raises",
+      "HKR"
+    ],
+    "category": "CORE",
+    "movementPattern": "HIP_FLEXION",
+    "equipment": [
+      "PULL_UP_BAR"
+    ],
+    "primaryMuscles": [
+      "CORE"
+    ],
+    "secondaryMuscles": [
+      "HIP_FLEXORS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hanging",
+      "hkr",
+      "knee",
+      "raise",
+      "raises"
+    ]
+  },
+  {
+    "id": "hanging_leg_raise",
+    "name": "Hanging Leg Raise",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hanging",
+      "leg",
+      "raise"
+    ]
+  },
+  {
+    "id": "hollow_body_hold",
+    "name": "Hollow Body Hold",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "ISOMETRIC",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "CORE"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "body",
+      "hold",
+      "hollow"
+    ]
+  },
+  {
+    "id": "leg_raise",
+    "name": "Leg Raise",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "HIP_FLEXION",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "CORE"
+    ],
+    "secondaryMuscles": [
+      "HIP_FLEXORS"
+    ],
+    "prescriptionTypes": [
+      "REPS"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "leg",
+      "raise"
+    ]
+  },
+  {
+    "id": "mountain_climber",
+    "name": "Mountain Climber",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "climber",
+      "mountain"
+    ]
+  },
+  {
+    "id": "pallof_press",
+    "name": "Pallof Press",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "pallof",
+      "press"
+    ]
+  },
+  {
+    "id": "plank",
+    "name": "Plank",
+    "aliases": [
+      "Front Plank"
+    ],
+    "category": "CORE",
+    "movementPattern": "ISOMETRIC",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "CORE"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "front",
+      "plank"
+    ]
+  },
+  {
+    "id": "reverse_crunch",
+    "name": "Reverse Crunch",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "crunch",
+      "reverse"
+    ]
+  },
+  {
+    "id": "russian_twist",
+    "name": "Russian Twist",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "russian",
+      "twist"
+    ]
+  },
+  {
+    "id": "side_plank",
+    "name": "Side Plank",
+    "aliases": [
+      "Lateral Plank"
+    ],
+    "category": "CORE",
+    "movementPattern": "ISOMETRIC",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "CORE"
+    ],
+    "secondaryMuscles": [
+      "GLUTES"
+    ],
+    "prescriptionTypes": [
+      "TIME",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "lateral",
+      "plank",
+      "side"
+    ]
+  },
+  {
+    "id": "sit_up",
+    "name": "Sit Up",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "TRUNK_FLEXION",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "CORE"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "sit",
+      "up"
+    ]
+  },
+  {
+    "id": "superman",
+    "name": "Superman",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "BACK_EXTENSION",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "CORE"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "superman"
+    ]
+  },
+  {
+    "id": "toes_to_bar",
+    "name": "Toes To Bar",
+    "aliases": [],
+    "category": "CORE",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bar",
+      "to",
+      "toes"
+    ]
+  },
+  {
+    "id": "assault_bike",
+    "name": "Assault Bike",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "CARDIO",
+    "equipment": [
+      "AIR_BIKE"
+    ],
+    "primaryMuscles": [
+      "LEGS"
+    ],
+    "secondaryMuscles": [
+      "ARMS",
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "assault",
+      "bike"
+    ]
+  },
+  {
+    "id": "assault_bike_easy",
+    "name": "Assault Bike Easy",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "CARDIO",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "ERG"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "assault",
+      "bike",
+      "easy"
+    ]
+  },
+  {
+    "id": "assault_bike_sprint",
+    "name": "Assault Bike Sprint",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "assault",
+      "bike",
+      "sprint"
+    ]
+  },
+  {
+    "id": "bike_easy",
+    "name": "Bike Easy",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bike",
+      "easy"
+    ]
+  },
+  {
+    "id": "bike_intervals",
+    "name": "Bike Intervals",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bike",
+      "intervals"
+    ]
+  },
+  {
+    "id": "bike_threshold",
+    "name": "Bike Threshold",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bike",
+      "threshold"
+    ]
+  },
+  {
+    "id": "bikeerg",
+    "name": "BikeErg",
+    "aliases": [
+      "Bike Erg",
+      "BikeErgo"
+    ],
+    "category": "ERG",
+    "movementPattern": "CARDIO",
+    "equipment": [
+      "BIKEERG"
+    ],
+    "primaryMuscles": [
+      "LEGS"
+    ],
+    "secondaryMuscles": [
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bike",
+      "bikeerg",
+      "bikeergo",
+      "erg"
+    ]
+  },
+  {
+    "id": "bikeerg_easy",
+    "name": "BikeErg Easy",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "CARDIO",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "ERG"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bikeerg",
+      "easy"
+    ]
+  },
+  {
+    "id": "bikeerg_sprint",
+    "name": "BikeErg Sprint",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "CARDIO",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "ERG"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bikeerg",
+      "sprint"
+    ]
+  },
+  {
+    "id": "bikeerg_threshold",
+    "name": "BikeErg Threshold",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "CARDIO",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "ERG"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bikeerg",
+      "threshold"
+    ]
+  },
+  {
+    "id": "cable_row",
+    "name": "Cable Row",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "row"
+    ]
+  },
+  {
+    "id": "inverted_row",
+    "name": "Inverted Row",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "inverted",
+      "row"
+    ]
+  },
+  {
+    "id": "landmine_row",
+    "name": "Landmine Row",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "landmine",
+      "row"
+    ]
+  },
+  {
+    "id": "ring_row",
+    "name": "Ring Row",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "ring",
+      "row"
+    ]
+  },
+  {
+    "id": "row",
+    "name": "Row",
+    "aliases": [
+      "RowErg",
+      "Row Erg",
+      "Concept2 Row"
+    ],
+    "category": "ERG",
+    "movementPattern": "CARDIO",
+    "equipment": [
+      "ROWER"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [
+      "LEGS",
+      "BACK"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "concept2",
+      "erg",
+      "row",
+      "rowerg"
+    ]
+  },
+  {
+    "id": "row_easy",
+    "name": "Row Easy",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "easy",
+      "row"
+    ]
+  },
+  {
+    "id": "row_intervals",
+    "name": "Row Intervals",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "intervals",
+      "row"
+    ]
+  },
+  {
+    "id": "row_sprint",
+    "name": "Row Sprint",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "CARDIO",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "ERG"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "row",
+      "sprint"
+    ]
+  },
+  {
+    "id": "row_threshold",
+    "name": "Row Threshold",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "row",
+      "threshold"
+    ]
+  },
+  {
+    "id": "single_arm_cable_row",
+    "name": "Single Arm Cable Row",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "arm",
+      "cable",
+      "row",
+      "single"
+    ]
+  },
+  {
+    "id": "skierg",
+    "name": "SkiErg",
+    "aliases": [
+      "Ski Erg",
+      "SkiErgo"
+    ],
+    "category": "ERG",
+    "movementPattern": "CARDIO",
+    "equipment": [
+      "SKIERG"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [
+      "LATS",
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "erg",
+      "ski",
+      "skierg",
+      "skiergo"
+    ]
+  },
+  {
+    "id": "skierg_easy",
+    "name": "SkiErg Easy",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "easy",
+      "skierg"
+    ]
+  },
+  {
+    "id": "skierg_intervals",
+    "name": "SkiErg Intervals",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "intervals",
+      "skierg"
+    ]
+  },
+  {
+    "id": "skierg_sprint",
+    "name": "SkiErg Sprint",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "CARDIO",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "ERG"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "skierg",
+      "sprint"
+    ]
+  },
+  {
+    "id": "skierg_threshold",
+    "name": "SkiErg Threshold",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "skierg",
+      "threshold"
+    ]
+  },
+  {
+    "id": "upright_row",
+    "name": "Upright Row",
+    "aliases": [],
+    "category": "ERG",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "row",
+      "upright"
+    ]
+  },
+  {
+    "id": "backward_sled_drag",
+    "name": "Backward Sled Drag",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "backward",
+      "drag",
+      "sled"
+    ]
+  },
+  {
+    "id": "bear_hug_carry",
+    "name": "Bear Hug Carry",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bear",
+      "carry",
+      "hug"
+    ]
+  },
+  {
+    "id": "burpee_broad_jump",
+    "name": "Burpee Broad Jump",
+    "aliases": [
+      "BBJ",
+      "Burpee Broad Jumps"
+    ],
+    "category": "HYROX",
+    "movementPattern": "PLYOMETRIC",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [
+      "QUADRICEPS",
+      "GLUTES"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bbj",
+      "broad",
+      "burpee",
+      "jump",
+      "jumps"
+    ]
+  },
+  {
+    "id": "farmer_carry",
+    "name": "Farmer Carry",
+    "aliases": [
+      "Farmers Carry",
+      "Farmer Walk",
+      "Farmer's Carry"
+    ],
+    "category": "HYROX",
+    "movementPattern": "CARRY",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "GRIP",
+      "TRAPS"
+    ],
+    "secondaryMuscles": [
+      "CORE",
+      "LEGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "carry",
+      "farmer",
+      "farmers",
+      "s",
+      "walk"
+    ]
+  },
+  {
+    "id": "heavy_sled_push",
+    "name": "Heavy Sled Push",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "heavy",
+      "push",
+      "sled"
+    ]
+  },
+  {
+    "id": "kettlebell_front_rack_carry",
+    "name": "Kettlebell Front Rack Carry",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "carry",
+      "front",
+      "kettlebell",
+      "rack"
+    ]
+  },
+  {
+    "id": "light_sled_push",
+    "name": "Light Sled Push",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "light",
+      "push",
+      "sled"
+    ]
+  },
+  {
+    "id": "overhead_carry",
+    "name": "Overhead Carry",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "carry",
+      "overhead"
+    ]
+  },
+  {
+    "id": "sandbag_bear_hug_squat",
+    "name": "Sandbag Bear Hug Squat",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bear",
+      "hug",
+      "sandbag",
+      "squat"
+    ]
+  },
+  {
+    "id": "sandbag_carry",
+    "name": "Sandbag Carry",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "carry",
+      "sandbag"
+    ]
+  },
+  {
+    "id": "sandbag_clean",
+    "name": "Sandbag Clean",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "clean",
+      "sandbag"
+    ]
+  },
+  {
+    "id": "sandbag_deadlift",
+    "name": "Sandbag Deadlift",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deadlift",
+      "sandbag"
+    ]
+  },
+  {
+    "id": "sandbag_lunges",
+    "name": "Sandbag Lunges",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "LUNGE",
+    "equipment": [
+      "SANDBAG"
+    ],
+    "primaryMuscles": [
+      "QUADRICEPS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "lunges",
+      "sandbag"
+    ]
+  },
+  {
+    "id": "sandbag_shouldering",
+    "name": "Sandbag Shouldering",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "sandbag",
+      "shouldering"
+    ]
+  },
+  {
+    "id": "sandbag_squat",
+    "name": "Sandbag Squat",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "sandbag",
+      "squat"
+    ]
+  },
+  {
+    "id": "sled_drag",
+    "name": "Sled Drag",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "drag",
+      "sled"
+    ]
+  },
+  {
+    "id": "sled_pull",
+    "name": "Sled Pull",
+    "aliases": [
+      "Sled Drag",
+      "Prowler Pull"
+    ],
+    "category": "HYROX",
+    "movementPattern": "SLED_PULL",
+    "equipment": [
+      "SLED"
+    ],
+    "primaryMuscles": [
+      "BACK",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "BICEPS",
+      "LEGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "drag",
+      "prowler",
+      "pull",
+      "sled"
+    ]
+  },
+  {
+    "id": "sled_push",
+    "name": "Sled Push",
+    "aliases": [
+      "Sled",
+      "Prowler",
+      "Prowler Push"
+    ],
+    "category": "HYROX",
+    "movementPattern": "SLED_PUSH",
+    "equipment": [
+      "SLED"
+    ],
+    "primaryMuscles": [
+      "QUADRICEPS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "CALVES",
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "prowler",
+      "push",
+      "sled"
+    ]
+  },
+  {
+    "id": "suitcase_carry",
+    "name": "Suitcase Carry",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "carry",
+      "suitcase"
+    ]
+  },
+  {
+    "id": "waiter_carry",
+    "name": "Waiter Carry",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "carry",
+      "waiter"
+    ]
+  },
+  {
+    "id": "wall_ball",
+    "name": "Wall Ball",
+    "aliases": [
+      "Wall Balls",
+      "Wallball",
+      "WB"
+    ],
+    "category": "HYROX",
+    "movementPattern": "THRUSTER",
+    "equipment": [
+      "MEDICINE_BALL"
+    ],
+    "primaryMuscles": [
+      "QUADRICEPS",
+      "SHOULDERS"
+    ],
+    "secondaryMuscles": [
+      "GLUTES",
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "ball",
+      "balls",
+      "wall",
+      "wallball",
+      "wb"
+    ]
+  },
+  {
+    "id": "wall_ball_squat",
+    "name": "Wall Ball Squat",
+    "aliases": [],
+    "category": "HYROX",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "ball",
+      "squat",
+      "wall"
+    ]
+  },
+  {
+    "id": "90_90_hip_rotation",
+    "name": "90/90 Hip Rotation",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "90",
+      "hip",
+      "rotation"
+    ]
+  },
+  {
+    "id": "adductor_stretch",
+    "name": "Adductor Stretch",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "adductor",
+      "stretch"
+    ]
+  },
+  {
+    "id": "ankle_mobility",
+    "name": "Ankle Mobility",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "ankle",
+      "mobility"
+    ]
+  },
+  {
+    "id": "calf_stretch",
+    "name": "Calf Stretch",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "calf",
+      "stretch"
+    ]
+  },
+  {
+    "id": "cat_cow",
+    "name": "Cat Cow",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cat",
+      "cow"
+    ]
+  },
+  {
+    "id": "child_s_pose",
+    "name": "Child's Pose",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "child",
+      "pose",
+      "s"
+    ]
+  },
+  {
+    "id": "deep_squat_hold",
+    "name": "Deep Squat Hold",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deep",
+      "hold",
+      "squat"
+    ]
+  },
+  {
+    "id": "foam_roll_calves",
+    "name": "Foam Roll Calves",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "calves",
+      "foam",
+      "roll"
+    ]
+  },
+  {
+    "id": "foam_roll_glutes",
+    "name": "Foam Roll Glutes",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "foam",
+      "glutes",
+      "roll"
+    ]
+  },
+  {
+    "id": "foam_roll_hamstrings",
+    "name": "Foam Roll Hamstrings",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "foam",
+      "hamstrings",
+      "roll"
+    ]
+  },
+  {
+    "id": "foam_roll_quads",
+    "name": "Foam Roll Quads",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "foam",
+      "quads",
+      "roll"
+    ]
+  },
+  {
+    "id": "glute_stretch",
+    "name": "Glute Stretch",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "glute",
+      "stretch"
+    ]
+  },
+  {
+    "id": "hamstring_stretch",
+    "name": "Hamstring Stretch",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hamstring",
+      "stretch"
+    ]
+  },
+  {
+    "id": "hip_90_90",
+    "name": "Hip 90/90",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "MOBILITY",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "MOBILITY"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "90",
+      "hip"
+    ]
+  },
+  {
+    "id": "hip_flexor_stretch",
+    "name": "Hip Flexor Stretch",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "flexor",
+      "hip",
+      "stretch"
+    ]
+  },
+  {
+    "id": "hip_mobility",
+    "name": "Hip Mobility",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hip",
+      "mobility"
+    ]
+  },
+  {
+    "id": "mobility_flow",
+    "name": "Mobility Flow",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "flow",
+      "mobility"
+    ]
+  },
+  {
+    "id": "quad_stretch",
+    "name": "Quad Stretch",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "quad",
+      "stretch"
+    ]
+  },
+  {
+    "id": "world_s_greatest_stretch",
+    "name": "World's Greatest Stretch",
+    "aliases": [],
+    "category": "MOBILITY",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "greatest",
+      "s",
+      "stretch",
+      "world"
+    ]
+  },
+  {
+    "id": "battle_rope",
+    "name": "Battle Rope",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "battle",
+      "rope"
+    ]
+  },
+  {
+    "id": "box_jump",
+    "name": "Box Jump",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "JUMP",
+    "equipment": [
+      "BOX"
+    ],
+    "primaryMuscles": [
+      "GLUTES",
+      "QUADRICEPS"
+    ],
+    "secondaryMuscles": [
+      "CALVES"
+    ],
+    "prescriptionTypes": [
+      "REPS"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "box",
+      "jump"
+    ]
+  },
+  {
+    "id": "box_jump_over",
+    "name": "Box Jump Over",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "box",
+      "jump",
+      "over"
+    ]
+  },
+  {
+    "id": "broad_jump",
+    "name": "Broad Jump",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "JUMP",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "GLUTES",
+      "QUADRICEPS"
+    ],
+    "secondaryMuscles": [
+      "CALVES"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "DISTANCE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "broad",
+      "jump"
+    ]
+  },
+  {
+    "id": "calf_hop",
+    "name": "Calf Hop",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "calf",
+      "hop"
+    ]
+  },
+  {
+    "id": "depth_jump",
+    "name": "Depth Jump",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "depth",
+      "jump"
+    ]
+  },
+  {
+    "id": "double_under",
+    "name": "Double Under",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "double",
+      "under"
+    ]
+  },
+  {
+    "id": "jump_rope",
+    "name": "Jump Rope",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "jump",
+      "rope"
+    ]
+  },
+  {
+    "id": "jump_squat",
+    "name": "Jump Squat",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "jump",
+      "squat"
+    ]
+  },
+  {
+    "id": "lateral_bound",
+    "name": "Lateral Bound",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bound",
+      "lateral"
+    ]
+  },
+  {
+    "id": "lateral_box_jump",
+    "name": "Lateral Box Jump",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "box",
+      "jump",
+      "lateral"
+    ]
+  },
+  {
+    "id": "pogo_jump",
+    "name": "Pogo Jump",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "jump",
+      "pogo"
+    ]
+  },
+  {
+    "id": "single_leg_hop",
+    "name": "Single Leg Hop",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hop",
+      "leg",
+      "single"
+    ]
+  },
+  {
+    "id": "single_under",
+    "name": "Single Under",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "single",
+      "under"
+    ]
+  },
+  {
+    "id": "skater_jump",
+    "name": "Skater Jump",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "jump",
+      "skater"
+    ]
+  },
+  {
+    "id": "split_jump",
+    "name": "Split Jump",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "jump",
+      "split"
+    ]
+  },
+  {
+    "id": "tuck_jump",
+    "name": "Tuck Jump",
+    "aliases": [],
+    "category": "PLYOMETRIC",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "jump",
+      "tuck"
+    ]
+  },
+  {
+    "id": "walk",
+    "name": "Walk",
+    "aliases": [],
+    "category": "RECOVERY",
+    "movementPattern": "WALK",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "RECOVERY"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "walk"
+    ]
+  },
+  {
+    "id": "easy_run",
+    "name": "Easy Run",
+    "aliases": [
+      "easy",
+      "easy run",
+      "recovery run"
+    ],
+    "category": "RUNNING",
+    "movementPattern": "RUN",
+    "equipment": [
+      "NONE"
+    ],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [
+      "LEGS"
+    ],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "easy",
+      "recovery",
+      "run"
+    ]
+  },
+  {
+    "id": "hill_repeats",
+    "name": "Hill Repeats",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "INTERVAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hill",
+      "repeats"
+    ]
+  },
+  {
+    "id": "interval_run",
+    "name": "Interval Run",
+    "aliases": [
+      "Interval",
+      "interval run"
+    ],
+    "category": "RUNNING",
+    "movementPattern": "INTERVAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "interval",
+      "run"
+    ]
+  },
+  {
+    "id": "intervals",
+    "name": "Intervals",
+    "aliases": [
+      "interval",
+      "intervals",
+      "repeats"
+    ],
+    "category": "RUNNING",
+    "movementPattern": "INTERVAL",
+    "equipment": [
+      "NONE"
+    ],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [
+      "LEGS"
+    ],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "interval",
+      "intervals",
+      "repeats"
+    ]
+  },
+  {
+    "id": "long_run",
+    "name": "Long Run",
+    "aliases": [
+      "Long",
+      "long run"
+    ],
+    "category": "RUNNING",
+    "movementPattern": "RUN",
+    "equipment": [],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "long",
+      "run"
+    ]
+  },
+  {
+    "id": "progressive_run",
+    "name": "Progressive Run",
+    "aliases": [
+      "Progressive",
+      "progressive run"
+    ],
+    "category": "RUNNING",
+    "movementPattern": "RUN",
+    "equipment": [],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "progressive",
+      "run"
+    ]
+  },
+  {
+    "id": "race_pace_run",
+    "name": "Race Pace Run",
+    "aliases": [
+      "Race Pace",
+      "race pace run"
+    ],
+    "category": "RUNNING",
+    "movementPattern": "RUN",
+    "equipment": [],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "pace",
+      "race",
+      "run"
+    ]
+  },
+  {
+    "id": "recovery_run",
+    "name": "Recovery Run",
+    "aliases": [
+      "Recovery",
+      "recovery run"
+    ],
+    "category": "RUNNING",
+    "movementPattern": "RUN",
+    "equipment": [],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "recovery",
+      "run"
+    ]
+  },
+  {
+    "id": "running",
+    "name": "Running",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "RUN",
+    "equipment": [
+      "NONE"
+    ],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [
+      "LEGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "running"
+    ]
+  },
+  {
+    "id": "running_easy",
+    "name": "Running Easy",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "easy",
+      "running"
+    ]
+  },
+  {
+    "id": "running_hill_repeats",
+    "name": "Running Hill Repeats",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hill",
+      "repeats",
+      "running"
+    ]
+  },
+  {
+    "id": "running_intervals",
+    "name": "Running Intervals",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "intervals",
+      "running"
+    ]
+  },
+  {
+    "id": "running_long",
+    "name": "Running Long",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "long",
+      "running"
+    ]
+  },
+  {
+    "id": "running_recovery",
+    "name": "Running Recovery",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "recovery",
+      "running"
+    ]
+  },
+  {
+    "id": "running_sprint",
+    "name": "Running Sprint",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "running",
+      "sprint"
+    ]
+  },
+  {
+    "id": "running_strides",
+    "name": "Running Strides",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "running",
+      "strides"
+    ]
+  },
+  {
+    "id": "running_tempo",
+    "name": "Running Tempo",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "running",
+      "tempo"
+    ]
+  },
+  {
+    "id": "running_threshold",
+    "name": "Running Threshold",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "GENERAL",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "running",
+      "threshold"
+    ]
+  },
+  {
+    "id": "sprint",
+    "name": "Sprint",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "SPRINT",
+    "equipment": [],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "sprint"
+    ]
+  },
+  {
+    "id": "strides",
+    "name": "Strides",
+    "aliases": [],
+    "category": "RUNNING",
+    "movementPattern": "INTERVAL",
+    "equipment": [],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "strides"
+    ]
+  },
+  {
+    "id": "tempo_run",
+    "name": "Tempo Run",
+    "aliases": [
+      "tempo",
+      "tempo run",
+      "threshold run"
+    ],
+    "category": "RUNNING",
+    "movementPattern": "RUN",
+    "equipment": [
+      "NONE"
+    ],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [
+      "LEGS"
+    ],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "run",
+      "tempo",
+      "threshold"
+    ]
+  },
+  {
+    "id": "threshold_run",
+    "name": "Threshold Run",
+    "aliases": [
+      "Threshold",
+      "threshold run"
+    ],
+    "category": "RUNNING",
+    "movementPattern": "RUN",
+    "equipment": [],
+    "primaryMuscles": [
+      "CARDIO"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "TIME",
+      "DISTANCE",
+      "PACE",
+      "RPE"
+    ],
+    "modalities": [
+      "RUNNING"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "run",
+      "threshold"
+    ]
+  },
+  {
+    "id": "arnold_press",
+    "name": "Arnold Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "arnold",
+      "press"
+    ]
+  },
+  {
+    "id": "assisted_dip",
+    "name": "Assisted Dip",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "assisted",
+      "dip"
+    ]
+  },
+  {
+    "id": "assisted_pull_up",
+    "name": "Assisted Pull Up",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "assisted",
+      "pull",
+      "up"
+    ]
+  },
+  {
+    "id": "back_extension",
+    "name": "Back Extension",
+    "aliases": [
+      "Back Extensions",
+      "Hyperextension"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "HIP_EXTENSION",
+    "equipment": [
+      "BACK_EXTENSION_BENCH"
+    ],
+    "primaryMuscles": [
+      "BACK",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "back",
+      "extension",
+      "extensions",
+      "hyperextension"
+    ]
+  },
+  {
+    "id": "back_squat",
+    "name": "Back Squat",
+    "aliases": [
+      "Squat",
+      "Barbell Squat"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "SQUAT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "QUADRICEPS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS",
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "back",
+      "barbell",
+      "squat"
+    ]
+  },
+  {
+    "id": "barbell_clean",
+    "name": "Barbell Clean",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "clean"
+    ]
+  },
+  {
+    "id": "barbell_clean_and_press",
+    "name": "Barbell Clean and Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "and",
+      "barbell",
+      "clean",
+      "press"
+    ]
+  },
+  {
+    "id": "barbell_curl",
+    "name": "Barbell Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "ELBOW_FLEXION",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "BICEPS"
+    ],
+    "secondaryMuscles": [
+      "FOREARMS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "curl"
+    ]
+  },
+  {
+    "id": "barbell_deadlift",
+    "name": "Barbell Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "deadlift"
+    ]
+  },
+  {
+    "id": "barbell_front_rack_lunge",
+    "name": "Barbell Front Rack Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "front",
+      "lunge",
+      "rack"
+    ]
+  },
+  {
+    "id": "barbell_good_morning",
+    "name": "Barbell Good Morning",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "good",
+      "morning"
+    ]
+  },
+  {
+    "id": "barbell_hip_thrust",
+    "name": "Barbell Hip Thrust",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "hip",
+      "thrust"
+    ]
+  },
+  {
+    "id": "barbell_lunge",
+    "name": "Barbell Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "lunge"
+    ]
+  },
+  {
+    "id": "barbell_push_press",
+    "name": "Barbell Push Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "press",
+      "push"
+    ]
+  },
+  {
+    "id": "barbell_reverse_lunge",
+    "name": "Barbell Reverse Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "lunge",
+      "reverse"
+    ]
+  },
+  {
+    "id": "barbell_romanian_deadlift",
+    "name": "Barbell Romanian Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "deadlift",
+      "romanian"
+    ]
+  },
+  {
+    "id": "barbell_row",
+    "name": "Barbell Row",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PULL",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "BACK"
+    ],
+    "secondaryMuscles": [
+      "LATS",
+      "BICEPS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "row"
+    ]
+  },
+  {
+    "id": "barbell_shrug",
+    "name": "Barbell Shrug",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "shrug"
+    ]
+  },
+  {
+    "id": "barbell_snatch",
+    "name": "Barbell Snatch",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "snatch"
+    ]
+  },
+  {
+    "id": "barbell_split_squat",
+    "name": "Barbell Split Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "split",
+      "squat"
+    ]
+  },
+  {
+    "id": "barbell_squat",
+    "name": "Barbell Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "squat"
+    ]
+  },
+  {
+    "id": "barbell_step_up",
+    "name": "Barbell Step Up",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "step",
+      "up"
+    ]
+  },
+  {
+    "id": "barbell_thruster",
+    "name": "Barbell Thruster",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "thruster"
+    ]
+  },
+  {
+    "id": "barbell_walking_lunge",
+    "name": "Barbell Walking Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "lunge",
+      "walking"
+    ]
+  },
+  {
+    "id": "bench_dip",
+    "name": "Bench Dip",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bench",
+      "dip"
+    ]
+  },
+  {
+    "id": "bench_press",
+    "name": "Bench Press",
+    "aliases": [
+      "BB Bench",
+      "Barbell Bench"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "CHEST"
+    ],
+    "secondaryMuscles": [
+      "TRICEPS",
+      "SHOULDERS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "barbell",
+      "bb",
+      "bench",
+      "press"
+    ]
+  },
+  {
+    "id": "block_deadlift",
+    "name": "Block Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "block",
+      "deadlift"
+    ]
+  },
+  {
+    "id": "block_pull",
+    "name": "Block Pull",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HINGE",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "block",
+      "pull"
+    ]
+  },
+  {
+    "id": "box_squat",
+    "name": "Box Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "box",
+      "squat"
+    ]
+  },
+  {
+    "id": "box_step_up",
+    "name": "Box Step Up",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "STEP_UP",
+    "equipment": [
+      "BOX"
+    ],
+    "primaryMuscles": [
+      "GLUTES",
+      "QUADRICEPS"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "box",
+      "step",
+      "up"
+    ]
+  },
+  {
+    "id": "brisk_walk",
+    "name": "Brisk Walk",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "brisk",
+      "walk"
+    ]
+  },
+  {
+    "id": "bulgarian_split_squat",
+    "name": "Bulgarian Split Squat",
+    "aliases": [
+      "Bulgarian",
+      "Bulgarian Lunge",
+      "Rear Foot Elevated Split Squat",
+      "RFESS"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "SINGLE_LEG_SQUAT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "QUADRICEPS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bulgarian",
+      "elevated",
+      "foot",
+      "lunge",
+      "rear",
+      "rfess",
+      "split",
+      "squat"
+    ]
+  },
+  {
+    "id": "cable_chop",
+    "name": "Cable Chop",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "chop"
+    ]
+  },
+  {
+    "id": "cable_crossover",
+    "name": "Cable Crossover",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "crossover"
+    ]
+  },
+  {
+    "id": "cable_curl",
+    "name": "Cable Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "curl"
+    ]
+  },
+  {
+    "id": "cable_external_rotation",
+    "name": "Cable External Rotation",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "ROTATION",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "external",
+      "rotation"
+    ]
+  },
+  {
+    "id": "cable_face_pull",
+    "name": "Cable Face Pull",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PULL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "face",
+      "pull"
+    ]
+  },
+  {
+    "id": "cable_fly",
+    "name": "Cable Fly",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "fly"
+    ]
+  },
+  {
+    "id": "cable_lateral_raise",
+    "name": "Cable Lateral Raise",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "lateral",
+      "raise"
+    ]
+  },
+  {
+    "id": "cable_lift",
+    "name": "Cable Lift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "lift"
+    ]
+  },
+  {
+    "id": "cable_pallof_press",
+    "name": "Cable Pallof Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "CABLE"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "pallof",
+      "press"
+    ]
+  },
+  {
+    "id": "cable_press",
+    "name": "Cable Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "CABLE"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "press"
+    ]
+  },
+  {
+    "id": "cable_pull_through",
+    "name": "Cable Pull Through",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HIP_EXTENSION",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "pull",
+      "through"
+    ]
+  },
+  {
+    "id": "cable_rear_delt_fly",
+    "name": "Cable Rear Delt Fly",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "delt",
+      "fly",
+      "rear"
+    ]
+  },
+  {
+    "id": "cable_triceps_extension",
+    "name": "Cable Triceps Extension",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "ELBOW_EXTENSION",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "extension",
+      "triceps"
+    ]
+  },
+  {
+    "id": "cable_wood_chop",
+    "name": "Cable Wood Chop",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "CABLE"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "chop",
+      "wood"
+    ]
+  },
+  {
+    "id": "chest_fly",
+    "name": "Chest Fly",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "chest",
+      "fly"
+    ]
+  },
+  {
+    "id": "chest_press_machine",
+    "name": "Chest Press Machine",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "chest",
+      "machine",
+      "press"
+    ]
+  },
+  {
+    "id": "chest_supported_row",
+    "name": "Chest Supported Row",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PULL",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "BACK"
+    ],
+    "secondaryMuscles": [
+      "BICEPS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "chest",
+      "row",
+      "supported"
+    ]
+  },
+  {
+    "id": "clean_and_press",
+    "name": "Clean and Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "and",
+      "clean",
+      "press"
+    ]
+  },
+  {
+    "id": "clean_pull",
+    "name": "Clean Pull",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "clean",
+      "pull"
+    ]
+  },
+  {
+    "id": "close_grip_bench_press",
+    "name": "Close Grip Bench Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "TRICEPS",
+      "CHEST"
+    ],
+    "secondaryMuscles": [
+      "SHOULDERS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bench",
+      "close",
+      "grip",
+      "press"
+    ]
+  },
+  {
+    "id": "close_grip_lat_pulldown",
+    "name": "Close Grip Lat Pulldown",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VERTICAL_PULL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "close",
+      "grip",
+      "lat",
+      "pulldown"
+    ]
+  },
+  {
+    "id": "close_grip_push_up",
+    "name": "Close Grip Push Up",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "close",
+      "grip",
+      "push",
+      "up"
+    ]
+  },
+  {
+    "id": "concentration_curl",
+    "name": "Concentration Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "concentration",
+      "curl"
+    ]
+  },
+  {
+    "id": "cossack_squat",
+    "name": "Cossack Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "LATERAL_SQUAT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cossack",
+      "squat"
+    ]
+  },
+  {
+    "id": "curtsy_lunge",
+    "name": "Curtsy Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "LUNGE",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curtsy",
+      "lunge"
+    ]
+  },
+  {
+    "id": "deadlift",
+    "name": "Deadlift",
+    "aliases": [
+      "DL"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "HINGE",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "HAMSTRINGS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "BACK",
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deadlift",
+      "dl"
+    ]
+  },
+  {
+    "id": "decline_bench_press",
+    "name": "Decline Bench Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bench",
+      "decline",
+      "press"
+    ]
+  },
+  {
+    "id": "deficit_deadlift",
+    "name": "Deficit Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HINGE",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deadlift",
+      "deficit"
+    ]
+  },
+  {
+    "id": "devil_press",
+    "name": "Devil Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "devil",
+      "press"
+    ]
+  },
+  {
+    "id": "dip",
+    "name": "Dip",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dip"
+    ]
+  },
+  {
+    "id": "dumbbell_back_squat",
+    "name": "Dumbbell Back Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "back",
+      "dumbbell",
+      "squat"
+    ]
+  },
+  {
+    "id": "dumbbell_bench_press",
+    "name": "Dumbbell Bench Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "CHEST"
+    ],
+    "secondaryMuscles": [
+      "TRICEPS",
+      "SHOULDERS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bench",
+      "dumbbell",
+      "press"
+    ]
+  },
+  {
+    "id": "dumbbell_carry",
+    "name": "Dumbbell Carry",
+    "aliases": [
+      "DB Carry"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "carry",
+      "db",
+      "dumbbell"
+    ]
+  },
+  {
+    "id": "dumbbell_curl",
+    "name": "Dumbbell Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "ELBOW_FLEXION",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "BICEPS"
+    ],
+    "secondaryMuscles": [
+      "FOREARMS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "dumbbell"
+    ]
+  },
+  {
+    "id": "dumbbell_deadlift",
+    "name": "Dumbbell Deadlift",
+    "aliases": [
+      "DB Deadlift"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "db",
+      "deadlift",
+      "dumbbell"
+    ]
+  },
+  {
+    "id": "dumbbell_fly",
+    "name": "Dumbbell Fly",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "fly"
+    ]
+  },
+  {
+    "id": "dumbbell_front_squat",
+    "name": "Dumbbell Front Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "front",
+      "squat"
+    ]
+  },
+  {
+    "id": "dumbbell_hammer_curl",
+    "name": "Dumbbell Hammer Curl",
+    "aliases": [
+      "DB Hammer Curl"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "db",
+      "dumbbell",
+      "hammer"
+    ]
+  },
+  {
+    "id": "dumbbell_hip_thrust",
+    "name": "Dumbbell Hip Thrust",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "hip",
+      "thrust"
+    ]
+  },
+  {
+    "id": "dumbbell_lateral_lunge",
+    "name": "Dumbbell Lateral Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "lateral",
+      "lunge"
+    ]
+  },
+  {
+    "id": "dumbbell_lateral_raise",
+    "name": "Dumbbell Lateral Raise",
+    "aliases": [
+      "DB Lateral Raise"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "db",
+      "dumbbell",
+      "lateral",
+      "raise"
+    ]
+  },
+  {
+    "id": "dumbbell_lunge",
+    "name": "Dumbbell Lunge",
+    "aliases": [
+      "DB Lunge"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "db",
+      "dumbbell",
+      "lunge"
+    ]
+  },
+  {
+    "id": "dumbbell_overhead_press",
+    "name": "Dumbbell Overhead Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "overhead",
+      "press"
+    ]
+  },
+  {
+    "id": "dumbbell_push_press",
+    "name": "Dumbbell Push Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "press",
+      "push"
+    ]
+  },
+  {
+    "id": "dumbbell_rear_delt_fly",
+    "name": "Dumbbell Rear Delt Fly",
+    "aliases": [
+      "DB Rear Delt Fly"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "db",
+      "delt",
+      "dumbbell",
+      "fly",
+      "rear"
+    ]
+  },
+  {
+    "id": "dumbbell_reverse_lunge",
+    "name": "Dumbbell Reverse Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "lunge",
+      "reverse"
+    ]
+  },
+  {
+    "id": "dumbbell_romanian_deadlift",
+    "name": "Dumbbell Romanian Deadlift",
+    "aliases": [
+      "DB Romanian Deadlift"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "db",
+      "deadlift",
+      "dumbbell",
+      "romanian"
+    ]
+  },
+  {
+    "id": "dumbbell_row",
+    "name": "Dumbbell Row",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "row"
+    ]
+  },
+  {
+    "id": "dumbbell_shoulder_press",
+    "name": "Dumbbell Shoulder Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VERTICAL_PUSH",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "SHOULDERS"
+    ],
+    "secondaryMuscles": [
+      "TRICEPS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "press",
+      "shoulder"
+    ]
+  },
+  {
+    "id": "dumbbell_shrug",
+    "name": "Dumbbell Shrug",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "shrug"
+    ]
+  },
+  {
+    "id": "dumbbell_split_jerk",
+    "name": "Dumbbell Split Jerk",
+    "aliases": [
+      "DB Split Jerk"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "db",
+      "dumbbell",
+      "jerk",
+      "split"
+    ]
+  },
+  {
+    "id": "dumbbell_split_squat",
+    "name": "Dumbbell Split Squat",
+    "aliases": [
+      "DB Split Squat"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "db",
+      "dumbbell",
+      "split",
+      "squat"
+    ]
+  },
+  {
+    "id": "dumbbell_squat",
+    "name": "Dumbbell Squat",
+    "aliases": [
+      "DB Squat"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "db",
+      "dumbbell",
+      "squat"
+    ]
+  },
+  {
+    "id": "dumbbell_step_up",
+    "name": "Dumbbell Step Up",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "step",
+      "up"
+    ]
+  },
+  {
+    "id": "dumbbell_swing",
+    "name": "Dumbbell Swing",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "swing"
+    ]
+  },
+  {
+    "id": "dumbbell_thruster",
+    "name": "Dumbbell Thruster",
+    "aliases": [
+      "DB Thruster"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "db",
+      "dumbbell",
+      "thruster"
+    ]
+  },
+  {
+    "id": "dumbbell_walking_lunge",
+    "name": "Dumbbell Walking Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "lunge",
+      "walking"
+    ]
+  },
+  {
+    "id": "external_rotation",
+    "name": "External Rotation",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "external",
+      "rotation"
+    ]
+  },
+  {
+    "id": "face_pull",
+    "name": "Face Pull",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PULL",
+    "equipment": [
+      "CABLE"
+    ],
+    "primaryMuscles": [
+      "REAR_DELTS"
+    ],
+    "secondaryMuscles": [
+      "TRAPS",
+      "ROTATOR_CUFF"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "face",
+      "pull"
+    ]
+  },
+  {
+    "id": "farmer_hold",
+    "name": "Farmer Hold",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "CARRY",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "GRIP",
+      "TRAPS"
+    ],
+    "secondaryMuscles": [
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "farmer",
+      "hold"
+    ]
+  },
+  {
+    "id": "floor_press",
+    "name": "Floor Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "floor",
+      "press"
+    ]
+  },
+  {
+    "id": "forward_lunge",
+    "name": "Forward Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "LUNGE",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "QUADRICEPS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "forward",
+      "lunge"
+    ]
+  },
+  {
+    "id": "front_rack_lunge",
+    "name": "Front Rack Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "front",
+      "lunge",
+      "rack"
+    ]
+  },
+  {
+    "id": "front_rack_split_squat",
+    "name": "Front Rack Split Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "front",
+      "rack",
+      "split",
+      "squat"
+    ]
+  },
+  {
+    "id": "front_squat",
+    "name": "Front Squat",
+    "aliases": [
+      "Front Rack Squat"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "SQUAT",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "QUADRICEPS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "front",
+      "rack",
+      "squat"
+    ]
+  },
+  {
+    "id": "glute_bridge",
+    "name": "Glute Bridge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HIP_EXTENSION",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bridge",
+      "glute"
+    ]
+  },
+  {
+    "id": "goblet_squat",
+    "name": "Goblet Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "SQUAT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "QUADRICEPS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "goblet",
+      "squat"
+    ]
+  },
+  {
+    "id": "good_morning",
+    "name": "Good Morning",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "good",
+      "morning"
+    ]
+  },
+  {
+    "id": "hack_squat",
+    "name": "Hack Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hack",
+      "squat"
+    ]
+  },
+  {
+    "id": "hammer_curl",
+    "name": "Hammer Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "ELBOW_FLEXION",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "BICEPS"
+    ],
+    "secondaryMuscles": [
+      "FOREARMS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "hammer"
+    ]
+  },
+  {
+    "id": "handstand_push_up",
+    "name": "Handstand Push Up",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "handstand",
+      "push",
+      "up"
+    ]
+  },
+  {
+    "id": "hang_clean",
+    "name": "Hang Clean",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "clean",
+      "hang"
+    ]
+  },
+  {
+    "id": "hang_snatch",
+    "name": "Hang Snatch",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hang",
+      "snatch"
+    ]
+  },
+  {
+    "id": "high_bar_back_squat",
+    "name": "High Bar Back Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "back",
+      "bar",
+      "high",
+      "squat"
+    ]
+  },
+  {
+    "id": "hiking",
+    "name": "Hiking",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hiking"
+    ]
+  },
+  {
+    "id": "hip_thrust",
+    "name": "Hip Thrust",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HIP_EXTENSION",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hip",
+      "thrust"
+    ]
+  },
+  {
+    "id": "incline_bench_press",
+    "name": "Incline Bench Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "CHEST"
+    ],
+    "secondaryMuscles": [
+      "SHOULDERS",
+      "TRICEPS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bench",
+      "incline",
+      "press"
+    ]
+  },
+  {
+    "id": "incline_dumbbell_curl",
+    "name": "Incline Dumbbell Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "dumbbell",
+      "incline"
+    ]
+  },
+  {
+    "id": "incline_dumbbell_press",
+    "name": "Incline Dumbbell Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "CHEST"
+    ],
+    "secondaryMuscles": [
+      "SHOULDERS",
+      "TRICEPS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dumbbell",
+      "incline",
+      "press"
+    ]
+  },
+  {
+    "id": "internal_rotation",
+    "name": "Internal Rotation",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "internal",
+      "rotation"
+    ]
+  },
+  {
+    "id": "jefferson_squat",
+    "name": "Jefferson Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "SQUAT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "jefferson",
+      "squat"
+    ]
+  },
+  {
+    "id": "kettlebell_carry",
+    "name": "Kettlebell Carry",
+    "aliases": [
+      "KB Carry"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "carry",
+      "kb",
+      "kettlebell"
+    ]
+  },
+  {
+    "id": "kettlebell_clean",
+    "name": "Kettlebell Clean",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "OLYMPIC_PULL",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS",
+      "SHOULDERS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "clean",
+      "kettlebell"
+    ]
+  },
+  {
+    "id": "kettlebell_deadlift",
+    "name": "Kettlebell Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deadlift",
+      "kettlebell"
+    ]
+  },
+  {
+    "id": "kettlebell_goblet_squat",
+    "name": "Kettlebell Goblet Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "goblet",
+      "kettlebell",
+      "squat"
+    ]
+  },
+  {
+    "id": "kettlebell_good_morning",
+    "name": "Kettlebell Good Morning",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "good",
+      "kettlebell",
+      "morning"
+    ]
+  },
+  {
+    "id": "kettlebell_lunge",
+    "name": "Kettlebell Lunge",
+    "aliases": [
+      "KB Lunge"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "kb",
+      "kettlebell",
+      "lunge"
+    ]
+  },
+  {
+    "id": "kettlebell_push_press",
+    "name": "Kettlebell Push Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "kettlebell",
+      "press",
+      "push"
+    ]
+  },
+  {
+    "id": "kettlebell_reverse_lunge",
+    "name": "Kettlebell Reverse Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "kettlebell",
+      "lunge",
+      "reverse"
+    ]
+  },
+  {
+    "id": "kettlebell_romanian_deadlift",
+    "name": "Kettlebell Romanian Deadlift",
+    "aliases": [
+      "KB Romanian Deadlift"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deadlift",
+      "kb",
+      "kettlebell",
+      "romanian"
+    ]
+  },
+  {
+    "id": "kettlebell_row",
+    "name": "Kettlebell Row",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "kettlebell",
+      "row"
+    ]
+  },
+  {
+    "id": "kettlebell_shoulder_press",
+    "name": "Kettlebell Shoulder Press",
+    "aliases": [
+      "KB Shoulder Press"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "kb",
+      "kettlebell",
+      "press",
+      "shoulder"
+    ]
+  },
+  {
+    "id": "kettlebell_snatch",
+    "name": "Kettlebell Snatch",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "OLYMPIC_PULL",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "SHOULDERS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "kettlebell",
+      "snatch"
+    ]
+  },
+  {
+    "id": "kettlebell_split_squat",
+    "name": "Kettlebell Split Squat",
+    "aliases": [
+      "KB Split Squat"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "kb",
+      "kettlebell",
+      "split",
+      "squat"
+    ]
+  },
+  {
+    "id": "kettlebell_swing",
+    "name": "Kettlebell Swing",
+    "aliases": [
+      "KB Swing",
+      "KB Swings"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "HINGE",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "GLUTES",
+      "HAMSTRINGS"
+    ],
+    "secondaryMuscles": [
+      "CORE",
+      "SHOULDERS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "kb",
+      "kettlebell",
+      "swing",
+      "swings"
+    ]
+  },
+  {
+    "id": "kettlebell_thruster",
+    "name": "Kettlebell Thruster",
+    "aliases": [
+      "KB Thruster"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "kb",
+      "kettlebell",
+      "thruster"
+    ]
+  },
+  {
+    "id": "landmine_press",
+    "name": "Landmine Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "landmine",
+      "press"
+    ]
+  },
+  {
+    "id": "lat_pulldown",
+    "name": "Lat Pulldown",
+    "aliases": [
+      "Lat Pull Down",
+      "Pulldowns"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VERTICAL_PULL",
+    "equipment": [
+      "CABLE"
+    ],
+    "primaryMuscles": [
+      "LATS"
+    ],
+    "secondaryMuscles": [
+      "BICEPS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "down",
+      "lat",
+      "pull",
+      "pulldown",
+      "pulldowns"
+    ]
+  },
+  {
+    "id": "lateral_lunge",
+    "name": "Lateral Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "LATERAL_LUNGE",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "GLUTES",
+      "ADDUCTORS"
+    ],
+    "secondaryMuscles": [
+      "QUADRICEPS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "lateral",
+      "lunge"
+    ]
+  },
+  {
+    "id": "lateral_raise",
+    "name": "Lateral Raise",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "SHOULDER_ABDUCTION",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "SHOULDERS"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "lateral",
+      "raise"
+    ]
+  },
+  {
+    "id": "leg_curl",
+    "name": "Leg Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "leg"
+    ]
+  },
+  {
+    "id": "leg_extension",
+    "name": "Leg Extension",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "extension",
+      "leg"
+    ]
+  },
+  {
+    "id": "leg_press",
+    "name": "Leg Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "leg",
+      "press"
+    ]
+  },
+  {
+    "id": "low_bar_back_squat",
+    "name": "Low Bar Back Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "back",
+      "bar",
+      "low",
+      "squat"
+    ]
+  },
+  {
+    "id": "lying_leg_curl",
+    "name": "Lying Leg Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "KNEE_FLEXION",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "leg",
+      "lying"
+    ]
+  },
+  {
+    "id": "man_maker",
+    "name": "Man Maker",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "maker",
+      "man"
+    ]
+  },
+  {
+    "id": "medicine_ball_chest_pass",
+    "name": "Medicine Ball Chest Pass",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "ball",
+      "chest",
+      "medicine",
+      "pass"
+    ]
+  },
+  {
+    "id": "medicine_ball_rotational_throw",
+    "name": "Medicine Ball Rotational Throw",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "ball",
+      "medicine",
+      "rotational",
+      "throw"
+    ]
+  },
+  {
+    "id": "medicine_ball_slam",
+    "name": "Medicine Ball Slam",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "ball",
+      "medicine",
+      "slam"
+    ]
+  },
+  {
+    "id": "nordic_curl",
+    "name": "Nordic Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "KNEE_FLEXION",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "nordic"
+    ]
+  },
+  {
+    "id": "nordic_hamstring_curl",
+    "name": "Nordic Hamstring Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "hamstring",
+      "nordic"
+    ]
+  },
+  {
+    "id": "overhead_press",
+    "name": "Overhead Press",
+    "aliases": [
+      "OHP",
+      "Shoulder Press",
+      "Strict Press"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "VERTICAL_PUSH",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "SHOULDERS"
+    ],
+    "secondaryMuscles": [
+      "TRICEPS",
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "ohp",
+      "overhead",
+      "press",
+      "shoulder",
+      "strict"
+    ]
+  },
+  {
+    "id": "overhead_triceps_extension",
+    "name": "Overhead Triceps Extension",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "extension",
+      "overhead",
+      "triceps"
+    ]
+  },
+  {
+    "id": "pause_back_squat",
+    "name": "Pause Back Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "back",
+      "pause",
+      "squat"
+    ]
+  },
+  {
+    "id": "pause_bench_press",
+    "name": "Pause Bench Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bench",
+      "pause",
+      "press"
+    ]
+  },
+  {
+    "id": "pause_deadlift",
+    "name": "Pause Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deadlift",
+      "pause"
+    ]
+  },
+  {
+    "id": "pause_squat",
+    "name": "Pause Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "pause",
+      "squat"
+    ]
+  },
+  {
+    "id": "pec_deck",
+    "name": "Pec Deck",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deck",
+      "pec"
+    ]
+  },
+  {
+    "id": "pike_push_up",
+    "name": "Pike Push Up",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "pike",
+      "push",
+      "up"
+    ]
+  },
+  {
+    "id": "pin_press",
+    "name": "Pin Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "pin",
+      "press"
+    ]
+  },
+  {
+    "id": "pin_squat",
+    "name": "Pin Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "pin",
+      "squat"
+    ]
+  },
+  {
+    "id": "power_clean",
+    "name": "Power Clean",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "clean",
+      "power"
+    ]
+  },
+  {
+    "id": "preacher_curl",
+    "name": "Preacher Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "preacher"
+    ]
+  },
+  {
+    "id": "push_jerk",
+    "name": "Push Jerk",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "jerk",
+      "push"
+    ]
+  },
+  {
+    "id": "push_press",
+    "name": "Push Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VERTICAL_PUSH",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "SHOULDERS"
+    ],
+    "secondaryMuscles": [
+      "TRICEPS",
+      "QUADRICEPS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "press",
+      "push"
+    ]
+  },
+  {
+    "id": "rack_pull",
+    "name": "Rack Pull",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HINGE",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "pull",
+      "rack"
+    ]
+  },
+  {
+    "id": "rear_delt_fly",
+    "name": "Rear Delt Fly",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PULL",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "REAR_DELTS"
+    ],
+    "secondaryMuscles": [
+      "BACK"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "delt",
+      "fly",
+      "rear"
+    ]
+  },
+  {
+    "id": "recovery_walk",
+    "name": "Recovery Walk",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "recovery",
+      "walk"
+    ]
+  },
+  {
+    "id": "reverse_curl",
+    "name": "Reverse Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "reverse"
+    ]
+  },
+  {
+    "id": "reverse_fly",
+    "name": "Reverse Fly",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "fly",
+      "reverse"
+    ]
+  },
+  {
+    "id": "reverse_hyper",
+    "name": "Reverse Hyper",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HIP_EXTENSION",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hyper",
+      "reverse"
+    ]
+  },
+  {
+    "id": "reverse_hyperextension",
+    "name": "Reverse Hyperextension",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hyperextension",
+      "reverse"
+    ]
+  },
+  {
+    "id": "reverse_lunge",
+    "name": "Reverse Lunge",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "LUNGE",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "GLUTES",
+      "QUADRICEPS"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "lunge",
+      "reverse"
+    ]
+  },
+  {
+    "id": "romanian_deadlift",
+    "name": "Romanian Deadlift",
+    "aliases": [
+      "RDL",
+      "Romanian DL",
+      "Romanian dead lift"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "HINGE",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "HAMSTRINGS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "BACK"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "dead",
+      "deadlift",
+      "dl",
+      "lift",
+      "rdl",
+      "romanian"
+    ]
+  },
+  {
+    "id": "rope_triceps_pushdown",
+    "name": "Rope Triceps Pushdown",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "pushdown",
+      "rope",
+      "triceps"
+    ]
+  },
+  {
+    "id": "safety_bar_squat",
+    "name": "Safety Bar Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "SQUAT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bar",
+      "safety",
+      "squat"
+    ]
+  },
+  {
+    "id": "seal_row",
+    "name": "Seal Row",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PULL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "row",
+      "seal"
+    ]
+  },
+  {
+    "id": "seated_cable_row",
+    "name": "Seated Cable Row",
+    "aliases": [
+      "Cable Row",
+      "Seated Row"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PULL",
+    "equipment": [
+      "CABLE"
+    ],
+    "primaryMuscles": [
+      "BACK"
+    ],
+    "secondaryMuscles": [
+      "BICEPS",
+      "LATS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "row",
+      "seated"
+    ]
+  },
+  {
+    "id": "seated_calf_raise",
+    "name": "Seated Calf Raise",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "calf",
+      "raise",
+      "seated"
+    ]
+  },
+  {
+    "id": "seated_leg_curl",
+    "name": "Seated Leg Curl",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "KNEE_FLEXION",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "curl",
+      "leg",
+      "seated"
+    ]
+  },
+  {
+    "id": "shrug",
+    "name": "Shrug",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "shrug"
+    ]
+  },
+  {
+    "id": "single_arm_dumbbell_row",
+    "name": "Single Arm Dumbbell Row",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "arm",
+      "dumbbell",
+      "row",
+      "single"
+    ]
+  },
+  {
+    "id": "single_arm_farmer_carry",
+    "name": "Single Arm Farmer Carry",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "arm",
+      "carry",
+      "farmer",
+      "single"
+    ]
+  },
+  {
+    "id": "single_arm_kettlebell_row",
+    "name": "Single Arm Kettlebell Row",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "arm",
+      "kettlebell",
+      "row",
+      "single"
+    ]
+  },
+  {
+    "id": "single_arm_lat_pulldown",
+    "name": "Single Arm Lat Pulldown",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "arm",
+      "lat",
+      "pulldown",
+      "single"
+    ]
+  },
+  {
+    "id": "single_arm_overhead_press",
+    "name": "Single Arm Overhead Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "FULL_BODY"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "arm",
+      "overhead",
+      "press",
+      "single"
+    ]
+  },
+  {
+    "id": "single_leg_hip_thrust",
+    "name": "Single Leg Hip Thrust",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HIP_EXTENSION",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "hip",
+      "leg",
+      "single",
+      "thrust"
+    ]
+  },
+  {
+    "id": "single_leg_romanian_deadlift",
+    "name": "Single Leg Romanian Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "SINGLE_LEG_HINGE",
+    "equipment": [
+      "DUMBBELL"
+    ],
+    "primaryMuscles": [
+      "HAMSTRINGS",
+      "GLUTES"
+    ],
+    "secondaryMuscles": [
+      "CORE"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deadlift",
+      "leg",
+      "romanian",
+      "single"
+    ]
+  },
+  {
+    "id": "sissy_squat",
+    "name": "Sissy Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "SQUAT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "sissy",
+      "squat"
+    ]
+  },
+  {
+    "id": "skull_crusher",
+    "name": "Skull Crusher",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "ELBOW_EXTENSION",
+    "equipment": [
+      "BARBELL"
+    ],
+    "primaryMuscles": [
+      "TRICEPS"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "crusher",
+      "skull"
+    ]
+  },
+  {
+    "id": "smith_machine_squat",
+    "name": "Smith Machine Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "SQUAT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "machine",
+      "smith",
+      "squat"
+    ]
+  },
+  {
+    "id": "snatch_pull",
+    "name": "Snatch Pull",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "pull",
+      "snatch"
+    ]
+  },
+  {
+    "id": "spanish_squat",
+    "name": "Spanish Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "SQUAT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "spanish",
+      "squat"
+    ]
+  },
+  {
+    "id": "split_jerk",
+    "name": "Split Jerk",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "jerk",
+      "split"
+    ]
+  },
+  {
+    "id": "spoto_press",
+    "name": "Spoto Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PUSH",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "press",
+      "spoto"
+    ]
+  },
+  {
+    "id": "standing_calf_raise",
+    "name": "Standing Calf Raise",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "calf",
+      "raise",
+      "standing"
+    ]
+  },
+  {
+    "id": "step_up",
+    "name": "Step Up",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "STEP_UP",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "GLUTES",
+      "QUADRICEPS"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "step",
+      "up"
+    ]
+  },
+  {
+    "id": "stiff_leg_deadlift",
+    "name": "Stiff Leg Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HINGE",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deadlift",
+      "leg",
+      "stiff"
+    ]
+  },
+  {
+    "id": "straight_arm_pulldown",
+    "name": "Straight Arm Pulldown",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "arm",
+      "pulldown",
+      "straight"
+    ]
+  },
+  {
+    "id": "sumo_deadlift",
+    "name": "Sumo Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HINGE",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deadlift",
+      "sumo"
+    ]
+  },
+  {
+    "id": "t_bar_row",
+    "name": "T Bar Row",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HORIZONTAL_PULL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bar",
+      "row",
+      "t"
+    ]
+  },
+  {
+    "id": "tempo_back_squat",
+    "name": "Tempo Back Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "back",
+      "squat",
+      "tempo"
+    ]
+  },
+  {
+    "id": "tempo_bench_press",
+    "name": "Tempo Bench Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bench",
+      "press",
+      "tempo"
+    ]
+  },
+  {
+    "id": "tempo_deadlift",
+    "name": "Tempo Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VARIANT",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "deadlift",
+      "tempo"
+    ]
+  },
+  {
+    "id": "tempo_squat",
+    "name": "Tempo Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "squat",
+      "tempo"
+    ]
+  },
+  {
+    "id": "thoracic_rotation",
+    "name": "Thoracic Rotation",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "rotation",
+      "thoracic"
+    ]
+  },
+  {
+    "id": "thruster",
+    "name": "Thruster",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "thruster"
+    ]
+  },
+  {
+    "id": "tibialis_raise",
+    "name": "Tibialis Raise",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "raise",
+      "tibialis"
+    ]
+  },
+  {
+    "id": "trap_bar_deadlift",
+    "name": "Trap Bar Deadlift",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "HINGE",
+    "equipment": [
+      "TRAP_BAR"
+    ],
+    "primaryMuscles": [
+      "GLUTES",
+      "QUADRICEPS"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS",
+      "BACK"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "bar",
+      "deadlift",
+      "trap"
+    ]
+  },
+  {
+    "id": "triceps_pushdown",
+    "name": "Triceps Pushdown",
+    "aliases": [
+      "Tricep Pushdown",
+      "Cable Pushdown"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "ELBOW_EXTENSION",
+    "equipment": [
+      "CABLE"
+    ],
+    "primaryMuscles": [
+      "TRICEPS"
+    ],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "cable",
+      "pushdown",
+      "tricep",
+      "triceps"
+    ]
+  },
+  {
+    "id": "turkish_get_up",
+    "name": "Turkish Get Up",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "FULL_BODY",
+    "equipment": [
+      "KETTLEBELL"
+    ],
+    "primaryMuscles": [
+      "CORE",
+      "SHOULDERS"
+    ],
+    "secondaryMuscles": [
+      "GLUTES"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "get",
+      "turkish",
+      "up"
+    ]
+  },
+  {
+    "id": "v_up",
+    "name": "V Up",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "up",
+      "v"
+    ]
+  },
+  {
+    "id": "walking_lunge",
+    "name": "Walking Lunge",
+    "aliases": [
+      "Walking Lunges",
+      "DB Walking Lunge"
+    ],
+    "category": "STRENGTH",
+    "movementPattern": "LUNGE",
+    "equipment": [
+      "BODYWEIGHT"
+    ],
+    "primaryMuscles": [
+      "GLUTES",
+      "QUADRICEPS"
+    ],
+    "secondaryMuscles": [
+      "HAMSTRINGS"
+    ],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "db",
+      "lunge",
+      "lunges",
+      "walking"
+    ]
+  },
+  {
+    "id": "z_press",
+    "name": "Z Press",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "VERTICAL_PUSH",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "TIME",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "press",
+      "z"
+    ]
+  },
+  {
+    "id": "zercher_squat",
+    "name": "Zercher Squat",
+    "aliases": [],
+    "category": "STRENGTH",
+    "movementPattern": "GENERAL",
+    "equipment": [],
+    "primaryMuscles": [],
+    "secondaryMuscles": [],
+    "prescriptionTypes": [
+      "REPS",
+      "WEIGHT",
+      "RPE"
+    ],
+    "modalities": [
+      "STRENGTH"
+    ],
+    "source": "traintrack_curated_seed",
+    "searchTerms": [
+      "squat",
+      "zercher"
+    ]
+  }
+]

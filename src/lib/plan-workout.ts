@@ -42,7 +42,15 @@ export type PlanWorkoutDetail = {
   swimEnvironment: SwimEnvironment | null
   coachNotes: string | null
   coachNotesPrivate?: boolean
+  /** Display projection (v1 buckets; v2 is projected). */
   structure: WorkoutStructure | null
+  /** Original Workout.structure JSON (v1 or v2) for editor round-trip. */
+  structureRaw?: unknown
+  /**
+   * Exercise id → thumbnail URL for structure v2 rows.
+   * Filled by getPlanWorkoutDetail so the modal need not fetch icons separately.
+   */
+  exerciseThumbnails?: Record<string, string | null>
   swimStructure: SwimWorkoutStructure | null
   /** Compact Training-card silhouette (preferred over full structure on calendar). */
   structureDiagram?: import('@/lib/workout-builder/structure-diagram').StructureDiagramSnapshot | null
@@ -211,6 +219,7 @@ export function toPlanWorkoutDetail(w: {
     coachNotes: w.coachNotes,
     coachNotesPrivate: w.coachNotesPrivate ?? false,
     structure: w.structure ? parseStructure(w.structure) : null,
+    structureRaw: w.structure ?? undefined,
     swimStructure: w.swimStructure ? parseSwimStructure(w.swimStructure) : null,
     structureDiagram: readStructureDiagramSnapshot(w.structureDiagram),
     hasBuilderDetail:

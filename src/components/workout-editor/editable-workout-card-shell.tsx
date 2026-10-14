@@ -371,7 +371,7 @@ export function EditableWorkoutCardShell({
         <DropdownMenu.Content
           align="start"
           sideOffset={6}
-          className="z-[220] min-w-[10.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
+          className="pointer-events-auto z-[220] min-w-[10.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           {sportOptions!.map((sport) => {
@@ -401,8 +401,8 @@ export function EditableWorkoutCardShell({
   return (
     <div
       className={cn(
-        'tt-workout-hero relative rounded-none border-0 border-b border-white/[0.08] px-5 pb-5 pt-5 shadow-none sm:px-6',
-        'bg-[var(--tt-workout-hero-bg,#151827)] text-white/[0.92]',
+        'tt-workout-hero tt-workout-hero--dark relative rounded-none border-0 border-b border-white/[0.08] px-5 pb-5 pt-5 shadow-none sm:px-6',
+        'text-white/[0.92]',
         cornerSlot && 'pb-14',
         className,
       )}

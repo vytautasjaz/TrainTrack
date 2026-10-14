@@ -343,9 +343,24 @@ html[data-sidebar-collapsed='true'] {
 }
 
 /*
- * Same content box as the home shell: max-w 110rem + shell pad-x.
- * Day columns come from V2GridOverlay (identical tracks to page content).
+ * Radix Dialog sets `pointer-events: none` on body while open, then restores
+ * auto on the dialog content. Portaled menus/selects are body children, so they
+ * inherit none unless we force auto — otherwise clicks appear dead in modals.
  */
+[role='dialog'],
+[data-radix-dialog-content] {
+  pointer-events: auto;
+}
+
+body[style*='pointer-events: none'] [data-radix-dropdown-menu-content],
+body[style*='pointer-events: none'] [data-radix-select-content],
+body[style*='pointer-events: none'] [data-radix-popover-content],
+body[style*='pointer-events: none'] [data-radix-popper-content-wrapper],
+body[style*='pointer-events: none'] [role='menu'].pointer-events-auto {
+  pointer-events: auto;
+}
+
+/* Same content box as the home shell: max-w 110rem + shell pad-x. */
 .tt-app-top-nav-inner {
   position: relative;
   z-index: 1;
@@ -370,6 +385,7 @@ html[data-sidebar-collapsed='true'] {
   z-index: 1;
 }
 
+/* 7-day tracks: logo 1–2 · menu 3–5 · account 6–7 */
 .tt-app-top-nav-brand {
   grid-column: 1 / span 2;
   min-width: 0;
@@ -391,6 +407,26 @@ html[data-sidebar-collapsed='true'] {
   align-items: center;
   justify-content: flex-end;
   gap: 0.35rem;
+}
+
+/*
+ * Top nav grid: keep outer rails + group dividers only.
+ * Hide intra-group connectors (1|2, 3|4|5, 6|7).
+ * Group edges use the same double rail as day columns (right + left across gutter).
+ */
+.tt-v2-grid-overlay--top-nav .tt-v2-grid-overlay__days > span {
+  border-left: none;
+  border-right: none;
+}
+
+.tt-v2-grid-overlay--top-nav .tt-v2-grid-overlay__days > span:nth-child(2),
+.tt-v2-grid-overlay--top-nav .tt-v2-grid-overlay__days > span:nth-child(5) {
+  border-right: 1px solid var(--tt-v2-grid-line);
+}
+
+.tt-v2-grid-overlay--top-nav .tt-v2-grid-overlay__days > span:nth-child(3),
+.tt-v2-grid-overlay--top-nav .tt-v2-grid-overlay__days > span:nth-child(6) {
+  border-left: 1px solid var(--tt-v2-grid-line);
 }
 
 /*
@@ -2399,6 +2435,14 @@ body {
   /* Align with v2 charcoal nav / hero (#111315), not legacy blue-ink #151827 */
   --tt-home-hero-bg: var(--tt-v2-hero-bg, #111315);
   --tt-coach-hero-bg: var(--tt-home-hero-bg);
+  /* Workout modal hero tracks homepage hero exactly */
+  --tt-workout-hero-bg: var(--tt-home-hero-bg);
+}
+
+/* Dark workout modal / editor hero — same solid color as homepage hero */
+.tt-workout-hero--dark {
+  background-color: var(--tt-home-hero-bg, #111315);
+  background-image: none;
 }
 
 .tt-home-page,

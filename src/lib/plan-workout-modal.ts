@@ -2,14 +2,15 @@ import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import { isStravaSynced, type PlanWorkoutDetail } from '@/lib/plan-workout'
 
 /**
- * Coaches edit planned workouts in WorkoutEditorDialog.
- * Logged workouts open the read-only detail modal (results + athlete feedback).
+ * Whether the plan workout may be edited from the preview (Edit button).
+ * Coaches: planned coach sessions. Athletes: self-added sessions only.
+ * Completed / skipped / Strava / race / recovery stay preview-only.
  */
-export function coachOpensPlanWorkoutEditor(
+export function canEditPlanWorkout(
   isCoach: boolean,
   workout: PlanWorkoutDetail,
 ): boolean {
-  if (!isCoach || workout.isRace || workout.type === WorkoutType.RECOVERY) {
+  if (workout.isRace || workout.type === WorkoutType.RECOVERY) {
     return false
   }
   if (
@@ -19,5 +20,6 @@ export function coachOpensPlanWorkoutEditor(
   ) {
     return false
   }
-  return true
+  if (isCoach) return true
+  return Boolean(workout.selfLogged)
 }

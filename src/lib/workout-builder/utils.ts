@@ -6,11 +6,9 @@ import type {
   Segment,
   Target,
   WorkoutBlock,
-  WorkoutIncludeItem,
   WorkoutStructure,
 } from './types'
 import { defaultIntensityTargetType, formatTargetSummary, isBikeSport } from './target-helpers'
-import { normalizeIncludePlacement } from './include-placement'
 import {
   DEFAULT_DURATION_NOTATION,
   formatDurationQuantity,
@@ -273,52 +271,15 @@ export function formatBuilderBlockTimeLabel(
   return exact ? clock : `~${clock}`
 }
 
-export function parseStructure(raw: unknown): WorkoutStructure {
-  if (!raw || typeof raw !== 'object') return emptyStructure()
-  const s = raw as WorkoutStructure & { includeItems?: unknown; cardSummary?: unknown }
-  const includeItems: WorkoutIncludeItem[] = Array.isArray(s.includeItems)
-    ? s.includeItems
-      .filter((item): item is WorkoutIncludeItem => {
-        if (!item || typeof item !== 'object') return false
-        const candidate = item as Partial<WorkoutIncludeItem>
-        return (
-          typeof candidate.id === 'string' &&
-          typeof candidate.title === 'string' &&
-          typeof candidate.kind === 'string' &&
-          typeof candidate.repetitions === 'number' &&
-          candidate.work != null
-        )
-      })
-      .map((item) => ({
-        ...item,
-        repetitions: Math.max(1, Math.round(item.repetitions)),
-        placementHint: normalizeIncludePlacement(item.placementHint),
-      }))
-    : []
-  return {
-    warmup: Array.isArray(s.warmup) ? s.warmup : [],
-    mainSet: Array.isArray(s.mainSet) ? s.mainSet : [],
-    cooldown: Array.isArray(s.cooldown) ? s.cooldown : [],
-    coachNotes: s.coachNotes,
-    includeItems,
-    cardSummary:
-      s.cardSummary && typeof s.cardSummary === 'object'
-        ? {
-            essence:
-              typeof (s.cardSummary as { essence?: unknown }).essence === 'string'
-                ? (s.cardSummary as { essence: string }).essence
-                : undefined,
-            highlightedBlockIds: Array.isArray(
-              (s.cardSummary as { highlightedBlockIds?: unknown }).highlightedBlockIds,
-            )
-              ? (s.cardSummary as { highlightedBlockIds: unknown[] }).highlightedBlockIds.filter(
-                  (id): id is string => typeof id === 'string',
-                )
-              : undefined,
-          }
-        : undefined,
-  }
-}
+/**
+ * Parse stored Workout.structure JSON into v1 buckets for legacy readers.
+ * v2 structures are projected to temporary FREE_TEXT / CONTINUOUS buckets.
+ */
+export {
+  parseStructureForDisplay as parseStructure,
+  parseStructureV1,
+  hasStructureContentRaw,
+} from './structure-compat'
 
 export function defaultBuilderWorkout(
   sportType: WorkoutType = 'RUN',

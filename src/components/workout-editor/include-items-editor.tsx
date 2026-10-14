@@ -486,7 +486,7 @@ export function IncludeItemsEditor({
             <span className="truncate">{preset.label}</span>
           </button>
         ))}
-        <DropdownMenu.Root>
+        <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger
             type="button"
             className={cn(

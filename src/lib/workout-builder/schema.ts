@@ -1,6 +1,7 @@
 import { SessionType, WorkoutType } from '@prisma/client'
 import { z } from 'zod'
 import { INCLUDE_PLACEMENTS, normalizeIncludePlacement } from '@/lib/workout-builder/include-placement'
+import { workoutStructureV2Schema } from '@/lib/workout-builder/structure-v2'
 
 const segmentSchema = z.object({
   mode: z.enum(['time', 'distance']),
@@ -81,6 +82,12 @@ export const workoutStructureSchema = z.object({
   includeItems: z.array(includeItemSchema).optional(),
 })
 
+/** Accepts legacy v1 buckets or versioned v2 sections. */
+export const workoutStructureAnySchema = z.union([
+  workoutStructureV2Schema,
+  workoutStructureSchema,
+])
+
 export const builderPayloadSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
@@ -89,7 +96,7 @@ export const builderPayloadSchema = z.object({
   scheduledDate: z.string().optional(),
   tags: z.array(z.string()),
   estimatedDuration: z.number().int().nonnegative().optional(),
-  structure: workoutStructureSchema,
+  structure: workoutStructureAnySchema,
 })
 
 export type BuilderPayload = z.infer<typeof builderPayloadSchema>

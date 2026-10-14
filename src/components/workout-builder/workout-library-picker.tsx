@@ -242,8 +242,17 @@ function TemplateBrowser({
         )}
       >
         {filtered.length === 0 ? (
-          <li className="list-none px-1 py-6 text-center text-xs text-[var(--tt-ink-faint,#9a9a9a)]">
-            {templates.length === 0 ? 'No templates yet' : 'No templates match.'}
+          <li className="list-none px-1 py-8 text-center">
+            <p className="text-[13px] font-medium text-[var(--tt-ink,#111)]">
+              {templates.length === 0
+                ? 'Library is empty'
+                : 'No templates match'}
+            </p>
+            <p className="mt-1 text-[12px] leading-snug text-[var(--tt-ink-soft,#6b6b6b)]">
+              {templates.length === 0
+                ? 'Save a workout with “Save to library” and it will show up here.'
+                : 'Try another sport, folder, or search.'}
+            </p>
           </li>
         ) : (
           filtered.map((template) => {

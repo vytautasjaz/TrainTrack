@@ -3,6 +3,7 @@
 import { MessageSquare } from "lucide-react";
 import { WorkoutStatus } from "@prisma/client";
 import { WorkoutStructureChart } from "@/components/workout-builder/workout-structure-chart";
+import { sportUsesStructureChart } from "@/components/plan/workout-card-diagram";
 import { hasIncludeItems, hasStructureContent } from "@/lib/workout-builder/utils";
 import { StravaSyncedIndicator } from "@/components/plan/strava-synced-indicator";
 import { IncludeItemsSummary } from "@/components/workout-editor/include-items-summary";
@@ -166,6 +167,7 @@ export function WorkoutPlanDetails({
       )}
 
       {workout.structure &&
+        sportUsesStructureChart(workout.type) &&
         (hasStructureContent(workout.structure) ||
           hasIncludeItems(workout.structure)) && (
         <WorkoutStructureChart

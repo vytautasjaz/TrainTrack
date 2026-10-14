@@ -12,6 +12,7 @@ import {
   saveCoachEngineWorkoutStructure,
   type CoachEngineWorkoutAdminRow,
 } from '@/lib/coach-engine/library-store'
+import { prepareStructureForPersist } from '@/lib/workout-builder/structure-compat'
 import { hasStructureContent, parseStructure } from '@/lib/workout-builder/utils'
 import type { WorkoutStructure } from '@/lib/workout-builder/types'
 import type { SwimWorkoutStructure } from '@/lib/swim-workout/types'
@@ -169,7 +170,7 @@ export async function adminSaveCoachEngineWorkoutBuilder(
     sportType: WorkoutType
     sessionType: SessionType
     tags?: string[]
-    structure?: WorkoutStructure
+    structure?: WorkoutStructure | unknown
     swimStructure?: SwimWorkoutStructure | null
     estimatedDuration?: number
     estimatedDistanceKm?: number | null
@@ -179,10 +180,10 @@ export async function adminSaveCoachEngineWorkoutBuilder(
   const id = libraryId.trim()
   if (!id) throw new Error('Library workout id required')
 
-  const structure =
-    payload.structure && hasStructureContent(payload.structure)
-      ? payload.structure
-      : null
+  const prepared = prepareStructureForPersist(payload.structure)
+  const structure = prepared.shouldSave
+    ? (prepared.stored as WorkoutStructure)
+    : null
   const swimStructure =
     payload.swimStructure && hasSwimStructureContent(payload.swimStructure)
       ? payload.swimStructure
@@ -197,7 +198,8 @@ export async function adminSaveCoachEngineWorkoutBuilder(
     durationMin: payload.estimatedDuration ?? undefined,
     distanceKm: payload.estimatedDistanceKm ?? undefined,
     tags: payload.tags,
-    structure,
+    // Prisma JSON — v1 buckets or v2 sections
+    structure: structure as WorkoutStructure | null,
     swimStructure,
   })
   revalidatePath('/admin/ai-library')

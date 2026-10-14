@@ -32,6 +32,7 @@ const FLOATING_UI_SELECTOR = [
   "[data-tt-date-field-backdrop]",
   "[data-tt-activity-map-overlay]",
   "[data-tt-weather-hours-panel]",
+  "[data-tt-exercise-preview]",
   "[data-radix-dropdown-menu-content]",
   "[data-radix-select-content]",
   "[data-radix-popover-content]",
