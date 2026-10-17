@@ -161,7 +161,8 @@ function SwimSetRow({
             <DropdownMenu.Content
               align="end"
               sideOffset={4}
-              className="z-[220] min-w-[10rem] rounded-[6px] border border-border bg-card p-1 shadow-md"
+              data-tt-floating-ui=""
+              className="pointer-events-auto z-[250] min-w-[10rem] rounded-[6px] border border-border bg-card p-1 shadow-md"
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
               <DropdownMenu.Item

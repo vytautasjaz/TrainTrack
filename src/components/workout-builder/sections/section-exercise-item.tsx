@@ -70,6 +70,14 @@ export function SectionExerciseItem({
           library={library}
           searchContext={searchContext}
           showHeaders={showHeaders}
+          rest={block.rest}
+          onRestChange={(nextRest) =>
+            onChange({
+              ...block,
+              type: 'EXERCISE',
+              rest: nextRest,
+            })
+          }
           onChange={(next) =>
             onChange({
               ...block,

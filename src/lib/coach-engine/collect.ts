@@ -1,4 +1,4 @@
-import { WorkoutStatus, type WorkoutType } from '@prisma/client'
+import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import { subWeeks } from 'date-fns'
 import { prisma } from '@/lib/prisma'
 import { todayDateOnly, toDateKey } from '@/lib/dates'
@@ -7,6 +7,10 @@ import type {
   CollectedSession,
   CollectedWeek,
 } from '@/lib/coach-engine/types'
+import {
+  aggregateStreamFeatures,
+  extractSessionStreamFeatures,
+} from '@/lib/coach-engine/physiology/stream-features'
 
 function round1(n: number | null | undefined): number | null {
   if (n == null || !Number.isFinite(n)) return null
@@ -73,6 +77,7 @@ export function emptyCollectedAthleteData(
     races: [],
     recentSessions: [],
     weekSummaries: [],
+    streamFeatures: null,
   }
 }
 
@@ -138,6 +143,7 @@ export async function collectAthleteData(
             actualDistance: true,
             actualDuration: true,
             rpe: true,
+            stravaStreamsCache: true,
           },
         },
       },
@@ -153,6 +159,9 @@ export async function collectAthleteData(
       skipped: number
       plannedDistanceKm: number
       completedDistanceKm: number
+      runPlanned: number
+      runCompleted: number
+      runDays: Set<string>
       estimatedTss: number
     }
   >()
@@ -168,6 +177,7 @@ export async function collectAthleteData(
       rpe: w.result?.rpe ?? null,
       type: w.type,
     })
+    const isRun = w.type === WorkoutType.RUN
 
     if (recentSessions.length < maxSessions) {
       recentSessions.push({
@@ -181,6 +191,7 @@ export async function collectAthleteData(
         actualDurationMin: w.result?.actualDuration ?? null,
         rpe: w.result?.rpe ?? null,
         estimatedTss: tss,
+        stravaStreamsCache: w.result?.stravaStreamsCache ?? null,
       })
     }
 
@@ -191,13 +202,24 @@ export async function collectAthleteData(
       skipped: 0,
       plannedDistanceKm: 0,
       completedDistanceKm: 0,
+      runPlanned: 0,
+      runCompleted: 0,
+      runDays: new Set<string>(),
       estimatedTss: 0,
     }
     bucket.planned += 1
     if (w.status === WorkoutStatus.COMPLETED) bucket.completed += 1
     if (w.status === WorkoutStatus.SKIPPED) bucket.skipped += 1
-    bucket.plannedDistanceKm += w.plannedDistance ?? 0
-    bucket.completedDistanceKm += w.result?.actualDistance ?? 0
+    // Distance fields are RUN-only — bike/swim km must not inflate APM volume.
+    if (isRun) {
+      bucket.runPlanned += 1
+      if (w.status === WorkoutStatus.COMPLETED) {
+        bucket.runCompleted += 1
+        bucket.runDays.add(toDateKey(w.date))
+      }
+      bucket.plannedDistanceKm += w.plannedDistance ?? 0
+      bucket.completedDistanceKm += w.result?.actualDistance ?? 0
+    }
     if (tss != null) bucket.estimatedTss += tss
     weekMap.set(key, bucket)
   }
@@ -212,8 +234,32 @@ export async function collectAthleteData(
       skipped: b.skipped,
       plannedDistanceKm: round1(b.plannedDistanceKm) ?? 0,
       completedDistanceKm: round1(b.completedDistanceKm) ?? 0,
+      runPlanned: b.runPlanned,
+      runCompleted: b.runCompleted,
+      runDaysCompleted: b.runDays.size,
       estimatedTss: Math.round(b.estimatedTss),
     }))
+
+  const bandLow =
+    athlete.hrResting != null && athlete.hrMax != null
+      ? Math.round(athlete.hrResting + (athlete.hrMax - athlete.hrResting) * 0.55)
+      : 130
+  const bandHigh =
+    athlete.hrResting != null && athlete.hrMax != null
+      ? Math.round(athlete.hrResting + (athlete.hrMax - athlete.hrResting) * 0.7)
+      : 150
+
+  const sessionStreamFeatures = recentSessions
+    .filter((s) => s.type === WorkoutType.RUN && s.status === 'COMPLETED')
+    .map((s) =>
+      extractSessionStreamFeatures(s.stravaStreamsCache, {
+        hrBandLow: bandLow,
+        hrBandHigh: bandHigh,
+      }),
+    )
+    .filter((f): f is NonNullable<typeof f> => f != null)
+
+  const streamFeatures = aggregateStreamFeatures(sessionStreamFeatures)
 
   return {
     athleteId: athlete.id,
@@ -240,5 +286,7 @@ export async function collectAthleteData(
     })),
     recentSessions,
     weekSummaries,
+    streamFeatures:
+      streamFeatures.withHrCount > 0 ? streamFeatures : null,
   }
 }

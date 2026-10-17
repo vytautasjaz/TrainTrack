@@ -7,6 +7,8 @@ import type {
   PriorityProfile,
   TrainingModelId,
 } from '@/lib/coach-engine/types'
+import type { AthleteFingerprint, AthletePhysiologyModel } from '@/lib/coach-engine/physiology/types'
+import { norwegianBlockedByPhysiology } from '@/lib/coach-engine/physiology/apply'
 
 const WEIGHTS = {
   goalFit: 0.2,
@@ -34,6 +36,7 @@ export type NorwegianEligibility = {
 export function evaluateNorwegianEligibility(
   state: AthleteState,
   goal: GoalProfile,
+  physiology?: AthletePhysiologyModel | null,
 ): NorwegianEligibility {
   const reasons: string[] = []
   let eligible = true
@@ -55,6 +58,13 @@ export function evaluateNorwegianEligibility(
     eligible = false
     reasons.push('low_readiness')
   }
+  if (physiology) {
+    const apmGate = norwegianBlockedByPhysiology(physiology)
+    if (apmGate.blocked) {
+      eligible = false
+      reasons.push(...apmGate.reasons)
+    }
+  }
   if (eligible) {
     reasons.push(proxyMode ? 'eligible_proxy_mode' : 'eligible_full')
   }
@@ -68,8 +78,9 @@ function scoreModel(args: {
   phase: PhaseProfile
   priority: PriorityProfile
   norwegian: NorwegianEligibility
+  fingerprint?: AthleteFingerprint | null
 }): { score: number; reasons: string[]; constraints: MethodologyConstraint[] } {
-  const { model, state, goal, phase, priority, norwegian } = args
+  const { model, state, goal, phase, priority, norwegian, fingerprint } = args
   const reasons: string[] = []
   const constraints: MethodologyConstraint[] = ['protect_key_quality_session']
 
@@ -88,6 +99,28 @@ function scoreModel(args: {
 
   let risk = 0
   let complexity = 0
+
+  // Soft fingerprint bias (only when confidence usable).
+  if (fingerprint && fingerprint.volumeResponder.confidence >= 0.35) {
+    if (model === 'PYRAMIDAL') {
+      responseFit = clamp01(
+        responseFit * 0.6 + fingerprint.volumeResponder.value * 0.4,
+      )
+    } else if (model === 'THRESHOLD' || model === 'NORWEGIAN') {
+      responseFit = clamp01(
+        responseFit * 0.55 + fingerprint.thresholdResponder.value * 0.45,
+      )
+    } else if (model === 'POLARIZED') {
+      responseFit = clamp01(
+        responseFit * 0.55 + fingerprint.vo2Responder.value * 0.45,
+      )
+    }
+    if (fingerprint.recoverySpeed.confidence >= 0.35) {
+      recoveryFit = clamp01(
+        recoveryFit * 0.7 + fingerprint.recoverySpeed.value * 0.3,
+      )
+    }
+  }
 
   switch (model) {
     case 'PYRAMIDAL':
@@ -227,14 +260,24 @@ export function selectMethodology(args: {
   phase: PhaseProfile
   priority: PriorityProfile
   lockedModel?: TrainingModelId | null
+  physiology?: AthletePhysiologyModel | null
+  fingerprint?: AthleteFingerprint | null
 }): MethodologySelection {
-  const norwegian = evaluateNorwegianEligibility(args.state, args.goal)
+  const norwegian = evaluateNorwegianEligibility(
+    args.state,
+    args.goal,
+    args.physiology,
+  )
 
   if (args.lockedModel) {
     const locked = scoreModel({
       model: args.lockedModel,
-      ...args,
+      state: args.state,
+      goal: args.goal,
+      phase: args.phase,
+      priority: args.priority,
       norwegian,
+      fingerprint: args.fingerprint,
     })
     let constraints = [...locked.constraints]
     const reasonCodes = ['coach_override', ...locked.reasons]
@@ -266,7 +309,15 @@ export function selectMethodology(args: {
   }
 
   const scored = ALL_MODELS.map((model) => {
-    const result = scoreModel({ model, ...args, norwegian })
+    const result = scoreModel({
+      model,
+      state: args.state,
+      goal: args.goal,
+      phase: args.phase,
+      priority: args.priority,
+      norwegian,
+      fingerprint: args.fingerprint,
+    })
     return { model, ...result }
   }).sort((a, b) => b.score - a.score)
 

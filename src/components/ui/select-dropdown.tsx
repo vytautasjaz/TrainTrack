@@ -3,10 +3,9 @@
 import * as SelectPrimitive from '@radix-ui/react-select'
 import { cn } from '@/lib/utils'
 
+/** Shared portaled select panel — above dialog (z-100) and clickable in modals. */
 export const SELECT_DROPDOWN_CONTENT_CLASS =
-  // pointer-events-auto: Dialog sets body to pointer-events:none; portaled
-  // select content is outside the dialog node and must opt back in.
-  'z-[200] max-h-56 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card py-1 shadow-lg pointer-events-auto'
+  'pointer-events-auto z-[250] max-h-56 overflow-y-auto overscroll-contain rounded-lg border border-border bg-card py-1 shadow-lg'
 
 export type SelectDropdownOption = { value: string; label: string }
 
@@ -33,6 +32,7 @@ export function SelectDropdownContent({
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
+        data-tt-floating-ui=""
         className={cn(SELECT_DROPDOWN_CONTENT_CLASS, className)}
         position="popper"
         sideOffset={4}

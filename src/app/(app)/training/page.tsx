@@ -509,7 +509,7 @@ export default async function TrainingPage({
               </PageHeaderEyebrow>
             ) : null}
             <PageHeaderTitle className="tt-inbox-page-title lg:mt-1">
-              Training<span className="tt-inbox-title-dot">.</span>
+              Training<span className="tt-title-dot">.</span>
             </PageHeaderTitle>
             {trainingDescription ? (
               <PageHeaderDescription className="mt-1 hidden max-w-lg lg:block">
@@ -549,7 +549,7 @@ export default async function TrainingPage({
         </PageHeaderEyebrow>
       ) : null}
       <PageHeaderTitle className="tt-inbox-page-title lg:mt-1">
-        Week plan<span className="tt-inbox-title-dot">.</span>
+        Week plan<span className="tt-title-dot">.</span>
       </PageHeaderTitle>
     </div>
   );
@@ -562,7 +562,7 @@ export default async function TrainingPage({
         </PageHeaderEyebrow>
       ) : null}
       <PageHeaderTitle className="tt-inbox-page-title lg:mt-1">
-        Month plan<span className="tt-inbox-title-dot">.</span>
+        Month plan<span className="tt-title-dot">.</span>
       </PageHeaderTitle>
     </div>
   );

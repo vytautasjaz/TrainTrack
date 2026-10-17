@@ -137,15 +137,27 @@ export type CollectedSession = {
   actualDurationMin: number | null
   rpe: number | null
   estimatedTss: number | null
+  /** Packed Strava streams from WorkoutResult (Stage K). */
+  stravaStreamsCache?: unknown | null
 }
 
 export type CollectedWeek = {
   weekStart: string
+  /** All sports (compliance). */
   planned: number
   completed: number
   skipped: number
+  /**
+   * Run distance only (km). Never mix bike/swim meters into these fields —
+   * APM volume / long-run / mechanical load are run-specific.
+   */
   plannedDistanceKm: number
   completedDistanceKm: number
+  /** Run sessions only (for run frequency). Older fixtures may omit. */
+  runPlanned?: number
+  runCompleted?: number
+  /** Unique calendar days with ≥1 completed RUN. */
+  runDaysCompleted?: number
   estimatedTss: number
 }
 
@@ -174,6 +186,11 @@ export type CollectedAthleteData = {
   }[]
   recentSessions: CollectedSession[]
   weekSummaries: CollectedWeek[]
+  /**
+   * Aggregated Stage K stream signals (HR drift, pace@HR) when Strava caches exist.
+   * Computed in collect — optional for empty / fixture athletes.
+   */
+  streamFeatures?: import('@/lib/coach-engine/physiology/stream-features').AggregatedStreamFeatures | null
 }
 
 export type AthleteState = {
@@ -589,6 +606,8 @@ export type CoachEngineMeta = {
   criticScore?: number | null
   /** Critic issue codes that were applied as deterministic repairs. */
   criticRepairsApplied?: string[]
+  /** APM Phase I compact snapshot (also stored on audit). */
+  physiology?: import('@/lib/coach-engine/physiology/types').PhysiologyAuditSnapshot
 }
 
 export type CoachEngineDraftInput = {
@@ -602,11 +621,21 @@ export type CoachEngineDraftInput = {
   allowAi?: boolean
   /** Coach override: force a training model when set. */
   lockedModel?: TrainingModelId | null
+  /**
+   * Optional prior fingerprint (tests / callers that already loaded a snapshot).
+   * When omitted and athleteId is set, pipeline loads the latest DB snapshot.
+   */
+  priorFingerprint?: import('@/lib/coach-engine/physiology/types').AthleteFingerprint | null
+  /** Optional prior APM for trend previousValue stamping. */
+  priorPhysiologyModel?: import('@/lib/coach-engine/physiology/types').AthletePhysiologyModel | null
+  /** Skip DB snapshot lookup (unit tests). */
+  skipPhysiologyStore?: boolean
 }
 
 /** Persisted snapshot for reproducibility / audit of a generated plan. */
 export type CoachEngineAuditRecord = {
-  schemaVersion: 1
+  /** 1 = legacy; 2 = includes optional physiology snapshot. */
+  schemaVersion: 1 | 2
   createdAt: string
   engineVersion: string
   libraryVersion: string
@@ -660,6 +689,15 @@ export type CoachEngineAuditRecord = {
     criticScore: number | null
     criticRepairsApplied: string[]
   }
+  /** APM Phase I — compact fingerprint + applied hooks. */
+  physiology?: import('@/lib/coach-engine/physiology/types').PhysiologyAuditSnapshot
+}
+
+export type CoachEnginePhysiologyBundle = {
+  model: import('@/lib/coach-engine/physiology/types').AthletePhysiologyModel
+  fingerprint: import('@/lib/coach-engine/physiology/types').AthleteFingerprint
+  prediction: import('@/lib/coach-engine/physiology/types').ResponsePrediction
+  snapshot: import('@/lib/coach-engine/physiology/types').PhysiologyAuditSnapshot
 }
 
 export type CoachEngineDraftResult = {
@@ -674,6 +712,8 @@ export type CoachEngineDraftResult = {
   decisionTrace: import('@/lib/coach-engine/decision-trace').CoachEngineDecisionTrace
   /** Inputs, versions, constraints, and validation for audit / replay. */
   audit: CoachEngineAuditRecord
+  /** Full APM bundle for persistence (pass-through to snapshot store). */
+  physiology: CoachEnginePhysiologyBundle
 }
 
 export type ExpectedResponse = {

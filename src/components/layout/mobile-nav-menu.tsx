@@ -163,26 +163,37 @@ export function MobileNavMenu({
                   )}
                   {showChildren ? (
                     <div className="mt-1 ml-4 space-y-0.5 border-l border-border pl-3">
-                      {children.map((child) => {
+                      {children.map((child, index) => {
                         const tabActive =
                           href === '/tools'
                             ? pathname.startsWith(href) &&
                               child.href.includes(`tab=${activeCalculatorTab}`)
                             : isNavActive(pathname, child.href)
                         return (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            onClick={() => setOpen(false)}
-                            className={cn(
-                              'block rounded-[6px] px-2.5 py-1.5 text-sm font-medium transition-colors',
-                              tabActive
-                                ? 'bg-muted text-foreground'
-                                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
-                            )}
-                          >
-                            {child.label}
-                          </Link>
+                          <div key={child.href}>
+                            {child.group ? (
+                              <p
+                                className={cn(
+                                  'px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground/80',
+                                  index > 0 && 'mt-1 border-t border-border/70',
+                                )}
+                              >
+                                {child.group}
+                              </p>
+                            ) : null}
+                            <Link
+                              href={child.href}
+                              onClick={() => setOpen(false)}
+                              className={cn(
+                                'block rounded-[6px] px-2.5 py-1.5 text-sm font-medium transition-colors',
+                                tabActive
+                                  ? 'bg-muted text-foreground'
+                                  : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                              )}
+                            >
+                              {child.label}
+                            </Link>
+                          </div>
                         )
                       })}
                     </div>

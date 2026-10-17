@@ -4,6 +4,7 @@ import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { ListDayWeatherStrip } from '@/components/weather/list-day-weather'
 import { WeekWeatherLocationControl } from '@/components/weather/week-weather-location-control'
+import { WeatherDayHoursTrigger } from '@/components/weather/weather-day-hours-trigger'
 import { updateAthleteWeatherLocation } from '@/app/actions/preferences'
 import type { WeatherDaySummary, WeatherPlace } from '@/lib/weather/places'
 import { cn } from '@/lib/utils'
@@ -47,7 +48,14 @@ export function AthleteHomeWeatherControl({
       )}
     >
       {weather ? (
-        <ListDayWeatherStrip weather={weather} size="lg" />
+        <WeatherDayHoursTrigger
+          weather={weather}
+          locationName={locationName}
+          allowLocationEdit={false}
+          className="shrink-0"
+        >
+          <ListDayWeatherStrip weather={weather} size="lg" />
+        </WeatherDayHoursTrigger>
       ) : hasCoords ? (
         <p
           className={cn(

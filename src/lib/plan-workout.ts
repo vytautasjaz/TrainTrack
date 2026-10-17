@@ -605,3 +605,13 @@ export function athleteLogTypeLabel(logType: AthleteLogType | null): string {
   if (logType === AthleteLogTypeValues.COMPLETED) return 'Completed'
   return 'Logged'
 }
+
+/** Client boards listen so deleted sessions leave the UI before RSC refresh lands. */
+export const WORKOUT_DELETED_EVENT = 'tt-workout-deleted'
+
+export function notifyWorkoutDeleted(workoutId: string) {
+  if (typeof window === 'undefined' || !workoutId) return
+  window.dispatchEvent(
+    new CustomEvent(WORKOUT_DELETED_EVENT, { detail: { workoutId } }),
+  )
+}

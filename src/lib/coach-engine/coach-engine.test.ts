@@ -3060,7 +3060,7 @@ describe('scenario suite', () => {
       },
       allowAi: false,
     })
-    assert.equal(result.audit.schemaVersion, 1)
+    assert.equal(result.audit.schemaVersion, 2)
     assert.ok(result.audit.engineVersion.length >= 3)
     assert.ok(result.audit.libraryVersion.length >= 3)
     assert.equal(result.audit.skillSlug, 'run-marathon')
@@ -3069,6 +3069,9 @@ describe('scenario suite', () => {
     assert.ok(result.audit.validation.weeks.length >= 1)
     assert.ok(result.audit.validation.weeks.every((w) => w.ok))
     assert.ok(Array.isArray(result.audit.constraints.methodology))
+    assert.ok(result.audit.physiology)
+    assert.ok(result.audit.physiology!.aerobicStrength >= 0)
+    assert.ok(result.meta.physiology?.responsePrediction.primaryIntervention)
   })
 
   it('repairs LONG_RUN_MIN by bumping the long run to the architecture floor', async () => {

@@ -465,8 +465,30 @@ model Athlete {
   weekPlanSportRows        AthleteWeekPlanSportRow[]
   weekHiddenPlanSportRows AthleteWeekHiddenPlanSportRow[]
   tailoredTrainingPlans   TrainingPlan[] @relation("TrainingPlanForAthlete")
+  physiologySnapshots     AthletePhysiologySnapshot[]
 
   @@index([coachId])
+}
+
+/**
+ * Append-only Athlete Physiology Model snapshots (APM + fingerprint).
+ * “Current” = latest row by asOf. Used for plan personalization + future dashboard.
+ */
+model AthletePhysiologySnapshot {
+  id              String   @id @default(cuid())
+  athleteId       String
+  asOf            DateTime @default(now())
+  /** engine_draft | learning_week | learning_phase | recompute */
+  source          String
+  modelJson       Json
+  fingerprintJson Json
+  predictionJson  Json?
+  planId          String?
+  createdAt       DateTime @default(now())
+
+  athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([athleteId, asOf])
 }
 
 model AthleteWeekPlanSportRow {

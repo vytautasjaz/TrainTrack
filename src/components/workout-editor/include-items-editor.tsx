@@ -504,6 +504,7 @@ export function IncludeItemsEditor({
               side="top"
               sideOffset={6}
               collisionPadding={12}
+              data-tt-floating-ui=""
               className={cn(
                 SELECT_DROPDOWN_CONTENT_CLASS,
                 'z-[250] max-h-[min(20rem,50vh)] w-56',

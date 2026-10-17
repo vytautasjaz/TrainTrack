@@ -75,16 +75,12 @@ export function useDayDropTarget({
     dnd.moveWorkoutToCell(dnd.dragItem.id, dateKey)
   }
 
-  // Soft wash (no ring) — valid targets tint lightly; hover deepens the fill.
+  // Soft wash — valid targets tint; over deepens. Classes beat week-board
+  // today/hover `background: … !important` via ::before overlays in CSS.
   const dropHighlightClass = cn(
-    'transition-colors duration-150',
-    canDrop &&
-      isOver &&
-      'bg-[rgb(17_19_21_/0.07)]',
-    canDrop &&
-      !isOver &&
-      isDragging &&
-      'bg-[rgb(17_19_21_/0.035)]',
+    'tt-day-drop-cell transition-colors duration-150',
+    canDrop && isOver && 'tt-day-drop-over',
+    canDrop && !isOver && isDragging && 'tt-day-drop-ready',
   )
 
   return {

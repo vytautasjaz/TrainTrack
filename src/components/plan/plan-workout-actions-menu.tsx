@@ -4,17 +4,24 @@ import { useState, useTransition } from 'react'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { Copy, MoreVertical, Trash2 } from 'lucide-react'
 import { WorkoutType } from '@prisma/client'
+import { useRouter } from 'next/navigation'
 import { deleteWorkout } from '@/app/actions/workouts'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CopyPlanWorkoutModal } from '@/components/plan/copy-plan-workout-modal'
-import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import { canDeletePlanWorkout } from '@/lib/plan-workout-modal'
+import {
+  notifyWorkoutDeleted,
+  type PlanWorkoutDetail,
+} from '@/lib/plan-workout'
 import { cn } from '@/lib/utils'
 
 type PlanWorkoutActionsMenuProps = {
   workout: PlanWorkoutDetail
+  isCoach?: boolean
   className?: string
   /** Smaller trigger for week grid cells */
   compact?: boolean
+  onDeleted?: () => void
 }
 
 function openAfterMenuClose(open: () => void) {
@@ -23,15 +30,21 @@ function openAfterMenuClose(open: () => void) {
 
 export function PlanWorkoutActionsMenu({
   workout,
+  isCoach = true,
   className,
   compact = false,
+  onDeleted,
 }: PlanWorkoutActionsMenuProps) {
+  const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [copyOpen, setCopyOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  if (workout.isRace || workout.type === WorkoutType.RECOVERY) {
+  const canDelete = canDeletePlanWorkout(isCoach, workout)
+  const canCopy = isCoach && !workout.isRace && workout.type !== WorkoutType.RECOVERY
+
+  if (!canDelete && !canCopy) {
     return null
   }
 
@@ -40,7 +53,10 @@ export function PlanWorkoutActionsMenu({
       const formData = new FormData()
       formData.set('workoutId', workout.id)
       await deleteWorkout(formData)
+      notifyWorkoutDeleted(workout.id)
       setDeleteOpen(false)
+      onDeleted?.()
+      router.refresh()
     })
   }
 
@@ -73,51 +89,60 @@ export function PlanWorkoutActionsMenu({
             align="end"
             sideOffset={4}
             collisionPadding={8}
-            className="z-[200] min-w-[9.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
+            data-tt-floating-ui=""
+            className="pointer-events-auto z-[250] min-w-[9.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
             onClick={(e) => e.stopPropagation()}
             onCloseAutoFocus={(e) => e.preventDefault()}
           >
-            <DropdownMenu.Item
-              className={cn(
-                'flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none',
-                'text-foreground data-[highlighted]:bg-foreground/[0.04]',
-              )}
-              onSelect={() => openAfterMenuClose(() => setCopyOpen(true))}
-            >
-              <Copy className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
-              Copy
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              className={cn(
-                'flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none',
-                'text-destructive data-[highlighted]:bg-destructive/5',
-              )}
-              onSelect={() => openAfterMenuClose(() => setDeleteOpen(true))}
-            >
-              <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Delete
-            </DropdownMenu.Item>
+            {canCopy ? (
+              <DropdownMenu.Item
+                className={cn(
+                  'flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none',
+                  'text-foreground data-[highlighted]:bg-foreground/[0.04]',
+                )}
+                onSelect={() => openAfterMenuClose(() => setCopyOpen(true))}
+              >
+                <Copy className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />
+                Copy
+              </DropdownMenu.Item>
+            ) : null}
+            {canDelete ? (
+              <DropdownMenu.Item
+                className={cn(
+                  'flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none',
+                  'text-destructive data-[highlighted]:bg-destructive/5',
+                )}
+                onSelect={() => openAfterMenuClose(() => setDeleteOpen(true))}
+              >
+                <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                Delete
+              </DropdownMenu.Item>
+            ) : null}
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
 
-      <CopyPlanWorkoutModal
-        open={copyOpen}
-        onOpenChange={setCopyOpen}
-        workoutId={workout.id}
-        workoutTitle={workout.title}
-        sourceDateKey={workout.dateKey}
-      />
+      {canCopy ? (
+        <CopyPlanWorkoutModal
+          open={copyOpen}
+          onOpenChange={setCopyOpen}
+          workoutId={workout.id}
+          workoutTitle={workout.title}
+          sourceDateKey={workout.dateKey}
+        />
+      ) : null}
 
-      <ConfirmDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Remove workout?"
-        description={`“${workout.title}” will be removed from the plan.`}
-        confirmLabel="Remove"
-        pending={pending}
-        onConfirm={handleDelete}
-      />
+      {canDelete ? (
+        <ConfirmDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Remove workout?"
+          description={`“${workout.title}” will be removed from the plan.`}
+          confirmLabel="Remove"
+          pending={pending}
+          onConfirm={handleDelete}
+        />
+      ) : null}
     </>
   )
 }

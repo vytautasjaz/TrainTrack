@@ -158,7 +158,7 @@ function CombinedWeeksTable({
           : 'hidden landscape:max-lg:block lg:block',
       )}
     >
-      <div className="@container overflow-hidden rounded-[0.5rem]">
+      <div className="tt-week-plan-board @container">
         <div
           className="tt-week-matrix-scroll overflow-x-auto"
           data-week-portrait-zoom={forceLandscape ? 'fit' : portraitZoom}
@@ -193,7 +193,6 @@ function CombinedWeeksTable({
               weatherLocation={weatherLocation}
               onWeatherLocationSelect={onWeatherLocationSelect}
               onWeatherLocationReset={onWeatherLocationReset}
-              hideFooterRows
               tableFragment={index === 0 ? 'thead' : 'tbody-row'}
               skipDndProvider
             />
@@ -228,7 +227,6 @@ function CombinedWeeksTable({
           weatherLocation={weatherLocation}
           onWeatherLocationSelect={onWeatherLocationSelect}
           onWeatherLocationReset={onWeatherLocationReset}
-          hideFooterRows
           skipDndProvider
         />
       ))}
@@ -309,8 +307,15 @@ export function PlanMultiWeekTables({
       '(max-width: 1023px) and (orientation: portrait)',
     )
     function sync() {
-      setMobilePhone(mobileMq.matches)
+      const isMobile = mobileMq.matches
+      setMobilePhone(isMobile)
       setPortraitPhone(portraitMq.matches)
+      // Expand is mobile-only — leave desktop as the normal week frame.
+      if (!isMobile) {
+        landscapeAutoExpandRef.current = false
+        setExpanded(false)
+        setCalendarExpanded(false)
+      }
     }
     sync()
     mobileMq.addEventListener('change', sync)
@@ -837,7 +842,7 @@ export function PlanMultiWeekTables({
   return (
     <WeekPortraitZoomProvider>
       <WeekCardSizeProvider>
-        {expanded ? (
+        {expanded && mobilePhone ? (
           <button
             type="button"
             onClick={toggleExpanded}

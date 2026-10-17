@@ -9,13 +9,14 @@ import {
   Settings,
   Users,
   Wrench,
-  ClipboardList,
   type LucideIcon,
 } from 'lucide-react'
 
 export type NavSubItem = {
   href: string
   label: string
+  /** Optional section header shown above this item in menus (first of group). */
+  group?: string
 }
 
 export type NavItem = {
@@ -28,30 +29,85 @@ export type NavItem = {
 }
 
 export type CalculatorNavTab = {
-  id: 'running' | 'interval' | 'triathlon' | 'hyrox' | 'splits'
+  id: 'running' | 'interval' | 'triathlon' | 'hyrox' | 'splits' | 'predictor'
+  /** Page H1 / full name */
   label: string
+  /** Compact label in Tools menus */
+  menuLabel: string
   href: string
+  group: 'Calculators' | 'Predict'
 }
 
 export const CALCULATOR_NAV_TABS: CalculatorNavTab[] = [
-  { id: 'running', label: 'Running Calculator', href: '/tools?tab=running' },
-  { id: 'interval', label: 'Interval Calculator', href: '/tools?tab=interval' },
-  { id: 'triathlon', label: 'Triathlon Calculator', href: '/tools?tab=triathlon' },
-  { id: 'hyrox', label: 'HYROX Calculator', href: '/tools?tab=hyrox' },
-  { id: 'splits', label: 'Splits Calculator', href: '/tools?tab=splits' },
+  {
+    id: 'running',
+    label: 'Run Calculator',
+    menuLabel: 'Run',
+    href: '/tools?tab=running',
+    group: 'Calculators',
+  },
+  {
+    id: 'interval',
+    label: 'Interval Calculator',
+    menuLabel: 'Interval',
+    href: '/tools?tab=interval',
+    group: 'Calculators',
+  },
+  {
+    id: 'triathlon',
+    label: 'Triathlon Calculator',
+    menuLabel: 'Triathlon',
+    href: '/tools?tab=triathlon',
+    group: 'Calculators',
+  },
+  {
+    id: 'hyrox',
+    label: 'HYROX Calculator',
+    menuLabel: 'HYROX',
+    href: '/tools?tab=hyrox',
+    group: 'Calculators',
+  },
+  {
+    id: 'splits',
+    label: 'Splits Calculator',
+    menuLabel: 'Splits',
+    href: '/tools?tab=splits',
+    group: 'Calculators',
+  },
+  {
+    id: 'predictor',
+    label: 'Race Time Predictor',
+    menuLabel: 'Race time predictor',
+    href: '/tools?tab=predictor',
+    group: 'Predict',
+  },
 ]
+
+function toolsNavChildren(): NavSubItem[] {
+  return CALCULATOR_NAV_TABS.map((tab, index) => {
+    const prev = CALCULATOR_NAV_TABS[index - 1]
+    return {
+      href: tab.href,
+      label: tab.menuLabel,
+      group: !prev || prev.group !== tab.group ? tab.group : undefined,
+    }
+  })
+}
 
 const TOOLS_NAV: NavItem = {
   href: '/tools',
   label: 'Tools',
   icon: Wrench,
-  children: CALCULATOR_NAV_TABS.map(({ href, label }) => ({ href, label })),
+  children: toolsNavChildren(),
 }
 
 const COACH_ATHLETE_SUBNAV: NavSubItem[] = [
   { href: '/training', label: 'Training' },
   { href: '/season', label: 'Season' },
-  { href: '/progress', label: 'Stats' },
+  { href: '/progress', label: 'Trends' },
+  { href: '/progress/fitness', label: 'Fitness' },
+  { href: '/progress/personal-bests', label: 'Personal bests' },
+  { href: '/progress/races', label: 'Race results' },
 ]
 
 const COACH_ATHLETES_NAV: NavItem = {
@@ -101,6 +157,10 @@ export function isNavActive(pathname: string, href: string) {
         !pathname.startsWith('/training/ai-plan'))
     )
   }
+  // Stats overview must not light up every /progress/* child.
+  if (href === '/progress') {
+    return pathname === '/progress'
+  }
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
@@ -138,32 +198,79 @@ export function getMainNav(isCoach: boolean): NavItem[] {
     },
     { href: '/inbox', label: 'Inbox', icon: MessageSquare },
     { href: '/season', label: 'Season', icon: Flag },
-    { href: '/progress', label: 'Stats', icon: LineChart },
+    {
+      href: '/progress',
+      label: 'Stats',
+      icon: LineChart,
+      subnavAlwaysVisible: true,
+      children: [
+        { href: '/progress', label: 'Trends' },
+        { href: '/progress/fitness', label: 'Fitness' },
+        { href: '/progress/personal-bests', label: 'Personal bests' },
+        { href: '/progress/races', label: 'Race results' },
+      ],
+    },
     TOOLS_NAV,
   ]
 }
 
 /**
- * Flat desktop top-nav links (v2 shell). Athlete labels match the redesign mockup;
- * coach keeps product IA flattened from getMainNav.
+ * Desktop top-nav links (v2 shell). Items with `children` render as hover/click menus.
  */
+const TOOLS_TOP_NAV: NavItem = {
+  href: '/tools',
+  label: 'Tools',
+  icon: Wrench,
+  children: toolsNavChildren(),
+}
+
+const ATHLETE_LIBRARY_TOP_NAV: NavItem = {
+  href: '/workouts',
+  label: 'Library',
+  icon: Library,
+  children: [
+    { href: '/workouts', label: 'Workout library' },
+    { href: '/workouts/plans', label: 'Training plans' },
+    { href: '/training/ai-plan', label: 'Draft with AI' },
+  ],
+}
+
 export function getTopNav(isCoach: boolean): NavItem[] {
   if (isCoach) {
     return [
       HOME_NAV,
       { href: '/inbox', label: 'Inbox', icon: MessageSquare },
       { href: '/athletes', label: 'Athletes', icon: Users },
-      { href: '/workouts', label: 'Library', icon: Library },
-      { href: '/tools', label: 'Tools', icon: Wrench },
+      {
+        href: '/workouts',
+        label: 'Library',
+        icon: Library,
+        children: [
+          { href: '/workouts', label: 'Workouts' },
+          { href: '/workouts/plans', label: 'Training plans' },
+          { href: '/workouts/plans/ai', label: 'Draft with AI' },
+        ],
+      },
+      TOOLS_TOP_NAV,
     ]
   }
   return [
     HOME_NAV,
-    { href: '/training', label: 'Calendar', icon: CalendarRange },
-    { href: '/workouts', label: 'Workouts', icon: Library },
-    { href: '/workouts/plans', label: 'Training Plans', icon: ClipboardList },
-    { href: '/season', label: 'Races', icon: Flag },
-    { href: '/progress', label: 'Analytics', icon: LineChart },
+    { href: '/training', label: 'Training', icon: CalendarRange },
+    { href: '/season', label: 'Season', icon: Flag },
+    ATHLETE_LIBRARY_TOP_NAV,
+    {
+      href: '/progress',
+      label: 'Analytics',
+      icon: LineChart,
+      children: [
+        { href: '/progress', label: 'Trends' },
+        { href: '/progress/fitness', label: 'Fitness' },
+        { href: '/progress/personal-bests', label: 'Personal bests' },
+        { href: '/progress/races', label: 'Race results' },
+      ],
+    },
+    TOOLS_TOP_NAV,
   ]
 }
 

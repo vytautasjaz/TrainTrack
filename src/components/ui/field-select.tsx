@@ -65,7 +65,8 @@ export function FieldSelect({
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal>
         <SelectPrimitive.Content
-          className="z-[100] max-h-[min(24rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg border border-border/80 bg-card shadow-sm"
+          data-tt-floating-ui=""
+          className="pointer-events-auto z-[250] max-h-[min(24rem,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg border border-border/80 bg-card shadow-sm"
           position="popper"
           sideOffset={4}
         >

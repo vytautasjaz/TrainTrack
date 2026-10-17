@@ -360,6 +360,7 @@ export function PlanDayAddMenu({
 
   return (
     <div
+      data-menu-open={menuOpen ? 'true' : undefined}
       className={cn(
         fillCell ? 'absolute inset-0 z-[1]' : 'relative shrink-0',
         !fillCell &&

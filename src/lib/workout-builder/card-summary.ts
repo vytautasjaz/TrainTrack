@@ -15,6 +15,68 @@ import {
 export type WorkoutCardEssenceOptions = {
   /** M/L week cards: every builder block. S: selected (or auto) work only. */
   includeAllBlocks?: boolean
+  /**
+   * Cap lines on dense cards; overflow becomes a final "+N more" row.
+   * Full structure stays in the workout modal.
+   */
+  maxLines?: number
+}
+
+/**
+ * Hierarchy roles for structure-aware card typography.
+ * - section: WARM UP / STRENGTH
+ * - block: SUPERSET / AMRAP (promoted header)
+ * - blockMeta: soft line under section/block (e.g. "AMRAP · 12 min")
+ * - exercise: name (+ optional right-aligned detail)
+ * - rule: hairline between major groups
+ */
+export type WorkoutCardEssenceKind =
+  | 'section'
+  | 'block'
+  | 'blockMeta'
+  | 'exercise'
+  | 'rule'
+  | 'line'
+  | 'more'
+
+export type WorkoutCardEssenceRow = {
+  kind: WorkoutCardEssenceKind
+  text: string
+  /** Right column for exercises, or soft meta under a block header. */
+  detail?: string
+}
+
+export function essenceRowsFromLines(lines: string[]): WorkoutCardEssenceRow[] {
+  return lines.map((text) =>
+    /^\+\d+\s+more$/i.test(text.trim())
+      ? { kind: 'more' as const, text: text.trim() }
+      : { kind: 'line' as const, text },
+  )
+}
+
+/** Keep card teaser short; full session lives in the detail modal. */
+export function truncateWorkoutCardEssenceLines(
+  lines: string[],
+  maxLines?: number,
+): string[] {
+  if (maxLines == null || maxLines <= 0 || lines.length <= maxLines) {
+    return lines
+  }
+  const kept = lines.slice(0, maxLines)
+  const rest = lines.length - maxLines
+  return [...kept, `+${rest} more`]
+}
+
+export function truncateWorkoutCardEssenceRows(
+  rows: WorkoutCardEssenceRow[],
+  maxLines?: number,
+): WorkoutCardEssenceRow[] {
+  if (maxLines == null || maxLines <= 0 || rows.length <= maxLines) {
+    return rows
+  }
+  const kept = rows.slice(0, maxLines)
+  const rest = rows.length - maxLines
+  return [...kept, { kind: 'more', text: `+${rest} more` }]
 }
 
 function warmupCooldownPrefix(
@@ -129,9 +191,10 @@ export function getWorkoutCardEssenceLines(
     return !hasManualSelection || selectedIds.includes(item.block.id)
   })
 
-  return blocks.flatMap((item) =>
+  const lines = blocks.flatMap((item) =>
     formatListedEssenceLines(item.block, item.section, sportType, notation),
   )
+  return truncateWorkoutCardEssenceLines(lines, options.maxLines)
 }
 
 export type WorkoutCardEssencePart = {

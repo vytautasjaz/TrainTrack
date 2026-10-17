@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   useTransition,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -14,14 +15,13 @@ import { WorkoutType } from "@prisma/client";
 import { CalendarPeriodNav } from "@/components/plan/calendar-period-nav";
 import { DayDropSection } from "@/components/plan/day-drop-section";
 import { SameDayWorkoutStack } from "@/components/plan/same-day-workout-stack";
-import { DayNoteSection } from "@/components/plan/day-note-section";
+import { DayMetaBlock } from "@/components/plan/day-meta-lines";
 import { PlanDayAddMenu } from "@/components/plan/plan-day-add-menu";
 import {
   CoachRescheduleReviewActions,
   needsCoachRescheduleReview,
 } from "@/components/plan/coach-reschedule-review-actions";
 import { PlanWorkoutActionsMenu } from "@/components/plan/plan-workout-actions-menu";
-import { SeasonEventChips } from "@/components/plan/season-event-chips";
 import { WorkoutModalTrigger } from "@/components/plan/workout-modal-trigger";
 import { WeekPlanWorkoutCard } from "@/components/plan/week-plan-workout-card";
 import {
@@ -80,16 +80,7 @@ import {
   SHOW_STATS_STORAGE_KEY,
 } from "@/lib/plan-calendar-layers";
 import { useStoredFlag } from "@/hooks/use-stored-flag";
-import {
-  TABLE_BODY,
-  TABLE_HEADER,
-  TABLE_HEADER_CELL,
-  TABLE_HEADER_CELL_MUTED,
-  TABLE_HEADER_CELL_STRONG,
-  TABLE_HEADER_CELL_WEEKEND,
-  TABLE_HEADER_VLINE,
-  TABLE_SHELL,
-} from "@/lib/table-styles";
+import { TABLE_BODY, TABLE_SHELL } from "@/lib/table-styles";
 
 const DAY_NAMES = [
   { short: "Mon", full: "Monday" },
@@ -161,8 +152,9 @@ function CalendarWorkoutCard({
     canDragPlanWorkout(workout, status) &&
     (isCoach || !workout.isRace);
   const showQuickActions = athleteHasQuickLogActions(workout, isCoach);
-  const showCoachMenu =
-    isCoach && !workout.isRace && workout.type !== WorkoutType.RECOVERY;
+  const showActionsMenu =
+    (isCoach && !workout.isRace && workout.type !== WorkoutType.RECOVERY) ||
+    Boolean(!isCoach && workout.selfLogged);
   const showReview = isCoach && needsCoachRescheduleReview(workout);
 
   return (
@@ -206,11 +198,11 @@ function CalendarWorkoutCard({
           isCoach={isCoach}
           hideCompletedBadge={showQuickActions}
           actions={
-            showQuickActions || showCoachMenu ? (
+            showQuickActions || showActionsMenu ? (
               <span
                 className={workoutCardCornerSpacerClass(workout, {
                   showQuickActions,
-                  showCoachMenu,
+                  showCoachMenu: showActionsMenu,
                 })}
                 aria-hidden
               />
@@ -234,8 +226,12 @@ function CalendarWorkoutCard({
         onStatusChange={setOptimisticStatus}
         className="right-0.5 top-0.5"
         leading={
-          showCoachMenu ? (
-            <PlanWorkoutActionsMenu workout={workout} compact />
+          showActionsMenu ? (
+            <PlanWorkoutActionsMenu
+              workout={workout}
+              isCoach={isCoach}
+              compact
+            />
           ) : undefined
         }
       />
@@ -669,22 +665,21 @@ export function CalendarMonthView({
 
   const monthGrid = (
     <div className="tt-month-view-root flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="tt-month-grid-bleed @container flex min-h-0 min-w-0 max-w-full flex-1 flex-col rounded-[0.5rem]">
+      <div className="tt-month-grid-bleed @container flex min-h-0 min-w-0 max-w-full flex-1 flex-col rounded-[var(--radius-2xl)]">
         <div
           className="tt-month-grid-scroll min-h-0 min-w-0 w-full max-w-full flex-1"
           data-month-stats={showStats ? "1" : "0"}
         >
           <div className="tt-month-grid-scroll-inner">
-            <div className={TABLE_SHELL}>
-              <div className={cn("tt-month-grid-days-header grid", gridCols, TABLE_HEADER)}>
+            <div className={cn(TABLE_SHELL, "tt-month-board")}>
+              <div
+                className={cn(
+                  "tt-month-grid-days-header tt-month-board-header grid",
+                  gridCols,
+                )}
+              >
                 {showStats ? (
-                  <div
-                    className={cn(
-                      "tt-month-stats-col flex items-center px-1.5 py-2 text-left text-[11px] font-semibold",
-                      TABLE_HEADER_VLINE,
-                      TABLE_HEADER_CELL_MUTED,
-                    )}
-                  >
+                  <div className="tt-month-stats-col flex items-center px-2 py-2.5 text-left text-[11px] font-semibold tracking-[0.04em] text-[var(--tt-v2-light-ink-faint,#9ca3af)] uppercase">
                     Stats
                   </div>
                 ) : null}
@@ -692,10 +687,10 @@ export function CalendarMonthView({
                   <div
                     key={name.full}
                     className={cn(
-                      "flex items-center justify-center px-1 py-2 text-center text-[11px] font-semibold",
-                      i < 6 && TABLE_HEADER_VLINE,
-                      i >= 5 && TABLE_HEADER_CELL_WEEKEND,
-                      i >= 5 ? TABLE_HEADER_CELL : TABLE_HEADER_CELL_STRONG,
+                      "flex items-center justify-center px-1.5 py-2.5 text-center text-[11px] font-semibold tracking-[0.04em] uppercase",
+                      i >= 5
+                        ? "text-[var(--tt-v2-light-ink-faint,#9ca3af)]"
+                        : "text-[var(--tt-v2-light-ink-soft,#6b7280)]",
                     )}
                   >
                     <span className="hidden sm:inline">{name.full}</span>
@@ -704,9 +699,17 @@ export function CalendarMonthView({
                 ))}
               </div>
 
-              <div className={cn("grid gap-px bg-border", gridCols, TABLE_BODY)}>
+              <div className={cn("tt-month-days-grid grid", gridCols, TABLE_BODY)}>
                 {weeks.flatMap((week, weekIndex) => {
                   const weekKey = week[0]?.dateKey ?? `w${weekIndex}`;
+                  const divider =
+                    weekIndex > 0 ? (
+                      <div
+                        key={`week-div-${weekKey}`}
+                        className="tt-month-week-divider col-span-full"
+                        aria-hidden
+                      />
+                    ) : null;
                   const cells = week.map((day, dayInWeek) => {
                     const dayIndex = weekIndex * 7 + dayInWeek;
                     const prevDay =
@@ -727,6 +730,7 @@ export function CalendarMonthView({
                         key={day.dateKey}
                         day={day}
                         dayIndex={dayIndex}
+                        dayInWeek={dayInWeek}
                         isWeekend={dayInWeek >= 5}
                         monthBoundary={monthBoundary}
                         filtered={dayWorkouts(day.dateKey)}
@@ -749,19 +753,21 @@ export function CalendarMonthView({
                     );
                   });
 
-                  if (!showStats) return cells;
+                  const weekRow = showStats
+                    ? [
+                        <CalendarWeekStatsCell
+                          key={`stats-${weekKey}`}
+                          weekDays={week}
+                          workoutsByDate={workoutsByDate}
+                          planSportRows={planSportRows}
+                          swimCssSecPer100m={swimCssSecPer100m}
+                          className="tt-month-stats-col"
+                        />,
+                        ...cells,
+                      ]
+                    : cells;
 
-                  return [
-                    <CalendarWeekStatsCell
-                      key={`stats-${weekKey}`}
-                      weekDays={week}
-                      workoutsByDate={workoutsByDate}
-                      planSportRows={planSportRows}
-                      swimCssSecPer100m={swimCssSecPer100m}
-                      className="tt-month-stats-col"
-                    />,
-                    ...cells,
-                  ];
+                  return divider ? [divider, ...weekRow] : weekRow;
                 })}
               </div>
             </div>
@@ -860,6 +866,7 @@ export function CalendarMonthView({
 function CalendarDayCell({
   day,
   dayIndex,
+  dayInWeek,
   isWeekend,
   monthBoundary,
   filtered,
@@ -879,6 +886,7 @@ function CalendarDayCell({
 }: {
   day: CalendarDay;
   dayIndex: number;
+  dayInWeek: number;
   isWeekend: boolean;
   monthBoundary: boolean;
   filtered: PlanWorkoutDetail[];
@@ -975,7 +983,7 @@ function CalendarDayCell({
   const dateHead = (
     <div
       className={cn(
-        "min-w-0 px-1 text-left text-[11px] font-semibold tabular-nums",
+        "min-w-0 px-0.5 text-left text-[12px] font-semibold tabular-nums",
         day.isToday || selected ? "text-foreground" : "text-muted-foreground",
       )}
     >
@@ -1007,27 +1015,27 @@ function CalendarDayCell({
     <DayDropSection
       dateKey={day.dateKey}
       enabled
+      dayCol={dayInWeek}
+      monthStart={monthBoundary && dayIndex > 0}
       className={cn(
-        "group/day relative flex min-h-[7.5rem] cursor-default flex-col gap-1 p-1 transition-colors [&_button]:cursor-pointer",
-        isWeekend
-          ? "bg-[var(--tt-weekend)] hover:bg-[color-mix(in_srgb,var(--color-muted,#f5f5f5)_74%,var(--color-card,#fff))]"
-          : "bg-card hover:bg-[color-mix(in_srgb,var(--color-muted,#f5f5f5)_36%,var(--color-card,#fff))]",
-        monthBoundary &&
-          dayIndex > 0 &&
-          "border-l-[3px] border-l-foreground/35",
-        day.isToday && !selected && "ring-2 ring-inset ring-foreground/50",
-        selected && "ring-2 ring-inset ring-[var(--tt-ink,#111)]/70 bg-[color-mix(in_srgb,var(--tt-ink,#111)_6%,var(--color-card,#fff))]",
-        phaseTransition && phaseSurface && "border-l-[3px]",
+        "tt-month-day-cell group/day relative flex min-h-[9rem] cursor-default flex-col gap-1.5 px-1 py-1.5 transition-colors [&_button]:cursor-pointer",
+        isWeekend && "bg-[var(--tt-weekend)]/50",
+        day.isToday && !selected && "tt-month-day-today",
+        selected &&
+          "rounded-[var(--radius-lg)] bg-[color-mix(in_srgb,var(--tt-v2-accent,#f0440a)_6%,transparent)]",
+        phaseTransition && phaseSurface && "tt-month-day-phase-start",
       )}
       style={
         phaseTransition && phaseSurface
-          ? { borderLeftColor: phaseSurface.border }
+          ? ({
+              ['--tt-month-phase-border']: phaseSurface.border,
+            } as CSSProperties)
           : undefined
       }
     >
       {hasContent ? (
         <>
-          <div className="relative z-10 flex items-start justify-between gap-0.5">
+          <div className="relative z-10 flex items-start justify-between gap-1">
             <div className="min-w-0">
               {dateHead}
               {phase && phaseName ? (
@@ -1044,12 +1052,12 @@ function CalendarDayCell({
             </div>
             {addMenu}
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-1">
+          <div className="flex min-h-0 flex-1 flex-col gap-1.5">
             <SameDayWorkoutStack
               dateKey={day.dateKey}
               workouts={filtered}
               enabled={isCoach}
-              className="flex min-h-0 flex-1 flex-col gap-1"
+              className="flex min-h-0 flex-1 flex-col gap-1.5"
               renderItem={(workout) => (
                 <CalendarWorkoutCard
                   workout={workout}
@@ -1057,27 +1065,15 @@ function CalendarDayCell({
                 />
               )}
             />
-            {showEvents && events.length > 0 ? (
-              <SeasonEventChips
-                events={events}
-                variant="chip"
-                editable
-                dateKey={day.dateKey}
-                isCoach={isCoach}
-                className="gap-0.5"
-              />
-            ) : null}
-            {showNotes && dayNoteHasVisibleContent(note) ? (
-              <DayNoteSection
-                dateKey={day.dateKey}
-                note={note}
-                canEdit={canEditDayNotes}
-                noteKind={isCoach ? "coach" : "athlete"}
-                athleteId={athleteId}
-                compact
-                hideEmptyAdd
-              />
-            ) : null}
+            <DayMetaBlock
+              dateKey={day.dateKey}
+              events={events}
+              note={note}
+              showEvents={showEvents}
+              showNotes={showNotes}
+              isCoach={isCoach}
+              canEditNotes={canEditDayNotes}
+            />
           </div>
         </>
       ) : (

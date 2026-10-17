@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Activity, ExternalLink, RefreshCw, Unplug } from 'lucide-react'
+import { Activity, ExternalLink, RefreshCw, Unplug, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FormField } from '@/components/ui/form-field'
@@ -14,6 +14,7 @@ import {
   setStravaAutoSyncEnabled,
   syncStravaActivities,
   syncStravaActivitiesForDateRange,
+  syncStravaHistoryForFitness,
 } from '@/app/actions/strava'
 import { cn } from '@/lib/utils'
 
@@ -50,27 +51,45 @@ export function StravaConnectCard({
     if (summary) setAutoSyncEnabled(summary.autoSyncEnabled)
   }, [summary?.autoSyncEnabled, summary])
 
+  function formatSyncOutcome(result: {
+    matched: number
+    imported: number
+    scanned: number
+  }, rangeLabel?: string) {
+    const parts = [
+      result.matched > 0 ? `${result.matched} matched` : null,
+      result.imported > 0 ? `${result.imported} added as self-logged` : null,
+    ].filter(Boolean)
+    const suffix = rangeLabel ? ` (${rangeLabel})` : ''
+    return parts.length > 0
+      ? `Synced ${parts.join(', ')} from ${result.scanned} Strava activities${suffix}.`
+      : `Scanned ${result.scanned} Strava activities${suffix} — nothing new to sync.`
+  }
+
   function handleSyncRecent() {
     setActionError(null)
     setSyncResult(null)
     startTransition(async () => {
       try {
         const result = await syncStravaActivities()
-        const parts = [
-          result.matched > 0
-            ? `${result.matched} matched`
-            : null,
-          result.imported > 0
-            ? `${result.imported} added as self-logged`
-            : null,
-        ].filter(Boolean)
-        setSyncResult(
-          parts.length > 0
-            ? `Synced ${parts.join(', ')} from ${result.scanned} Strava activities.`
-            : `Scanned ${result.scanned} Strava activities — nothing new to sync.`,
-        )
+        setSyncResult(formatSyncOutcome(result))
       } catch (err) {
         setActionError(err instanceof Error ? err.message : 'Sync failed')
+      }
+    })
+  }
+
+  function handleSyncHistory() {
+    setActionError(null)
+    setSyncResult(null)
+    startTransition(async () => {
+      try {
+        const result = await syncStravaHistoryForFitness()
+        setSyncResult(
+          `${formatSyncOutcome(result, 'last 3 months')} Fitness profile will use this history.`,
+        )
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : 'History sync failed')
       }
     })
   }
@@ -81,17 +100,8 @@ export function StravaConnectCard({
     startTransition(async () => {
       try {
         const result = await syncStravaActivitiesForDateRange(fromKey, toKey)
-        const rangeLabel =
-          fromKey === toKey ? fromKey : `${fromKey} → ${toKey}`
-        const parts = [
-          result.matched > 0 ? `${result.matched} matched` : null,
-          result.imported > 0 ? `${result.imported} added as self-logged` : null,
-        ].filter(Boolean)
-        setSyncResult(
-          parts.length > 0
-            ? `Synced ${parts.join(', ')} from ${result.scanned} Strava activities (${rangeLabel}).`
-            : `Scanned ${result.scanned} Strava activities (${rangeLabel}) — nothing new to sync.`,
-        )
+        const rangeLabel = fromKey === toKey ? fromKey : `${fromKey} → ${toKey}`
+        setSyncResult(formatSyncOutcome(result, rangeLabel))
       } catch (err) {
         setActionError(err instanceof Error ? err.message : 'Sync failed')
       }
@@ -226,7 +236,8 @@ export function StravaConnectCard({
             <div>
               <p className="text-sm font-medium text-foreground">Manual sync</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Sync recent activities, a single day, or a date range (max 90 days).
+                Import up to 3 months for a stronger Fitness profile, sync recent activity, or pick
+                a custom range (max 90 days).
               </p>
             </div>
 
@@ -236,11 +247,21 @@ export function StravaConnectCard({
                 variant="secondary"
                 size="sm"
                 disabled={isPending}
-                onClick={handleSyncRecent}
+                onClick={handleSyncHistory}
                 className="gap-2"
               >
                 <RefreshCw className={cn('h-3.5 w-3.5', isPending && 'animate-spin')} />
-                {isPending ? 'Syncing…' : 'Sync recent'}
+                {isPending ? 'Syncing…' : 'Import last 3 months'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isPending}
+                onClick={handleSyncRecent}
+                className="gap-2"
+              >
+                Sync recent
               </Button>
             </div>
 
@@ -303,6 +324,12 @@ export function StravaConnectCard({
 
         {connected && (
           <>
+            <Button asChild variant="secondary" className="gap-2">
+              <Link href="/api/strava/connect?switch=1">
+                <Users className="h-4 w-4" />
+                Switch Strava account
+              </Link>
+            </Button>
             <Button
               type="button"
               variant="ghost"
@@ -322,6 +349,13 @@ export function StravaConnectCard({
           </>
         )}
       </div>
+
+      {connected ? (
+        <p className="text-xs text-muted-foreground">
+          Switch Strava account opens Strava’s login so you can authorize a different athlete
+          (not only the email used for TrainTrack) and replace the link on this profile.
+        </p>
+      ) : null}
 
       <p className="text-xs text-muted-foreground">
         Requires scopes <code>read</code>, <code>activity:read_all</code>, and{' '}

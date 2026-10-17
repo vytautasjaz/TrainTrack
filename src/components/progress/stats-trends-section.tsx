@@ -7,7 +7,6 @@ import {
   ToolbarFilterGroup,
   ToolbarTextToggle,
 } from '@/components/training/plan-sport-filter-bar'
-import { SectionTitle } from '@/components/ui/typography'
 import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import type {
   ProgressMonthBucket,
@@ -691,10 +690,7 @@ export function StatsTrendsSection({ stats, className }: StatsTrendsSectionProps
   return (
     <section id="trends" className={cn('scroll-mt-24 space-y-4', className)}>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <SectionTitle>Trends</SectionTitle>
-          <p className="mt-1 text-[12px] text-[var(--tt-ink-soft)]">{subtitle}</p>
-        </div>
+        <p className="text-[12px] text-[var(--tt-ink-soft)]">{subtitle}</p>
         <div className="flex min-w-0 flex-wrap items-end gap-2">
           <ToolbarFilterGroup label="View" hint="Weeks, months in a year, or year over year">
             {(

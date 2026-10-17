@@ -295,7 +295,7 @@ html[data-sidebar-collapsed='true'] {
   /*
    * Fixed-height charcoal → light wash (hero + ~one week board).
    * Long soft mid ramp so the grey band eases out instead of banding.
-   * Height token lives on .tt-athlete-home-v2.
+   * Applied globally via .app-gradient::before; height via --tt-v2-home-fade-height.
    */
   --tt-v2-home-fade:
     linear-gradient(
@@ -332,6 +332,8 @@ html[data-sidebar-collapsed='true'] {
 
 .tt-app-top-nav {
   position: relative;
+  /* Allow Tools / account dropdowns to paint below the bar */
+  overflow: visible;
   isolation: isolate;
   background: var(--tt-v2-nav-bg);
   color: var(--tt-v2-ink);
@@ -344,20 +346,36 @@ html[data-sidebar-collapsed='true'] {
 
 /*
  * Radix Dialog sets `pointer-events: none` on body while open, then restores
- * auto on the dialog content. Portaled menus/selects are body children, so they
- * inherit none unless we force auto — otherwise clicks appear dead in modals.
+ * auto on the dialog content. Portaled menus/selects/date pickers are body
+ * children — without an explicit opt-in, clicks fall through to the overlay.
  */
 [role='dialog'],
 [data-radix-dialog-content] {
   pointer-events: auto;
 }
 
-body[style*='pointer-events: none'] [data-radix-dropdown-menu-content],
-body[style*='pointer-events: none'] [data-radix-select-content],
-body[style*='pointer-events: none'] [data-radix-popover-content],
-body[style*='pointer-events: none'] [data-radix-popper-content-wrapper],
-body[style*='pointer-events: none'] [role='menu'].pointer-events-auto {
-  pointer-events: auto;
+/*
+ * Force portaled floating UI clickable above open modals.
+ * Note: Radix Select content is role=listbox (no data-radix-select-content).
+ * Menus use data-radix-menu-content. Non-modal menus also set inline
+ * pointer-events:none — !important is required to win.
+ */
+body[style*='pointer-events: none'] :is(
+  [data-radix-menu-content],
+  [data-radix-dropdown-menu-content],
+  [data-radix-select-content],
+  [data-radix-popover-content],
+  [data-radix-popper-content-wrapper],
+  [data-tt-floating-ui],
+  [data-tt-date-field-panel],
+  [data-tt-date-field-backdrop],
+  [data-tt-exercise-preview],
+  [data-tt-weather-hours-panel],
+  [data-tt-activity-map-overlay],
+  [role='menu'],
+  [role='listbox']
+) {
+  pointer-events: auto !important;
 }
 
 /* Same content box as the home shell: max-w 110rem + shell pad-x. */
@@ -501,7 +519,7 @@ body[style*='pointer-events: none'] [role='menu'].pointer-events-auto {
 .tt-athlete-home-v2 {
   --tt-v2-page-pad: 1.5rem;
   --tt-v2-content-max: 110rem;
-  /* Hero + single week board + soft mid fade room */
+  /* Local fade height — paints behind home/tools content correctly */
   --tt-v2-home-fade-height: 38rem;
   position: relative;
   isolation: isolate;
@@ -509,11 +527,11 @@ body[style*='pointer-events: none'] [role='menu'].pointer-events-auto {
   width: 100%;
   max-width: 100%;
   overflow-x: clip;
-  background: var(--tt-v2-page-bottom);
+  background: transparent;
   min-height: calc(100dvh - var(--tt-top-nav-height, 3.5rem));
 }
 
-/* Full-bleed fixed-height wash — does not grow with expanded weeks / widgets */
+/* Full-bleed wash behind V2 page shells (home, tools) */
 .tt-athlete-home-v2::before {
   content: '';
   position: absolute;
@@ -544,9 +562,8 @@ body[style*='pointer-events: none'] [role='menu'].pointer-events-auto {
 }
 
 /*
- * Home main: full-bleed — drop main px/pb so the charcoal shell reaches
- * the viewport edges (shell pad tokens handle inset). Avoids white gutters
- * on mobile from [data-app-main] px-4.
+ * Home / Tools (V2PageShell): full-bleed — drop main px/pb so the charcoal
+ * shell reaches the viewport edges (shell pad tokens handle inset).
  */
 [data-app-main]:has(.tt-athlete-home-v2) {
   overflow-x: clip;
@@ -554,11 +571,6 @@ body[style*='pointer-events: none'] [role='menu'].pointer-events-auto {
   padding-left: 0;
   padding-right: 0;
   padding-bottom: 0;
-}
-
-[data-app-main-column]:has(.tt-athlete-home-v2),
-.app-gradient:has(.tt-athlete-home-v2) {
-  background: var(--tt-v2-page-bottom);
 }
 
 /*
@@ -573,7 +585,7 @@ body[style*='pointer-events: none'] [role='menu'].pointer-events-auto {
 .tt-athlete-home-v2-shell {
   /*
    * Content frame (centered on large screens). Fade lives on
-   * .tt-athlete-home-v2 so gutters outside max-width stay continuous.
+   * .app-gradient so gutters outside max-width stay continuous.
    * Same max-width + pad-x as .tt-app-top-nav-inner.
    * overflow-x:clip — side-gap expands (week board / widgets) must not
    * create a page-level horizontal scrollbar.
@@ -948,11 +960,16 @@ body[style*='pointer-events: none'] [role='menu'].pointer-events-auto {
 
 /* Day-header add — circular + reveals on column hover (quiet grey) */
 .tt-v2-week-board .tt-v2-day-add button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 1.5rem;
   width: 1.5rem;
+  padding: 0;
   border-radius: 9999px;
   background: rgb(17 19 21 / 0.035);
   color: var(--tt-v2-light-ink-faint);
+  line-height: 0;
 }
 
 .tt-v2-week-board .tt-v2-day-add button:hover,
@@ -962,11 +979,9 @@ body[style*='pointer-events: none'] [role='menu'].pointer-events-auto {
   color: var(--tt-v2-light-ink-soft);
 }
 
-.tt-v2-week-board .tt-v2-day-add button span {
+.tt-v2-week-board .tt-v2-day-add button svg {
+  display: block;
   color: inherit;
-  font-size: 14px;
-  font-weight: 300;
-  line-height: 1;
 }
 
 /* Today / focus day column — thin orange ring + soft lift */
@@ -1829,10 +1844,9 @@ html[data-library-dock='true'] [data-app-main] {
 }
 
 .tt-view-mode-switch-inline--compact {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  /* Same horizontal Athlete | Coach pill as full, just tighter for top nav */
   min-width: 0;
+  width: max-content;
 }
 
 .tt-view-mode-switch-inline--sidebar {
@@ -2289,8 +2303,58 @@ body {
   }
 }
 
+/*
+ * Default app chrome background — charcoal → light fade (same as athlete home).
+ * Tune --tt-v2-home-fade / --tt-v2-page-bottom / --tt-v2-home-fade-height once;
+ * every AppShell page inherits via .app-gradient.
+ */
 .app-gradient {
-  background: var(--color-background);
+  --tt-v2-home-fade-height: 38rem;
+  position: relative;
+  isolation: isolate;
+  background: var(--tt-v2-page-bottom, #f5f6f7);
+  color: var(--tt-v2-light-ink, #15192b);
+  min-height: 100dvh;
+}
+
+.app-gradient::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 0;
+  width: 100vw;
+  height: var(--tt-v2-home-fade-height);
+  transform: translateX(-50%);
+  background: var(--tt-v2-home-fade);
+  pointer-events: none;
+}
+
+.app-gradient > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Keep sticky top nav above page content so Tools / account menus aren’t covered */
+.app-gradient > .tt-app-top-nav {
+  z-index: 40;
+}
+
+/* V2 shells paint their own fade — skip the shell-level wash to avoid a double layer */
+.app-gradient:has(.tt-athlete-home-v2)::before {
+  content: none;
+}
+
+@media (max-width: 767px) {
+  .app-gradient {
+    --tt-v2-home-fade-height: 30rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .app-gradient {
+    --tt-v2-home-fade-height: 44rem;
+  }
 }
 
 /* Pin mobile tab bar to the viewport — portal to body; avoid ancestor transform traps. */
@@ -2380,7 +2444,7 @@ body {
 
 
 .dark .app-gradient {
-  background: var(--color-background);
+  background: var(--tt-v2-page-bottom, var(--color-background));
 }
 
 .card-elevated {
@@ -2388,6 +2452,26 @@ body {
   border-radius: 0.75rem;
   background: var(--color-surface);
   box-shadow: none;
+}
+
+/*
+ * Tools calculators sit inside V2PageShell (hero uses light ink).
+ * Remap to charcoal so ghost inputs / body copy read on white cards.
+ */
+.tt-tools-calc-panel {
+  --tt-ink: var(--tt-v2-light-ink, #15192b);
+  --tt-ink-soft: var(--tt-v2-light-ink-soft, #6b7280);
+  --tt-ink-faint: var(--tt-v2-light-ink-faint, #9ca3af);
+  color: var(--tt-v2-light-ink, #15192b);
+}
+
+.tt-tools-calc-panel :is(input, textarea, select) {
+  color: var(--tt-v2-light-ink, #15192b);
+}
+
+.tt-tools-calc-panel :is(input, textarea)::placeholder {
+  color: var(--tt-v2-light-ink-faint, #9ca3af);
+  opacity: 1;
 }
 
 .workout-card-interactive {
@@ -2995,21 +3079,42 @@ body {
   }
 }
 
+/*
+ * Dual-tone: charcoal base reads on the light gradient; soft white peak
+ * stays visible on the dark portion. Keep overall opacity low.
+ */
 .tt-shimmer {
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 92%, var(--tt-line, #ebebeb)) 0%,
-    color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 45%, #fff) 50%,
-    color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 92%, var(--tt-line, #ebebeb)) 100%
+    rgb(17 19 21 / 0.045) 0%,
+    rgb(17 19 21 / 0.06) 38%,
+    rgb(255 255 255 / 0.14) 50%,
+    rgb(17 19 21 / 0.06) 62%,
+    rgb(17 19 21 / 0.045) 100%
   );
   background-size: 200% 100%;
-  animation: tt-shimmer 1.35s ease-in-out infinite;
+  animation: tt-shimmer 2.8s ease-in-out infinite;
+}
+
+/* Solid charcoal / dark hero bands — white-only wash */
+.tt-shimmer.tt-shimmer--on-dark {
+  background: linear-gradient(
+    90deg,
+    rgb(255 255 255 / 0.04) 0%,
+    rgb(255 255 255 / 0.1) 50%,
+    rgb(255 255 255 / 0.04) 100%
+  );
+  background-size: 200% 100%;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tt-shimmer {
     animation: none;
-    background: var(--tt-sidebar, #f5f5f5);
+    background: rgb(17 19 21 / 0.05);
+  }
+
+  .tt-shimmer.tt-shimmer--on-dark {
+    background: rgb(255 255 255 / 0.06);
   }
 }
 
@@ -3357,10 +3462,55 @@ html[data-inbox-mobile-detail='true'] .tt-inbox-thread-composer {
   }
 }
 
+/*
+ * Training chrome sits on the dark top of .app-gradient.
+ * Remap ink + semantic colors so titles AND quiet toolbar controls
+ * (Filter / Layers / View / period) stay readable. Portaled menus keep
+ * the page’s light tokens.
+ */
+.tt-training-list-sticky-header {
+  --tt-ink: var(--tt-v2-ink, #f4f6fb);
+  --tt-ink-soft: var(--tt-v2-ink-soft, #a0a6b3);
+  --tt-ink-faint: var(--tt-v2-ink-faint, #7a8190);
+  --tt-line: rgb(255 255 255 / 0.14);
+  /* Quiet toggles use muted-foreground/40 — keep base bright enough on charcoal */
+  --color-foreground: #f4f6fb;
+  --color-muted-foreground: #c5cad3;
+  --color-border: rgb(255 255 255 / 0.18);
+  --color-muted: rgb(255 255 255 / 0.1);
+  --color-card: rgb(255 255 255 / 0.14);
+  --color-card-foreground: #f4f6fb;
+  --color-primary: #f4f6fb;
+  --color-primary-foreground: #111315;
+  color: #c5cad3;
+}
+
+.tt-training-list-sticky-header :is(.title-display, .title-page, .tt-inbox-page-title) {
+  color: #f4f6fb;
+}
+
+.tt-training-list-sticky-header :is(.title-eyebrow, [data-page-header] .title-eyebrow) {
+  color: rgb(244 246 251 / 0.55);
+}
+
+.tt-training-list-sticky-header .page-header-description {
+  color: #c5cad3;
+}
+
 /* Page / section title trailing period — brand orange (universal) */
 .tt-title-dot,
 .tt-inbox-title-dot {
   color: var(--color-brand, var(--tt-v2-accent, #f0440a));
+}
+
+/* Analytics H1 sits on charcoal .app-gradient — beat .title-display ink. */
+[data-page-header] .tt-stats-page-title.title-display,
+[data-page-header] h1.tt-stats-page-title {
+  color: #f4f6fb;
+}
+
+[data-page-header] .tt-stats-page-description {
+  color: #a0a6b3;
 }
 
 /* List view mobile frame fills top bar → bottom nav — drop page chrome padding gaps. */
@@ -4975,14 +5125,138 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-month-grid-sc
 
 .tt-month-grid-scroll-inner {
   box-sizing: border-box;
-  /* Match day minmax(6.5rem) × 7 so the 7-col grid never collapses on mobile. */
-  min-width: 45.5rem;
-  width: max(100%, 45.5rem);
+  /*
+   * Day minmax(6.5rem) × 7 + gutters (~12px × 6) so spacious month board
+   * doesn’t collapse on mobile.
+   */
+  min-width: 52rem;
+  width: max(100%, 52rem);
 }
 
 .tt-month-grid-scroll[data-month-stats='1'] .tt-month-grid-scroll-inner {
-  min-width: 56.5rem; /* 11rem stats + 45.5rem days */
-  width: max(100%, 56.5rem);
+  min-width: 64rem; /* stats + days + gutters */
+  width: max(100%, 64rem);
+}
+
+/*
+ * Month plan board — closer to home expanded week boards:
+ * soft white panel, modular gutters, air between week rows.
+ */
+.tt-month-board.tt-table-shell {
+  border-radius: var(--radius-2xl);
+  border-color: var(--tt-v2-light-panel-line, #e3e6e9);
+  box-shadow: var(--tt-v2-shadow-board);
+  background: var(--tt-v2-week-board, #fff);
+  padding: var(--tt-v2-grid-gutter, 12px);
+}
+
+.tt-month-board-header {
+  margin-bottom: 0.35rem;
+  border-bottom: 1px solid rgb(17 19 21 / 0.06);
+}
+
+.tt-month-days-grid {
+  column-gap: var(--tt-v2-grid-gutter, 12px);
+  row-gap: 0;
+  background: transparent;
+  align-items: stretch;
+}
+
+/* Soft week separators — paint above vertical gutters */
+.tt-month-week-divider {
+  position: relative;
+  z-index: 3;
+  height: 0;
+  margin: 0.75rem 0 0.55rem;
+  border-top: 1px solid rgb(17 19 21 / 0.1);
+  /* Cover verticals where they meet the week rule */
+  box-shadow: 0 0 0 1px var(--tt-v2-week-board, #fff);
+}
+
+.tt-month-day-cell {
+  position: relative;
+  z-index: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.tt-month-day-cell > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Vertical day separators — centered in the modular gutter (like home week) */
+.tt-month-day-cell[data-day-col]:not([data-day-col='6'])::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: calc(var(--tt-v2-grid-gutter, 12px) / -2);
+  width: 1px;
+  transform: translateX(50%);
+  background: rgb(17 19 21 / 0.08);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/*
+ * Today frame snaps to the same gutter midlines as day separators
+ * (half-gutter out each side — mirrors home week board).
+ */
+.tt-month-day-today {
+  z-index: 2;
+  background: transparent;
+}
+
+.tt-month-day-today::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline: calc(var(--tt-v2-grid-gutter, 12px) / -2);
+  border: 1px solid var(--tt-v2-accent, #f0440a);
+  border-radius: var(--radius-lg);
+  background: var(--tt-v2-week-board, #fff);
+  pointer-events: none;
+  z-index: 0;
+  box-sizing: border-box;
+}
+
+.tt-month-day-today::after,
+.tt-month-day-cell:has(+ .tt-month-day-today)::after {
+  display: none;
+}
+
+/*
+ * Month / phase start — thick rule on the LEFT gutter midline
+ * (same center as the day separator it replaces).
+ */
+.tt-month-day-cell[data-month-start='true']:not(.tt-month-day-today)::before,
+.tt-month-day-phase-start:not(.tt-month-day-today)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--tt-v2-grid-gutter, 12px) / -2);
+  width: 3px;
+  transform: translateX(-50%);
+  background: rgb(17 19 21 / 0.35);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.tt-month-day-phase-start:not(.tt-month-day-today)::before {
+  background: var(--tt-month-phase-border, rgb(17 19 21 / 0.35));
+}
+
+.tt-month-day-today[data-month-start='true']::before,
+.tt-month-day-today.tt-month-day-phase-start::before {
+  border-left-width: 3px;
+  border-left-color: rgb(17 19 21 / 0.45);
+}
+
+.tt-month-day-cell:has(+ [data-month-start='true'])::after,
+.tt-month-day-cell:has(+ .tt-month-day-phase-start)::after {
+  display: none;
 }
 
 .tt-month-grid-scroll .tt-table-shell,
@@ -5016,32 +5290,31 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-month-grid-sc
 .tt-month-grid-scroll .tt-month-stats-col::after {
   content: '';
   position: absolute;
-  /* Bridge the 1px grid gap so the wash reads as one continuous edge. */
-  top: -1px;
-  right: -12px;
-  bottom: -1px;
-  width: 12px;
+  /* Bridge modular gutter so the wash reads as one continuous edge. */
+  top: -2px;
+  right: calc(var(--tt-v2-grid-gutter, 12px) * -0.55);
+  bottom: -2px;
+  width: calc(var(--tt-v2-grid-gutter, 12px) * 0.7);
   pointer-events: none;
   z-index: 1;
   background: linear-gradient(
     to right,
-    rgb(0 0 0 / 0.06),
-    rgb(0 0 0 / 0.02) 50%,
+    rgb(0 0 0 / 0.05),
+    rgb(0 0 0 / 0.015) 55%,
     transparent
   );
 }
 
-.tt-month-grid-scroll .tt-table-header .tt-month-stats-col {
+.tt-month-grid-scroll .tt-month-board-header .tt-month-stats-col {
   z-index: 6;
-  background: var(--tt-table-header-bg, #2a3144) !important;
+  background: var(--tt-v2-week-board, #fff) !important;
 }
 
 .tt-month-grid-scroll .tt-table-body .tt-month-stats-col {
-  background-color: color-mix(
-    in oklab,
-    var(--color-muted, #f5f5f5) 40%,
-    var(--color-card, #fff)
-  ) !important;
+  border-radius: 0;
+  background-color: transparent !important;
+  box-shadow: none;
+  border-right: 1px solid rgb(17 19 21 / 0.06);
 }
 
 @media (max-width: 1023px) {
@@ -5060,6 +5333,465 @@ html[data-calendar-expanded='true'] .tt-calendar-expanded-root .tt-month-grid-sc
   min-height: 0;
   justify-content: center;
   gap: 0.2rem;
+}
+
+/*
+ * V2 week plan board — soft white panel + light day head (like month view).
+ */
+.tt-week-plan-board {
+  --tt-table-header-bg: var(--tt-v2-week-board, #fff);
+  --tt-week-sep: rgb(17 19 21 / 0.08);
+  --tt-week-sep-strong: rgb(17 19 21 / 0.1);
+  border: 1px solid var(--tt-v2-light-panel-line, #e3e6e9);
+  border-radius: var(--radius-2xl);
+  background: var(--tt-v2-week-board, #fff);
+  box-shadow: var(--tt-v2-shadow-board);
+}
+
+.tt-week-plan-board .tt-week-matrix-table.tt-table-frame {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Light day head — month-style labels on white */
+.tt-week-plan-board .tt-table-header,
+.tt-week-plan-board thead.tt-table-header,
+.tt-week-plan-board tr.tt-table-header {
+  background: transparent !important;
+  color: var(--tt-v2-light-ink-soft, #6b7280);
+  --tt-table-header-pad-y: 0.8rem;
+}
+
+/* Full-width rule under the day-head row + roomier vertical padding */
+.tt-week-plan-board thead.tt-table-header > tr > :is(th, td),
+.tt-week-plan-board tr.tt-table-header > :is(th, td) {
+  border-bottom: 1px solid var(--tt-week-sep-strong) !important;
+  padding-block: 0.8rem !important;
+}
+
+.tt-week-plan-board .tt-week-matrix-scroll .tt-week-matrix-table > thead > tr > :first-child {
+  background: var(--tt-v2-week-board, #fff) !important;
+  color: var(--tt-v2-light-ink-faint, #9ca3af) !important;
+}
+
+.tt-week-plan-board thead.tt-table-header > tr > :first-child {
+  border-top-left-radius: calc(var(--radius-2xl) - 1px);
+}
+
+.tt-week-plan-board thead.tt-table-header > tr > :last-child {
+  border-top-right-radius: calc(var(--radius-2xl) - 1px);
+}
+
+/* Match body column seps — don't zero header vlines (that desyncs them) */
+.tt-week-plan-board .tt-table-header-vline {
+  box-shadow: inset -1px 0 0 var(--tt-week-sep);
+}
+
+.tt-week-plan-board .tt-table-header-cell-weekend {
+  background: transparent !important;
+  color: var(--tt-v2-light-ink-faint, #9ca3af) !important;
+}
+
+.tt-week-plan-board .tt-table-header-cell-today {
+  background: color-mix(
+    in srgb,
+    var(--tt-v2-accent, #f0440a) 5%,
+    var(--tt-v2-week-board, #fff)
+  ) !important;
+  color: var(--tt-v2-light-ink, #15192b) !important;
+}
+
+.tt-week-plan-board .tt-week-header-sport-label {
+  color: var(--tt-v2-light-ink-faint, #9ca3af) !important;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/*
+ * Kill legacy cell borders entirely (width + color). Transparent border-r on
+ * body cells still shifted inset column lines vs header (no border-r).
+ */
+.tt-week-plan-board .tt-week-matrix-table :is(th, td) {
+  border-color: transparent !important;
+  border-left-width: 0 !important;
+  border-right-width: 0 !important;
+}
+
+.tt-week-plan-board .tt-week-matrix-table > tbody > tr > :is(th, td) {
+  border-bottom: 1px solid var(--tt-week-sep) !important;
+  padding-block: 0.45rem;
+}
+
+.tt-week-plan-board .tt-week-matrix-table > tbody > tr:last-child > :is(th, td) {
+  border-bottom: none !important;
+}
+
+/* Vertical day + sport-rail separators (same edge in header + body) */
+.tt-week-plan-board .tt-week-matrix-table > :is(thead, tbody) > tr > :not(:last-child) {
+  box-shadow: inset -1px 0 0 var(--tt-week-sep);
+}
+
+.tt-week-plan-board .tt-week-matrix-table > :is(thead, tbody) > tr > :not(:first-child) {
+  padding-inline: 0.35rem;
+}
+
+/* Multi-week horizontal rule — like .tt-month-week-divider */
+.tt-week-plan-board tr.tt-table-header.tt-week-plan-week-sep > :is(th, td) {
+  border-top: 1px solid var(--tt-week-sep-strong) !important;
+  padding-top: 0.85rem !important;
+  box-shadow:
+    inset -1px 0 0 var(--tt-week-sep),
+    0 -1px 0 0 var(--tt-v2-week-board, #fff);
+}
+
+.tt-week-plan-board tr.tt-table-header.tt-week-plan-week-sep > :last-child {
+  box-shadow: 0 -1px 0 0 var(--tt-v2-week-board, #fff);
+}
+
+.tt-week-plan-board .tt-week-dayhead-weekday {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tt-v2-light-ink-soft, #6b7280) !important;
+}
+
+.tt-week-plan-board .tt-week-dayhead-date {
+  margin-top: 0;
+  font-size: 0.625rem;
+  color: var(--tt-v2-light-ink-faint, #9ca3af) !important;
+}
+
+.tt-week-plan-board [data-week-day-today='1'] .tt-week-dayhead-weekday,
+.tt-week-plan-board [data-week-day-today='1'] .tt-week-dayhead-date {
+  color: var(--tt-v2-light-ink, #15192b) !important;
+}
+
+.tt-week-plan-board .tt-table-header-cell-weekend .tt-week-dayhead-weekday,
+.tt-week-plan-board .tt-table-header-cell-weekend .tt-week-dayhead-date {
+  color: var(--tt-v2-light-ink-faint, #9ca3af) !important;
+}
+
+/* Weather row — slide open / closed with the toolbar Weather toggle */
+.tt-week-plan-board .tt-week-weather-row-clip {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tt-week-plan-board
+  .tt-week-weather-row[data-weather-open='true']
+  .tt-week-weather-row-clip {
+  grid-template-rows: 1fr;
+}
+
+.tt-week-plan-board .tt-week-weather-row-inner {
+  min-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.tt-week-plan-board
+  .tt-week-weather-row[data-weather-open='true']
+  .tt-week-weather-row-inner {
+  opacity: 1;
+  transition-delay: 40ms;
+}
+
+.tt-week-plan-board .tt-week-weather-row > :is(th, td) {
+  transition:
+    padding-block 280ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-bottom-color 200ms ease;
+}
+
+.tt-week-plan-board .tt-week-weather-row[data-weather-open='false'] > :is(th, td) {
+  padding-block: 0 !important;
+  border-bottom-color: transparent !important;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tt-week-plan-board .tt-week-weather-row-clip,
+  .tt-week-plan-board .tt-week-weather-row-inner,
+  .tt-week-plan-board .tt-week-weather-row > :is(th, td) {
+    transition: none;
+  }
+}
+
+/* Today column wash (header + body share the same tint) */
+.tt-week-plan-board .tt-table-cell-today {
+  background: color-mix(
+    in srgb,
+    var(--tt-v2-accent, #f0440a) 5%,
+    var(--tt-v2-week-board, #fff)
+  ) !important;
+}
+
+/*
+ * Drag/drop day targets — ::before overlay so today/hover `background: !important`
+ * and vertical inset seps still show; ready = soft, over = stronger + inset edge.
+ */
+.tt-day-drop-cell.tt-day-drop-ready,
+.tt-day-drop-cell.tt-day-drop-over {
+  position: relative;
+  isolation: isolate;
+}
+
+.tt-day-drop-cell.tt-day-drop-ready::before,
+.tt-day-drop-cell.tt-day-drop-over::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.tt-day-drop-cell.tt-day-drop-ready::before {
+  background: rgb(17 19 21 / 0.05);
+  box-shadow: inset 0 0 0 1px rgb(17 19 21 / 0.08);
+}
+
+.tt-day-drop-cell.tt-day-drop-over::before {
+  background: rgb(17 19 21 / 0.1);
+  box-shadow: inset 0 0 0 1.5px rgb(17 19 21 / 0.22);
+}
+
+.tt-week-plan-board .tt-day-drop-cell.tt-day-drop-ready::before {
+  background: rgb(17 19 21 / 0.05);
+  box-shadow: inset 0 0 0 1px rgb(17 19 21 / 0.1);
+}
+
+.tt-week-plan-board .tt-day-drop-cell.tt-day-drop-over::before {
+  background: rgb(17 19 21 / 0.1);
+  box-shadow: inset 0 0 0 1.5px rgb(17 19 21 / 0.2);
+}
+
+/* Day-column hover wash + circular header “+” on the right */
+.tt-week-plan-board .tt-week-dayhead-add {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  z-index: 2;
+  transform: translateY(-50%);
+  transition: opacity 0.15s ease;
+}
+
+.tt-week-plan-board .tt-week-dayhead-add > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.625rem;
+  width: 1.625rem;
+  padding: 0;
+  border-radius: 9999px;
+  border: none;
+  background: rgb(17 19 21 / 0.05);
+  color: var(--tt-v2-light-ink-soft, #6b7280);
+  box-shadow: none;
+  line-height: 0;
+}
+
+.tt-week-plan-board .tt-week-dayhead-add > button:hover,
+.tt-week-plan-board .tt-week-dayhead-add > button:focus-visible,
+.tt-week-plan-board .tt-week-dayhead-add[data-menu-open='true'] > button {
+  background: rgb(17 19 21 / 0.08);
+  color: var(--tt-v2-light-ink-soft, #6b7280);
+}
+
+.tt-week-plan-board .tt-week-dayhead-add > button svg {
+  display: block;
+  color: inherit;
+}
+
+@media (hover: hover) {
+  .tt-week-plan-board .tt-week-dayhead-add {
+    opacity: 0;
+  }
+
+  .tt-week-plan-board .tt-week-dayhead-add:has(button[aria-expanded='true']),
+  .tt-week-plan-board .tt-week-dayhead-add[data-menu-open='true'],
+  .tt-week-plan-board .tt-week-dayhead-add:focus-within {
+    opacity: 1;
+  }
+}
+
+.tt-week-plan-board .tt-week-day-col {
+  transition: background-color 0.12s ease;
+}
+
+@media (hover: hover) {
+  .tt-week-plan-board tbody:has([data-day-col='0']:hover) > tr > [data-day-col='0'],
+  .tt-week-plan-board tbody:has([data-day-col='1']:hover) > tr > [data-day-col='1'],
+  .tt-week-plan-board tbody:has([data-day-col='2']:hover) > tr > [data-day-col='2'],
+  .tt-week-plan-board tbody:has([data-day-col='3']:hover) > tr > [data-day-col='3'],
+  .tt-week-plan-board tbody:has([data-day-col='4']:hover) > tr > [data-day-col='4'],
+  .tt-week-plan-board tbody:has([data-day-col='5']:hover) > tr > [data-day-col='5'],
+  .tt-week-plan-board tbody:has([data-day-col='6']:hover) > tr > [data-day-col='6'],
+  .tt-week-plan-board
+    table:has(thead [data-day-col='0']:hover)
+    > tbody:first-of-type
+    > tr
+    > [data-day-col='0'],
+  .tt-week-plan-board
+    table:has(thead [data-day-col='1']:hover)
+    > tbody:first-of-type
+    > tr
+    > [data-day-col='1'],
+  .tt-week-plan-board
+    table:has(thead [data-day-col='2']:hover)
+    > tbody:first-of-type
+    > tr
+    > [data-day-col='2'],
+  .tt-week-plan-board
+    table:has(thead [data-day-col='3']:hover)
+    > tbody:first-of-type
+    > tr
+    > [data-day-col='3'],
+  .tt-week-plan-board
+    table:has(thead [data-day-col='4']:hover)
+    > tbody:first-of-type
+    > tr
+    > [data-day-col='4'],
+  .tt-week-plan-board
+    table:has(thead [data-day-col='5']:hover)
+    > tbody:first-of-type
+    > tr
+    > [data-day-col='5'],
+  .tt-week-plan-board
+    table:has(thead [data-day-col='6']:hover)
+    > tbody:first-of-type
+    > tr
+    > [data-day-col='6'],
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='0']:hover)
+    > thead
+    > tr
+    > [data-day-col='0'],
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='1']:hover)
+    > thead
+    > tr
+    > [data-day-col='1'],
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='2']:hover)
+    > thead
+    > tr
+    > [data-day-col='2'],
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='3']:hover)
+    > thead
+    > tr
+    > [data-day-col='3'],
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='4']:hover)
+    > thead
+    > tr
+    > [data-day-col='4'],
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='5']:hover)
+    > thead
+    > tr
+    > [data-day-col='5'],
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='6']:hover)
+    > thead
+    > tr
+    > [data-day-col='6'],
+  .tt-week-plan-board thead:has([data-day-col='0']:hover) > tr > [data-day-col='0'],
+  .tt-week-plan-board thead:has([data-day-col='1']:hover) > tr > [data-day-col='1'],
+  .tt-week-plan-board thead:has([data-day-col='2']:hover) > tr > [data-day-col='2'],
+  .tt-week-plan-board thead:has([data-day-col='3']:hover) > tr > [data-day-col='3'],
+  .tt-week-plan-board thead:has([data-day-col='4']:hover) > tr > [data-day-col='4'],
+  .tt-week-plan-board thead:has([data-day-col='5']:hover) > tr > [data-day-col='5'],
+  .tt-week-plan-board thead:has([data-day-col='6']:hover) > tr > [data-day-col='6'] {
+    background-color: color-mix(
+      in srgb,
+      var(--tt-v2-light-ink, #15192b) 4%,
+      var(--tt-v2-week-board, #fff)
+    ) !important;
+  }
+
+  .tt-week-plan-board tbody:has([data-day-col='0']:hover) [data-day-col='0'] .tt-week-dayhead-add,
+  .tt-week-plan-board tbody:has([data-day-col='1']:hover) [data-day-col='1'] .tt-week-dayhead-add,
+  .tt-week-plan-board tbody:has([data-day-col='2']:hover) [data-day-col='2'] .tt-week-dayhead-add,
+  .tt-week-plan-board tbody:has([data-day-col='3']:hover) [data-day-col='3'] .tt-week-dayhead-add,
+  .tt-week-plan-board tbody:has([data-day-col='4']:hover) [data-day-col='4'] .tt-week-dayhead-add,
+  .tt-week-plan-board tbody:has([data-day-col='5']:hover) [data-day-col='5'] .tt-week-dayhead-add,
+  .tt-week-plan-board tbody:has([data-day-col='6']:hover) [data-day-col='6'] .tt-week-dayhead-add,
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='0']:hover)
+    > thead
+    [data-day-col='0']
+    .tt-week-dayhead-add,
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='1']:hover)
+    > thead
+    [data-day-col='1']
+    .tt-week-dayhead-add,
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='2']:hover)
+    > thead
+    [data-day-col='2']
+    .tt-week-dayhead-add,
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='3']:hover)
+    > thead
+    [data-day-col='3']
+    .tt-week-dayhead-add,
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='4']:hover)
+    > thead
+    [data-day-col='4']
+    .tt-week-dayhead-add,
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='5']:hover)
+    > thead
+    [data-day-col='5']
+    .tt-week-dayhead-add,
+  .tt-week-plan-board
+    table:has(tbody:first-of-type [data-day-col='6']:hover)
+    > thead
+    [data-day-col='6']
+    .tt-week-dayhead-add,
+  .tt-week-plan-board thead:has([data-day-col='0']:hover) [data-day-col='0'] .tt-week-dayhead-add,
+  .tt-week-plan-board thead:has([data-day-col='1']:hover) [data-day-col='1'] .tt-week-dayhead-add,
+  .tt-week-plan-board thead:has([data-day-col='2']:hover) [data-day-col='2'] .tt-week-dayhead-add,
+  .tt-week-plan-board thead:has([data-day-col='3']:hover) [data-day-col='3'] .tt-week-dayhead-add,
+  .tt-week-plan-board thead:has([data-day-col='4']:hover) [data-day-col='4'] .tt-week-dayhead-add,
+  .tt-week-plan-board thead:has([data-day-col='5']:hover) [data-day-col='5'] .tt-week-dayhead-add,
+  .tt-week-plan-board thead:has([data-day-col='6']:hover) [data-day-col='6'] .tt-week-dayhead-add {
+    opacity: 1;
+  }
+}
+
+/* Sport / layer label rail — quieter, sits on the board */
+.tt-week-plan-board
+  .tt-week-matrix-scroll
+  .tt-week-matrix-table
+  > tbody
+  > tr
+  > :first-child {
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+}
+
+.tt-week-plan-board
+  .tt-week-matrix-scroll
+  .tt-week-matrix-table
+  > tbody
+  > tr:not([data-row='sport'])
+  > :first-child {
+  background-color: color-mix(
+    in srgb,
+    var(--color-muted, #f5f5f5) 12%,
+    var(--tt-v2-week-board, #fff)
+  ) !important;
 }
 
 /*

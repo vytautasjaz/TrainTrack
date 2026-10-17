@@ -15,8 +15,20 @@ import { parsePaceMinPerKm } from '@/lib/athlete-preferences'
 
 export const CALCULATOR_STORAGE_KEY = 'traintrack:calculators:v2'
 
-export type CalculatorTab = 'running' | 'triathlon' | 'interval' | 'hyrox' | 'splits'
+export type CalculatorTab =
+  | 'running'
+  | 'triathlon'
+  | 'interval'
+  | 'hyrox'
+  | 'splits'
+  | 'predictor'
 export type CalculatorDirection = 'pace-to-time' | 'time-to-pace'
+
+export type RacePredictorCalculatorState = {
+  knownDistanceKm: string
+  knownTime: string
+  customTargetKm: string
+}
 
 export type RunningCalculatorState = {
   direction: CalculatorDirection
@@ -60,6 +72,31 @@ export type CalculatorPersistedState = {
   interval: IntervalCalculatorState
   hyrox: HyroxCalculatorState
   splits: SplitsCalculatorState
+  predictor: RacePredictorCalculatorState
+}
+
+export function buildDefaultPredictorState(): RacePredictorCalculatorState {
+  return {
+    knownDistanceKm: '5',
+    knownTime: '',
+    customTargetKm: '',
+  }
+}
+
+function normalizePredictorState(
+  value: RacePredictorCalculatorState | undefined,
+): RacePredictorCalculatorState {
+  const initial = buildDefaultPredictorState()
+  if (!value) return initial
+  return {
+    knownDistanceKm:
+      typeof value.knownDistanceKm === 'string' && value.knownDistanceKm.trim()
+        ? value.knownDistanceKm
+        : initial.knownDistanceKm,
+    knownTime: typeof value.knownTime === 'string' ? value.knownTime : initial.knownTime,
+    customTargetKm:
+      typeof value.customTargetKm === 'string' ? value.customTargetKm : initial.customTargetKm,
+  }
 }
 
 export function buildInitialCalculatorState(
@@ -101,6 +138,7 @@ export function buildInitialCalculatorState(
     },
     hyrox: buildDefaultHyroxState(defaults.runningPace),
     splits: buildDefaultSplitsState(parsePaceMinPerKm(defaults.runningPace)),
+    predictor: buildDefaultPredictorState(),
   }
 }
 
@@ -149,6 +187,7 @@ function migrateFromV1(parsed: Record<string, unknown>, defaults: CalculatorDefa
     interval: initial.interval,
     hyrox: initial.hyrox,
     splits: initial.splits,
+    predictor: initial.predictor,
   }
 }
 
@@ -198,6 +237,9 @@ export function loadCalculatorState(defaults: CalculatorDefaults): CalculatorPer
           splits: normalizeSplitsState(
             (parsed as CalculatorPersistedState).splits,
             parsePaceMinPerKm(defaults.runningPace),
+          ),
+          predictor: normalizePredictorState(
+            (parsed as CalculatorPersistedState).predictor,
           ),
         }
       }

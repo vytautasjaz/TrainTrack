@@ -13,6 +13,10 @@ type DayDropSectionProps = {
   className?: string
   style?: CSSProperties
   id?: string
+  /** Weekday index 0–6 — used by month grid for gutter separators. */
+  dayCol?: number
+  /** First day of a new month in the grid — thick rule on left gutter mid. */
+  monthStart?: boolean
   children: ReactNode
 }
 
@@ -24,6 +28,8 @@ export function DayDropSection({
   className,
   style,
   id,
+  dayCol,
+  monthStart,
   children,
 }: DayDropSectionProps) {
   const { dropHighlightClass, dropProps } = useDayDropTarget({
@@ -36,6 +42,8 @@ export function DayDropSection({
     <section
       id={id}
       data-plan-day-section={dateKey}
+      data-day-col={dayCol}
+      data-month-start={monthStart ? 'true' : undefined}
       className={cn(className, dropHighlightClass)}
       style={style}
       {...dropProps}

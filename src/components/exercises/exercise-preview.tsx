@@ -147,6 +147,15 @@ function PreviewBody({
           <>
             <div className="h-4 w-2/3 animate-pulse rounded bg-[var(--tt-v2-light,#F5F6F7)]" />
             <div className="h-3 w-1/2 animate-pulse rounded bg-[var(--tt-v2-light,#F5F6F7)]" />
+            <div className="flex gap-1 pt-0.5">
+              <div className="h-5 w-14 animate-pulse rounded-[4px] bg-[var(--tt-v2-light,#F5F6F7)]" />
+              <div className="h-5 w-16 animate-pulse rounded-[4px] bg-[var(--tt-v2-light,#F5F6F7)]" />
+            </div>
+            <div className="space-y-1.5 pt-1">
+              <div className="h-3 w-full animate-pulse rounded bg-[var(--tt-v2-light,#F5F6F7)]" />
+              <div className="h-3 w-[88%] animate-pulse rounded bg-[var(--tt-v2-light,#F5F6F7)]" />
+              <div className="h-3 w-[72%] animate-pulse rounded bg-[var(--tt-v2-light,#F5F6F7)]" />
+            </div>
           </>
         ) : detail ? (
           <>
@@ -230,15 +239,20 @@ export function ExercisePreview({
     setPortalReady(true)
   }, [])
 
-  useEffect(() => {
+  // Flip loading before paint so the first open frame already shows shimmer.
+  useLayoutEffect(() => {
     if (!open || !exerciseId) {
       setDetail(null)
       setLoading(false)
       return
     }
-    let cancelled = false
     setDetail(null)
     setLoading(true)
+  }, [open, exerciseId])
+
+  useEffect(() => {
+    if (!open || !exerciseId) return
+    let cancelled = false
     void getExerciseDetail(exerciseId)
       .then((next) => {
         if (cancelled) return
@@ -328,8 +342,11 @@ export function ExercisePreview({
     }
   }, [open, compact, onOpenChange, anchorRef])
 
-  // No empty “unavailable” tooltip — only show once we have detail.
-  if (!open || !detail) return null
+  // Open immediately with shimmer; close silently if fetch yields nothing.
+  if (!open) return null
+
+  // Treat "open but no detail yet" as loading even before effects flush.
+  const showLoading = loading || !detail
 
   if (compact) {
     return (
@@ -340,14 +357,14 @@ export function ExercisePreview({
           hideCloseButton
         >
           <DialogTitle className="sr-only">
-            {detail.canonicalName}
+            {detail?.canonicalName ?? 'Exercise preview'}
           </DialogTitle>
           <DialogDescription className="sr-only">
             Quick exercise preview
           </DialogDescription>
           <PreviewBody
             detail={detail}
-            loading={false}
+            loading={showLoading}
             onViewDetails={() => {
               onOpenChange(false)
               onViewDetails()
@@ -359,22 +376,26 @@ export function ExercisePreview({
     )
   }
 
-  if (!portalReady || !placement) return null
+  const resolvedPlacement =
+    placement ??
+    (anchorRef?.current ? computePlacement(anchorRef.current) : null)
+
+  if (!portalReady || !resolvedPlacement) return null
 
   return createPortal(
     <div
       ref={panelRef}
       data-tt-exercise-preview=""
       role="dialog"
-      aria-label={detail.canonicalName}
+      aria-label={detail?.canonicalName ?? 'Exercise preview'}
       className={cn(
         'pointer-events-auto fixed z-[320] flex flex-col overflow-hidden rounded-[8px] border border-[var(--tt-v2-light-panel-line,#E3E6E9)] bg-white shadow-lg',
       )}
       style={{
-        top: placement.top,
-        left: placement.left,
-        width: placement.width,
-        maxHeight: placement.maxHeight,
+        top: resolvedPlacement.top,
+        left: resolvedPlacement.left,
+        width: resolvedPlacement.width,
+        maxHeight: resolvedPlacement.maxHeight,
       }}
     >
       <div
@@ -384,7 +405,7 @@ export function ExercisePreview({
       >
         <PreviewBody
           detail={detail}
-          loading={false}
+          loading={showLoading}
           onClose={() => onOpenChange(false)}
           onViewDetails={() => {
             onOpenChange(false)

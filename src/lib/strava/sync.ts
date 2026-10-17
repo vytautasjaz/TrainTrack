@@ -34,6 +34,12 @@ import {
 } from '@/lib/athlete-privacy'
 import { findWorkoutForActivityInPool } from '@/lib/strava/match-workout'
 
+/**
+ * History window for first sync + “Import last 3 months”.
+ * Matches the 90-day manual range cap and covers APM’s ~10-week lookback.
+ */
+export const STRAVA_HISTORY_LOOKBACK_DAYS = 90
+
 /** How many days before/after the plan date to offer when manually linking Strava. */
 const STRAVA_LINK_LOOKBACK_DAYS = 7
 const STRAVA_LINK_LOOKAHEAD_DAYS = 7
@@ -125,9 +131,11 @@ function resolveSyncWindow(options: StravaSyncOptions | undefined, lastSyncedAt:
     // Cap range to limit Strava API load
     const start = parseDateOnly(fromKey)
     const end = parseDateOnly(toKey)
-    const maxMs = 90 * 24 * 60 * 60 * 1000
+    const maxMs = STRAVA_HISTORY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000
     if (end.getTime() - start.getTime() > maxMs) {
-      throw new Error('Date range cannot exceed 90 days.')
+      throw new Error(
+        `Date range cannot exceed ${STRAVA_HISTORY_LOOKBACK_DAYS} days.`,
+      )
     }
     const afterUnix = Math.floor(start.getTime() / 1000) - 1
     const beforeUnix = Math.floor(addDateOnlyDays(end, 1).getTime() / 1000)
@@ -143,7 +151,8 @@ function resolveSyncWindow(options: StravaSyncOptions | undefined, lastSyncedAt:
   const afterUnix =
     lastSyncedAt != null
       ? Math.floor(lastSyncedAt.getTime() / 1000) - 24 * 60 * 60
-      : Math.floor(Date.now() / 1000) - 30 * 24 * 60 * 60
+      : Math.floor(Date.now() / 1000) -
+        STRAVA_HISTORY_LOOKBACK_DAYS * 24 * 60 * 60
 
   return {
     afterUnix,

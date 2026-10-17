@@ -111,6 +111,19 @@ import {
   buildCoachEngineAudit,
   type WeekValidationAudit,
 } from '@/lib/coach-engine/audit'
+import {
+  applyPhysiologyToCapacity,
+  applyPhysiologyToPriorities,
+  applyPriorValuesToModel,
+  buildAthleteFingerprint,
+  buildAthletePhysiologyModel,
+  buildPhysiologyAuditSnapshot,
+  formatPhysiologySummary,
+  getLatestPhysiologySnapshot,
+  mergeFingerprintWithPrior,
+  norwegianBlockedByPhysiology,
+  predictResponse,
+} from '@/lib/coach-engine/physiology'
 
 export const MAX_AI_RETRIES = 2
 
@@ -350,6 +363,7 @@ function buildGuidelines(meta: {
   criticRepairsApplied?: string[]
   safetyGate?: import('@/lib/coach-engine/types').SafetyGateResult | null
   goal?: GoalProfile | null
+  physiology?: import('@/lib/coach-engine/physiology/types').PhysiologyAuditSnapshot | null
 }): string {
   const secondary = meta.priority.secondary
     .map((s) => s.adaptation.replaceAll('_', ' '))
@@ -403,6 +417,7 @@ function buildGuidelines(meta: {
     meta.methodology.reasonCodes.length
       ? `Reasons: ${meta.methodology.reasonCodes.join(', ')}.`
       : null,
+    meta.physiology ? formatPhysiologySummary(meta.physiology) : null,
     alts ? `Alternatives considered: ${alts}.` : null,
     `Phase: ${meta.phase.phase} (${meta.phase.phaseGoal}).`,
     `Present capacity ~${meta.capacity.maxWeeklyTss} TSS / ${meta.capacity.maxWeeklyKm} km (next week).`,
@@ -501,6 +516,9 @@ export async function runCoachEngineDraft(
     brief: input.brief,
     allowAi: input.allowAi !== false,
     lockedModel: input.lockedModel,
+    priorFingerprint: input.priorFingerprint,
+    priorPhysiologyModel: input.priorPhysiologyModel,
+    skipPhysiologyStore: input.skipPhysiologyStore,
   })
 }
 
@@ -510,6 +528,9 @@ export async function buildDraftFromCollected(args: {
   brief: Record<string, unknown>
   allowAi: boolean
   lockedModel?: import('@/lib/coach-engine/types').TrainingModelId | null
+  priorFingerprint?: import('@/lib/coach-engine/physiology/types').AthleteFingerprint | null
+  priorPhysiologyModel?: import('@/lib/coach-engine/physiology/types').AthletePhysiologyModel | null
+  skipPhysiologyStore?: boolean
 }): Promise<CoachEngineDraftResult> {
   const allowAi = args.allowAi
   const overrides = parseProfileOverrides(args.brief)
@@ -557,6 +578,38 @@ export async function buildDraftFromCollected(args: {
     throw new CoachEngineSafetyError(safetyGate)
   }
 
+  // ── Athlete Physiology Model (Phase I + store merge) ────────────
+  let priorFingerprint = args.priorFingerprint ?? null
+  let priorPhysiologyModel = args.priorPhysiologyModel ?? null
+  if (
+    !args.skipPhysiologyStore &&
+    !priorFingerprint &&
+    data.athleteId &&
+    !data.athleteId.startsWith('empty-')
+  ) {
+    try {
+      const stored = await getLatestPhysiologySnapshot(data.athleteId)
+      if (stored) {
+        priorFingerprint = stored.fingerprint
+        priorPhysiologyModel = stored.model
+      }
+    } catch {
+      // Store optional — cold start if DB unavailable in tests / offline.
+    }
+  }
+  let physiologyModel = buildAthletePhysiologyModel({
+    state: athleteState,
+    data,
+  })
+  physiologyModel = applyPriorValuesToModel({
+    model: physiologyModel,
+    prior: priorPhysiologyModel,
+  })
+  const fingerprint = mergeFingerprintWithPrior({
+    fresh: buildAthleteFingerprint(physiologyModel),
+    prior: priorFingerprint,
+  })
+
   const { getSkillIncludingInactive } = await import('@/lib/ai/skills/registry')
   const skill = getSkillIncludingInactive(args.skillSlug)
   const skillSystemPrompt = skill?.systemPrompt?.trim() || null
@@ -586,19 +639,36 @@ export async function buildDraftFromCollected(args: {
     },
     weekIndex: Math.floor(goal.weekCount / 2),
   })
-  const priority = selectPriorities({
+  let priority = selectPriorities({
     gaps,
     demand,
     phase: seedPhase,
     state: athleteState,
   })
+  const responsePrediction = predictResponse({
+    gaps,
+    fingerprint,
+    model: physiologyModel,
+  })
+  const priorityApplied = applyPhysiologyToPriorities({
+    priority,
+    prediction: responsePrediction,
+  })
+  priority = priorityApplied.priority
+
   const limiting = calculateLimitingFactors({
     gaps,
     demand,
     phase: seedPhase,
   })
+  // Capacity: deterministic baseline → APM soft caps → safety (safety wins).
+  const capacityApplied = applyPhysiologyToCapacity({
+    capacity: calculateCapacity(athleteState, goal),
+    model: physiologyModel,
+    goal,
+  })
   let capacity = applySafetyConstraintsToCapacity(
-    calculateCapacity(athleteState, goal),
+    capacityApplied.capacity,
     safetyGate,
   )
   const budget = calculateTrainingBudget({
@@ -615,12 +685,24 @@ export async function buildDraftFromCollected(args: {
     }),
     safetyGate,
   )
+  const norwegianApmGate = norwegianBlockedByPhysiology(physiologyModel)
   const methodology = selectMethodology({
     state: athleteState,
     goal,
     phase: seedPhase,
     priority,
     lockedModel: args.lockedModel,
+    physiology: physiologyModel,
+    fingerprint,
+  })
+  const physiologySnapshot = buildPhysiologyAuditSnapshot({
+    model: physiologyModel,
+    fingerprint,
+    prediction: responsePrediction,
+    peakKmCapped:
+      capacityApplied.peakKmCapped || capacityApplied.sessionsCapped,
+    norwegianBlockedByOverreach: norwegianApmGate.blocked,
+    priorityBiased: priorityApplied.biased,
   })
   const readiness = decideReadinessAction(athleteState)
 
@@ -1592,6 +1674,7 @@ export async function buildDraftFromCollected(args: {
     criticSummary,
     criticScore,
     criticRepairsApplied,
+    physiology: physiologySnapshot,
   }
 
   let guidelines = buildGuidelines({
@@ -1608,6 +1691,7 @@ export async function buildDraftFromCollected(args: {
     criticRepairsApplied,
     safetyGate,
     goal,
+    physiology: physiologySnapshot,
   })
 
   // Call D — explain
@@ -1765,6 +1849,7 @@ export async function buildDraftFromCollected(args: {
     weekValidations,
     usedAi,
     capabilityConfidence: capabilities.confidence,
+    physiology: physiologySnapshot,
   })
 
   return {
@@ -1778,5 +1863,11 @@ export async function buildDraftFromCollected(args: {
     meta,
     decisionTrace,
     audit,
+    physiology: {
+      model: physiologyModel,
+      fingerprint,
+      prediction: responsePrediction,
+      snapshot: physiologySnapshot,
+    },
   }
 }

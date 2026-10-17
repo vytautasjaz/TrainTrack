@@ -200,11 +200,12 @@ export function TrainingWeekFilterGroups({
       >
         <div className="flex items-center gap-0.5">
           <WeekCardSizeToolbarControl />
+          {/* Expand / collapse — phone & tablet only (desktop stays single-week). */}
           <ToolbarTextToggle
             pressed={expanded}
             onClick={onToggleExpanded}
             title={expanded ? 'Exit expanded view' : 'Expand week plan'}
-            className="font-semibold text-foreground hover:text-foreground [&_svg]:opacity-100"
+            className="font-semibold text-foreground hover:text-foreground max-lg:inline-flex lg:hidden [&_svg]:opacity-100"
           >
             {expanded ? (
               <Minimize2 className="h-3.5 w-3.5" aria-hidden />

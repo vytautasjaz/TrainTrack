@@ -11,7 +11,13 @@ import {
 type YrTimeseriesEntry = {
   time: string
   data: {
-    instant?: { details?: { air_temperature?: number } }
+    instant?: {
+      details?: {
+        air_temperature?: number
+        wind_speed?: number
+        wind_speed_of_gust?: number
+      }
+    }
     next_1_hours?: {
       summary?: { symbol_code?: string }
       details?: {
@@ -88,6 +94,8 @@ function pickNearestEntry(
 
 function entryMetrics(entry: YrTimeseriesEntry) {
   const temperatureRaw = entry.data.instant?.details?.air_temperature
+  const windRaw = entry.data.instant?.details?.wind_speed
+  const gustRaw = entry.data.instant?.details?.wind_speed_of_gust
   const probabilityRaw =
     entry.data.next_1_hours?.details?.probability_of_precipitation ??
     entry.data.next_6_hours?.details?.probability_of_precipitation ??
@@ -114,6 +122,14 @@ function entryMetrics(entry: YrTimeseriesEntry) {
       typeof precipMmRaw === 'number' && Number.isFinite(precipMmRaw)
         ? Math.round(precipMmRaw * 10) / 10
         : null,
+    windSpeedMs:
+      typeof windRaw === 'number' && Number.isFinite(windRaw)
+        ? Math.round(windRaw * 10) / 10
+        : null,
+    windGustMs:
+      typeof gustRaw === 'number' && Number.isFinite(gustRaw)
+        ? Math.round(gustRaw * 10) / 10
+        : null,
   }
 }
 
@@ -128,6 +144,8 @@ function summarizeEntry(
       temperatureC: null,
       precipitationProbability: null,
       precipitationMm: null,
+      windSpeedMs: null,
+      windGustMs: null,
     }
   }
   return { label, ...entryMetrics(entry) }
@@ -148,12 +166,13 @@ function summarizeHour(entry: YrTimeseriesEntry): WeatherHourSummary | null {
 async function fetchForecast(lat: number, lon: number): Promise<YrResponse> {
   const roundedLat = roundCoord(lat)
   const roundedLon = roundCoord(lon)
-  const cacheKey = `${roundedLat},${roundedLon}`
+  const cacheKey = `complete:${roundedLat},${roundedLon}`
   const now = Date.now()
   const cached = WEATHER_CACHE.get(cacheKey)
   if (cached && cached.expiresAtMs > now) return cached.body
 
-  const url = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${roundedLat}&lon=${roundedLon}`
+  // `complete` includes wind_speed_of_gust (compact does not).
+  const url = `https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${roundedLat}&lon=${roundedLon}`
   const response = await fetch(url, {
     headers: {
       'User-Agent': buildUserAgent(),

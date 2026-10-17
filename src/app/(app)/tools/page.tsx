@@ -14,10 +14,8 @@ export default async function ToolsPage() {
   const defaults = buildCalculatorDefaults(preferences)
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <Suspense fallback={null}>
-        <CalculatorsView defaults={defaults} />
-      </Suspense>
-    </div>
+    <Suspense fallback={null}>
+      <CalculatorsView defaults={defaults} />
+    </Suspense>
   )
 }

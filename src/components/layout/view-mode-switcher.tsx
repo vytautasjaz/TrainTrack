@@ -112,13 +112,11 @@ export function ViewModeSwitcher({
         aria-label="Switch between athlete and coach"
         aria-busy={isPending}
       >
-        {!compact ? (
-          <span
-            className="tt-view-mode-switch-inline-thumb"
-            data-position={thumbAt}
-            aria-hidden
-          />
-        ) : null}
+        <span
+          className="tt-view-mode-switch-inline-thumb"
+          data-position={thumbAt}
+          aria-hidden
+        />
         {MODES.map((mode) => {
           const selected = thumbAt === mode
           const label = mode === 'athlete' ? 'Athlete' : 'Coach'
@@ -132,8 +130,7 @@ export function ViewModeSwitcher({
               data-selected={selected ? 'true' : undefined}
               onClick={() => handleSwitch(mode)}
               className={cn(
-                'relative z-[1] cursor-pointer rounded-sm text-[10px] tracking-wide transition-colors',
-                compact ? 'px-1 py-0.5' : 'px-2 py-0.5',
+                'relative z-[1] cursor-pointer rounded-sm px-2 py-0.5 text-[10px] tracking-wide transition-colors',
                 selected
                   ? isSidebarTone
                     ? 'font-bold text-white'
@@ -144,7 +141,7 @@ export function ViewModeSwitcher({
                 isPending && 'cursor-wait',
               )}
             >
-              {compact ? (mode === 'athlete' ? 'A' : 'C') : label}
+              {label}
             </button>
           )
         })}

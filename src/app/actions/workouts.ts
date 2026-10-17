@@ -1458,18 +1458,35 @@ export async function patchPlanWorkoutCard(input: {
 
 export async function deleteWorkout(formData: FormData) {
   const session = await requireSession()
-  if (!isCoach(session)) throw new Error('Coach only')
+  const workoutId = String(formData.get('workoutId') ?? '').trim()
+  if (!workoutId) throw new Error('Workout not found')
 
-  const workoutId = formData.get('workoutId') as string
   const workout = await prisma.workout.findUnique({
     where: { id: workoutId },
     select: {
       athleteId: true,
+      selfLogged: true,
       isRescheduleGhost: true,
       rescheduledFromId: true,
       rescheduledCopy: { select: { id: true } },
     },
   })
+  if (!workout) throw new Error('Workout not found')
+
+  if (isCoach(session)) {
+    const allowed = await coachCanAccessAthlete(session.userId, workout.athleteId)
+    if (!allowed) throw new Error('Workout not found')
+  } else if (isAthleteRole(session)) {
+    const athleteId = await resolveAthleteId(session)
+    if (!athleteId || workout.athleteId !== athleteId) {
+      throw new Error('Workout not found')
+    }
+    if (!workout.selfLogged) {
+      throw new Error('Only workouts you added can be deleted')
+    }
+  } else {
+    throw new Error('Not allowed')
+  }
 
   if (workout?.isRescheduleGhost) {
     // Removing the placeholder — keep the moved workout, clear its link.

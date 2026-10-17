@@ -44,13 +44,18 @@ export function buildAthleteState(
   level: AthleteLevel,
 ): AthleteState {
   const recentWeeks = data.weekSummaries.slice(0, 4)
+  // Distance on week summaries is RUN-only (see collect.ts).
   const runKm = avg(
     recentWeeks.map((w) =>
       Math.max(w.completedDistanceKm, w.plannedDistanceKm * 0.5),
     ),
   )
   const sessionsPerWeek = avg(
-    recentWeeks.map((w) => w.completed || w.planned * 0.6),
+    recentWeeks.map((w) => {
+      const runDone = w.runCompleted ?? w.completed
+      const runPlan = w.runPlanned ?? w.planned
+      return runDone || runPlan * 0.6
+    }),
   )
   const avgWeeklyTss = avg(recentWeeks.map((w) => w.estimatedTss))
 

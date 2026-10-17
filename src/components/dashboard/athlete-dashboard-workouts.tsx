@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -29,7 +29,8 @@ import {
   type WorkoutCardHero,
 } from '@/lib/workout-card'
 import { DEFAULT_DURATION_NOTATION } from '@/lib/workout-builder/duration-notation'
-import { WorkoutCardEssenceLine } from '@/components/plan/workout-card-essence-line'
+import { WorkoutCardEssenceList } from '@/components/plan/workout-card-essence-line'
+import type { WorkoutCardEssenceRow } from '@/lib/workout-builder/card-summary'
 import { ListDayWeatherMini } from '@/components/weather/list-day-weather'
 import { buildPlanTableDays, type PlanDay } from '@/lib/plan-week'
 import {
@@ -73,12 +74,12 @@ function buildWeekDays(
   return buildPlanTableDays(dates, byDate)
 }
 
-/** Subtitle under title — builder essence (S-card style), else description. */
-function weekRowEssence(workout: PlanWorkoutDetail): string[] {
+/** Full builder prescription under the title (matches week / training cards). */
+function weekRowEssence(workout: PlanWorkoutDetail): WorkoutCardEssenceRow[] {
   if (isRestLike(workout) || workout.isRace) return []
   return getWorkoutCardEssence(workout, DEFAULT_DURATION_NOTATION, {
-    includeAllBlocks: false,
-  }).slice(0, 2)
+    includeAllBlocks: true,
+  })
 }
 
 function weekRowPrimaryMetric(workout: PlanWorkoutDetail): WorkoutCardHero | null {
@@ -337,9 +338,9 @@ function WeekDayRows({
               {sessions.map((workout, index) => {
                 const completed = isWorkoutCardCompleted(workout.status)
                 const skipped = isWorkoutCardSkipped(workout.status)
-                const essenceLines = weekRowEssence(workout)
+                const essenceRows = weekRowEssence(workout)
                 const subtitle =
-                  essenceLines.length === 0
+                  essenceRows.length === 0
                     ? getWorkoutCardSubtitle(workout)
                     : null
                 const metric = weekRowPrimaryMetric(workout)
@@ -348,29 +349,27 @@ function WeekDayRows({
                 const softTone = skipped
                   ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
                   : 'text-[var(--tt-ink-soft,#6b6b6b)]'
+                const inkTone = skipped
+                  ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
+                  : 'text-[var(--tt-ink,#111)]'
                 const statusLabel = skipped ? 'Skipped' : null
 
                 const subline =
-                  essenceLines.length > 0 ? (
-                    <div
-                      className={cn(
-                        'mt-0.5 flex min-w-0 flex-col gap-0 leading-snug text-[12px]',
-                        softTone,
-                      )}
-                    >
-                      {essenceLines.map((line, i) => (
-                        <span key={`${i}-${line}`} className="truncate">
-                          <WorkoutCardEssenceLine
-                            line={line}
-                            className="inline"
-                            coreClassName={softTone}
-                            detailClassName={cn('font-normal', softTone)}
-                          />
-                          {i === essenceLines.length - 1 && statusLabel
-                            ? ` · ${statusLabel}`
-                            : null}
-                        </span>
-                      ))}
+                  essenceRows.length > 0 ? (
+                    <div className="mt-0.5 min-w-0">
+                      <WorkoutCardEssenceList
+                        rows={essenceRows}
+                        className="text-[12px] leading-snug"
+                        coreClassName={softTone}
+                        detailClassName={cn('font-normal', softTone)}
+                        sectionClassName={inkTone}
+                        blockClassName={inkTone}
+                      />
+                      {statusLabel ? (
+                        <p className={cn('mt-0.5 text-[12px]', softTone)}>
+                          {statusLabel}
+                        </p>
+                      ) : null}
                     </div>
                   ) : subtitle || statusLabel ? (
                     <p
@@ -410,6 +409,15 @@ function WeekDayRows({
                             ? 'pt-2 pb-3'
                             : 'py-2',
                     )}
+                    style={
+                      {
+                        '--tt-sport-color': `var(--color-sport-${
+                          workout.type === 'TRIATHLON'
+                            ? 'tri'
+                            : workout.type.toLowerCase()
+                        })`,
+                      } as CSSProperties
+                    }
                   >
                     <div className="flex min-w-0 items-center gap-x-2.5">
                       <WorkoutSportIcon

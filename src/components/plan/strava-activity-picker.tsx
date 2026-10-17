@@ -23,6 +23,30 @@ import {
 import { Caption } from '@/components/ui/typography'
 import { formatDateKeyCompact } from '@/lib/dates'
 import { formatDistance, formatDuration, cn } from '@/lib/utils'
+import Link from 'next/link'
+
+/** Session-scoped cache so menu → picker doesn't wait on a second round-trip. */
+let stravaConnectedCache: boolean | null = null
+let stravaConnectedInflight: Promise<boolean> | null = null
+
+function readStravaConnected(): Promise<boolean> {
+  if (stravaConnectedCache != null) return Promise.resolve(stravaConnectedCache)
+  if (!stravaConnectedInflight) {
+    stravaConnectedInflight = isStravaConnected()
+      .then((value) => {
+        stravaConnectedCache = value
+        return value
+      })
+      .catch(() => {
+        stravaConnectedCache = false
+        return false
+      })
+      .finally(() => {
+        stravaConnectedInflight = null
+      })
+  }
+  return stravaConnectedInflight
+}
 
 type StravaDetachButtonProps = {
   workoutId: string
@@ -108,7 +132,7 @@ export function StravaLinkPicker({
   onOpenChange,
 }: StravaLinkPickerProps) {
   const router = useRouter()
-  const [connected, setConnected] = useState<boolean | null>(null)
+  const [connected, setConnected] = useState<boolean | null>(() => stravaConnectedCache)
   const [openUncontrolled, setOpenUncontrolled] = useState(false)
   const [items, setItems] = useState<StravaActivityPickItem[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -120,20 +144,16 @@ export function StravaLinkPicker({
 
   useEffect(() => {
     let cancelled = false
-    void isStravaConnected()
-      .then((value) => {
-        if (!cancelled) setConnected(value)
-      })
-      .catch(() => {
-        if (!cancelled) setConnected(false)
-      })
+    void readStravaConnected().then((value) => {
+      if (!cancelled) setConnected(value)
+    })
     return () => {
       cancelled = true
     }
   }, [])
 
   useEffect(() => {
-    if (!open) return
+    if (!open || connected !== true) return
     let cancelled = false
     setLoading(true)
     setLoadError(null)
@@ -153,7 +173,7 @@ export function StravaLinkPicker({
     return () => {
       cancelled = true
     }
-  }, [open, workoutId])
+  }, [open, workoutId, connected])
 
   const planDateKey = items[0]?.planDateKey ?? null
   const grouped = useMemo(() => {
@@ -182,8 +202,9 @@ export function StravaLinkPicker({
     })
   }
 
-  if (connected === false) return null
-  if (connected === null) return null
+  // Inline trigger only when connected; controlled (hideTrigger) always mounts so
+  // the workout ⋮ menu can open the dialog without waiting on the connection check.
+  if (!hideTrigger && connected !== true) return null
 
   return (
     <>
@@ -208,13 +229,23 @@ export function StravaLinkPicker({
           <DialogHeader className="space-y-1 border-b border-border/50 px-5 py-4 pr-12">
             <DialogTitle>Link Strava activity</DialogTitle>
             <DialogDescription>
-              Pick a matching activity from this day or nearby days. Linking a different day
-              marks the workout as rescheduled and completed. Commutes are disabled.
+              {connected === false
+                ? 'Connect Strava in Settings to link activities to planned workouts.'
+                : 'Pick a matching activity from this day or nearby days. Linking a different day marks the workout as rescheduled and completed. Commutes are disabled.'}
             </DialogDescription>
           </DialogHeader>
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 pb-5">
-            {loading ? (
+            {connected === null ? (
+              <Caption>Checking Strava…</Caption>
+            ) : connected === false ? (
+              <div className="space-y-3">
+                <Caption>Your account isn’t connected to Strava yet.</Caption>
+                <Button asChild variant="secondary" size="sm">
+                  <Link href="/settings">Open Settings</Link>
+                </Button>
+              </div>
+            ) : loading ? (
               <Caption>Loading activities…</Caption>
             ) : loadError ? (
               <p className="text-sm text-destructive">{loadError}</p>

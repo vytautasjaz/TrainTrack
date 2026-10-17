@@ -1,8 +1,9 @@
 'use client'
 
+import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Bell, Search } from 'lucide-react'
+import { usePathname, useSearchParams } from 'next/navigation'
+import { Bell, ChevronDown, Search } from 'lucide-react'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { TrainTrackMark } from '@/components/brand/traintrack-logo'
 import { V2GridOverlay } from '@/components/ui/v2'
@@ -13,10 +14,165 @@ import {
   getTopNav,
   isNavActive,
   SETTINGS_ENTRY_HREF,
+  type NavItem,
 } from '@/lib/nav-items'
 import type { AppViewMode } from '@/lib/session'
 import { cn } from '@/lib/utils'
 import type { SidebarAthleteProfile } from '@/components/layout/app-nav'
+
+function isTopNavChildActive(href: string, pathname: string, query: string) {
+  const qIndex = href.indexOf('?')
+  // Path-only links use shared nav matching (e.g. /workouts vs /workouts/plans).
+  if (qIndex === -1) return isNavActive(pathname, href)
+
+  const path = href.slice(0, qIndex)
+  if (pathname !== path && !pathname.startsWith(`${path}/`)) return false
+  const params = new URLSearchParams(href.slice(qIndex + 1))
+  const current = new URLSearchParams(query)
+  for (const [key, value] of params) {
+    const currentValue = current.get(key)
+    if (key === 'tab' && path === '/tools') {
+      if ((currentValue ?? 'running') !== value) return false
+      continue
+    }
+    if (currentValue !== value) return false
+  }
+  return true
+}
+
+function TopNavItem({ item }: { item: NavItem }) {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const query = searchParams.toString()
+  const menuId = useId()
+  const rootRef = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false)
+  const children = item.children
+  const hasChildren = Boolean(children?.length)
+
+  const childActive = children?.some((child) =>
+    isTopNavChildActive(child.href, pathname, query),
+  )
+  const active = isNavActive(pathname, item.href) || Boolean(childActive)
+
+  useEffect(() => {
+    if (!open) return
+    function onPointerDown(event: PointerEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  const linkClass = cn(
+    'relative inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-sm)] px-2.5 py-2 text-[13px] font-medium transition xl:px-3',
+    active ? 'text-white' : 'text-white/55 hover:text-white/90',
+  )
+
+  const activeBar = active ? (
+    <span
+      className="absolute inset-x-2.5 -bottom-px h-0.5 bg-[var(--tt-v2-accent)] xl:inset-x-3"
+      aria-hidden
+    />
+  ) : null
+
+  if (!hasChildren || !children) {
+    return (
+      <Link
+        key={`${item.href}-${item.label}`}
+        href={item.href}
+        data-active={active ? 'true' : undefined}
+        className={linkClass}
+      >
+        {item.label}
+        {activeBar}
+      </Link>
+    )
+  }
+
+  return (
+    <div
+      ref={rootRef}
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        className={linkClass}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-controls={menuId}
+        data-active={active ? 'true' : undefined}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        {item.label}
+        <ChevronDown
+          className={cn(
+            'h-3.5 w-3.5 opacity-70 transition-transform',
+            open && 'rotate-180',
+          )}
+          aria-hidden
+        />
+        {activeBar}
+      </button>
+
+      <div
+        id={menuId}
+        role="menu"
+        aria-label={item.label}
+        hidden={!open}
+        className={cn(
+          'absolute left-1/2 top-full z-50 mt-0 min-w-[12.5rem] -translate-x-1/2 pt-2',
+          !open && 'pointer-events-none',
+        )}
+      >
+        <div className="rounded-[var(--radius-lg)] border border-white/10 bg-[#1a1d27] p-1 shadow-xl">
+          {children.map((child) => {
+            const childIsActive = isTopNavChildActive(child.href, pathname, query)
+            return (
+              <div key={child.href}>
+                {child.group ? (
+                  <p
+                    className={cn(
+                      'px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40',
+                      child !== children[0] && 'mt-1 border-t border-white/10',
+                    )}
+                  >
+                    {child.group}
+                  </p>
+                ) : null}
+                <Link
+                  href={child.href}
+                  role="menuitem"
+                  data-active={childIsActive ? 'true' : undefined}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    'block rounded-[var(--radius-sm)] px-3 py-2 text-[13px] transition',
+                    childIsActive
+                      ? 'bg-white/10 font-semibold text-white'
+                      : 'text-white/75 hover:bg-white/8 hover:text-white',
+                  )}
+                >
+                  {child.label}
+                </Link>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function AppTopNav({
   isCoach = false,
@@ -31,7 +187,6 @@ export function AppTopNav({
   dashboardNotificationCount?: number
   athleteProfile?: SidebarAthleteProfile | null
 }) {
-  const pathname = usePathname()
   const items = getTopNav(isCoach)
   const inboxBadge = useInboxNavBadge(dashboardNotificationCount, viewMode)
   const initials = (athleteProfile?.name ?? 'TT')
@@ -60,30 +215,9 @@ export function AppTopNav({
         </Link>
 
         <nav className="tt-app-top-nav-links" aria-label="Primary">
-          {items.map((item) => {
-            const active = isNavActive(pathname, item.href)
-            return (
-              <Link
-                key={`${item.href}-${item.label}`}
-                href={item.href}
-                data-active={active ? 'true' : undefined}
-                className={cn(
-                  'relative shrink-0 rounded-[var(--radius-sm)] px-2.5 py-2 text-[13px] font-medium transition xl:px-3',
-                  active
-                    ? 'text-white'
-                    : 'text-white/55 hover:text-white/90',
-                )}
-              >
-                {item.label}
-                {active ? (
-                  <span
-                    className="absolute inset-x-2.5 -bottom-px h-0.5 bg-[var(--tt-v2-accent)] xl:inset-x-3"
-                    aria-hidden
-                  />
-                ) : null}
-              </Link>
-            )
-          })}
+          {items.map((item) => (
+            <TopNavItem key={`${item.href}-${item.label}`} item={item} />
+          ))}
         </nav>
 
         <div className="tt-app-top-nav-actions">

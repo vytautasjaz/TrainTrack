@@ -15,9 +15,17 @@ import {
 } from '@/lib/workout-metric-source'
 import { hasStructureContent } from '@/lib/workout-builder/utils'
 import {
+  essenceRowsFromLines,
   getWorkoutCardEssenceLines,
+  truncateWorkoutCardEssenceRows,
   type WorkoutCardEssenceOptions,
+  type WorkoutCardEssenceRow,
 } from '@/lib/workout-builder/card-summary'
+import {
+  getStructureV2CardEssenceRows,
+  isWorkoutStructureV2,
+  parseStructureV2,
+} from '@/lib/workout-builder/structure-compat'
 import {
   DEFAULT_DURATION_NOTATION,
   type DurationNotation,
@@ -80,19 +88,49 @@ export function getWorkoutCardEssence(
     /** @deprecated Description plans always show when structure has no essence. */
     includeDescriptionPlan?: boolean
   } = {},
-): string[] {
+): WorkoutCardEssenceRow[] {
+  const raw = workout.structureRaw
+  if (raw && isWorkoutStructureV2(raw)) {
+    const v2 = parseStructureV2(raw)
+    if (v2) {
+      const fromV2 = getStructureV2CardEssenceRows(v2, {
+        includeAllBlocks: options.includeAllBlocks,
+      })
+      if (fromV2.length > 0) {
+        return truncateWorkoutCardEssenceRows(fromV2, options.maxLines)
+      }
+    }
+  }
+
   const fromStructure = getWorkoutCardEssenceLines(
     workout.structure,
     workout.type,
     notation,
     options,
   )
-  if (fromStructure.length > 0) return fromStructure
+  if (fromStructure.length > 0) {
+    return truncateWorkoutCardEssenceRows(
+      essenceRowsFromLines(fromStructure),
+      options.maxLines,
+    )
+  }
 
   const description = workout.description?.trim()
   if (!description) return []
   // One card line per author line (keeps blank lines as spacing).
-  return description.split('\n').map((line) => line.trimEnd())
+  return truncateWorkoutCardEssenceRows(
+    essenceRowsFromLines(description.split('\n').map((line) => line.trimEnd())),
+    options.maxLines,
+  )
+}
+
+/** Flat text for DTOs / copy that don't need hierarchy roles. */
+export function getWorkoutCardEssenceTexts(
+  workout: PlanWorkoutDetail,
+  notation: DurationNotation = DEFAULT_DURATION_NOTATION,
+  options: WorkoutCardEssenceOptions = {},
+): string[] {
+  return getWorkoutCardEssence(workout, notation, options).map((row) => row.text)
 }
 
 function metricApproximate(

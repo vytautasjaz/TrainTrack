@@ -2,6 +2,7 @@
 
 import { useLayoutEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { TrainingPageSkeleton } from '@/components/ui/route-skeletons'
 import {
   readStoredTrainingDefaultView,
   resolveTrainingDefaultView,
@@ -34,10 +35,5 @@ export function TrainingDefaultViewRedirect({
     router.replace(trainingDefaultViewHref(view))
   }, [router, role])
 
-  return (
-    <div className="pt-2 lg:pt-4" aria-busy="true" aria-label="Loading training">
-      <div className="h-8 w-36 animate-pulse rounded-md bg-muted/60" />
-      <div className="mt-4 h-10 w-full max-w-md animate-pulse rounded-md bg-muted/40" />
-    </div>
-  )
+  return <TrainingPageSkeleton />
 }

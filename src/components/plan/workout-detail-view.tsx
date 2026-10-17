@@ -26,7 +26,10 @@ import {
   workoutNeedsDetailFetch,
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
-import { canEditPlanWorkout } from '@/lib/plan-workout-modal'
+import {
+  canDeletePlanWorkout,
+  canEditPlanWorkout,
+} from '@/lib/plan-workout-modal'
 import {
   invalidatePlanWorkoutDetailCache,
   prefetchPlanWorkoutDetail,
@@ -352,6 +355,7 @@ export function WorkoutDetailView({
             showUtilityActions={!isCoach}
             showStatusBadge={completionChrome}
             canEdit={canEditPlanWorkout(isCoach, workout)}
+            canDelete={canDeletePlanWorkout(isCoach, workout)}
             colorMode={colorMode}
             showCompletionLayer={showCompletionLayer}
             heroTone={heroTone}

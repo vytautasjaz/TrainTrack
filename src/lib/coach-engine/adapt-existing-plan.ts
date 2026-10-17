@@ -406,6 +406,21 @@ export async function adaptExistingTrainingPlan(args: {
     },
   })
 
+  // Mesocycle / phase learning: batch expected vs actual → fingerprint snapshot.
+  try {
+    const { recordPhysiologyLearningPhase } = await import(
+      '@/lib/coach-engine/physiology/learn'
+    )
+    await recordPhysiologyLearningPhase({
+      athleteId: args.athleteId,
+      planId: plan.id,
+      level: plan.level,
+      lookbackDays: 28,
+    })
+  } catch {
+    // Learning must not fail adapt.
+  }
+
   return {
     summary: hint.message,
     editsApplied,
@@ -492,6 +507,26 @@ export async function applyCalendarReplanAfterLog(args: {
       missed: false,
     })
     hint = replanFromResponse({ comparison, methodology, priority })
+
+    // Light APM learning (throttled to 1 snapshot / athlete / UTC day).
+    try {
+      const { recordPhysiologyLearningWeek } = await import(
+        '@/lib/coach-engine/physiology/learn'
+      )
+      await recordPhysiologyLearningWeek({
+        athleteId: args.athleteId,
+        sessionType: workout.sessionType,
+        title: workout.title,
+        tags: workout.tags,
+        plannedDistanceKm: workout.plannedDistance,
+        plannedDurationMin: workout.plannedDuration,
+        actualRpe: workout.result?.rpe ?? null,
+        isKeySession: isKey,
+        planId: workout.planId,
+      })
+    } catch {
+      // Learning must not fail calendar replan.
+    }
   }
 
   if (hint.action === 'keep' || hint.action === 'drop_missed_stimulus') {

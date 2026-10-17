@@ -15,6 +15,7 @@ import {
   newStructureId,
 } from './structure-v2'
 import { normalizeIncludePlacement } from './include-placement'
+import type { WorkoutCardEssenceRow } from './card-summary'
 
 function emptyStructure(): WorkoutStructure {
   return { warmup: [], mainSet: [], cooldown: [], includeItems: [] }
@@ -150,11 +151,29 @@ function formatLoad(item: ExerciseItem): string {
   }
   if (load.type === 'RPE' && load.value != null) return `RPE ${load.value}`
   if (load.type === 'PERCENT_1RM' && load.value != null) return `${load.value}%`
+  if (load.type === 'CUSTOM' && load.value != null) return String(load.value)
   if (load.value != null) {
-    const unit = load.unit ?? 'kg'
-    return `${load.value}${unit}`
+    // Only append unit when explicitly set — never assume kg.
+    return load.unit ? `${load.value}${load.unit}` : String(load.value)
   }
-  return load.type
+  return ''
+}
+
+function formatExerciseRest(rest: {
+  type?: string
+  value?: number
+  unit?: string
+  label?: string
+} | null | undefined): string | null {
+  if (!rest) return null
+  if (rest.type === 'TIME' && rest.value != null) {
+    const unit = rest.unit ?? 'sec'
+    return unit === 'sec' || unit === 's'
+      ? `${rest.value}s rest`
+      : `${rest.value} ${unit} rest`
+  }
+  if (rest.label?.trim()) return rest.label.trim()
+  return null
 }
 
 /** Prescription + load only (no exercise name) — used when title already names the move. */
@@ -168,11 +187,154 @@ function formatExerciseDetail(item: ExerciseItem): string {
   return bits.join(' · ')
 }
 
-function formatExerciseLine(item: ExerciseItem): string {
-  const name = item.name?.trim() || item.exerciseId
-  const order = item.order ? `${item.order} ` : ''
+function formatExerciseCardParts(item: ExerciseItem): {
+  name: string
+  detail: string | null
+} {
+  const name = `${item.order ? `${item.order} ` : ''}${item.name?.trim() || item.exerciseId}`
   const detail = formatExerciseDetail(item)
-  return detail ? `${order}${name} · ${detail}` : `${order}${name}`
+  return { name, detail: detail || null }
+}
+
+function formatExerciseLine(item: ExerciseItem): string {
+  const { name, detail } = formatExerciseCardParts(item)
+  return detail ? `${name} · ${detail}` : name
+}
+
+function isLabeledBlockV2(block: WorkoutBlockV2): boolean {
+  return block.type !== 'EXERCISE' && block.type !== 'CONTINUOUS' && block.type !== 'REST'
+}
+
+/** Short label + soft meta for card headers (e.g. SUPERSET / 3× · Rest 90 sec). */
+function splitBlockV2CardHeader(block: WorkoutBlockV2): {
+  title: string
+  meta: string | null
+} {
+  const full = formatBlockV2Title(block)
+  const label = BLOCK_TYPE_V2_LABELS[block.type] ?? block.type
+  if (full === label) return { title: label, meta: null }
+  if (full.startsWith(`${label} · `)) {
+    return { title: label, meta: full.slice(label.length + 3) }
+  }
+  // "For Time · …" / "Race Simulation"
+  const sep = full.indexOf(' · ')
+  if (sep !== -1) {
+    return { title: full.slice(0, sep), meta: full.slice(sep + 3) }
+  }
+  return { title: full, meta: null }
+}
+
+function appendV2ExerciseRows(
+  rows: WorkoutCardEssenceRow[],
+  block: WorkoutBlockV2,
+) {
+  if (block.type === 'FREE_TEXT') {
+    const text = block.text?.trim()
+    if (!text) return
+    for (const raw of text.split('\n')) {
+      const line = raw.trimEnd()
+      if (!line.trim()) continue
+      const mid = line.search(/\s+·\s+/)
+      if (mid === -1) {
+        rows.push({ kind: 'exercise', text: line })
+      } else {
+        rows.push({
+          kind: 'exercise',
+          text: line.slice(0, mid),
+          detail: line.slice(mid).replace(/^\s+·\s+/, ''),
+        })
+      }
+    }
+    return
+  }
+
+  const blockRest =
+    block.type === 'EXERCISE' || block.type === 'CONTINUOUS'
+      ? formatExerciseRest(block.rest)
+      : null
+
+  for (const item of exercisesFromBlock(block)) {
+    const { name, detail } = formatExerciseCardParts(item)
+    if (!name.trim()) continue
+    const withRest =
+      blockRest && !detail?.includes('rest')
+        ? detail
+          ? `${detail} · ${blockRest}`
+          : blockRest
+        : detail
+    rows.push({
+      kind: 'exercise',
+      text: name,
+      ...(withRest ? { detail: withRest } : {}),
+    })
+  }
+}
+
+function appendV2BlockEssenceRows(
+  rows: WorkoutCardEssenceRow[],
+  block: WorkoutBlockV2,
+) {
+  if (block.type === 'REST') return
+
+  if (isLabeledBlockV2(block)) {
+    const { title, meta } = splitBlockV2CardHeader(block)
+    // One line: bold label + regular meta (AMRAP · 12 min).
+    rows.push({
+      kind: 'block',
+      text: title,
+      ...(meta ? { detail: meta } : {}),
+    })
+    appendV2ExerciseRows(rows, block)
+    return
+  }
+
+  appendV2ExerciseRows(rows, block)
+}
+
+/**
+ * Structured athlete-facing rows for plan/training cards from structure v2.
+ * Section headers, equal block headers (AMRAP / SUPERSET), name|detail rows.
+ */
+export function getStructureV2CardEssenceRows(
+  structure: WorkoutStructureV2,
+  _options: { includeAllBlocks?: boolean } = {},
+): WorkoutCardEssenceRow[] {
+  const rows: WorkoutCardEssenceRow[] = []
+
+  for (const item of structure.items) {
+    if (item.kind === 'block') {
+      appendV2BlockEssenceRows(rows, item.block)
+      continue
+    }
+
+    if (item.blocks.length === 0) continue
+
+    const customTitle = item.name?.trim()
+    const defaultTitle = SECTION_TYPE_LABELS[item.type]
+    rows.push({
+      kind: 'section',
+      text: customTitle || defaultTitle,
+    })
+
+    for (const block of item.blocks) {
+      if (block.type === 'REST') continue
+      appendV2BlockEssenceRows(rows, block)
+    }
+  }
+
+  return rows
+}
+
+/** Flat text lines (tests / copy sync). Prefer rows for UI. */
+export function getStructureV2CardEssenceLines(
+  structure: WorkoutStructureV2,
+  options: { includeAllBlocks?: boolean } = {},
+): string[] {
+  return getStructureV2CardEssenceRows(structure, options).map((row) => {
+    if (row.kind === 'rule') return ''
+    if (row.detail) return `${row.text} · ${row.detail}`
+    return row.text
+  })
 }
 
 function exercisesFromBlock(block: WorkoutBlockV2): ExerciseItem[] {
@@ -308,9 +470,18 @@ export function summarizeBlockV2(block: WorkoutBlockV2): string {
     case 'CONTINUOUS':
     case 'EXERCISE': {
       if (exercises.length === 0) return ''
-      // Title already shows the exercise name — body is prescription/load only.
-      if (exercises.length === 1) return formatExerciseDetail(exercises[0]!)
-      return exercises.map(formatExerciseLine).join('\n')
+      const restBit = formatExerciseRest(block.rest)
+      // Title already shows the exercise name — body is prescription/effort/rest.
+      if (exercises.length === 1) {
+        const detail = formatExerciseDetail(exercises[0]!)
+        if (restBit && !detail.includes('rest')) {
+          return detail ? `${detail} · ${restBit}` : restBit
+        }
+        return detail
+      }
+      const lines = exercises.map(formatExerciseLine)
+      if (restBit) lines.push(restBit)
+      return lines.join('\n')
     }
     case 'EMOM':
     case 'AMRAP':

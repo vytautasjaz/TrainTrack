@@ -104,6 +104,8 @@ flowchart TD
     U --> B
 ```
 
+**Proposed V2 layer** (not in the diagram above): between Athlete State and Capability / Methodology, insert **Athlete Physiology Model → Fingerprint → Response Prediction**, then close the loop with Learning → Fingerprint update. Spec: [athlete-physiology-model.md](./athlete-physiology-model.md). Roadmap stages I–K: [ROADMAP.md](./ROADMAP.md).
+
 ------------------------------------------------------------------------
 
 # 3. What Belongs to TrainTrack vs AI
@@ -1552,6 +1554,7 @@ After this architecture blueprint, the next documents/modules should be:
 14. `plan-validation-engine.md`
 15. `dynamic-replanning-engine.md`
 16. `example-planning-scenarios.md`
+17. `athlete-physiology-model.md` (proposed — APM / Fingerprint / Response Prediction)
 
 These documents together would become the actual **TrainTrack AI
 Coaching Specification**.

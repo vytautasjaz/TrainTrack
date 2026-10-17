@@ -42,7 +42,8 @@ async function requireOwnOrCoachAthleteId(athleteId?: string | null) {
 
 function revalidatePbPaths() {
   revalidatePath('/results')
-  revalidatePath('/progress')
+  revalidatePath('/progress', 'layout')
+  revalidatePath('/progress/personal-bests')
   revalidatePath('/dashboard')
   revalidatePath('/season')
 }

@@ -26,17 +26,21 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
-/** Portaled menus sit outside dialog bounds; an outside click would otherwise close both. */
+/** Portaled menus/selects sit outside dialog bounds; outside click would close both. */
 const FLOATING_UI_SELECTOR = [
+  "[data-tt-floating-ui]",
   "[data-tt-date-field-panel]",
   "[data-tt-date-field-backdrop]",
   "[data-tt-activity-map-overlay]",
   "[data-tt-weather-hours-panel]",
   "[data-tt-exercise-preview]",
+  "[data-radix-menu-content]",
   "[data-radix-dropdown-menu-content]",
   "[data-radix-select-content]",
   "[data-radix-popover-content]",
   "[data-radix-popper-content-wrapper]",
+  "[role='menu']",
+  "[role='listbox']",
 ].join(",");
 
 function outsideEventTarget(event: {
@@ -51,10 +55,11 @@ function isFloatingUiEvent(event: {
   detail?: { originalEvent?: Event };
 }): boolean {
   const clicked = outsideEventTarget(event);
-  if (clicked instanceof Element && clicked.closest(FLOATING_UI_SELECTOR)) {
-    return true;
-  }
-  return Boolean(document.querySelector(FLOATING_UI_SELECTOR));
+  // Only treat the *clicked* target as floating UI — a global querySelector
+  // match would block legitimate dialog interactions whenever any menu exists.
+  return Boolean(
+    clicked instanceof Element && clicked.closest(FLOATING_UI_SELECTOR),
+  );
 }
 
 function preventDismissWhileFloatingUiOpen(event: {

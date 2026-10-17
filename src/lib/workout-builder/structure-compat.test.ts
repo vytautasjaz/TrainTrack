@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatBlockV2Title,
+  getStructureV2CardEssenceLines,
   isWorkoutStructureV2,
   migrateWorkoutStructureV1ToV2,
   normalizeWorkoutStructure,
@@ -203,5 +204,79 @@ describe('structure-compat', () => {
         exercises: [],
       }),
     ).toBe('For Time · 5 rounds · cap 20 min')
+  })
+
+  it('builds card essence lines from v2 strength blocks', () => {
+    const lines = getStructureV2CardEssenceLines(v2Fixture)
+    expect(lines.some((l) => /Set/i.test(l))).toBe(true)
+    expect(lines.some((l) => /Back Squat/i.test(l))).toBe(true)
+    expect(lines.some((l) => /5 reps/i.test(l))).toBe(true)
+  })
+
+  it('includes the full session including warm-up on cards', () => {
+    const withWarmup: WorkoutStructureV2 = {
+      version: 2,
+      items: [
+        {
+          kind: 'section',
+          id: 'wu',
+          type: 'WARMUP',
+          name: 'Warm Up',
+          blocks: [
+            {
+              id: 'wu1',
+              type: 'AMRAP',
+              duration: { value: 12, unit: 'min' },
+              exercises: [
+                {
+                  exerciseId: 'bench_press',
+                  name: 'Bench Press',
+                  prescription: { mode: 'REPS', value: 10 },
+                },
+              ],
+            },
+            {
+              id: 'wu2',
+              type: 'SUPERSET',
+              rounds: 3,
+              rest: { type: 'TIME', value: 90, unit: 'sec' },
+              exercises: [
+                {
+                  exerciseId: 'walking_lunge',
+                  name: 'Walking Lunge',
+                  prescription: { mode: 'REPS', value: 10 },
+                },
+              ],
+            },
+          ],
+        },
+        {
+          kind: 'section',
+          id: 'st',
+          type: 'STRENGTH',
+          name: 'Strength',
+          blocks: [
+            {
+              id: 'e1',
+              type: 'EXERCISE',
+              exercise: {
+                exerciseId: 'sandbag_lunges',
+                name: 'Sandbag Lunges',
+                prescription: { mode: 'REPS', value: 10 },
+              },
+            },
+          ],
+        },
+      ],
+    }
+    const lines = getStructureV2CardEssenceLines(withWarmup)
+    expect(lines.some((l) => /Warm Up/i.test(l))).toBe(true)
+    expect(lines.some((l) => /Strength/i.test(l))).toBe(true)
+    expect(lines.some((l) => /Bench Press/i.test(l))).toBe(true)
+    expect(lines.some((l) => /AMRAP · 12 min/i.test(l))).toBe(true)
+    expect(lines.some((l) => /Superset · 3× · Rest 90 sec/i.test(l))).toBe(
+      true,
+    )
+    expect(lines.some((l) => /Sandbag Lunges/i.test(l))).toBe(true)
   })
 })

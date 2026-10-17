@@ -29,6 +29,7 @@ export type BuildCoachEngineAuditArgs = {
   weekValidations: WeekValidationAudit[]
   usedAi: boolean
   capabilityConfidence: number
+  physiology?: CoachEngineMeta['physiology']
 }
 
 /** Snapshot inputs + versions + constraints + validation for reproducibility. */
@@ -37,9 +38,10 @@ export function buildCoachEngineAudit(
 ): CoachEngineAuditRecord {
   const safetyConstraints = args.meta.safetyGate?.constraints ?? []
   const methodologyConstraints = args.meta.methodology.constraints ?? []
+  const physiology = args.physiology ?? args.meta.physiology
 
   return {
-    schemaVersion: 1,
+    schemaVersion: physiology ? 2 : 1,
     createdAt: new Date().toISOString(),
     engineVersion: COACH_ENGINE_VERSION,
     libraryVersion: COACH_ENGINE_LIBRARY_VERSION,
@@ -93,6 +95,7 @@ export function buildCoachEngineAudit(
       criticScore: args.meta.criticScore ?? null,
       criticRepairsApplied: args.meta.criticRepairsApplied ?? [],
     },
+    ...(physiology ? { physiology } : {}),
   }
 }
 

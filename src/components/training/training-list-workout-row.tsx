@@ -189,7 +189,8 @@ export function TrainingListWorkoutRow({
   const skipped = isWorkoutCardSkipped(status)
   const isRace = Boolean(workout.isRace)
   const showQuickActions = athleteHasQuickLogActions(workout, isCoach)
-  const showCoachActions = isCoach && !isRace
+  const showActionsMenu =
+    (isCoach && !isRace) || Boolean(!isCoach && workout.selfLogged)
   const showReview = isCoach && needsCoachRescheduleReview(workout)
   const canDrag =
     Boolean(dnd) &&
@@ -493,9 +494,13 @@ export function TrainingListWorkoutRow({
             </>
           ) : stravaSynced ? (
             <StravaSyncedIndicator workout={workout} variant="wordmark" size="xs" />
-          ) : showCoachActions ? (
+          ) : showActionsMenu ? (
             <div className="opacity-60 transition group-hover/card:opacity-100">
-              <PlanWorkoutActionsMenu workout={workout} compact />
+              <PlanWorkoutActionsMenu
+                workout={workout}
+                isCoach={isCoach}
+                compact
+              />
             </div>
           ) : null}
         </div>

@@ -48,6 +48,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_state: 'Strava login expired. Please try connecting again.',
   token_exchange: 'Could not complete Strava login. Check your API credentials.',
   not_configured: 'Strava API credentials are not configured on the server.',
+  already_linked:
+    'That Strava account is already linked to another TrainTrack user. Disconnect it there first, or choose a different Strava login.',
 }
 
 type PageProps = {
@@ -172,7 +174,12 @@ export default async function SettingsPage({ searchParams }: PageProps) {
 
   const stravaConnected = Boolean(stravaSummary)
   const errorMessage = params.error ? ERROR_MESSAGES[params.error] ?? 'Something went wrong.' : null
-  const successMessage = params.connected === '1' ? 'Strava connected successfully.' : null
+  const successMessage =
+    params.connected === 'switched'
+      ? 'Strava account switched. Recent history is syncing — use Import last 3 months if you need a fuller Fitness profile.'
+      : params.connected === '1'
+        ? 'Strava connected. Up to 3 months of activities are syncing for your Fitness profile.'
+        : null
 
   const profileExtras =
     hasCoach && user.coachProfile ? (

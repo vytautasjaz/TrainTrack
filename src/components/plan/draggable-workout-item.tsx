@@ -164,7 +164,13 @@ export function DraggableWorkoutItem({
         onStatusChange={setOptimisticStatus}
         className="right-1.5 top-1.5"
         leading={
-          isCoach ? <PlanWorkoutActionsMenu workout={workout} compact /> : undefined
+          isCoach || workout.selfLogged ? (
+            <PlanWorkoutActionsMenu
+              workout={workout}
+              isCoach={isCoach}
+              compact
+            />
+          ) : undefined
         }
       />
     </div>

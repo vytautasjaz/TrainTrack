@@ -26,6 +26,7 @@
     "db:studio": "prisma studio",
     "exercises:seed": "tsx scripts/seed-exercises.ts",
     "exercises:enrich-media": "tsx scripts/enrich-exercise-media.ts",
+    "exercises:import-repdb": "tsx scripts/import-repdb-exercises.ts",
     "exercises:validate": "tsx scripts/validate-exercises.ts",
     "test:exercises": "tsx --test src/lib/exercises/*.test.ts",
     "admin:grant": "tsx scripts/grant-admin.ts",

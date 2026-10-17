@@ -121,7 +121,7 @@ export function ActivityLapsWidget({
         <p className="mt-3 text-[13px] text-[var(--tt-ink-soft)]">
           Loading splits…
         </p>
-        <div className="mt-4 flex h-[13.75rem] items-end gap-1">
+        <div className="mt-4 flex h-[8.5rem] items-end gap-1">
           {[42, 58, 70, 54, 76, 88, 64, 72, 60].map((h, i) => (
             <div
               key={i}
@@ -341,7 +341,7 @@ function SplitBars({
 
   return (
     <div className="mt-6">
-      <div className="relative h-[13.75rem]">
+      <div className="relative h-[8.5rem]">
         {showValueLabels
           ? bars.map((bar) => {
               const pace = formatSplitPaceOrSpeed(

@@ -21,15 +21,16 @@ export default function ToolsMockPage() {
       activeNav="Tools"
       switchHomesOnRole={false}
     >
-      <div className="w-full min-w-0 max-w-3xl space-y-5">
-        <p className="pt-1 text-[12px] leading-relaxed text-[var(--tt-ink-soft)]">
-          Production calculators in the redesign shell — calc UI unchanged. Use tabs below (live
-          app uses Tools subnav).
-        </p>
-
-        <Suspense fallback={null}>
-          <ToolsMockTabBar />
-        </Suspense>
+      <div className="w-full min-w-0 space-y-5">
+        <div className="mx-auto max-w-3xl space-y-3 px-1">
+          <p className="pt-1 text-[12px] leading-relaxed text-[var(--tt-ink-soft)]">
+            Production calculators in the redesign shell — calc UI unchanged. Use tabs below (live
+            app uses Tools subnav).
+          </p>
+          <Suspense fallback={null}>
+            <ToolsMockTabBar />
+          </Suspense>
+        </div>
 
         <Suspense
           fallback={
@@ -39,7 +40,7 @@ export default function ToolsMockPage() {
           <CalculatorsView defaults={defaults} />
         </Suspense>
       </div>
-      <p className="mt-8 text-[11px] text-[var(--tt-ink-faint)]">
+      <p className="mx-auto mt-8 max-w-3xl text-[11px] text-[var(--tt-ink-faint)]">
         Same components as{' '}
         <a href="/tools" className="text-[var(--tt-ink-soft)]">
           live /tools

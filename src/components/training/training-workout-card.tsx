@@ -42,13 +42,14 @@ export function TrainingWorkoutCard({
   const { status, setOptimisticStatus } = useOptimisticWorkoutStatus(workout)
 
   const showQuickActions = athleteHasQuickLogActions(workout, isCoach)
-  const showCoachDelete = isCoach && !workout.isRace
+  const showActionsMenu =
+    (isCoach && !workout.isRace) || Boolean(!isCoach && workout.selfLogged)
   const showReview = isCoach && needsCoachRescheduleReview(workout)
   const canDrag =
     Boolean(dnd) &&
     canDragPlanWorkout(workout, status) &&
     (isCoach || !workout.isRace)
-  const reserveActions = showCoachDelete || showQuickActions || isCoach
+  const reserveActions = showActionsMenu || showQuickActions || isCoach
   const isDashboardToday = appearance === 'dashboard-today'
 
   return (
@@ -97,7 +98,7 @@ export function TrainingWorkoutCard({
                 <span
                   className={workoutCardCornerSpacerClass(workout, {
                     showQuickActions,
-                    showCoachMenu: showCoachDelete,
+                    showCoachMenu: showActionsMenu,
                   })}
                   aria-hidden
                 />
@@ -120,8 +121,8 @@ export function TrainingWorkoutCard({
           quickActionSize="sm"
           className="right-2 top-2"
           leading={
-            showCoachDelete ? (
-              <PlanWorkoutActionsMenu workout={workout} />
+            showActionsMenu ? (
+              <PlanWorkoutActionsMenu workout={workout} isCoach={isCoach} />
             ) : undefined
           }
         />

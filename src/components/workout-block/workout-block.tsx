@@ -6,7 +6,7 @@ import { Flag } from 'lucide-react'
 import { WorkoutCardDiagram } from '@/components/plan/workout-card-diagram'
 import { PlanWorkoutCardInlineEdit } from '@/components/plan/plan-workout-card-inline-edit'
 import { WorkoutCardMetricIcon } from '@/components/plan/workout-card-metric-icon'
-import { WorkoutCardEssenceLine } from '@/components/plan/workout-card-essence-line'
+import { WorkoutCardEssenceList } from '@/components/plan/workout-card-essence-line'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import { WorkoutChatIndicator } from '@/components/plan/workout-chat-indicator'
 import { SelfAddedBadge } from '@/components/plan/self-added-badge'
@@ -180,7 +180,7 @@ export function WorkoutBlock({
   const cardEssence =
     !workout.isRace && density !== 'xs'
       ? getWorkoutCardEssence(workout, durationNotation, {
-          includeAllBlocks: density === 'md' || density === 'lg',
+          includeAllBlocks: true,
         })
       : []
   const showSubtitleLine =
@@ -188,7 +188,9 @@ export function WorkoutBlock({
     !(
       cardEssence.length > 0 &&
       subtitle != null &&
-      cardEssence.some((line) => line === subtitle || line.startsWith(subtitle))
+      cardEssence.some(
+        (row) => row.text === subtitle || row.text.startsWith(subtitle),
+      )
     )
   const SportIcon = workout.isRace ? Flag : WORKOUT_TYPE_ICONS[workout.type]
   const stravaSynced = isStravaSynced(workout)
@@ -418,29 +420,28 @@ export function WorkoutBlock({
       ) : null}
 
       {cardEssence.length > 0 ? (
-        <div
+        <WorkoutCardEssenceList
+          rows={cardEssence}
           className={cn(
-            'mt-1 flex min-w-0 flex-col gap-0.5',
+            'mt-1',
             density === 'lg' ? 'text-[13px] leading-snug' : 'text-[10px] leading-snug',
           )}
-        >
-          {cardEssence.map((line, index) => (
-            <WorkoutCardEssenceLine
-              key={`${index}-${line}`}
-              line={line}
-              coreClassName={cn(
-                'text-foreground',
-                completed && showCompletionLayer && 'text-[var(--tt-good,#1a9f5c)]',
-                skipped && 'text-muted-foreground',
-              )}
-              detailClassName={cn(
-                'text-muted-foreground',
-                completed && showCompletionLayer && 'text-[var(--tt-good,#1a9f5c)]/75',
-                skipped && 'text-muted-foreground',
-              )}
-            />
-          ))}
-        </div>
+          coreClassName={cn(
+            'text-foreground',
+            completed && showCompletionLayer && 'text-[var(--tt-good,#1a9f5c)]',
+            skipped && 'text-muted-foreground',
+          )}
+          detailClassName={cn(
+            'text-muted-foreground',
+            completed && showCompletionLayer && 'text-[var(--tt-good,#1a9f5c)]/75',
+            skipped && 'text-muted-foreground',
+          )}
+          blockClassName={cn(
+            'text-foreground',
+            completed && showCompletionLayer && 'text-[var(--tt-good,#1a9f5c)]',
+            skipped && 'text-muted-foreground',
+          )}
+        />
       ) : null}
 
       {metricPrimary ? (

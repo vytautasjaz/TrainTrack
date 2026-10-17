@@ -66,7 +66,7 @@ export function CalendarWeekStatsCell({
   return (
     <div
       className={cn(
-        "flex min-h-[7.5rem] flex-col gap-4 bg-[color-mix(in_oklab,var(--color-muted)_40%,var(--color-card))] p-2",
+        "flex min-h-[9rem] flex-col gap-4 bg-transparent p-2.5",
         className,
       )}
     >

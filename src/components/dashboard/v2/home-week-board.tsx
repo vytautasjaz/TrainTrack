@@ -212,6 +212,62 @@ export function HomeWeekBoard({
     focusOffset > loadedMaxOffset ||
     (expanded && focusOffset + HOME_V2_EXPAND_EXTRA_WEEKS > loadedMaxOffset)
 
+  // Expand / collapse is mobile-only — leave desktop as a single week.
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    function collapseOnDesktop() {
+      if (mq.matches && expanded) onExpandedChange(false)
+    }
+    collapseOnDesktop()
+    mq.addEventListener('change', collapseOnDesktop)
+    return () => mq.removeEventListener('change', collapseOnDesktop)
+  }, [expanded, onExpandedChange])
+
+  const expandToggle = (
+    <button
+      type="button"
+      className={cn('tt-v2-week-expand-toggle')}
+      data-open={expanded ? 'true' : undefined}
+      aria-expanded={expanded}
+      aria-controls={panelId}
+      onClick={() => onExpandedChange(!expanded)}
+    >
+      <ChevronDown className="h-4 w-4" strokeWidth={2} aria-hidden />
+      <span>
+        {expanded
+          ? 'Show less'
+          : `Show ${HOME_V2_EXPAND_EXTRA_WEEKS} more weeks`}
+      </span>
+    </button>
+  )
+
+  const mobileExtraWeeks = (
+    <div
+      id={panelId}
+      className="tt-v2-week-expand"
+      data-open={expanded ? 'true' : undefined}
+    >
+      <div className="tt-v2-week-expand-inner">
+        {Array.from({ length: HOME_V2_EXPAND_EXTRA_WEEKS }, (_, j) => {
+          const offset = focusOffset + j + 1
+          const week = weekByOffset.get(offset)
+          if (!week) return null
+          return (
+            <div key={week.key} className="tt-v2-week-extra">
+              <HomeWeekGrid
+                days={week.days}
+                weekLabel={formatWeekRangeLabel(week.start)}
+                surface="mobile"
+                weatherLocationName={weatherLocationName}
+                onNoteChange={onNoteChange}
+              />
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+
   return (
     <PlanWeekDndProvider
       mode="athlete"
@@ -221,12 +277,22 @@ export function HomeWeekBoard({
       <PlanWeekDndErrorBanner className="mb-2" />
       <V2WeekBoard className="relative pb-0">
         <div className="md:hidden">
-          <HomeWeekGrid
-            days={primaryDays}
-            surface="mobile"
-            weatherLocationName={weatherLocationName}
-            onNoteChange={onNoteChange}
-          />
+          <div className="relative flex flex-col">
+            <WeekLoadingOverlay
+              show={
+                !weekByOffset.get(focusOffset)?.loaded ||
+                (loadingMore && focusNeedsLoad)
+              }
+            />
+            <HomeWeekGrid
+              days={primaryDays}
+              surface="mobile"
+              weatherLocationName={weatherLocationName}
+              onNoteChange={onNoteChange}
+            />
+            {mobileExtraWeeks}
+          </div>
+          {expandToggle}
         </div>
 
         <div className="relative hidden md:block">
@@ -246,24 +312,16 @@ export function HomeWeekBoard({
             {slideOffsets.map((startOffset, i) => {
               const primary = weekByOffset.get(startOffset)
               if (!primary) return null
-              const packNeedsLoad =
-                startOffset < loadedMinOffset ||
-                startOffset + HOME_V2_EXPAND_EXTRA_WEEKS > loadedMaxOffset
               return (
                 <WeekSwipeSlide
                   key={primary.key}
                   active={i === activeIndex}
                 >
-                  <div
-                    id={i === activeIndex ? panelId : undefined}
-                    className="relative flex flex-col"
-                  >
+                  <div className="relative flex flex-col">
                     <WeekLoadingOverlay
                       show={
                         i === activeIndex &&
-                        (!primary.loaded ||
-                          (loadingMore && focusNeedsLoad) ||
-                          (expanded && packNeedsLoad && loadingMore))
+                        (!primary.loaded || (loadingMore && focusNeedsLoad))
                       }
                     />
                     <HomeWeekGrid
@@ -272,53 +330,11 @@ export function HomeWeekBoard({
                       weatherLocationName={weatherLocationName}
                       onNoteChange={onNoteChange}
                     />
-                    <div
-                      className="tt-v2-week-expand"
-                      data-open={expanded ? 'true' : undefined}
-                    >
-                      <div className="tt-v2-week-expand-inner">
-                        {Array.from(
-                          { length: HOME_V2_EXPAND_EXTRA_WEEKS },
-                          (_, j) => {
-                            const offset = startOffset + j + 1
-                            const week = weekByOffset.get(offset)
-                            if (!week) return null
-                            return (
-                              <div key={week.key} className="tt-v2-week-extra">
-                                <HomeWeekGrid
-                                  days={week.days}
-                                  weekLabel={formatWeekRangeLabel(week.start)}
-                                  surface="desktop"
-                                  weatherLocationName={weatherLocationName}
-                                  onNoteChange={onNoteChange}
-                                />
-                              </div>
-                            )
-                          },
-                        )}
-                      </div>
-                    </div>
                   </div>
                 </WeekSwipeSlide>
               )
             })}
           </WeekSwipePane>
-
-          <button
-            type="button"
-            className={cn('tt-v2-week-expand-toggle')}
-            data-open={expanded ? 'true' : undefined}
-            aria-expanded={expanded}
-            aria-controls={panelId}
-            onClick={() => onExpandedChange(!expanded)}
-          >
-            <ChevronDown className="h-4 w-4" strokeWidth={2} aria-hidden />
-            <span>
-              {expanded
-                ? 'Show less'
-                : `Show ${HOME_V2_EXPAND_EXTRA_WEEKS} more weeks`}
-            </span>
-          </button>
         </div>
       </V2WeekBoard>
     </PlanWeekDndProvider>

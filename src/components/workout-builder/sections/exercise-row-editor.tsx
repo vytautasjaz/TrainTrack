@@ -14,7 +14,9 @@ import type {
 } from '@/lib/exercises/types'
 import type {
   ExerciseItem,
+  ExerciseLoad,
   PrescriptionMode,
+  RestSpec,
 } from '@/lib/workout-builder/structure-v2'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -31,6 +33,59 @@ const ALL_PRESCRIPTION_MODES: { value: PrescriptionMode; label: string }[] = [
 const fieldClass =
   'h-7 w-full rounded-[5px] border border-transparent bg-transparent px-1.5 text-[12px] tabular-nums text-[var(--tt-ink,#111315)] outline-none transition placeholder:text-[var(--tt-ink-faint,#9ca3af)] hover:bg-white/80 focus:border-[var(--tt-v2-light-panel-line,#E3E6E9)] focus:bg-white'
 
+/** Free-form effort: RPE, kg/lb, %, BW, km, min, or any custom note. */
+export function parseEffortField(raw: string): ExerciseLoad | undefined {
+  const t = raw.trim()
+  if (!t) return undefined
+  if (t.toUpperCase() === 'BW' || t.toUpperCase() === 'BODYWEIGHT') {
+    return { type: 'BODYWEIGHT' }
+  }
+  const rpe = t.match(/^RPE\s*[:=]?\s*(.+)$/i)
+  if (rpe) {
+    const n = Number.parseFloat(rpe[1]!)
+    return {
+      type: 'RPE',
+      value: Number.isFinite(n) ? n : rpe[1]!.trim(),
+    }
+  }
+  const pct = t.match(/^(\d+(?:\.\d+)?)\s*%$/)
+  if (pct) {
+    return { type: 'PERCENT_1RM', value: Number.parseFloat(pct[1]!) }
+  }
+  const withUnit = t.match(
+    /^(\d+(?:\.\d+)?)\s*(kg|lb|km|m|mi|min|sec|s)$/i,
+  )
+  if (withUnit) {
+    const n = Number.parseFloat(withUnit[1]!)
+    const unit = withUnit[2]!.toLowerCase()
+    if (unit === 'kg' || unit === 'lb') {
+      return { type: 'ABSOLUTE', value: n, unit }
+    }
+    return { type: 'CUSTOM', value: t }
+  }
+  if (/^\d+(?:\.\d+)?$/.test(t)) {
+    return { type: 'ABSOLUTE', value: Number.parseFloat(t) }
+  }
+  return { type: 'CUSTOM', value: t }
+}
+
+export function formatEffortField(load: ExerciseLoad | undefined): string {
+  if (!load) return ''
+  if (load.type === 'BODYWEIGHT') return 'BW'
+  if (load.type === 'COMPETITION') {
+    return load.division ? `Comp ${load.division}` : 'Competition'
+  }
+  if (load.type === 'RPE' && load.value != null) return `RPE ${load.value}`
+  if (load.type === 'PERCENT_1RM' && load.value != null) {
+    return `${load.value}%`
+  }
+  if (load.type === 'CUSTOM' && load.value != null) return String(load.value)
+  if (load.value != null) {
+    return load.unit ? `${load.value}${load.unit}` : String(load.value)
+  }
+  return ''
+}
+
 type ExerciseRowEditorProps = {
   item: ExerciseItem
   onChange: (item: ExerciseItem) => void
@@ -39,6 +94,9 @@ type ExerciseRowEditorProps = {
   searchContext?: ExerciseSearchContext
   /** Show column header labels (first row only). */
   showHeaders?: boolean
+  /** Rest between sets/reps (EXERCISE blocks). */
+  rest?: RestSpec
+  onRestChange?: (rest: RestSpec | undefined) => void
   className?: string
 }
 
@@ -49,9 +107,12 @@ export function ExerciseRowEditor({
   library,
   searchContext = 'GENERAL',
   showHeaders = false,
+  rest,
+  onRestChange,
   className,
 }: ExerciseRowEditorProps) {
   const [query, setQuery] = useState(item.name ?? '')
+  const showRest = typeof onRestChange === 'function'
 
   useEffect(() => {
     setQuery(item.name ?? '')
@@ -92,12 +153,19 @@ export function ExerciseRowEditor({
   }
 
   const mode = item.prescription?.mode ?? 'REPS'
+  // … Target · Effort · Rest (rest last) · delete
+  const gridClass = showRest
+    ? 'grid-cols-[1.75rem_minmax(0,1fr)_4.25rem_3.25rem_3.5rem_3rem_1.75rem]'
+    : 'grid-cols-[1.75rem_minmax(0,1fr)_4.25rem_3.25rem_3.5rem_1.75rem]'
 
   return (
     <div className={cn('min-w-0', className)}>
       {showHeaders ? (
         <div
-          className="mb-0.5 grid grid-cols-[1.75rem_minmax(0,1fr)_4.25rem_3.25rem_3.5rem_1.75rem] items-center gap-1 px-1"
+          className={cn(
+            'mb-0.5 grid items-center gap-1 px-1',
+            gridClass,
+          )}
           aria-hidden
         >
           <span />
@@ -111,13 +179,23 @@ export function ExerciseRowEditor({
             Target
           </span>
           <span className="text-right text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--tt-ink-faint,#9ca3af)]">
-            Load
+            Effort
           </span>
+          {showRest ? (
+            <span className="text-right text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--tt-ink-faint,#9ca3af)]">
+              Rest
+            </span>
+          ) : null}
           <span />
         </div>
       ) : null}
 
-      <div className="grid grid-cols-[1.75rem_minmax(0,1fr)_4.25rem_3.25rem_3.5rem_1.75rem] items-center gap-1 rounded-[6px] bg-white px-1 py-0.5 ring-1 ring-[var(--tt-v2-light-panel-line,#E3E6E9)]/70">
+      <div
+        className={cn(
+          'grid items-center gap-1 rounded-[6px] bg-white px-1 py-0.5 ring-1 ring-[var(--tt-v2-light-panel-line,#E3E6E9)]/70',
+          gridClass,
+        )}
+      >
         {item.exerciseId ? (
           <ExerciseInfoTrigger
             exerciseId={item.exerciseId}
@@ -182,37 +260,40 @@ export function ExerciseRowEditor({
         />
 
         <input
-          value={
-            item.load?.value != null
-              ? String(item.load.value)
-              : item.load?.type === 'BODYWEIGHT'
-                ? 'BW'
-                : ''
-          }
+          value={formatEffortField(item.load)}
           onChange={(e) => {
-            const raw = e.target.value.trim()
-            if (!raw) {
-              onChange({ ...item, load: undefined })
-              return
-            }
-            if (raw.toUpperCase() === 'BW') {
-              onChange({ ...item, load: { type: 'BODYWEIGHT' } })
-              return
-            }
-            const n = Number.parseFloat(raw)
-            onChange({
-              ...item,
-              load: {
-                type: 'ABSOLUTE',
-                value: Number.isFinite(n) ? n : raw,
-                unit: 'kg',
-              },
-            })
+            onChange({ ...item, load: parseEffortField(e.target.value) })
           }}
-          placeholder="kg"
+          placeholder="RPE / kg…"
           className={cn(fieldClass, 'text-right')}
-          aria-label="Load"
+          aria-label="Effort (RPE, weight, distance, time…)"
+          title="RPE, kg, lb, %, BW, km, min…"
         />
+
+        {showRest ? (
+          <input
+            type="number"
+            inputMode="numeric"
+            value={rest?.type === 'TIME' ? (rest.value ?? '') : ''}
+            onChange={(e) => {
+              const raw = e.target.value.trim()
+              if (!raw) {
+                onRestChange?.(undefined)
+                return
+              }
+              const n = Number.parseInt(raw, 10)
+              onRestChange?.(
+                Number.isFinite(n)
+                  ? { type: 'TIME', value: n, unit: rest?.unit ?? 'sec' }
+                  : undefined,
+              )
+            }}
+            placeholder="s"
+            className={cn(fieldClass, 'text-right')}
+            aria-label="Rest between sets (seconds)"
+            title="Rest between sets (seconds)"
+          />
+        ) : null}
 
         <Button
           type="button"

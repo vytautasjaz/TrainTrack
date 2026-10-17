@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef } from "react";
 import { WorkoutType } from "@prisma/client";
 import { AddWorkoutCell } from "@/components/plan/add-workout-cell";
 import { DayDropTd } from "@/components/plan/day-drop-td";
-import { SeasonEventChips } from "@/components/plan/season-event-chips";
+import { DayMetaBlock } from "@/components/plan/day-meta-lines";
 import { PlanWeekDndProvider, PlanWeekDndErrorBanner } from "@/components/plan/plan-week-dnd";
 import {
   WORKOUT_TYPE_COLORS,
@@ -37,6 +37,7 @@ import {
   type WeekWeatherLocation,
 } from "@/components/weather/week-weather-location-control";
 import { WeatherGlyph } from "@/components/weather/weather-glyph";
+import { WeatherDayHoursTrigger } from "@/components/weather/weather-day-hours-trigger";
 import {
   TABLE_CELL_TODAY,
   TABLE_CELL_WEEKEND,
@@ -46,8 +47,6 @@ import {
   TABLE_HEADER_CELL_WEEKEND,
   TABLE_HEADER_VLINE,
 } from "@/lib/table-styles";
-import { DayNoteSection } from "@/components/plan/day-note-section";
-import { NotesEventsCellAdd } from "@/components/plan/notes-events-cell-add";
 import { dayNoteHasVisibleContent } from "@/lib/day-notes";
 import { RecoveryDaySection } from "@/components/plan/recovery-day-section";
 import { PlanDayAddMenu } from "@/components/plan/plan-day-add-menu";
@@ -82,8 +81,6 @@ type PlanTableViewProps = {
   nextWeekHref?: string;
   /** Athlete CSS (sec/100m) — estimates swim duration in week volume when missing. */
   swimCssSecPer100m?: number | null;
-  /** Hide weekly volume + add-day footer rows (e.g. combined multi-week table). */
-  hideFooterRows?: boolean;
   /** Show Notes row / day notes (toolbar layer). Default true. */
   showNotes?: boolean;
   /** Show Events row / day events (toolbar layer). Default true. */
@@ -109,7 +106,6 @@ const COACH_SPORT_ROWS_FALLBACK = SPORT_ROW_ORDER.filter(
 /** Week table horizontal rules */
 /** Match mock week grid: `--tt-line` (#ebebeb) hairlines */
 const PLAN_TABLE_LINE = "border-[var(--tt-line,#ebebeb)]";
-const PLAN_TABLE_LINE_STRONG = "border-[var(--tt-line,#ebebeb)]";
 /** Soft vertical guidelines between day columns (not on the last day — frame is the outer edge). */
 const PLAN_TABLE_VLINE = "border-r border-[var(--tt-line,#ebebeb)]";
 
@@ -126,17 +122,17 @@ function isWeekendDay(day: PlanDay): boolean {
 }
 
 function dayHeaderClass(day: PlanDay) {
-  // Today wins (brand red day head) — redesign week chrome.
+  // Light board day head — today shares the full-column accent wash.
   if (day.isToday) {
     return TABLE_HEADER_CELL_TODAY;
   }
   if (dayHasRecovery(day.workouts)) {
-    return "bg-violet-500/25 text-violet-100";
+    return "bg-[color-mix(in_srgb,var(--color-sport-strength)_10%,transparent)]";
   }
   if (isWeekendDay(day)) {
     return TABLE_HEADER_CELL_WEEKEND;
   }
-  return "text-sidebar-foreground/75";
+  return "";
 }
 
 function dayColumnClass(day: PlanDay) {
@@ -159,163 +155,160 @@ function DayHeaderRow({
   emphasizeTop = false,
   /** When true, this row owns TABLE_HEADER (tbody embedded weeks). Thead parents own it instead. */
   embedded = false,
+  isCoach = false,
+  canEditDayNotes = false,
+  athleteId,
 }: {
   days: PlanDay[];
   as?: "th" | "td";
   emphasizeTop?: boolean;
   embedded?: boolean;
+  isCoach?: boolean;
+  canEditDayNotes?: boolean;
+  athleteId?: string;
 }) {
   const Cell = as;
   const lastDayKey = days[days.length - 1]?.dateKey;
+  const showDayAdd = isCoach || canEditDayNotes;
   return (
     <tr
       className={cn(
         embedded && TABLE_HEADER,
-        emphasizeTop && "border-t-2 border-t-white/20",
+        emphasizeTop && "tt-week-plan-week-sep",
       )}
     >
       <Cell
         className={cn(
           TABLE_HEADER_VLINE,
-          "tt-week-header-sport-label px-1 py-1.5 text-left text-[10px] font-medium text-white/55 landscape:max-lg:px-0.5 lg:px-3 lg:py-2",
+          "tt-week-header-sport-label px-1 py-2 text-left text-[10px] font-medium landscape:max-lg:px-0.5 lg:px-3 lg:py-2.5",
         )}
       >
         Sport
       </Cell>
-      {days.map((day) => (
+      {days.map((day, dayCol) => (
         <Cell
           key={day.dateKey}
           data-week-day-col={day.dateKey}
+          data-day-col={dayCol}
           data-week-day-today={day.isToday ? "1" : undefined}
           className={cn(
-            "px-0.5 py-1.5 text-center align-middle landscape:max-lg:px-px lg:px-1 lg:py-2",
+            "tt-week-day-col relative px-0.5 py-2 text-center align-middle landscape:max-lg:px-px lg:px-1 lg:py-2.5",
             day.dateKey !== lastDayKey && TABLE_HEADER_VLINE,
             dayHeaderClass(day),
           )}
         >
-          <div
-            className={cn(
-              'tt-week-dayhead-weekday text-[11px] font-semibold leading-tight tracking-[0.01em] lg:text-xs',
-              day.isToday
-                ? 'text-white'
-                : 'text-white/85',
-            )}
-          >
+          <div className="tt-week-dayhead-weekday text-[11px] font-semibold leading-tight tracking-[0.04em] lg:text-xs">
             {day.dayLabel}
           </div>
-          <div
-            className={cn(
-              'tt-week-dayhead-date mt-1 text-[9px] font-normal leading-none tabular-nums tracking-tight lg:mt-0.5 lg:text-[10px]',
-              day.isToday
-                ? 'text-white/80'
-                : 'text-white/50',
-            )}
-          >
+          <div className="tt-week-dayhead-date mt-1 text-[9px] font-normal leading-none tabular-nums tracking-tight lg:mt-0.5 lg:text-[10px]">
             {day.dateKey.slice(5)}
           </div>
+          {showDayAdd ? (
+            <PlanDayAddMenu
+              dateKey={day.dateKey}
+              isCoach={isCoach}
+              canAddNote={canEditDayNotes}
+              athleteId={athleteId}
+              dayNote={day.dayNote}
+              recoveryWorkout={getRecoveryWorkout(day.workouts)}
+              menuPlacement="bottom"
+              className="tt-week-dayhead-add"
+            />
+          ) : null}
         </Cell>
       ))}
     </tr>
   );
 }
 
-const WEEK_LAYER_CELL_FILL =
-  'bg-amber-50 dark:bg-amber-500/15'
-
 function NotesEventsTableRow({
   days,
   showNotes,
   showEvents,
   canEditDayNotes,
-  athleteId,
   isCoach,
+  swimCssSecPer100m,
 }: {
   days: PlanDay[]
   showNotes: boolean
   showEvents: boolean
   canEditDayNotes: boolean
-  athleteId?: string
   isCoach: boolean
+  swimCssSecPer100m?: number | null
 }) {
-  const label =
-    showNotes && showEvents
-      ? 'Notes · Events'
-      : showEvents
-        ? 'Events'
-        : 'Notes'
+  const { planned: totalMin, actual: actualMin } = sumWeekDurationMinutes(days, {
+    swimCssSecPer100m,
+  })
 
   return (
     <tr className={cn('border-b bg-muted/10', PLAN_TABLE_LINE)}>
       <th
         className={cn(
-          'bg-muted/20 px-1 py-1 text-left align-top text-[8px] font-medium text-muted-foreground landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-[10px]',
+          'bg-muted/20 px-1.5 py-1.5 text-left align-top landscape:max-lg:px-1 lg:px-2 lg:py-2',
           PLAN_TABLE_VLINE,
         )}
       >
-        {label}
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <span className="text-[8px] font-semibold uppercase tracking-[0.04em] text-muted-foreground lg:text-[10px]">
+            Weekly volume
+          </span>
+          {totalMin > 0 ? (
+            <div className="flex items-center gap-1 text-[9px] leading-none tabular-nums text-muted-foreground lg:text-[10px]">
+              <Clock
+                className="h-2.5 w-2.5 shrink-0 opacity-60"
+                strokeWidth={2.25}
+                aria-hidden
+              />
+              {actualMin > 0 ? (
+                <>
+                  <span className="font-semibold text-foreground">
+                    {formatDuration(actualMin)}
+                  </span>
+                  <span className="opacity-50">/</span>
+                  <span>{formatDuration(totalMin)}</span>
+                </>
+              ) : (
+                <span>{formatDuration(totalMin)}</span>
+              )}
+            </div>
+          ) : (
+            <span className="text-[9px] text-muted-foreground/50 lg:text-[10px]">
+              —
+            </span>
+          )}
+        </div>
       </th>
-      {days.map((day) => {
+      {days.map((day, dayCol) => {
         const events = showEvents ? (day.seasonEvents ?? []) : []
         const hasNotes =
           showNotes && dayNoteHasVisibleContent(day.dayNote)
         const hasEvents = events.length > 0
         const empty = !hasNotes && !hasEvents
-        const canAddNote = showNotes && canEditDayNotes
-        const canAddEvent = showEvents
 
         return (
           <td
             key={day.dateKey}
+            data-day-col={dayCol}
             className={cn(
-              'align-top landscape:max-lg:px-px',
+              'tt-week-day-col relative align-top landscape:max-lg:px-px',
               dayColVline(days, day.dateKey),
               empty
-                ? cn('relative h-px p-0', dayColumnClass(day))
-                : cn('px-2 py-2 lg:px-2.5 lg:py-2.5', WEEK_LAYER_CELL_FILL),
+                ? cn('min-h-[1.5rem] p-0', dayColumnClass(day))
+                : cn('px-1.5 py-1.5 lg:px-2 lg:py-2', dayColumnClass(day)),
             )}
           >
-            {empty ? (
-              <NotesEventsCellAdd
+            {!empty ? (
+              <DayMetaBlock
                 dateKey={day.dateKey}
-                canAddNote={canAddNote}
-                canAddEvent={canAddEvent}
-                noteKind={isCoach ? 'coach' : 'athlete'}
-                dayNote={day.dayNote}
-                athleteId={athleteId}
+                events={events}
+                note={day.dayNote}
+                showEvents={showEvents}
+                showNotes={showNotes}
+                isCoach={isCoach}
+                canEditNotes={canEditDayNotes}
+                className="mt-0 pt-0"
               />
-            ) : (
-              <div className="flex w-full flex-col">
-                {hasEvents ? (
-                  <SeasonEventChips
-                    events={events}
-                    variant="cell"
-                    editable
-                    dateKey={day.dateKey}
-                    isCoach={isCoach}
-                  />
-                ) : null}
-                {hasNotes ? (
-                  <div
-                    className={cn(
-                      hasEvents &&
-                        'mt-2 border-t border-amber-950/12 pt-2 dark:border-amber-100/15',
-                    )}
-                  >
-                    <DayNoteSection
-                      dateKey={day.dateKey}
-                      note={day.dayNote}
-                      canEdit={canEditDayNotes}
-                      noteKind={isCoach ? 'coach' : 'athlete'}
-                      athleteId={athleteId}
-                      compact
-                      showFullText
-                      variant="cell"
-                      hideEmptyAdd
-                    />
-                  </div>
-                ) : null}
-              </div>
-            )}
+            ) : null}
           </td>
         )
       })}
@@ -325,83 +318,113 @@ function NotesEventsTableRow({
 
 function WeatherTableRow({
   days,
+  open,
   weatherLocation,
   onWeatherLocationSelect,
   onWeatherLocationReset,
 }: {
   days: PlanDay[];
+  open: boolean;
   weatherLocation?: WeekWeatherLocation | null;
   onWeatherLocationSelect?: (place: WeatherPlace) => void;
   onWeatherLocationReset?: () => void;
 }) {
   const todayKey = todayDateKey();
   return (
-    <tr className={cn("border-b bg-muted/10", PLAN_TABLE_LINE)}>
+    <tr
+      className={cn("tt-week-weather-row border-b bg-muted/10", PLAN_TABLE_LINE)}
+      data-weather-open={open ? "true" : "false"}
+      aria-hidden={!open}
+      {...(!open ? ({ inert: "" } as Record<string, string>) : {})}
+    >
       <th
         className={cn(
           "bg-muted/20 px-1 py-1 text-left align-top text-[8px] font-medium text-muted-foreground landscape:max-lg:px-0.5 lg:px-3 lg:py-2 lg:text-[10px]",
           PLAN_TABLE_VLINE,
         )}
       >
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <span>Weather</span>
-          {onWeatherLocationSelect ? (
-            <WeekWeatherLocationControl
-              location={weatherLocation}
-              onSelect={onWeatherLocationSelect}
-              onReset={onWeatherLocationReset}
-              className="text-[8px] lg:text-[10px]"
-            />
-          ) : weatherLocation?.name ? (
-            <span
-              className="truncate font-normal leading-tight text-muted-foreground/80"
-              title={weatherLocation.name}
-            >
-              {weatherLocation.name.split(",")[0]?.trim() || weatherLocation.name}
-            </span>
-          ) : null}
+        <div className="tt-week-weather-row-clip">
+          <div className="tt-week-weather-row-inner">
+            <div className="flex min-w-0 flex-col gap-0.5 py-0.5">
+              <span>Weather</span>
+              {onWeatherLocationSelect ? (
+                <WeekWeatherLocationControl
+                  location={weatherLocation}
+                  onSelect={onWeatherLocationSelect}
+                  onReset={onWeatherLocationReset}
+                  className="text-[8px] lg:text-[10px]"
+                />
+              ) : weatherLocation?.name ? (
+                <span
+                  className="truncate font-normal leading-tight text-muted-foreground/80"
+                  title={weatherLocation.name}
+                >
+                  {weatherLocation.name.split(",")[0]?.trim() ||
+                    weatherLocation.name}
+                </span>
+              ) : null}
+            </div>
+          </div>
         </div>
       </th>
-      {days.map((day) => (
+      {days.map((day, dayCol) => (
         <td
           key={day.dateKey}
+          data-day-col={dayCol}
           className={cn(
-            "p-1 align-top landscape:max-lg:px-px lg:p-1.5",
+            "tt-week-day-col p-1 align-top landscape:max-lg:px-px lg:p-1.5",
             dayColVline(days, day.dateKey),
             dayColumnClass(day),
           )}
         >
-          {!day.weather ? (
-            day.dateKey < todayKey ? null : <p className="text-[10px] text-muted-foreground/45">—</p>
-          ) : (
-            <div className="grid grid-cols-3 items-stretch">
-              {day.weather.slots.map((slot) => {
-                const precip = formatWeatherPrecip(slot);
-                return (
-                  <div
-                    key={`${day.dateKey}-${slot.label}`}
-                    className="tt-week-weather-slot flex min-h-[4.7rem] flex-col items-center justify-between px-0.5 py-0.5 text-[10px]"
-                  >
-                    <span className="tt-week-weather-slot-label text-[9px] uppercase tracking-wide text-muted-foreground/80">
-                      {slot.label}
-                    </span>
-                    <span className="flex items-center justify-center">
-                      <WeatherGlyph
-                        glyph={slot.emoji}
-                        detail={`${slot.label} ${slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}${precip ? ` ${precip}` : ''}`}
-                        className="h-9 w-9"
-                      />
-                    </span>
-                    <span className="text-center tabular-nums text-[10px] text-foreground/80 leading-none">
-                      {slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}
-                      <br />
-                      <span className="text-[9px] text-muted-foreground">{precip || '\u00A0'}</span>
-                    </span>
+          <div className="tt-week-weather-row-clip">
+            <div className="tt-week-weather-row-inner">
+              {!day.weather ? (
+                day.dateKey < todayKey ? null : (
+                  <p className="py-2 text-[10px] text-muted-foreground/45">—</p>
+                )
+              ) : (
+                <WeatherDayHoursTrigger
+                  weather={day.weather}
+                  locationName={weatherLocation?.name}
+                  onLocationSelect={onWeatherLocationSelect}
+                  className="block w-full"
+                >
+                  <div className="grid grid-cols-3 items-stretch">
+                    {day.weather.slots.map((slot) => {
+                      const precip = formatWeatherPrecip(slot);
+                      return (
+                        <div
+                          key={`${day.dateKey}-${slot.label}`}
+                          className="tt-week-weather-slot flex min-h-[4.7rem] flex-col items-center justify-between px-0.5 py-0.5 text-[10px]"
+                        >
+                          <span className="tt-week-weather-slot-label text-[9px] uppercase tracking-wide text-muted-foreground/80">
+                            {slot.label}
+                          </span>
+                          <span className="flex items-center justify-center">
+                            <WeatherGlyph
+                              glyph={slot.emoji}
+                              detail={`${slot.label} ${slot.temperatureC != null ? `${slot.temperatureC}°` : "—"}${precip ? ` ${precip}` : ""}`}
+                              className="h-9 w-9"
+                            />
+                          </span>
+                          <span className="text-center tabular-nums text-[10px] leading-none text-foreground/80">
+                            {slot.temperatureC != null
+                              ? `${slot.temperatureC}°`
+                              : "—"}
+                            <br />
+                            <span className="text-[9px] text-muted-foreground">
+                              {precip || "\u00A0"}
+                            </span>
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </WeatherDayHoursTrigger>
+              )}
             </div>
-          )}
+          </div>
         </td>
       ))}
     </tr>
@@ -425,11 +448,12 @@ function RecoveryTableRow({
       >
         Recovery
       </th>
-      {days.map((day) => (
+      {days.map((day, dayCol) => (
         <td
           key={day.dateKey}
+          data-day-col={dayCol}
           className={cn(
-            "p-0.5 align-top landscape:max-lg:px-px lg:p-1.5",
+            "tt-week-day-col p-0.5 align-top landscape:max-lg:px-px lg:p-1.5",
             dayColVline(days, day.dateKey),
             dayColumnClass(day),
           )}
@@ -441,85 +465,6 @@ function RecoveryTableRow({
             compact
             hideEmptyAdd
           />
-        </td>
-      ))}
-    </tr>
-  );
-}
-
-function VolumeTableRow({
-  days,
-  isCoach,
-  canEditDayNotes,
-  athleteId,
-  swimCssSecPer100m,
-}: {
-  days: PlanDay[];
-  isCoach: boolean;
-  canEditDayNotes: boolean;
-  athleteId?: string;
-  swimCssSecPer100m?: number | null;
-}) {
-  const { planned: totalMin, actual: actualMin } = sumWeekDurationMinutes(days, {
-    swimCssSecPer100m,
-  });
-  const showDayAdd = isCoach || canEditDayNotes;
-
-  return (
-    <tr className={cn("tt-week-volume-row border-t", PLAN_TABLE_LINE_STRONG)}>
-      <th
-        className={cn(
-          "bg-muted/20 p-0 text-left align-top",
-          PLAN_TABLE_VLINE,
-        )}
-      >
-        <div className="flex w-full items-center px-1.5 py-1 landscape:max-lg:px-1 landscape:max-lg:py-0.5 lg:px-2 lg:py-1.5">
-          <span className="min-w-0 flex-1 text-[8px] font-semibold leading-none text-muted-foreground lg:text-[10px]">
-            Weekly volume
-          </span>
-        </div>
-        {totalMin > 0 && (
-          <div className="px-1.5 py-1 landscape:max-lg:px-1 lg:px-2 lg:py-1.5">
-            <div className="flex flex-col gap-0.5 font-normal text-muted-foreground lg:gap-1">
-              <div className="flex items-center gap-1 text-[9px] leading-none tabular-nums lg:text-[10px]">
-                <Clock className="h-2.5 w-2.5 shrink-0 opacity-60" strokeWidth={2.25} />
-                {actualMin > 0 ? (
-                  <>
-                    <span className="font-semibold text-foreground">{formatDuration(actualMin)}</span>
-                    <span className="opacity-50">/</span>
-                    <span className="font-normal">{formatDuration(totalMin)}</span>
-                  </>
-                ) : (
-                  <span className="font-normal">{formatDuration(totalMin)}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </th>
-      {days.map((day) => (
-        <td
-          key={day.dateKey}
-          className={cn(
-            "p-0.5 landscape:max-lg:px-px lg:p-1",
-            dayColVline(days, day.dateKey),
-            showDayAdd && "relative h-px min-h-[2.25rem] align-top lg:min-h-[2.75rem]",
-            dayColumnClass(day),
-          )}
-        >
-          {showDayAdd ? (
-            <PlanDayAddMenu
-              dateKey={day.dateKey}
-              isCoach={isCoach}
-              canAddNote={canEditDayNotes}
-              athleteId={athleteId}
-              dayNote={day.dayNote}
-              recoveryWorkout={getRecoveryWorkout(day.workouts)}
-              menuPlacement="top"
-              hitArea="cell"
-              variant="subtle"
-            />
-          ) : null}
         </td>
       ))}
     </tr>
@@ -607,7 +552,7 @@ function SportTableRows({
                   />
               </div>
             </th>
-            {days.map((day) => {
+            {days.map((day, dayCol) => {
               const sportWorkouts = workoutsForSport(day, sport);
               const emptyCoachCell = isCoach && sportWorkouts.length === 0;
               return (
@@ -616,8 +561,9 @@ function SportTableRows({
                   dateKey={day.dateKey}
                   sport={sport}
                   enabled={dragEnabled}
+                  data-day-col={dayCol}
                   className={cn(
-                    "tt-week-sport-cell relative p-0.5 align-top landscape:max-lg:px-px lg:p-1.5",
+                    "tt-week-day-col tt-week-sport-cell relative p-0.5 align-top landscape:max-lg:px-px lg:p-1.5",
                     dayColVline(days, day.dateKey),
                     emptyCoachCell && "h-px",
                     PLAN_TABLE_CELL_HOVER_CLASS,
@@ -655,7 +601,6 @@ function PlanTableViewInner({
   prevWeekHref,
   nextWeekHref,
   swimCssSecPer100m = null,
-  hideFooterRows = false,
   showNotes = true,
   showEvents = true,
   showWeather = true,
@@ -692,7 +637,6 @@ function PlanTableViewInner({
   const showNotesInLayer =
     showNotes && (hasAnyDayNotes || (canEditDayNotes && isCoach));
   const showEventsInLayer = showEvents && (hasAnyEvents || isCoach);
-  const showNotesEventsRow = showNotesInLayer || showEventsInLayer;
   const showWeatherRow = showWeather;
   const showRecoveryRow = days.some((d) => dayHasRecovery(d.workouts));
   const showEmptyWorkoutsRow =
@@ -774,16 +718,23 @@ function PlanTableViewInner({
   const bodyRows = (
     <>
       {tableFragment === "tbody-row" && (
-        <DayHeaderRow days={days} as="th" emphasizeTop embedded />
-      )}
-      {showWeatherRow && (
-        <WeatherTableRow
+        <DayHeaderRow
           days={days}
-          weatherLocation={weatherLocation}
-          onWeatherLocationSelect={onWeatherLocationSelect}
-          onWeatherLocationReset={onWeatherLocationReset}
+          as="th"
+          emphasizeTop
+          embedded
+          isCoach={isCoach}
+          canEditDayNotes={canEditDayNotes}
+          athleteId={athleteId}
         />
       )}
+      <WeatherTableRow
+        days={days}
+        open={showWeatherRow}
+        weatherLocation={weatherLocation}
+        onWeatherLocationSelect={onWeatherLocationSelect}
+        onWeatherLocationReset={onWeatherLocationReset}
+      />
       <SportTableRows
         days={days}
         sportRows={sportRows}
@@ -813,25 +764,14 @@ function PlanTableViewInner({
       {showRecoveryRow && (
         <RecoveryTableRow days={days} isCoach={isCoach} />
       )}
-      {showNotesEventsRow && (
-        <NotesEventsTableRow
-          days={days}
-          showNotes={showNotesInLayer}
-          showEvents={showEventsInLayer}
-          canEditDayNotes={canEditDayNotes}
-          athleteId={athleteId}
-          isCoach={isCoach}
-        />
-      )}
-      {!hideFooterRows && (
-        <VolumeTableRow
-          days={days}
-          isCoach={isCoach}
-          canEditDayNotes={canEditDayNotes}
-          athleteId={athleteId}
-          swimCssSecPer100m={swimCssSecPer100m}
-        />
-      )}
+      <NotesEventsTableRow
+        days={days}
+        showNotes={showNotesInLayer}
+        showEvents={showEventsInLayer}
+        canEditDayNotes={canEditDayNotes}
+        isCoach={isCoach}
+        swimCssSecPer100m={swimCssSecPer100m}
+      />
     </>
   );
 
@@ -840,7 +780,13 @@ function PlanTableViewInner({
       <>
         {tableFragment === "thead" && (
           <thead className={TABLE_HEADER}>
-            <DayHeaderRow days={days} as="th" />
+            <DayHeaderRow
+              days={days}
+              as="th"
+              isCoach={isCoach}
+              canEditDayNotes={canEditDayNotes}
+              athleteId={athleteId}
+            />
           </thead>
         )}
         <tbody>{bodyRows}</tbody>
@@ -865,7 +811,7 @@ function PlanTableViewInner({
       ) : null}
       <div
         ref={matrixBleedRef}
-        className="tt-week-matrix-bleed @container min-w-0 max-w-full overflow-hidden rounded-[0.5rem]"
+        className="tt-week-plan-board tt-week-matrix-bleed @container min-w-0 max-w-full"
       >
         <div
           ref={matrixScrollRef}
@@ -887,7 +833,13 @@ function PlanTableViewInner({
                 ))}
               </colgroup>
               <thead className={TABLE_HEADER}>
-                <DayHeaderRow days={days} as="th" />
+                <DayHeaderRow
+                  days={days}
+                  as="th"
+                  isCoach={isCoach}
+                  canEditDayNotes={canEditDayNotes}
+                  athleteId={athleteId}
+                />
               </thead>
               <tbody>{bodyRows}</tbody>
             </table>

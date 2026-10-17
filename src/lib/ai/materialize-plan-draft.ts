@@ -7,8 +7,12 @@ import {
 } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { PlanDraftWithStructure } from '@/lib/ai/skills/types'
-import type { CoachEngineAuditRecord } from '@/lib/coach-engine/types'
+import type {
+  CoachEngineAuditRecord,
+  CoachEnginePhysiologyBundle,
+} from '@/lib/coach-engine/types'
 import { listSeedWorkoutLibrary } from '@/lib/coach-engine/library'
+import { savePhysiologySnapshot } from '@/lib/coach-engine/physiology/store'
 import {
   estimateStructureDistanceKm,
   estimateStructureDurationMinutes,
@@ -23,6 +27,8 @@ export async function materializePlanDraft(args: {
   skillSlug: string
   /** Coach-engine audit snapshot (inputs, versions, constraints, validation). */
   coachEngineAudit?: CoachEngineAuditRecord | null
+  /** Full APM bundle — persisted when forAthleteId is set. */
+  physiology?: CoachEnginePhysiologyBundle | null
 }): Promise<{ planId: string }> {
   const draft = args.draft
   const weekCount = Math.min(52, Math.max(1, Math.floor(draft.weekCount)))
@@ -212,6 +218,21 @@ export async function materializePlanDraft(args: {
 
     return created
   })
+
+  if (args.forAthleteId && args.physiology) {
+    try {
+      await savePhysiologySnapshot({
+        athleteId: args.forAthleteId,
+        source: 'engine_draft',
+        model: args.physiology.model,
+        fingerprint: args.physiology.fingerprint,
+        prediction: args.physiology.prediction,
+        planId: plan.id,
+      })
+    } catch {
+      // Snapshot persistence must not fail plan creation.
+    }
+  }
 
   return { planId: plan.id }
 }

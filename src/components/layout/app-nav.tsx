@@ -240,20 +240,31 @@ export function AppNav({
                   </Link>
                   {showSubnav ? (
                     <div className="tt-app-sidebar-subnav mt-1 ml-4 space-y-0.5 border-l pl-3">
-                      {children!.map((child) => {
+                      {children!.map((child, index) => {
                         const childActive =
                           href === '/tools'
                             ? isSubItemActive(child.href, pathname, searchParams.toString())
                             : isNavActive(pathname, child.href)
                         return (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            data-active={childActive ? 'true' : undefined}
-                            className="tt-app-sidebar-subnav-link block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors"
-                          >
-                            {child.label}
-                          </Link>
+                          <div key={child.href}>
+                            {child.group ? (
+                              <p
+                                className={cn(
+                                  'px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40',
+                                  index > 0 && 'mt-1 border-t border-white/10',
+                                )}
+                              >
+                                {child.group}
+                              </p>
+                            ) : null}
+                            <Link
+                              href={child.href}
+                              data-active={childActive ? 'true' : undefined}
+                              className="tt-app-sidebar-subnav-link block rounded-[10px] px-2.5 py-1.5 text-sm font-medium transition-colors"
+                            >
+                              {child.label}
+                            </Link>
+                          </div>
                         )
                       })}
                     </div>
@@ -509,10 +520,20 @@ function MobileBottomNav({
               {openItem.label}
             </p>
             <ul className="px-2 pb-2">
-              {openItem.children.map((child) => {
+              {openItem.children.map((child, index) => {
                 const active = isSubItemActive(child.href, pathname, query)
                 return (
                   <li key={child.href}>
+                    {child.group ? (
+                      <p
+                        className={cn(
+                          'px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground',
+                          index > 0 && 'mt-1 border-t border-border/70',
+                        )}
+                      >
+                        {child.group}
+                      </p>
+                    ) : null}
                     <Link
                       href={child.href}
                       role="menuitem"

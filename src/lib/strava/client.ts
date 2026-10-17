@@ -11,13 +11,17 @@ import type {
 const STRAVA_API = 'https://www.strava.com/api/v3'
 const STRAVA_OAUTH = 'https://www.strava.com/oauth'
 
-export function buildStravaAuthorizeUrl(state: string): string {
+export function buildStravaAuthorizeUrl(
+  state: string,
+  options?: { forceApproval?: boolean },
+): string {
   const { clientId, redirectUri, scopes } = getStravaConfig()
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: 'code',
     redirect_uri: redirectUri,
-    approval_prompt: 'auto',
+    // `force` re-prompts so the athlete can pick a different Strava login.
+    approval_prompt: options?.forceApproval ? 'force' : 'auto',
     scope: scopes,
     state,
   })

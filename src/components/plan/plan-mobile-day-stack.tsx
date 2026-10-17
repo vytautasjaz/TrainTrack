@@ -29,6 +29,7 @@ import {
   type WeekWeatherLocation,
 } from "@/components/weather/week-weather-location-control";
 import { WeatherGlyph } from "@/components/weather/weather-glyph";
+import { WeatherDayHoursTrigger } from "@/components/weather/weather-day-hours-trigger";
 import {
   WORKOUT_DAY_CARD_CLASS,
 } from "@/lib/workout-display";
@@ -305,35 +306,40 @@ export function PlanMobileDayStack({
                 {!day.weather ? (
                   day.dateKey < todayKey ? null : <p className="text-[11px] text-muted-foreground/45">—</p>
                 ) : (
-                <div
-                  className="grid grid-cols-3 items-stretch"
+                <WeatherDayHoursTrigger
+                  weather={day.weather}
+                  locationName={weatherLocation?.name}
+                  onLocationSelect={onWeatherLocationSelect}
+                  className="block w-full"
                 >
-                  {day.weather.slots.map((slot) => {
-                    const precip = formatWeatherPrecip(slot);
-                    return (
-                      <div
-                        key={`${day.dateKey}-${slot.label}`}
-                        className="flex min-h-[4.95rem] flex-col items-center justify-between px-1 py-0.5 text-[11px]"
-                      >
-                        <span className="text-[9px] uppercase tracking-wide text-muted-foreground/80">
-                          {slot.label}
-                        </span>
-                        <span className="flex items-center justify-center">
-                          <WeatherGlyph
-                            glyph={slot.emoji}
-                            detail={`${slot.label} ${slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}${precip ? ` ${precip}` : ''}`}
-                            className="h-9 w-9"
-                          />
-                        </span>
-                        <span className="text-center tabular-nums text-[10px] text-foreground/80 leading-none">
-                          {slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}
-                          <br />
-                          <span className="text-[9px] text-muted-foreground">{precip || '\u00A0'}</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                  <div className="grid grid-cols-3 items-stretch">
+                    {day.weather.slots.map((slot) => {
+                      const precip = formatWeatherPrecip(slot);
+                      return (
+                        <div
+                          key={`${day.dateKey}-${slot.label}`}
+                          className="flex min-h-[4.95rem] flex-col items-center justify-between px-1 py-0.5 text-[11px]"
+                        >
+                          <span className="text-[9px] uppercase tracking-wide text-muted-foreground/80">
+                            {slot.label}
+                          </span>
+                          <span className="flex items-center justify-center">
+                            <WeatherGlyph
+                              glyph={slot.emoji}
+                              detail={`${slot.label} ${slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}${precip ? ` ${precip}` : ''}`}
+                              className="h-9 w-9"
+                            />
+                          </span>
+                          <span className="text-center tabular-nums text-[10px] text-foreground/80 leading-none">
+                            {slot.temperatureC != null ? `${slot.temperatureC}°` : '—'}
+                            <br />
+                            <span className="text-[9px] text-muted-foreground">{precip || '\u00A0'}</span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </WeatherDayHoursTrigger>
                 )}
               </div>
             )}

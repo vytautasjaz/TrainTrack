@@ -197,7 +197,7 @@ export function toMobileWorkoutDto(
   const metrics = getWorkoutPlanMetrics(workout, workout.status)
   const essence = getWorkoutCardEssence(workout, DEFAULT_DURATION_NOTATION, {
     includeAllBlocks: false,
-  })
+  }).map((row) => row.text)
   const description =
     workout.description?.trim() ||
     essence.join('\n') ||

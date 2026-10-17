@@ -138,7 +138,9 @@ export function IntervalTrackSchematic({
   return (
     <section className={cn('space-y-3', className)}>
       <div>
-        <h3 className="text-sm font-semibold tracking-tight">400 m track</h3>
+        <h3 className="text-sm font-semibold tracking-tight">
+          400 m track<span className="tt-title-dot">.</span>
+        </h3>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Click any marker to set Start and rotate 100/200/300/400 split points
         </p>

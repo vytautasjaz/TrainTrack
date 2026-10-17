@@ -12,7 +12,7 @@ import {
   workoutHasCardDiagram,
 } from '@/components/plan/workout-card-diagram'
 import { WorkoutCardCoachNote } from '@/components/plan/workout-card-coach-note'
-import { WorkoutCardEssenceLine } from '@/components/plan/workout-card-essence-line'
+import { WorkoutCardEssenceList } from '@/components/plan/workout-card-essence-line'
 import { SelfAddedBadge } from '@/components/plan/self-added-badge'
 import { StravaSyncedIndicator } from '@/components/plan/strava-synced-indicator'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
@@ -151,8 +151,8 @@ export function HomeWeekSessionCard({
   const tss = getWorkoutCardTss(workout, workout.status, loadThresholds)
   const essence = !workout.isRace
     ? getWorkoutCardEssence(workout, DEFAULT_DURATION_NOTATION, {
-        includeAllBlocks: false,
-      }).slice(0, 2)
+        includeAllBlocks: true,
+      })
     : []
   const completed = isWorkoutCardCompleted(workout.status)
   const tssLabel = tss?.actual ? `${tss.actual} TSS` : null
@@ -333,16 +333,14 @@ export function HomeWeekSessionCard({
             ) : null}
 
             {essence.length > 0 ? (
-              <div className="mt-2 flex min-w-0 flex-col gap-0.5 text-[13px] leading-snug">
-                {essence.map((line, index) => (
-                  <WorkoutCardEssenceLine
-                    key={`${index}-${line}`}
-                    line={line}
-                    coreClassName={inkSoft}
-                    detailClassName={inkFaint}
-                  />
-                ))}
-              </div>
+              <WorkoutCardEssenceList
+                rows={essence}
+                className="mt-2 text-[13px] leading-snug"
+                coreClassName={inkSoft}
+                detailClassName={inkFaint}
+                sectionClassName={ink}
+                blockClassName={ink}
+              />
             ) : null}
 
             <WorkoutCardCoachNote note={workout.coachNotes} />
@@ -432,16 +430,14 @@ export function HomeWeekSessionCard({
           ) : null}
 
           {essence.length > 0 ? (
-            <div className="mt-1 flex min-w-0 flex-col gap-0.5 text-[11px] leading-snug">
-              {essence.map((line, index) => (
-                <WorkoutCardEssenceLine
-                  key={`${index}-${line}`}
-                  line={line}
-                  coreClassName={ink}
-                  detailClassName={inkSoft}
-                />
-              ))}
-            </div>
+            <WorkoutCardEssenceList
+              rows={essence}
+              className="mt-1 text-[11px] leading-snug"
+              coreClassName={ink}
+              detailClassName={inkSoft}
+              sectionClassName={ink}
+              blockClassName={ink}
+            />
           ) : null}
 
           <WorkoutCardCoachNote note={workout.coachNotes} compact />

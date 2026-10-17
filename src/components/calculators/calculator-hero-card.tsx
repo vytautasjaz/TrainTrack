@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment, type ReactNode } from 'react'
+import { topicTitleWithOrangeDot } from '@/components/ui/title-with-dot'
 import { cn } from '@/lib/utils'
 
 type CalculatorHeroCardProps = {
@@ -23,7 +24,9 @@ export function CalculatorHeroCard({
       {showHeader ? (
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border/40 px-5 py-4">
           {title ? (
-            <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+            <h2 className="text-base font-semibold tracking-tight">
+              {topicTitleWithOrangeDot(title)}
+            </h2>
           ) : (
             <span />
           )}
@@ -43,6 +46,8 @@ type CalculatorHeroFieldProps = {
   suffix?: string
   /** Optional control beside the label (e.g. preset dropdown chevron). */
   labelAddon?: ReactNode
+  /** Override default muted label color (e.g. black on gradient pages). */
+  labelClassName?: string
   align?: 'left' | 'center'
   hint?: ReactNode
   children: ReactNode
@@ -55,6 +60,7 @@ export function CalculatorHeroField({
   unit,
   suffix,
   labelAddon,
+  labelClassName,
   align = 'left',
   hint,
   children,
@@ -70,11 +76,17 @@ export function CalculatorHeroField({
         className={cn(
           'flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground',
           centered ? 'justify-center' : 'justify-start',
+          labelClassName,
         )}
       >
         <span>{label}</span>
         {unitLabel ? (
-          <span className="font-medium normal-case tracking-normal text-muted-foreground/80">
+          <span
+            className={cn(
+              'font-medium normal-case tracking-normal text-muted-foreground/80',
+              labelClassName,
+            )}
+          >
             {unitLabel}
           </span>
         ) : null}

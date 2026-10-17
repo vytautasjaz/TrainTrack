@@ -1,10 +1,10 @@
 import { cookies } from 'next/headers'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { buildStravaAuthorizeUrl } from '@/lib/strava/client'
 import { isStravaConfigured } from '@/lib/strava/config'
 import { getSession } from '@/lib/session'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   if (!isStravaConfigured()) {
     return NextResponse.json({ error: 'Strava is not configured' }, { status: 503 })
   }
@@ -18,6 +18,10 @@ export async function GET() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
     return NextResponse.redirect(new URL('/dashboard?strava=athletes_only', appUrl))
   }
+
+  const switchAccount =
+    request.nextUrl.searchParams.get('switch') === '1' ||
+    request.nextUrl.searchParams.get('switch') === 'true'
 
   const state = crypto.randomUUID()
   const cookieStore = await cookies()
@@ -35,6 +39,19 @@ export async function GET() {
     maxAge: 600,
     path: '/',
   })
+  if (switchAccount) {
+    cookieStore.set('strava_oauth_switch', '1', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 600,
+      path: '/',
+    })
+  } else {
+    cookieStore.delete('strava_oauth_switch')
+  }
 
-  return NextResponse.redirect(buildStravaAuthorizeUrl(state))
+  return NextResponse.redirect(
+    buildStravaAuthorizeUrl(state, { forceApproval: switchAccount }),
+  )
 }

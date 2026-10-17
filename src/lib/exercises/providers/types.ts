@@ -37,8 +37,13 @@ export type ExerciseProviderCapabilities = {
   instructions?: boolean
   muscles?: boolean
   equipment?: boolean
-  /** When false, do not persist provider content into TrainTrack DB. */
+  /**
+   * When false, do not re-publish the corpus as a standalone dataset/API.
+   * In-app import may still be allowed via `allowInAppImport`.
+   */
   allowRedistribution?: boolean
+  /** Persist into TrainTrack Exercise library for builder search (with attribution). */
+  allowInAppImport?: boolean
 }
 
 /**

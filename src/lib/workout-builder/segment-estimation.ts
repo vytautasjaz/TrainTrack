@@ -854,11 +854,40 @@ export function formatBlockEssenceLines(
     return formatIntervalBlockEssenceLines(block, sportType, notation)
   }
   if (block.type === 'FREE_TEXT') {
+    const name = block.name?.trim()
     const text = block.text?.trim()
-    if (!text) return []
+    if (!text) {
+      // Projected v2 section/block titles with empty body — skip bare headers.
+      return []
+    }
     // Keep author line breaks (blank lines become empty strings for spacing).
-    return text.split('\n').map((line) => line.trimEnd())
+    const textLines = text.split('\n').map((line) => line.trimEnd())
+    // Strength-style projection: block name is the move / set label.
+    if (
+      name &&
+      name !== 'Notes' &&
+      name !== 'Free text' &&
+      name !== 'Coach Notes'
+    ) {
+      if (textLines.length === 1 && !textLines[0]) return [name]
+      // Single prescription line → "Name · detail"; multi-line keeps title then body.
+      if (textLines.length === 1 && textLines[0]) {
+        return [`${name} · ${textLines[0]}`]
+      }
+      return [name, ...textLines.filter((line) => line.trim())]
+    }
+    return textLines
   }
   const summary = formatBlockSummary(block, sportType ?? 'RUN', notation)
-  return summary ? [summary] : []
+  if (!summary) return []
+  // Projected v2 continuous/exercise rows keep the move name on the block.
+  const name = block.name?.trim()
+  if (
+    name &&
+    (block.type === 'CONTINUOUS' || block.type === 'RECOVERY') &&
+    !summary.toLowerCase().includes(name.toLowerCase())
+  ) {
+    return [`${name} · ${summary}`]
+  }
+  return [summary]
 }

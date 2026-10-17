@@ -9,7 +9,7 @@ import { useDayDropTarget } from '@/components/plan/use-day-drop-target'
 import { WorkoutModalTrigger } from '@/components/plan/workout-modal-trigger'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import { ListDayWeatherMini } from '@/components/weather/list-day-weather'
-import { WeatherDayHoursTrigger } from '@/components/weather/weather-day-hours-panel'
+import { WeatherDayHoursTrigger } from '@/components/weather/weather-day-hours-trigger'
 import {
   HomeWeekRestCard,
   HomeWeekSessionCard,

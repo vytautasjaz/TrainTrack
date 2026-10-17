@@ -27,7 +27,10 @@ import { fetchAthleteHomeWeekChunk } from '@/app/actions/athlete-home-weeks'
 import type { WorkoutType } from '@prisma/client'
 import type { DayNoteData } from '@/lib/day-notes'
 import { addDateOnlyDays, toDateKey } from '@/lib/dates'
-import type { PlanWorkoutDetail } from '@/lib/plan-workout'
+import {
+  WORKOUT_DELETED_EVENT,
+  type PlanWorkoutDetail,
+} from '@/lib/plan-workout'
 import type { SeasonEventData } from '@/lib/season-planner'
 import { groupSeasonEventsByDate } from '@/lib/season-events'
 import type { SessionLoadThresholds } from '@/lib/training-load/session-tss'
@@ -54,6 +57,28 @@ function mergeWorkouts(
   for (const w of current) byId.set(w.id, w)
   for (const w of incoming) byId.set(w.id, w)
   return [...byId.values()]
+}
+
+/** RSC window is authoritative — drop deleted sessions in that range; keep lazy chunks outside it. */
+function mergeWorkoutsFromServerWindow(
+  current: PlanWorkoutDetail[],
+  incoming: PlanWorkoutDetail[],
+  windowStartKey: string,
+  windowEndKey: string,
+) {
+  const next = new Map<string, PlanWorkoutDetail>()
+  for (const workout of current) {
+    if (
+      workout.dateKey < windowStartKey ||
+      workout.dateKey > windowEndKey
+    ) {
+      next.set(workout.id, workout)
+    }
+  }
+  for (const workout of incoming) {
+    next.set(workout.id, workout)
+  }
+  return [...next.values()]
 }
 
 function mergeNotes(current: HomeDayNote[], incoming: HomeDayNote[]) {
@@ -137,12 +162,36 @@ export function AthleteHomeV2({
   const [loadingMore, setLoadingMore] = useState(false)
   const inFlightRef = useRef<string | null>(null)
 
-  // After router.refresh(), merge RSC props without dropping lazy-loaded chunks.
+  // After router.refresh(), sync the RSC window (incl. deletes) without dropping lazy chunks.
   useEffect(() => {
+    const incoming = mergeWorkouts(weekStatsWorkouts, weekPlanWorkouts)
     setWorkouts((prev) =>
-      mergeWorkouts(prev, mergeWorkouts(weekStatsWorkouts, weekPlanWorkouts)),
+      mergeWorkoutsFromServerWindow(
+        prev,
+        incoming,
+        weekStatsWindowStartKey,
+        weekStatsWindowEndKey,
+      ),
     )
-  }, [weekPlanWorkouts, weekStatsWorkouts])
+  }, [
+    weekPlanWorkouts,
+    weekStatsWorkouts,
+    weekStatsWindowStartKey,
+    weekStatsWindowEndKey,
+  ])
+
+  useEffect(() => {
+    function onWorkoutDeleted(event: Event) {
+      const workoutId = (event as CustomEvent<{ workoutId?: string }>).detail
+        ?.workoutId
+      if (!workoutId) return
+      setWorkouts((prev) => prev.filter((workout) => workout.id !== workoutId))
+    }
+    window.addEventListener(WORKOUT_DELETED_EVENT, onWorkoutDeleted)
+    return () => {
+      window.removeEventListener(WORKOUT_DELETED_EVENT, onWorkoutDeleted)
+    }
+  }, [])
 
   useEffect(() => {
     setDayNotes((prev) =>

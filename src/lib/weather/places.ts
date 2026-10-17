@@ -14,6 +14,10 @@ export type WeatherSlotSummary = {
   temperatureC: number | null
   precipitationProbability: number | null
   precipitationMm: number | null
+  /** Instant wind speed (m/s) when available. */
+  windSpeedMs: number | null
+  /** Peak gust (m/s) when available from the complete forecast. */
+  windGustMs: number | null
 }
 
 /** Single forecast step (hourly near-term; 6h steps further out). */
@@ -23,6 +27,10 @@ export type WeatherHourSummary = {
   temperatureC: number | null
   precipitationProbability: number | null
   precipitationMm: number | null
+  /** Instant wind speed (m/s) when available. */
+  windSpeedMs: number | null
+  /** Peak gust (m/s) when available from the complete forecast. */
+  windGustMs: number | null
 }
 
 export type WeatherDaySummary = {
@@ -93,6 +101,30 @@ export function formatWeatherPrecip(slot: {
     return `${slot.precipitationProbability}%`
   }
   return ''
+}
+
+function roundWindMs(value: number): number {
+  return value >= 10 ? Math.round(value) : Math.round(value * 10) / 10
+}
+
+/**
+ * Compact wind for hour/slot rows — e.g. `4m/s` or `4m/s (7)` when gusts
+ * are meaningfully stronger (not every hour needs the parenthetical).
+ */
+export function formatWeatherWind(slot: {
+  windSpeedMs?: number | null
+  windGustMs?: number | null
+}): string {
+  if (slot.windSpeedMs == null || !Number.isFinite(slot.windSpeedMs)) return ''
+  const speed = roundWindMs(slot.windSpeedMs)
+  const gustRaw = slot.windGustMs
+  const showGust =
+    gustRaw != null &&
+    Number.isFinite(gustRaw) &&
+    gustRaw > slot.windSpeedMs + 1.4 &&
+    gustRaw >= slot.windSpeedMs * 1.25
+  if (!showGust) return `${speed}m/s`
+  return `${speed}m/s (${roundWindMs(gustRaw)})`
 }
 
 import { weatherIconAccessibilityLabel } from '@/lib/weather/meteocons-glyphs'

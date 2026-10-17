@@ -60,7 +60,8 @@ export function LibraryFilterPicker({
         </SelectPrimitive.Trigger>
         <SelectPrimitive.Portal>
           <SelectPrimitive.Content
-            className="z-[200] max-h-[min(24rem,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg border border-[var(--tt-line,#ebebeb)] bg-white shadow-md"
+            data-tt-floating-ui=""
+            className="pointer-events-auto z-[250] max-h-[min(24rem,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-lg border border-[var(--tt-line,#ebebeb)] bg-white shadow-md"
             position="popper"
             sideOffset={4}
             align="start"

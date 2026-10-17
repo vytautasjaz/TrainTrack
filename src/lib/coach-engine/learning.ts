@@ -8,6 +8,8 @@ import type {
   CapabilityProfile,
 } from '@/lib/coach-engine/types'
 import { ADAPTATION_KEYS } from '@/lib/coach-engine/types'
+import type { AthleteFingerprint } from '@/lib/coach-engine/physiology/types'
+import { clamp01 } from '@/lib/coach-engine/physiology/envelope'
 
 export function expectedResponseForSession(
   session: PlannedSession,
@@ -114,4 +116,73 @@ export function missedWorkoutAction(args: {
   if (!args.missedIsKey) return 'keep_schedule'
   if (args.daysUntilLong <= 1 || args.readinessScore < 0.6) return 'skip_stimulus'
   return 'reduce_later'
+}
+
+type FingerprintResponderKey =
+  | 'volumeResponder'
+  | 'frequencyResponder'
+  | 'thresholdResponder'
+  | 'vo2Responder'
+  | 'longRunResponder'
+
+const ADAPTATION_TO_RESPONDER: Partial<
+  Record<AdaptationKey, FingerprintResponderKey>
+> = {
+  threshold: 'thresholdResponder',
+  aerobic_capacity: 'vo2Responder',
+  aerobic_durability: 'volumeResponder',
+  long_run_tolerance: 'longRunResponder',
+  speed: 'vo2Responder',
+  running_economy: 'frequencyResponder',
+}
+
+/**
+ * Phase II lite: nudge fingerprint responders from expected vs actual outcomes.
+ * Persisting the updated fingerprint is left to the caller / future APM store.
+ */
+export function updateFingerprintFromResponses(
+  current: AthleteFingerprint,
+  outcomes: {
+    adaptation: AdaptationKey | null
+    interpretation: ResponseComparison['interpretation']
+  }[],
+): AthleteFingerprint {
+  const next: AthleteFingerprint = {
+    ...current,
+    asOf: new Date().toISOString(),
+    volumeResponder: { ...current.volumeResponder },
+    frequencyResponder: { ...current.frequencyResponder },
+    thresholdResponder: { ...current.thresholdResponder },
+    vo2Responder: { ...current.vo2Responder },
+    longRunResponder: { ...current.longRunResponder },
+    fatigueResistance: { ...current.fatigueResistance },
+    recoverySpeed: { ...current.recoverySpeed },
+    injuryRiskVolumeKm: { ...current.injuryRiskVolumeKm },
+  }
+
+  for (const outcome of outcomes) {
+    if (!outcome.adaptation) continue
+    const key = ADAPTATION_TO_RESPONDER[outcome.adaptation]
+    if (!key) continue
+    const env = next[key]
+    let delta = 0
+    if (outcome.interpretation === 'overperformed') delta = 0.03
+    else if (outcome.interpretation === 'on_track') delta = 0.01
+    else if (outcome.interpretation === 'underperformed') delta = -0.025
+    else if (outcome.interpretation === 'missed') delta = -0.015
+    next[key] = {
+      ...env,
+      value: Math.round(clamp01(env.value + delta) * 100) / 100,
+      previousValue: env.value,
+      confidence: Math.min(0.95, env.confidence + 0.02),
+      trend:
+        delta > 0.005
+          ? 'improving'
+          : delta < -0.005
+            ? 'declining'
+            : env.trend,
+      lastUpdated: next.asOf,
+    }
+  }
+  return next
 }

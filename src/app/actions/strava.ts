@@ -8,6 +8,7 @@ import {
   requireAthleteSession,
   requireSession,
 } from '@/lib/session'
+import { addDateOnlyDays, parseDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
 import {
   attachStravaActivityToWorkoutForAthlete,
   attachStravaActivityToRaceForAthlete,
@@ -19,6 +20,7 @@ import {
   listUnmatchedStravaActivitiesForAthlete,
   maybeAutoSyncStravaActivitiesForUser,
   setStravaAutoSyncEnabledForUser,
+  STRAVA_HISTORY_LOOKBACK_DAYS,
   syncStravaActivitiesForUser,
   unlinkStravaFromWorkoutForAthlete,
   unlinkStravaFromRaceForAthlete,
@@ -51,10 +53,16 @@ async function revalidateWorkoutAfterStrava(athleteId: string, workoutId: string
 export async function disconnectStrava() {
   const session = await requireAthleteSession()
 
-  await prisma.stravaConnection.deleteMany({
-    where: { userId: session.userId },
-  })
+  await prisma.$transaction([
+    prisma.stravaConnection.deleteMany({
+      where: { userId: session.userId },
+    }),
+    prisma.account.deleteMany({
+      where: { userId: session.userId, provider: 'strava' },
+    }),
+  ])
 
+  revalidatePath('/settings')
   revalidatePath('/settings/preferences')
   revalidatePath('/dashboard')
 }
@@ -82,6 +90,18 @@ export async function syncStravaActivitiesForDateRange(fromKey: string, toKey?: 
 
   await revalidateAfterStrava(session.athleteId)
   return result
+}
+
+/**
+ * Pull ~3 months of Strava history for Fitness / physiology analysis.
+ * Safe for new and existing connections; does not move lastSyncedAt.
+ */
+export async function syncStravaHistoryForFitness() {
+  const toKey = todayDateKey()
+  const fromKey = toDateKey(
+    addDateOnlyDays(parseDateOnly(toKey), -STRAVA_HISTORY_LOOKBACK_DAYS),
+  )
+  return syncStravaActivitiesForDateRange(fromKey, toKey)
 }
 
 export async function setStravaAutoSyncEnabled(enabled: boolean) {

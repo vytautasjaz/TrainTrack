@@ -62,17 +62,34 @@ function mapEquipment(raw: string | null | undefined): string[] {
     dumbbell: 'DUMBBELL',
     kettlebell: 'KETTLEBELL',
     cable: 'CABLE',
+    cable_machine: 'CABLE',
     machine: 'MACHINE',
     band: 'BAND',
     bands: 'BAND',
+    resistance_band: 'BAND',
+    loop_band: 'BAND',
     bodyweight: 'BODYWEIGHT',
     none: 'BODYWEIGHT',
     ab_wheel: 'OTHER',
     ez_bar: 'BARBELL',
+    ez_curl_bar: 'BARBELL',
+    trap_bar: 'BARBELL',
     smith_machine: 'MACHINE',
     medicine_ball: 'MEDICINE_BALL',
+    slam_ball: 'MEDICINE_BALL',
     pull_up_bar: 'OTHER',
     bench: 'OTHER',
+    flat_bench: 'OTHER',
+    ski_erg: 'MACHINE',
+    rower: 'MACHINE',
+    treadmill: 'MACHINE',
+    air_bike: 'MACHINE',
+    stationary_bike: 'MACHINE',
+    suspension_trainer: 'OTHER',
+    plyo_box: 'OTHER',
+    stability_ball: 'OTHER',
+    battle_rope: 'OTHER',
+    weight_plate: 'OTHER',
   }
   return [map[key] ?? raw.toUpperCase().replace(/\s+/g, '_')]
 }
@@ -189,8 +206,10 @@ export const repdbProvider: ExerciseProvider = {
     instructions: true,
     muscles: true,
     equipment: true,
-    // In-app enrich only — do not bulk-clone the corpus as our own dataset.
+    // Free tier: personal + commercial in-app use with attribution.
+    // Do not re-publish the corpus as a standalone dataset/API.
     allowRedistribution: false,
+    allowInAppImport: true,
   },
   async import() {
     const rows = await fetchRepdbIndex()

@@ -17,7 +17,9 @@ import { TriathlonTimeCalculator } from '@/components/calculators/triathlon-time
 import { IntervalTimeCalculator } from '@/components/calculators/interval-time-calculator'
 import { HyroxTimeCalculator } from '@/components/calculators/hyrox-time-calculator'
 import { SplitsCalculator } from '@/components/calculators/splits-calculator'
-import { PageHeader } from '@/components/ui/page-header'
+import { RacePredictorCalculator } from '@/components/calculators/race-predictor-calculator'
+import { V2PageShell } from '@/components/ui/v2'
+import { topicTitleWithOrangeDot } from '@/components/ui/title-with-dot'
 
 type CalculatorsViewProps = {
   defaults: CalculatorDefaults
@@ -29,7 +31,8 @@ function parseCalculatorTab(value: string | null): CalculatorTab | null {
     value === 'interval' ||
     value === 'triathlon' ||
     value === 'hyrox' ||
-    value === 'splits'
+    value === 'splits' ||
+    value === 'predictor'
   ) {
     return value
   }
@@ -101,28 +104,49 @@ export function CalculatorsView({ defaults }: CalculatorsViewProps) {
     setState((prev) => ({ ...prev, splits }))
   }, [])
 
+  const setPredictor = useCallback((predictor: CalculatorPersistedState['predictor']) => {
+    setState((prev) => ({ ...prev, predictor }))
+  }, [])
+
   const pageTitle = useMemo(
     () =>
       CALCULATOR_NAV_TABS.find((tab) => tab.id === state.activeTab)?.label ??
-      'Running Calculator',
+      'Run Calculator',
     [state.activeTab],
   )
 
   return (
-    <div className="space-y-4">
-      <PageHeader title={pageTitle} />
+    <V2PageShell>
+      <div className="tt-v2-hero-band">
+        <div className="mx-auto w-full max-w-3xl">
+          <p className="tt-v2-eyebrow relative mb-2 flex items-center gap-2 text-white/45">
+            <span
+              className="inline-block h-2 w-2 shrink-0 bg-[var(--tt-v2-accent)]"
+              aria-hidden
+            />
+            Tools
+          </p>
+          <h1 className="relative text-[2.125rem] font-extrabold leading-[1.02] tracking-[-0.035em] text-white sm:text-[3.25rem] lg:text-[3.5rem]">
+            {topicTitleWithOrangeDot(pageTitle)}
+          </h1>
+        </div>
+      </div>
 
-      {state.activeTab === 'running' ? (
-        <RunningTimeCalculator state={state.running} onChange={setRunning} />
-      ) : state.activeTab === 'interval' ? (
-        <IntervalTimeCalculator state={state.interval} onChange={setInterval} />
-      ) : state.activeTab === 'hyrox' ? (
-        <HyroxTimeCalculator state={state.hyrox} onChange={setHyrox} />
-      ) : state.activeTab === 'splits' ? (
-        <SplitsCalculator state={state.splits} onChange={setSplits} />
-      ) : (
-        <TriathlonTimeCalculator state={state.triathlon} onChange={setTriathlon} />
-      )}
-    </div>
+      <div className="tt-tools-calc-panel mx-auto w-full max-w-3xl space-y-4 pb-8">
+        {state.activeTab === 'running' ? (
+          <RunningTimeCalculator state={state.running} onChange={setRunning} />
+        ) : state.activeTab === 'interval' ? (
+          <IntervalTimeCalculator state={state.interval} onChange={setInterval} />
+        ) : state.activeTab === 'hyrox' ? (
+          <HyroxTimeCalculator state={state.hyrox} onChange={setHyrox} />
+        ) : state.activeTab === 'splits' ? (
+          <SplitsCalculator state={state.splits} onChange={setSplits} />
+        ) : state.activeTab === 'predictor' ? (
+          <RacePredictorCalculator state={state.predictor} onChange={setPredictor} />
+        ) : (
+          <TriathlonTimeCalculator state={state.triathlon} onChange={setTriathlon} />
+        )}
+      </div>
+    </V2PageShell>
   )
 }

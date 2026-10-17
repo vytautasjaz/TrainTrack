@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useState, useTransition, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   Activity,
@@ -18,6 +19,7 @@ import {
   Pencil,
   Route,
   Share2,
+  Trash2,
   Unlink,
   X,
   Zap,
@@ -35,6 +37,9 @@ import {
 import { AthleteWorkoutQuickActions } from "@/components/plan/athlete-workout-quick-actions";
 import { EditPlanWorkoutButton } from "@/components/plan/edit-plan-workout-button";
 import { StravaSyncedIndicator } from "@/components/plan/strava-synced-indicator";
+import { deleteWorkout } from "@/app/actions/workouts";
+import { invalidatePlanWorkoutDetailCache } from "@/lib/plan-workout-detail-prefetch";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { StatusPill } from "@/components/ui/status-pill";
 import { ActivityLapsWidget } from "@/components/activity/activity-laps-widget";
 import { ActivityRouteMap } from "@/components/plan/activity-route-map";
@@ -42,8 +47,11 @@ import { WorkoutStructureChart } from "@/components/workout-builder/workout-stru
 import { IncludeItemsSummary } from "@/components/workout-editor/include-items-summary";
 import { StructureV2AthletePreview } from "@/components/plan/structure-v2-athlete-preview";
 import type { PlanWorkoutDetail } from "@/lib/plan-workout";
-import { athleteHasQuickLogActions, isStravaSynced } from "@/lib/plan-workout";
-import { isStravaConnected } from "@/app/actions/strava";
+import {
+  athleteHasQuickLogActions,
+  isStravaSynced,
+  notifyWorkoutDeleted,
+} from "@/lib/plan-workout";
 import {
   hasStructureV2Content,
   isWorkoutStructureV2,
@@ -488,6 +496,8 @@ type AthleteWorkoutDetailCardProps = {
   showUtilityActions?: boolean;
   /** Show Edit control when the viewer may change this planned session. */
   canEdit?: boolean;
+  /** Show Delete in the ⋮ menu (self-logged for athletes; coach for plan sessions). */
+  canDelete?: boolean;
   /** Completed / Skipped chip next to Strava or Done/Skip (athlete modal only). */
   showStatusBadge?: boolean;
   /** Matches training Color / Plain chrome. */
@@ -518,6 +528,7 @@ export function AthleteWorkoutDetailCard({
   onStravaChange,
   showUtilityActions = false,
   canEdit = false,
+  canDelete = false,
   showStatusBadge = false,
   colorMode: _colorMode = "sport",
   showCompletionLayer = true,
@@ -531,25 +542,18 @@ export function AthleteWorkoutDetailCard({
   onEditSaved,
 }: AthleteWorkoutDetailCardProps) {
   const loadThresholds = useSessionLoadThresholds();
-  const [stravaConnected, setStravaConnected] = useState(false);
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [detachOpen, setDetachOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePending, startDeleteTransition] = useTransition();
 
-  useEffect(() => {
-    if (!showStravaActions) return;
-    let cancelled = false;
-    void isStravaConnected()
-      .then((value) => {
-        if (!cancelled) setStravaConnected(value);
-      })
-      .catch(() => {
-        if (!cancelled) setStravaConnected(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [showStravaActions]);
+  /** Open nested dialogs after the ⋮ menu finishes closing (avoids swallowed clicks). */
+  function openAfterMenuClose(open: () => void) {
+    window.setTimeout(open, 0);
+  }
 
   const unitSystem = useUnitSystem();
   const swimUnit = useSwimDistanceUnit();
@@ -597,11 +601,14 @@ export function AthleteWorkoutDetailCard({
     workout.type !== WorkoutType.REST &&
     workout.type !== WorkoutType.RECOVERY;
 
+  // Strava link/detach must be in the menu on first paint — don't wait on
+  // isStravaConnected() (that made the item pop in after open).
   const showMenu =
     Boolean(stravaUrl) ||
-    (showStravaActions && (stravaConnected || stravaSynced)) ||
+    showStravaActions ||
     canReschedule ||
-    Boolean(showUtilityActions && onShare);
+    Boolean(showUtilityActions && onShare) ||
+    canDelete;
 
   const primary =
     primaryMetricFromTags(workout.tags) ??
@@ -919,12 +926,18 @@ export function AthleteWorkoutDetailCard({
             ) : null}
 
             {showMenu ? (
-              <DropdownMenu.Root modal={false}>
+              <DropdownMenu.Root
+                modal={false}
+                open={menuOpen}
+                onOpenChange={setMenuOpen}
+              >
                 <DropdownMenu.Trigger asChild>
                   <button
                     type="button"
                     aria-label="Workout actions"
                     className={iconButtonClass}
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </button>
@@ -933,13 +946,18 @@ export function AthleteWorkoutDetailCard({
                   <DropdownMenu.Content
                     align="end"
                     sideOffset={6}
-                    avoidCollisions={false}
-                    className="z-[220] min-w-[12.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
+                    collisionPadding={8}
+                    data-tt-floating-ui=""
+                    className="pointer-events-auto z-[250] min-w-[12.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
                     onCloseAutoFocus={(e) => e.preventDefault()}
                   >
                     {canReschedule ? (
                       <DropdownMenu.Item
-                        onSelect={() => setRescheduleOpen(true)}
+                        onSelect={() =>
+                          openAfterMenuClose(() => setRescheduleOpen(true))
+                        }
                         className="flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-foreground/[0.04]"
                       >
                         <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
@@ -970,9 +988,11 @@ export function AthleteWorkoutDetailCard({
                         View on Strava
                       </DropdownMenu.Item>
                     ) : null}
-                    {showStravaActions && stravaConnected && !stravaSynced ? (
+                    {showStravaActions && !stravaSynced ? (
                       <DropdownMenu.Item
-                        onSelect={() => setLinkOpen(true)}
+                        onSelect={() =>
+                          openAfterMenuClose(() => setLinkOpen(true))
+                        }
                         className="flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-foreground/[0.04]"
                       >
                         <Link2 className="h-3.5 w-3.5 text-[#FC4C02]" />
@@ -981,13 +1001,26 @@ export function AthleteWorkoutDetailCard({
                     ) : null}
                     {showStravaActions && stravaSynced ? (
                       <DropdownMenu.Item
-                        onSelect={() => setDetachOpen(true)}
+                        onSelect={() =>
+                          openAfterMenuClose(() => setDetachOpen(true))
+                        }
                         className="flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none data-[highlighted]:bg-foreground/[0.04]"
                       >
                         <Unlink className="h-3.5 w-3.5 text-muted-foreground" />
                         {workout.selfLogged
                           ? 'Remove from plan'
                           : 'Detach Strava activity'}
+                      </DropdownMenu.Item>
+                    ) : null}
+                    {canDelete ? (
+                      <DropdownMenu.Item
+                        onSelect={() =>
+                          openAfterMenuClose(() => setDeleteOpen(true))
+                        }
+                        className="flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm text-destructive outline-none data-[highlighted]:bg-destructive/5"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
                       </DropdownMenu.Item>
                     ) : null}
                   </DropdownMenu.Content>
@@ -1029,6 +1062,29 @@ export function AthleteWorkoutDetailCard({
               }}
             />
           </>
+        ) : null}
+
+        {canDelete ? (
+          <ConfirmDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            title="Remove workout?"
+            description={`“${workout.title}” will be removed from the plan.`}
+            confirmLabel="Remove"
+            pending={deletePending}
+            onConfirm={() => {
+              startDeleteTransition(async () => {
+                const formData = new FormData()
+                formData.set("workoutId", workout.id)
+                await deleteWorkout(formData)
+                invalidatePlanWorkoutDetailCache(workout.id)
+                notifyWorkoutDeleted(workout.id)
+                setDeleteOpen(false)
+                onClose?.()
+                router.refresh()
+              })
+            }}
+          />
         ) : null}
 
         {canReschedule ? (

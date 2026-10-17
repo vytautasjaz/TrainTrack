@@ -12,13 +12,13 @@ import { cn } from '@/lib/utils'
 /**
  * Mobile list chrome: fixed frame from app top bar → bottom nav
  * so header + list share one column with no white gaps.
- * Desktop: normal flow with sticky header.
+ * Desktop: normal document flow (title/filters scroll away).
  */
 export function TrainingListFrame({
   header,
   children,
   className,
-  /** Week (and similar): body scrolls under the sticky chrome. List keeps inner scroll. */
+  /** Week (and similar): body scrolls under the chrome. List keeps inner scroll. */
   scrollBody = false,
 }: {
   header: ReactNode
@@ -28,7 +28,6 @@ export function TrainingListFrame({
 }) {
   const [frameStyle, setFrameStyle] = useState<CSSProperties | undefined>()
   const [spacerHeight, setSpacerHeight] = useState<number | null>(null)
-  const [desktopStickyTop, setDesktopStickyTop] = useState(0)
   const lastMetricsRef = useRef<{ top: number; bottom: number } | null>(null)
 
   useLayoutEffect(() => {
@@ -43,7 +42,6 @@ export function TrainingListFrame({
         lastMetricsRef.current = null
         setFrameStyle(undefined)
         setSpacerHeight(null)
-        setDesktopStickyTop(Math.max(0, chromeBottom))
         return
       }
 
@@ -75,7 +73,6 @@ export function TrainingListFrame({
         right: 0,
       })
       setSpacerHeight(Math.max(180, window.innerHeight - top - bottom))
-      setDesktopStickyTop(0)
     }
 
     measure()
@@ -108,7 +105,7 @@ export function TrainingListFrame({
       ) : null}
       <div
         className={cn(
-          'tt-training-list-frame flex flex-col bg-background',
+          'tt-training-list-frame flex flex-col bg-transparent',
           mobileFixed && 'z-20',
           !mobileFixed && 'min-h-0',
           className,
@@ -122,18 +119,18 @@ export function TrainingListFrame({
              * Above week/month sticky columns (z-20/21) so filter popovers and
              * chrome aren’t painted over by day “+” controls in the table.
              * Stay below mobile top bar (z-40).
+             * Transparent so the app charcoal→light gradient shows through;
+             * title ink remapped in CSS for the dark top of that wash.
              */
-            'tt-training-list-sticky-header relative z-30 shrink-0 bg-background',
+            'tt-training-list-sticky-header relative z-30 shrink-0 bg-transparent',
             /*
              * Mobile inset matches List (px-2.5). Keep identical before/after
              * fixed positioning so header margins don’t jump on hydrate.
+             * Desktop: scroll with the page (filters/title are not sticky).
              */
-            'max-lg:border-b max-lg:border-[var(--tt-line,#ebebeb)] max-lg:px-2.5 max-lg:pb-2 max-lg:pt-1',
-            mobileFixed
-              ? null
-              : 'sticky z-30 lg:-mx-4 lg:border-0 lg:px-4 lg:pb-3 lg:pt-0',
+            'max-lg:border-b max-lg:border-[rgb(255_255_255/0.08)] max-lg:px-2.5 max-lg:pb-2 max-lg:pt-1',
+            mobileFixed ? null : 'lg:-mx-4 lg:border-0 lg:px-4 lg:pb-3 lg:pt-0',
           )}
-          style={!mobileFixed ? { top: desktopStickyTop } : undefined}
         >
           {header}
           {mobileFixed ? (

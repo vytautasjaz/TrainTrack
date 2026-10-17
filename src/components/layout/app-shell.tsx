@@ -184,7 +184,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
         />
         <main
           data-app-main
-          className="w-full min-w-0 max-w-6xl flex-1 px-4 pb-4 pt-0 landscape:max-lg:px-2 lg:max-w-[110rem] lg:px-8 lg:pb-6"
+          className="mx-auto w-full min-w-0 max-w-6xl flex-1 px-4 pb-4 pt-0 landscape:max-lg:px-2 lg:max-w-[110rem] lg:px-8 lg:pb-6"
         >
           {children}
         </main>

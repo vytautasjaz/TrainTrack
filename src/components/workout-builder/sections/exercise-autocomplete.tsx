@@ -372,6 +372,21 @@ export function ExerciseAutocomplete({
                 </button>
               </li>
             ) : null}
+            <li
+              className="border-t border-[var(--tt-v2-light-panel-line,#E3E6E9)] px-2.5 py-1.5 text-[9px] leading-snug text-[var(--tt-ink-faint,#9ca3af)]"
+              aria-hidden
+            >
+              Exercise data by{' '}
+              <a
+                href="https://repdb.co"
+                target="_blank"
+                rel="noreferrer"
+                className="underline decoration-current/40 underline-offset-2"
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                RepDB
+              </a>
+            </li>
           </ul>,
           document.body,
         )

@@ -16,7 +16,7 @@ import { WorkoutChatIndicator } from '@/components/plan/workout-chat-indicator'
 import { useOptionalPlanSportFilter } from '@/components/training/plan-sport-filter-context'
 import { WorkoutInlineFeedback } from '@/components/plan/workout-inline-feedback'
 import { WorkoutCardMetricIcon } from '@/components/plan/workout-card-metric-icon'
-import { WorkoutCardEssenceLine } from '@/components/plan/workout-card-essence-line'
+import { WorkoutCardEssenceList } from '@/components/plan/workout-card-essence-line'
 import { WorkoutCardCoachNote } from '@/components/plan/workout-card-coach-note'
 import { useOptionalWeekCardSize } from '@/components/plan/week-card-size-context'
 import { useSessionLoadThresholds } from '@/components/plan/session-load-thresholds-context'
@@ -104,7 +104,7 @@ export function WeekPlanWorkoutCard({
   const secondary = weekCardSecondary(workout, status)
   const cardEssence = !workout.isRace
     ? getWorkoutCardEssence(workout, durationNotation, {
-        includeAllBlocks: size === 'm' || size === 'l',
+        includeAllBlocks: true,
       })
     : []
   const showLoggedMetrics = !completed || workoutHasLoggedActuals(workout)
@@ -119,7 +119,9 @@ export function WeekPlanWorkoutCard({
     !(
       cardEssence.length > 0 &&
       subtitle != null &&
-      cardEssence.some((line) => line === subtitle || line.startsWith(subtitle))
+      cardEssence.some(
+        (row) => row.text === subtitle || row.text.startsWith(subtitle),
+      )
     )
   const showSecondary = Boolean(secondary) && showLoggedMetrics
   const showEssence = cardEssence.length > 0
@@ -275,21 +277,17 @@ export function WeekPlanWorkoutCard({
         <p className={subtitleClass}>{subtitle}</p>
       ) : null}
       {showEssence ? (
-        <div
+        <WorkoutCardEssenceList
+          rows={cardEssence}
           className={cn(
-            'mt-1 flex min-w-0 flex-col gap-0.5 leading-snug',
+            'mt-1 leading-snug',
             size === 's' ? 'text-[10px]' : 'text-[11px]',
           )}
-        >
-          {cardEssence.map((line, index) => (
-            <WorkoutCardEssenceLine
-              key={`${index}-${line}`}
-              line={line}
-              coreClassName={essenceCoreClass}
-              detailClassName={essenceDetailClass}
-            />
-          ))}
-        </div>
+          coreClassName={essenceCoreClass}
+          detailClassName={essenceDetailClass}
+          sectionClassName={essenceCoreClass}
+          blockClassName={essenceCoreClass}
+        />
       ) : null}
       <WorkoutCardCoachNote
         note={workout.coachNotes}

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { exchangeStravaCode } from '@/lib/strava/client'
 import { isStravaConfigured } from '@/lib/strava/config'
 import { applyStravaAvatarToAthlete } from '@/lib/strava/avatar'
+
 export async function GET(request: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const preferencesUrl = new URL('/settings', appUrl)
@@ -26,9 +27,11 @@ export async function GET(request: NextRequest) {
   const cookieStore = await cookies()
   const savedState = cookieStore.get('strava_oauth_state')?.value
   const userId = cookieStore.get('strava_oauth_user')?.value
+  const isSwitch = cookieStore.get('strava_oauth_switch')?.value === '1'
 
   cookieStore.delete('strava_oauth_state')
   cookieStore.delete('strava_oauth_user')
+  cookieStore.delete('strava_oauth_switch')
 
   if (!code || !state || !savedState || state !== savedState || !userId) {
     preferencesUrl.searchParams.set('error', 'invalid_state')
@@ -48,6 +51,42 @@ export async function GET(request: NextRequest) {
     const grantedScopes = searchParams.get('scope') ?? ''
     const stravaAthleteId = String(token.athlete.id)
 
+    // Block linking a Strava athlete already associated with another TrainTrack user.
+    const [existingConn, existingAccount] = await Promise.all([
+      prisma.stravaConnection.findFirst({
+        where: {
+          stravaAthleteId,
+          NOT: { userId },
+        },
+        select: { userId: true },
+      }),
+      prisma.account.findUnique({
+        where: {
+          provider_providerAccountId: {
+            provider: 'strava',
+            providerAccountId: stravaAthleteId,
+          },
+        },
+        select: { userId: true },
+      }),
+    ])
+    if (
+      existingConn ||
+      (existingAccount && existingAccount.userId !== userId)
+    ) {
+      preferencesUrl.searchParams.set('error', 'already_linked')
+      return NextResponse.redirect(preferencesUrl)
+    }
+
+    // Drop previous Strava OAuth Account rows for this user when switching IDs.
+    await prisma.account.deleteMany({
+      where: {
+        userId,
+        provider: 'strava',
+        NOT: { providerAccountId: stravaAthleteId },
+      },
+    })
+
     await prisma.stravaConnection.upsert({
       where: { userId },
       create: {
@@ -64,6 +103,8 @@ export async function GET(request: NextRequest) {
         refreshToken: token.refresh_token,
         expiresAt: new Date(token.expires_at * 1000),
         scope: grantedScopes,
+        // Fresh account → reset sync cursor so history can re-import.
+        ...(isSwitch ? { lastSyncedAt: null } : {}),
       },
     })
 
@@ -103,7 +144,7 @@ export async function GET(request: NextRequest) {
       console.warn('Initial Strava sync after connect skipped:', err)
     }
 
-    preferencesUrl.searchParams.set('connected', '1')
+    preferencesUrl.searchParams.set('connected', isSwitch ? 'switched' : '1')
     return NextResponse.redirect(preferencesUrl)
   } catch (err) {
     console.error('Strava OAuth callback failed:', err)

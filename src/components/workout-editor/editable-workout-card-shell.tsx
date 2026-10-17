@@ -371,7 +371,8 @@ export function EditableWorkoutCardShell({
         <DropdownMenu.Content
           align="start"
           sideOffset={6}
-          className="pointer-events-auto z-[220] min-w-[10.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
+          data-tt-floating-ui=""
+          className="pointer-events-auto z-[250] min-w-[10.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
           {sportOptions!.map((sport) => {

@@ -1,8 +1,8 @@
 import { cn } from '@/lib/utils'
 
 /**
- * Week-grid add affordance — matches mock training week:
- * typographic `+`, faint ink, reveal on hover (cells) or soft always-on (footer).
+ * Week-grid add affordance — geometric `+` (SVG) so it centers true in
+ * circular / flex hit targets (Inter’s “+” glyph sits optically high).
  */
 export function WeekAddPlusMark({
   className,
@@ -12,17 +12,26 @@ export function WeekAddPlusMark({
   /** `cell` = hidden until hover; `footer` = soft visible like mock volume row */
   size?: 'cell' | 'footer'
 }) {
+  const px = size === 'footer' ? 12 : 13
   return (
-    <span
+    <svg
       aria-hidden
+      width={px}
+      height={px}
+      viewBox="0 0 16 16"
+      fill="none"
       className={cn(
-        'select-none font-normal leading-none text-[var(--tt-ink-faint,#9a9a9a)]',
-        size === 'footer' ? 'text-[15px]' : 'text-[16px]',
+        'shrink-0 text-[var(--tt-ink-faint,#9a9a9a)]',
         className,
       )}
     >
-      +
-    </span>
+      <path
+        d="M8 3.25v9.5M3.25 8h9.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
   )
 }
 

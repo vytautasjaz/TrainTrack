@@ -309,6 +309,7 @@ export async function draftAiTrainingPlan(input: {
       draft,
       skillSlug: skill.slug,
       coachEngineAudit: engine.audit,
+      physiology: engine.physiology,
     })
 
     await logAiUsageEvent({

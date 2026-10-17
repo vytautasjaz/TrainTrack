@@ -15,6 +15,17 @@ export function titleWithOrangeDot(text: string): ReactNode {
   )
 }
 
+/** Always append a brand-orange trailing period (home / section topics). */
+export function topicTitleWithOrangeDot(text: string): ReactNode {
+  const base = text.trimEnd().replace(/\.$/, '')
+  return (
+    <>
+      {base}
+      <span className="tt-title-dot">.</span>
+    </>
+  )
+}
+
 /** Wrap children: if a string ending in `.`, orange-dot the period. */
 export function withOrangeTitleDot(children: ReactNode): ReactNode {
   if (typeof children === 'string') return titleWithOrangeDot(children)
