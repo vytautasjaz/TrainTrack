@@ -105,10 +105,6 @@ export function CoachIntensityZonesForm({
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        % FTP bands used when classifying bike intensity and when prescribing by
-        Zones (Z1–Z6). Leave a bound blank for open-ended (&lt; or &gt;).
-      </p>
       <div className={cn(DATA_TABLE_SHELL, 'overflow-x-auto')}>
         <table className={DATA_TABLE}>
           <thead>

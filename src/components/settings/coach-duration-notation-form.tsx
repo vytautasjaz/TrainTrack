@@ -41,10 +41,7 @@ export function CoachDurationNotationForm({ initialPrefs }: Props) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground">
-        How minutes and seconds appear on workout cards (e.g. rest between intervals).
-      </p>
-      <SegmentedControl aria-label="Duration format" className="w-full max-w-md">
+      <SegmentedControl aria-label="Duration format" className="w-full">
         <SegmentedControlItem
           type="button"
           active={notation === 'standard'}

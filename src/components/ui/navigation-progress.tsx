@@ -16,54 +16,21 @@ const SHOW_DELAY_MS = 150
 /** Once shown, keep visible briefly so it doesn't flash off. */
 const MIN_VISIBLE_MS = 300
 const FINISH_MS = 280
-/** How long we wait for `(app)/loading.tsx` to appear after the URL commits. */
-const PENDING_GRACE_MS = 80
-const ROUTE_PENDING_SELECTOR = '[data-tt-route-pending]'
-
-function hasRoutePending() {
-  return Boolean(document.querySelector(ROUTE_PENDING_SELECTOR))
-}
-
 /**
- * Stay busy until the App Router page slot leaves `loading.tsx`.
- * If no pending marker shows up quickly (cached / client-only), settle after a short grace.
+ * After the URL commits, give the next paint a beat before clearing the bar.
+ * (We no longer use route `loading.tsx` skeletons — keep the previous page
+ * visible and only show the top progress chrome.)
  */
+const SETTLE_AFTER_COMMIT_MS = 80
+
 function waitForRouteReady(signal: { cancelled: boolean }): Promise<void> {
   return new Promise((resolve) => {
-    const done = () => {
-      if (!signal.cancelled) resolve()
-    }
-
-    const watchUntilClear = () => {
-      if (signal.cancelled) return
-      if (!hasRoutePending()) {
-        done()
-        return
-      }
-      const observer = new MutationObserver(() => {
-        if (signal.cancelled) {
-          observer.disconnect()
-          return
-        }
-        if (!hasRoutePending()) {
-          observer.disconnect()
-          // Let the real page paint once before clearing the chrome.
-          requestAnimationFrame(() => requestAnimationFrame(done))
-        }
-      })
-      observer.observe(document.body, { childList: true, subtree: true })
-    }
-
-    if (hasRoutePending()) {
-      watchUntilClear()
-      return
-    }
-
-    // URL may commit a frame before React swaps in `loading.tsx`.
     window.setTimeout(() => {
       if (signal.cancelled) return
-      watchUntilClear()
-    }, PENDING_GRACE_MS)
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!signal.cancelled) resolve()
+      }))
+    }, SETTLE_AFTER_COMMIT_MS)
   })
 }
 
@@ -110,16 +77,11 @@ function NavigationProgressInner() {
     setState('loading')
   }
 
-  /** Mark navigation in flight; paint chrome only after SHOW_DELAY (unless skeleton is up). */
+  /** Mark navigation in flight; paint chrome only after SHOW_DELAY (anti-flicker). */
   function beginLoading() {
     activeRef.current = true
     if (visibleRef.current) {
       setState('loading')
-      return
-    }
-    // Skeleton already means the user is waiting — skip the anti-flicker delay.
-    if (hasRoutePending()) {
-      reveal()
       return
     }
     if (showDelayRef.current) return
@@ -173,8 +135,8 @@ function NavigationProgressInner() {
     prevPathnameRef.current = pathname
 
     // Path changes (Link / router.push / back) and in-flight click navigations
-    // (including ?query changes) share one settle path so the chrome stays up
-    // through skeleton → real page. Pure silent search updates do not flash it.
+    // (including ?query changes) share one settle path. Pure silent search
+    // updates do not flash the chrome.
     if (pathChanged || activeRef.current) {
       settleAfterRouteCommit()
     }

@@ -333,7 +333,9 @@ export async function linkGoogleAccount() {
 export async function setPassword(formData: FormData) {
   const session = await requireSession()
   const password = String(formData.get('password') ?? '')
+  const confirmPassword = String(formData.get('confirmPassword') ?? '')
   if (password.length < 8) throw new Error('Password must be at least 8 characters')
+  if (password !== confirmPassword) throw new Error('Passwords do not match')
   const passwordHash = await bcrypt.hash(password, 12)
   await prisma.user.update({
     where: { id: session.userId },

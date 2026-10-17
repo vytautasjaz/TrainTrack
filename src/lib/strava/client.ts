@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getStravaConfig } from './config'
+import { StravaError, stravaHttpError, stravaNetworkError } from './errors'
 import type {
   StravaActivity,
   StravaAthleteSummary,
@@ -7,6 +8,17 @@ import type {
   StravaSplit,
   StravaTokenResponse,
 } from './types'
+
+async function stravaFetch(
+  input: string,
+  init?: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetch(input, init)
+  } catch (err) {
+    throw stravaNetworkError(err)
+  }
+}
 
 const STRAVA_API = 'https://www.strava.com/api/v3'
 const STRAVA_OAUTH = 'https://www.strava.com/oauth'
@@ -30,7 +42,7 @@ export function buildStravaAuthorizeUrl(
 
 export async function exchangeStravaCode(code: string): Promise<StravaTokenResponse> {
   const { clientId, clientSecret } = getStravaConfig()
-  const response = await fetch(`${STRAVA_OAUTH}/token`, {
+  const response = await stravaFetch(`${STRAVA_OAUTH}/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -42,8 +54,7 @@ export async function exchangeStravaCode(code: string): Promise<StravaTokenRespo
   })
 
   if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`Strava token exchange failed: ${body}`)
+    throw stravaHttpError(response.status, await response.text(), 'token_exchange')
   }
 
   return response.json()
@@ -51,7 +62,7 @@ export async function exchangeStravaCode(code: string): Promise<StravaTokenRespo
 
 async function refreshStravaToken(refreshToken: string): Promise<StravaTokenResponse> {
   const { clientId, clientSecret } = getStravaConfig()
-  const response = await fetch(`${STRAVA_OAUTH}/token`, {
+  const response = await stravaFetch(`${STRAVA_OAUTH}/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -63,8 +74,7 @@ async function refreshStravaToken(refreshToken: string): Promise<StravaTokenResp
   })
 
   if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`Strava token refresh failed: ${body}`)
+    throw stravaHttpError(response.status, await response.text(), 'token_refresh')
   }
 
   return response.json()
@@ -72,7 +82,12 @@ async function refreshStravaToken(refreshToken: string): Promise<StravaTokenResp
 
 export async function getValidAccessToken(userId: string): Promise<string> {
   const connection = await prisma.stravaConnection.findUnique({ where: { userId } })
-  if (!connection) throw new Error('Strava is not connected')
+  if (!connection) {
+    throw new StravaError(
+      'Strava is not connected. Connect it in Settings → Integrations.',
+      'not_connected',
+    )
+  }
 
   const expiresSoon = connection.expiresAt.getTime() - Date.now() < 60 * 60 * 1000
   if (!expiresSoon) return connection.accessToken
@@ -91,14 +106,13 @@ export async function getValidAccessToken(userId: string): Promise<string> {
 }
 
 export async function fetchStravaAthlete(accessToken: string): Promise<StravaAthleteSummary> {
-  const response = await fetch(`${STRAVA_API}/athlete`, {
+  const response = await stravaFetch(`${STRAVA_API}/athlete`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     next: { revalidate: 0 },
   })
 
   if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`Strava athlete fetch failed: ${body}`)
+    throw stravaHttpError(response.status, await response.text(), 'athlete')
   }
 
   return response.json()
@@ -114,14 +128,13 @@ export async function fetchAthleteActivities(
   params.set('page', String(options.page ?? 1))
   params.set('per_page', String(options.perPage ?? 50))
 
-  const response = await fetch(`${STRAVA_API}/athlete/activities?${params.toString()}`, {
+  const response = await stravaFetch(`${STRAVA_API}/athlete/activities?${params.toString()}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     next: { revalidate: 0 },
   })
 
   if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`Strava activities fetch failed: ${body}`)
+    throw stravaHttpError(response.status, await response.text(), 'activities')
   }
 
   return response.json()
@@ -132,14 +145,13 @@ export async function fetchStravaActivity(
   accessToken: string,
   activityId: number,
 ): Promise<StravaActivity> {
-  const response = await fetch(`${STRAVA_API}/activities/${activityId}`, {
+  const response = await stravaFetch(`${STRAVA_API}/activities/${activityId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     next: { revalidate: 0 },
   })
 
   if (!response.ok) {
-    const body = await response.text()
-    throw new Error(`Strava activity fetch failed: ${body}`)
+    throw stravaHttpError(response.status, await response.text(), 'activity')
   }
 
   return response.json()
@@ -174,7 +186,7 @@ export async function fetchStravaActivityLaps(
   accessToken: string,
   activityId: number,
 ): Promise<StravaLap[]> {
-  const response = await fetch(`${STRAVA_API}/activities/${activityId}/laps`, {
+  const response = await stravaFetch(`${STRAVA_API}/activities/${activityId}/laps`, {
     headers: { Authorization: `Bearer ${accessToken}` },
     next: { revalidate: 0 },
   })
@@ -279,7 +291,7 @@ export async function fetchStravaActivityStreams(
     key_by_type: 'true',
     resolution: 'high',
   })
-  const response = await fetch(
+  const response = await stravaFetch(
     `${STRAVA_API}/activities/${activityId}/streams?${params.toString()}`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -300,8 +312,7 @@ export async function fetchStravaActivityStreams(
         latlng: null,
       }
     }
-    const body = await response.text()
-    throw new Error(`Strava streams fetch failed: ${body}`)
+    throw stravaHttpError(response.status, await response.text(), 'streams')
   }
 
   const payload = parseStreamsPayload(await response.json())

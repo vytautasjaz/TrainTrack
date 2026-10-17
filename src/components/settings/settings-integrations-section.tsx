@@ -1,17 +1,15 @@
 'use client'
 
+import { CalendarDays } from 'lucide-react'
 import { StravaConnectCard } from '@/components/integrations/strava-connect-card'
 import { CalendarSyncCard } from '@/components/integrations/calendar-sync-card'
 import { CoachInviteLinkPanel } from '@/components/coach/coach-invite-link-panel'
-import { CoachPlanningLeadForm } from '@/components/settings/coach-planning-lead-form'
 import { CoachWorkoutBuilderPrefsForm } from '@/components/settings/coach-workout-builder-prefs-form'
 import { CoachDurationNotationForm } from '@/components/settings/coach-duration-notation-form'
 import { CoachIntensityZonesForm } from '@/components/settings/coach-intensity-zones-form'
 import { CoachWorkoutTypePrefsForm } from '@/components/settings/coach-workout-type-prefs-form'
-import {
-  SettingsGroup,
-  SettingsPanel,
-} from '@/components/settings/settings-section-chrome'
+import { StravaMark } from '@/components/plan/strava-mark'
+import { SettingsPanel } from '@/components/settings/settings-section-chrome'
 import type { CalendarFeedType } from '@prisma/client'
 import type { WorkoutBuilderPrefs } from '@/lib/workout-builder/workout-builder-prefs'
 import type { WorkoutTypePrefs } from '@/lib/workout-builder/workout-type-prefs'
@@ -53,56 +51,47 @@ export function SettingsIntegrationsSection({
   calendar,
   coachingCode,
 }: SettingsIntegrationsSectionProps) {
-  return (
-    <SettingsPanel
-      id="integrations"
-      title="Integrations"
-      description={
-        role === 'coach'
-          ? 'Share your coaching code and connect external services.'
-          : 'Strava sync and calendar feeds. Unlink actions stay secondary.'
-      }
-    >
-      {role === 'coach' && coachingCode ? (
-        <SettingsGroup label="Coaching code" description="Athletes use this to request coaching.">
-          <CoachInviteLinkPanel coachingCode={coachingCode} compact />
-        </SettingsGroup>
-      ) : null}
+  if (role === 'coach') {
+    return coachingCode ? (
+      <SettingsPanel id="integrations" title="Coaching code">
+        <CoachInviteLinkPanel coachingCode={coachingCode} compact />
+      </SettingsPanel>
+    ) : null
+  }
 
-      {role === 'athlete' && strava ? (
-        <SettingsGroup label="Strava">
+  return (
+    <>
+      {strava ? (
+        <SettingsPanel
+          id="integrations-strava"
+          title="Strava"
+          icon={<StravaMark className="h-5 w-5 text-[#FC4C02]" />}
+        >
           <StravaConnectCard
+            compact
             connected={strava.connected}
             configured={strava.configured}
             summary={strava.summary}
             errorMessage={strava.errorMessage}
             successMessage={strava.successMessage}
           />
-        </SettingsGroup>
+        </SettingsPanel>
       ) : null}
 
-      {role === 'athlete' && calendar ? (
-        <SettingsGroup label="Calendar feed">
-          <CalendarSyncCard feeds={calendar.feeds} hasGoogleLinked={calendar.hasGoogleLinked} />
-        </SettingsGroup>
+      {calendar ? (
+        <SettingsPanel
+          id="integrations-calendar"
+          title="Calendar"
+          icon={<CalendarDays className="h-5 w-5 text-[var(--tt-ink-soft,#6b6b6b)]" />}
+        >
+          <CalendarSyncCard
+            compact
+            feeds={calendar.feeds}
+            hasGoogleLinked={calendar.hasGoogleLinked}
+          />
+        </SettingsPanel>
       ) : null}
-    </SettingsPanel>
-  )
-}
-
-export function SettingsCoachPlanningSection({
-  planningLeadDays,
-}: {
-  planningLeadDays: number
-}) {
-  return (
-    <SettingsPanel
-      id="planning"
-      title="Planning lead"
-      description="How many days ahead you typically plan — drives underplanned warnings."
-    >
-      <CoachPlanningLeadForm planningLeadDays={planningLeadDays} />
-    </SettingsPanel>
+    </>
   )
 }
 
@@ -114,23 +103,19 @@ export function SettingsCoachBuilderSection({
   workoutTypePrefs: WorkoutTypePrefs
 }) {
   return (
-    <SettingsPanel
-      id="builder"
-      title="Builder preferences"
-      description="Defaults for new workouts and session-type presets."
-    >
-      <SettingsGroup label="Duration format">
+    <>
+      <SettingsPanel id="builder-duration" title="Duration format">
         <CoachDurationNotationForm initialPrefs={workoutBuilderPrefs} />
-      </SettingsGroup>
-      <SettingsGroup label="Intensity zones">
+      </SettingsPanel>
+      <SettingsPanel id="builder-intensity" title="Intensity zones">
         <CoachIntensityZonesForm initialPrefs={workoutBuilderPrefs} />
-      </SettingsGroup>
-      <SettingsGroup label="Workout types">
+      </SettingsPanel>
+      <SettingsPanel id="builder-types" title="Workout types">
         <CoachWorkoutTypePrefsForm initialPrefs={workoutTypePrefs} />
-      </SettingsGroup>
-      <SettingsGroup label="Workout builder">
+      </SettingsPanel>
+      <SettingsPanel id="builder-defaults" title="Workout builder">
         <CoachWorkoutBuilderPrefsForm initialPrefs={workoutBuilderPrefs} />
-      </SettingsGroup>
-    </SettingsPanel>
+      </SettingsPanel>
+    </>
   )
 }

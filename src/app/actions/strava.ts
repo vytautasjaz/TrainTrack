@@ -8,7 +8,13 @@ import {
   requireAthleteSession,
   requireSession,
 } from '@/lib/session'
+import { ActionError } from '@/lib/action-error'
 import { addDateOnlyDays, parseDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
+import {
+  logStravaError,
+  StravaError,
+  toStravaUserMessage,
+} from '@/lib/strava/errors'
 import {
   attachStravaActivityToWorkoutForAthlete,
   attachStravaActivityToRaceForAthlete,
@@ -26,6 +32,12 @@ import {
   unlinkStravaFromRaceForAthlete,
   unlinkStravaFromRaceLegForAthlete,
 } from '@/lib/strava/sync'
+
+function rethrowStravaActionError(actionName: string, error: unknown): never {
+  logStravaError(actionName, error)
+  if (error instanceof StravaError || error instanceof ActionError) throw error
+  throw new ActionError(toStravaUserMessage(error))
+}
 import {
   overlayProfileFromPackedStreams,
   parseLapsCache,
@@ -69,11 +81,14 @@ export async function disconnectStrava() {
 
 /** Manual sync of recent activities (uses lastSyncedAt window). */
 export async function syncStravaActivities() {
-  const session = await requireAthleteSession()
-  const result = await syncStravaActivitiesForUser(session.userId, session.athleteId)
-
-  await revalidateAfterStrava(session.athleteId)
-  return result
+  try {
+    const session = await requireAthleteSession()
+    const result = await syncStravaActivitiesForUser(session.userId, session.athleteId)
+    await revalidateAfterStrava(session.athleteId)
+    return result
+  } catch (error) {
+    rethrowStravaActionError('syncStravaActivities', error)
+  }
 }
 
 /**
@@ -81,15 +96,18 @@ export async function syncStravaActivities() {
  * Does not advance lastSyncedAt so auto-sync windows stay intact.
  */
 export async function syncStravaActivitiesForDateRange(fromKey: string, toKey?: string) {
-  const session = await requireAthleteSession()
-  const result = await syncStravaActivitiesForUser(session.userId, session.athleteId, {
-    fromKey,
-    toKey: toKey || fromKey,
-    updateLastSyncedAt: false,
-  })
-
-  await revalidateAfterStrava(session.athleteId)
-  return result
+  try {
+    const session = await requireAthleteSession()
+    const result = await syncStravaActivitiesForUser(session.userId, session.athleteId, {
+      fromKey,
+      toKey: toKey || fromKey,
+      updateLastSyncedAt: false,
+    })
+    await revalidateAfterStrava(session.athleteId)
+    return result
+  } catch (error) {
+    rethrowStravaActionError('syncStravaActivitiesForDateRange', error)
+  }
 }
 
 /**
@@ -105,10 +123,14 @@ export async function syncStravaHistoryForFitness() {
 }
 
 export async function setStravaAutoSyncEnabled(enabled: boolean) {
-  const session = await requireAthleteSession()
-  const result = await setStravaAutoSyncEnabledForUser(session.userId, enabled)
-  revalidatePath('/settings/preferences')
-  return result
+  try {
+    const session = await requireAthleteSession()
+    const result = await setStravaAutoSyncEnabledForUser(session.userId, enabled)
+    revalidatePath('/settings/preferences')
+    return result
+  } catch (error) {
+    rethrowStravaActionError('setStravaAutoSyncEnabled', error)
+  }
 }
 
 /**

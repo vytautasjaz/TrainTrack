@@ -82,54 +82,49 @@ export function AthleteAvatarForm({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-4">
-        <AthleteAvatar name={name} avatarUrl={avatarUrl} size="lg" />
-        <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">
-            Shown next to your name for your coach. Separate from your coach photo if you have both roles.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
-              onChange={handleFileChange}
-            />
+        <AthleteAvatar name={name} avatarUrl={avatarUrl} size="xl" />
+        <div className="flex flex-wrap gap-2">
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={isPending}
+            onClick={() => inputRef.current?.click()}
+          >
+            <Camera className="h-3.5 w-3.5" />
+            {isPending ? 'Saving…' : 'Upload photo'}
+          </Button>
+          {stravaConnected ? (
             <Button
               type="button"
-              variant="secondary"
+              variant="outline"
               size="sm"
               disabled={isPending}
-              onClick={() => inputRef.current?.click()}
+              onClick={() => run(() => syncAvatarFromStrava())}
             >
-              <Camera className="h-3.5 w-3.5" />
-              {isPending ? 'Saving…' : 'Upload photo'}
+              Use Strava photo
             </Button>
-            {stravaConnected ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isPending}
-                onClick={() => run(() => syncAvatarFromStrava())}
-              >
-                Use Strava photo
-              </Button>
-            ) : null}
-            {avatarUrl ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={isPending}
-                className="text-muted-foreground"
-                onClick={() => setConfirmOpen(true)}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Remove
-              </Button>
-            ) : null}
-          </div>
+          ) : null}
+          {avatarUrl ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isPending}
+              className="text-muted-foreground"
+              onClick={() => setConfirmOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Remove
+            </Button>
+          ) : null}
         </div>
       </div>
       {error && <FormMessage variant="error">{error}</FormMessage>}

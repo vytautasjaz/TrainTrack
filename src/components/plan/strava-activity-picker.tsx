@@ -10,6 +10,7 @@ import {
   listStravaActivitiesForWorkout,
   unlinkStravaFromWorkout,
 } from '@/app/actions/strava'
+import { toStravaUserMessage } from '@/lib/strava/errors'
 import type { StravaActivityPickItem } from '@/lib/strava/sync'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -163,7 +164,9 @@ export function StravaLinkPicker({
       })
       .catch((err) => {
         if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : 'Could not load Strava activities')
+          setLoadError(
+            toStravaUserMessage(err, 'Could not load Strava activities. Please try again.'),
+          )
           setItems([])
         }
       })
@@ -195,7 +198,7 @@ export function StravaLinkPicker({
         router.refresh()
         onLinked?.()
       } catch (err) {
-        setLoadError(err instanceof Error ? err.message : 'Could not link activity')
+        setLoadError(toStravaUserMessage(err, 'Could not link that Strava activity.'))
       } finally {
         setAttachingId(null)
       }

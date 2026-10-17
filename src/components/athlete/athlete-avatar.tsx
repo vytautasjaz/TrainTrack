@@ -7,7 +7,7 @@ type AthleteAvatarProps = {
   name: string
   avatarUrl?: string | null
   fallbackUrl?: string | null
-  size?: 'sm' | 'md' | 'lg' | 'bar'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'bar'
   className?: string
 }
 
@@ -15,6 +15,7 @@ const SIZE_CLASS = {
   sm: 'h-7 w-7 text-[10px]',
   md: 'h-10 w-10 text-sm',
   lg: 'h-16 w-16 text-xl',
+  xl: 'h-20 w-20 text-2xl',
   /** Coach shell bar — compact on phone, larger on desktop */
   bar: 'h-9 w-9 text-xs ring-2 ring-background lg:h-12 lg:w-12 lg:text-sm',
 } as const

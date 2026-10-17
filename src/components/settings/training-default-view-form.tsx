@@ -2,7 +2,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Caption, SectionTitle } from '@/components/ui/typography'
+import { SectionTitle } from '@/components/ui/typography'
 import {
   SegmentedControl,
   SegmentedControlItem,
@@ -44,71 +44,33 @@ export function TrainingDefaultViewForm({
     writeStoredTrainingDefaultView(role, next)
   }
 
-  const body = embedded ? (
-    <div className="space-y-2">
+  const body = (
+    <SegmentedControl aria-label="Default Training view" className="w-full">
       {TRAINING_DEFAULT_VIEW_OPTIONS.map((opt) => (
-        <button
+        <SegmentedControlItem
           key={opt.id}
           type="button"
+          active={view === opt.id}
           onClick={() => select(opt.id)}
-          className={cn(
-            'flex w-full flex-col items-start rounded-[8px] border px-3.5 py-3 text-left transition',
-            view === opt.id
-              ? 'border-[var(--tt-ink,#111)] shadow-[0_0_0_1px_var(--tt-ink,#111)]'
-              : 'border-[var(--tt-line,#ebebeb)] hover:border-[var(--tt-line-strong,#d9d9d9)]',
-          )}
+          className={cn('flex-1')}
         >
-          <span className="text-[13px] font-semibold text-[var(--tt-ink,#111)]">
-            {opt.label}
-          </span>
-          <span className="mt-0.5 text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]">
-            {opt.hint}
-          </span>
-        </button>
+          {opt.label}
+        </SegmentedControlItem>
       ))}
-    </div>
-  ) : (
-    <>
-      <SegmentedControl aria-label="Default Training view" className="w-full sm:w-auto">
-        {TRAINING_DEFAULT_VIEW_OPTIONS.map((opt) => (
-          <SegmentedControlItem
-            key={opt.id}
-            type="button"
-            active={view === opt.id}
-            onClick={() => select(opt.id)}
-            className={cn('flex-1 px-3 sm:flex-none')}
-          >
-            {opt.label}
-          </SegmentedControlItem>
-        ))}
-      </SegmentedControl>
-      <p className="text-xs text-muted-foreground">
-        {TRAINING_DEFAULT_VIEW_OPTIONS.find((opt) => opt.id === view)?.hint}
-      </p>
-    </>
+    </SegmentedControl>
   )
 
   if (embedded) {
     return (
-      <SettingsPanel
-        id="training-default-view"
-        title="Default Training view"
-        description="Opened when you go to Training without a saved layout. You can still switch List, Week, or Month anytime."
-      >
+      <SettingsPanel id="training-default-view" title="Default Training view">
         {body}
       </SettingsPanel>
     )
   }
 
   return (
-    <section className="card-elevated space-y-4 p-5">
-      <div>
-        <SectionTitle variant="ui">Default Training view</SectionTitle>
-        <Caption>
-          List, Week, or Month when you open Training. You can still switch on the
-          page.
-        </Caption>
-      </div>
+    <section className="space-y-3">
+      <SectionTitle variant="ui">Default Training view</SectionTitle>
       {body}
     </section>
   )

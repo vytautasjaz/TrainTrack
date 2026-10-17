@@ -17,11 +17,11 @@ import {
   type NotificationPrefs,
 } from '@/lib/notification-prefs'
 
-const INBOX_LABELS: { key: keyof NotificationPrefs; label: string; hint: string }[] = [
-  { key: 'messages', label: 'Chat messages', hint: 'General inbox replies' },
-  { key: 'workoutAsks', label: 'Workout asks', hint: 'Questions on workouts' },
-  { key: 'workoutFeedback', label: 'Workout feedback', hint: 'Post-workout notes' },
-  { key: 'raceThreads', label: 'Race threads', hint: 'Race reports and replies' },
+const INBOX_LABELS: { key: keyof NotificationPrefs; label: string; hint?: string }[] = [
+  { key: 'messages', label: 'Chat messages' },
+  { key: 'workoutAsks', label: 'Workout asks' },
+  { key: 'workoutFeedback', label: 'Workout feedback' },
+  { key: 'raceThreads', label: 'Race threads' },
 ]
 
 const DEFAULT_PREFS = normalizeNotificationPrefs(null)
@@ -64,14 +64,14 @@ export function NotificationPrefsForm({ coachView = false }: Props) {
   function renderToggle(
     key: 'messages' | 'workoutAsks' | 'workoutFeedback' | 'raceThreads' | 'complianceAlerts' | 'underPlannedAlerts',
     label: string,
-    hint: string,
+    hint?: string,
   ) {
     const on = prefs[key] !== false
     return (
-      <li key={key} className="flex items-start justify-between gap-3">
+      <li key={key} className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium">{label}</p>
-          <p className="text-xs text-muted-foreground">{hint}</p>
+          {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
         </div>
         <button
           type="button"
@@ -116,21 +116,12 @@ export function NotificationPrefsForm({ coachView = false }: Props) {
       </ul>
       {coachView ? (
         <div className="space-y-4 border-t border-border pt-4">
-          <div>
-            <p className="text-sm font-medium">Coach home alerts</p>
-            <p className="text-xs text-muted-foreground">
-              Control Needs attention items and thresholds. Missed-plan alerts only show after the
-              week has finished — not mid-week.
-            </p>
-          </div>
+          <p className="text-sm font-semibold">Coach home</p>
           <ul className="space-y-3">
             <li className="space-y-2">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">Missed plan (last week)</p>
-                  <p className="text-xs text-muted-foreground">
-                    Alert when last week’s completion is below your threshold
-                  </p>
                 </div>
                 <button
                   type="button"
@@ -180,12 +171,9 @@ export function NotificationPrefsForm({ coachView = false }: Props) {
               ) : null}
             </li>
             <li className="space-y-2">
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">Under-planned athletes</p>
-                  <p className="text-xs text-muted-foreground">
-                    Alert when plan coverage ahead drops below your day threshold
-                  </p>
                 </div>
                 <button
                   type="button"

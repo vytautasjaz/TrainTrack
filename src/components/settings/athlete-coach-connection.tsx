@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { format } from 'date-fns'
 import { CoachAthleteLinkStatus } from '@prisma/client'
+import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Caption } from '@/components/ui/typography'
@@ -18,9 +20,12 @@ import { isRedirectError } from '@/lib/auth-form-errors'
 type CoachLink = {
   id: string
   status: CoachAthleteLinkStatus
+  createdAt: string
+  updatedAt: string
   coachProfile: {
     coachingCode: string
     userId: string
+    avatarUrl?: string | null
     user: { name: string }
   }
 }
@@ -29,6 +34,10 @@ type AthleteCoachConnectionProps = {
   coachLinks: CoachLink[]
   canSelfCoach: boolean
   currentUserId: string
+}
+
+function formatCoachSince(iso: string): string {
+  return format(new Date(iso), 'd MMM yyyy')
 }
 
 export function AthleteCoachConnection({
@@ -43,6 +52,7 @@ export function AthleteCoachConnection({
 
   const acceptedCoach = coachLinks.find((l) => l.status === CoachAthleteLinkStatus.ACCEPTED)
   const pendingCoaches = coachLinks.filter((l) => l.status === CoachAthleteLinkStatus.PENDING)
+  const pastCoaches = coachLinks.filter((l) => l.status === CoachAthleteLinkStatus.REMOVED)
   const isSelfCoached =
     Boolean(acceptedCoach) && acceptedCoach!.coachProfile.userId === currentUserId
 
@@ -61,75 +71,92 @@ export function AthleteCoachConnection({
   }
 
   return (
-    <div id="connect-coach" className="scroll-mt-24 space-y-3">
-      <div>
-        <p className="text-sm font-medium text-foreground">Your coach</p>
-        {acceptedCoach ? (
-          isSelfCoached ? (
-            <Caption className="mt-1">
-              You are coaching yourself ({acceptedCoach.coachProfile.coachingCode})
-            </Caption>
-          ) : (
-            <Caption className="mt-1">
-              Connected to{' '}
-              <span className="font-medium text-foreground">
-                {acceptedCoach.coachProfile.user.name}
-              </span>{' '}
-              ({acceptedCoach.coachProfile.coachingCode})
-            </Caption>
-          )
-        ) : pendingCoaches.length > 0 ? (
-          <ul className="mt-2 space-y-2">
-            {pendingCoaches.map((link) => (
-              <li
-                key={link.id}
-                className="rounded-[6px] border border-border/60 px-3 py-2 text-sm"
+    <div id="connect-coach" className="scroll-mt-24 space-y-4">
+      {acceptedCoach ? (
+        <div className="flex items-start gap-4">
+          <AthleteAvatar
+            name={acceptedCoach.coachProfile.user.name}
+            avatarUrl={acceptedCoach.coachProfile.avatarUrl}
+            size="xl"
+          />
+          <div className="min-w-0 flex-1 space-y-3">
+            {isSelfCoached ? (
+              <div>
+                <p className="text-sm text-[var(--tt-ink,#111)]">
+                  You are coaching yourself ({acceptedCoach.coachProfile.coachingCode})
+                </p>
+                <Caption className="mt-0.5">
+                  Since {formatCoachSince(acceptedCoach.updatedAt)}
+                </Caption>
+              </div>
+            ) : (
+              <div>
+                <p className="truncate text-sm font-medium text-foreground">
+                  {acceptedCoach.coachProfile.user.name}
+                </p>
+                <Caption className="mt-0.5">
+                  {acceptedCoach.coachProfile.coachingCode} · Since{' '}
+                  {formatCoachSince(acceptedCoach.updatedAt)}
+                </Caption>
+              </div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {canSelfCoach && !isSelfCoached ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => run(() => coachMyself())}
+                >
+                  {pending ? 'Saving…' : 'Coach myself'}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={pending}
+                onClick={() => {
+                  setError(null)
+                  setSwitchOpen((open) => !open)
+                }}
               >
+                {switchOpen ? 'Cancel switch' : 'Switch coach'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={() => setLeaveOpen(true)}
+              >
+                Leave coach
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : pendingCoaches.length > 0 ? (
+        <ul className="space-y-2">
+          {pendingCoaches.map((link) => (
+            <li
+              key={link.id}
+              className="flex items-center gap-3 rounded-[6px] border border-border/60 px-3 py-2 text-sm"
+            >
+              <AthleteAvatar
+                name={link.coachProfile.user.name}
+                avatarUrl={link.coachProfile.avatarUrl}
+                size="sm"
+              />
+              <span className="min-w-0 truncate">
                 {link.coachProfile.user.name} ({link.coachProfile.coachingCode}) —{' '}
                 <span className="text-muted-foreground">pending</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Caption className="mt-1">No coach connected yet.</Caption>
-        )}
-      </div>
-
-      {acceptedCoach ? (
-        <div className="flex flex-wrap gap-2">
-          {canSelfCoach && !isSelfCoached ? (
-            <Button
-              type="button"
-              size="sm"
-              disabled={pending}
-              onClick={() => run(() => coachMyself())}
-            >
-              {pending ? 'Saving…' : 'Coach myself'}
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={pending}
-            onClick={() => {
-              setError(null)
-              setSwitchOpen((open) => !open)
-            }}
-          >
-            {switchOpen ? 'Cancel switch' : 'Switch coach'}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={pending}
-            onClick={() => setLeaveOpen(true)}
-          >
-            Leave coach
-          </Button>
-        </div>
-      ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <Caption>No coach connected yet.</Caption>
+      )}
 
       {!acceptedCoach && canSelfCoach ? (
         <Button
@@ -202,6 +229,36 @@ export function AthleteCoachConnection({
           Use <span className="font-medium text-foreground">Coach myself</span> to plan your own
           training, or enter another coach’s invite code.
         </Caption>
+      ) : null}
+
+      {pastCoaches.length > 0 ? (
+        <div className="border-t border-[var(--tt-line,#ebebeb)] pt-3">
+          <p className="text-[13px] font-medium text-[var(--tt-ink,#111)]">Previous coaches</p>
+          <ul className="mt-2 space-y-2">
+            {pastCoaches.map((link) => {
+              const wasSelf = link.coachProfile.userId === currentUserId
+              return (
+                <li key={link.id} className="flex items-center gap-3">
+                  <AthleteAvatar
+                    name={link.coachProfile.user.name}
+                    avatarUrl={link.coachProfile.avatarUrl}
+                    size="sm"
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm text-[var(--tt-ink,#111)]">
+                      {wasSelf
+                        ? `Yourself (${link.coachProfile.coachingCode})`
+                        : `${link.coachProfile.user.name} (${link.coachProfile.coachingCode})`}
+                    </p>
+                    <Caption className="mt-0.5">
+                      {formatCoachSince(link.createdAt)} – {formatCoachSince(link.updatedAt)}
+                    </Caption>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       ) : null}
 
       <ConfirmDialog

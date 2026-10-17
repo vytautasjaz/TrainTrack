@@ -7,10 +7,8 @@ import { AiMembershipUsageCard } from '@/components/ai/ai-membership-usage-card'
 import { CoachInviteAthleteSection } from '@/components/settings/coach-invite-athlete-section'
 import { NotificationPrefsForm } from '@/components/settings/notification-prefs-form'
 import { AthletePrivacyPrefsForm } from '@/components/settings/athlete-privacy-prefs-form'
-import { PlanViewModePreferenceForm } from '@/components/settings/plan-view-mode-preference-form'
-import { TrainingDefaultViewForm } from '@/components/settings/training-default-view-form'
-import { UnitSystemPreferenceForm } from '@/components/settings/unit-system-preference-form'
-import { WeekCardSizePreferenceForm } from '@/components/settings/week-card-size-preference-form'
+import { CoachPlanningLeadForm } from '@/components/settings/coach-planning-lead-form'
+import { TrainingDisplaySection } from '@/components/settings/training-display-section'
 import {
   DEFAULT_SWIM_DISTANCE_UNIT,
   DEFAULT_UNIT_SYSTEM,
@@ -18,7 +16,6 @@ import {
 import { SettingsShell } from '@/components/settings/settings-shell'
 import {
   SettingsCoachBuilderSection,
-  SettingsCoachPlanningSection,
   SettingsIntegrationsSection,
 } from '@/components/settings/settings-integrations-section'
 import { SignInMethodsSection } from '@/components/settings/sign-in-methods-section'
@@ -101,15 +98,21 @@ export default async function SettingsPage({ searchParams }: PageProps) {
           coachLinks: {
             where: {
               status: {
-                in: [CoachAthleteLinkStatus.PENDING, CoachAthleteLinkStatus.ACCEPTED],
+                in: [
+                  CoachAthleteLinkStatus.PENDING,
+                  CoachAthleteLinkStatus.ACCEPTED,
+                  CoachAthleteLinkStatus.REMOVED,
+                ],
               },
             },
+            orderBy: { updatedAt: 'desc' },
             include: {
               coachProfile: {
                 select: {
                   coachingCode: true,
                   userId: true,
-                  user: { select: { name: true } },
+                  avatarUrl: true,
+                  user: { select: { name: true, image: true } },
                 },
               },
             },
@@ -127,6 +130,22 @@ export default async function SettingsPage({ searchParams }: PageProps) {
   const profileAvatarUrl = coachView
     ? resolveCoachAvatarUrl(user.coachProfile?.avatarUrl, user.image)
     : (user.athleteProfile?.avatarUrl ?? null)
+  const coachLinks =
+    user.athleteProfile?.coachLinks.map((link) => ({
+      id: link.id,
+      status: link.status,
+      createdAt: link.createdAt.toISOString(),
+      updatedAt: link.updatedAt.toISOString(),
+      coachProfile: {
+        coachingCode: link.coachProfile.coachingCode,
+        userId: link.coachProfile.userId,
+        avatarUrl: resolveCoachAvatarUrl(
+          link.coachProfile.avatarUrl,
+          link.coachProfile.user.image,
+        ),
+        user: { name: link.coachProfile.user.name },
+      },
+    })) ?? []
 
   const providers = new Set(user.accounts.map((a) => a.provider))
   const hasGoogle = providers.has('google')
@@ -176,9 +195,9 @@ export default async function SettingsPage({ searchParams }: PageProps) {
   const errorMessage = params.error ? ERROR_MESSAGES[params.error] ?? 'Something went wrong.' : null
   const successMessage =
     params.connected === 'switched'
-      ? 'Strava account switched. Recent history is syncing — use Import last 3 months if you need a fuller Fitness profile.'
+      ? 'Strava account switched.'
       : params.connected === '1'
-        ? 'Strava connected. Up to 3 months of activities are syncing for your Fitness profile.'
+        ? 'Strava connected.'
         : null
 
   const profileExtras =
@@ -247,7 +266,7 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                   avatarUrl={profileAvatarUrl}
                   profileRole={coachView ? 'coach' : 'athlete'}
                   stravaConnected={stravaConnected}
-                  coachLinks={user.athleteProfile?.coachLinks ?? []}
+                  coachLinks={coachLinks}
                   currentUserId={user.id}
                 />
                 <AiMembershipUsageCard
@@ -257,41 +276,30 @@ export default async function SettingsPage({ searchParams }: PageProps) {
               </>
             ),
             'sign-in': (
-              <SignInMethodsSection embedded hasGoogle={hasGoogle} hasPassword={hasPassword} />
+              <SignInMethodsSection
+                embedded
+                hasGoogle={hasGoogle}
+                hasPassword={hasPassword}
+                googleConfigured={Boolean(
+                  process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET,
+                )}
+              />
             ),
             privacy:
               isAthlete && ownAthleteId && !coachView ? (
-                <SettingsPanel
-                  id="privacy-controls"
-                  title="Privacy"
-                  description="Control what TrainTrack imports from Strava and what your linked coach can see."
-                >
+                <SettingsPanel id="privacy-controls" title="Privacy">
                   <AthletePrivacyPrefsForm />
                 </SettingsPanel>
               ) : null,
             notifications: (
               <>
-                <SettingsPanel
-                  id="notifications-device"
-                  title="Device alerts"
-                  description="Browser / PWA push for new inbox messages. Best on an installed home-screen app (HTTPS)."
-                >
+                <SettingsPanel id="notifications-device" title="Push">
                   <InboxNotificationsToggle pushConfigured={pushConfigured} />
                   {!pushConfigured ? (
-                    <Caption className="mt-2">
-                      Push is not configured on this server (missing VAPID keys).
-                    </Caption>
+                    <Caption className="mt-2">Push is not configured on this server.</Caption>
                   ) : null}
                 </SettingsPanel>
-                <SettingsPanel
-                  id="notifications-types"
-                  title="What to notify"
-                  description={
-                    coachView
-                      ? 'Inbox push categories, plus which coach Home alerts you want. Unread badges stay the same.'
-                      : 'Turn off categories you do not want pushed. Unread badges in the app are unchanged.'
-                  }
-                >
+                <SettingsPanel id="notifications-types" title="Inbox">
                   <NotificationPrefsForm coachView={coachView} />
                 </SettingsPanel>
               </>
@@ -313,18 +321,13 @@ export default async function SettingsPage({ searchParams }: PageProps) {
                 />
               ) : null,
             plan: !coachView ? (
-              <>
-                <UnitSystemPreferenceForm
-                  embedded
-                  initial={user.unitSystem ?? DEFAULT_UNIT_SYSTEM}
-                  initialSwim={
-                    user.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT
-                  }
-                />
-                <TrainingDefaultViewForm embedded role="athlete" />
-                <WeekCardSizePreferenceForm embedded />
-                <PlanViewModePreferenceForm embedded />
-              </>
+              <TrainingDisplaySection
+                role="athlete"
+                initialUnitSystem={user.unitSystem ?? DEFAULT_UNIT_SYSTEM}
+                initialSwimUnit={
+                  user.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT
+                }
+              />
             ) : null,
             integrations: (
               <SettingsIntegrationsSection
@@ -352,18 +355,19 @@ export default async function SettingsPage({ searchParams }: PageProps) {
               />
             ),
             planning: coachView ? (
-              <>
-                <UnitSystemPreferenceForm
-                  embedded
-                  initial={user.unitSystem ?? DEFAULT_UNIT_SYSTEM}
-                  initialSwim={
-                    user.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT
-                  }
-                />
-                <TrainingDefaultViewForm embedded role="coach" />
-                <WeekCardSizePreferenceForm embedded />
-                <SettingsCoachPlanningSection planningLeadDays={planningLeadDays} />
-              </>
+              <TrainingDisplaySection
+                role="coach"
+                initialUnitSystem={user.unitSystem ?? DEFAULT_UNIT_SYSTEM}
+                initialSwimUnit={
+                  user.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT
+                }
+                leadDaysSlot={
+                  <CoachPlanningLeadForm
+                    compact
+                    planningLeadDays={planningLeadDays}
+                  />
+                }
+              />
             ) : null,
             builder: coachView ? (
               <SettingsCoachBuilderSection

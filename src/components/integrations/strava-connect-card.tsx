@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Activity, ExternalLink, RefreshCw, Unplug, Users } from 'lucide-react'
+import { ExternalLink, RefreshCw, Unplug, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FormField } from '@/components/ui/form-field'
@@ -16,6 +16,7 @@ import {
   syncStravaActivitiesForDateRange,
   syncStravaHistoryForFitness,
 } from '@/app/actions/strava'
+import { toStravaUserMessage } from '@/lib/strava/errors'
 import { cn } from '@/lib/utils'
 
 type StravaConnectCardProps = {
@@ -31,6 +32,18 @@ type StravaConnectCardProps = {
   } | null
   errorMessage?: string | null
   successMessage?: string | null
+  /** Nested under a SettingsPanel titled “Strava”. */
+  compact?: boolean
+}
+
+function formatLastSync(value: Date | null): string {
+  if (!value) return 'Never'
+  return value.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 export function StravaConnectCard({
@@ -39,11 +52,13 @@ export function StravaConnectCard({
   summary,
   errorMessage,
   successMessage,
+  compact = false,
 }: StravaConnectCardProps) {
   const [isPending, startTransition] = useTransition()
   const [syncResult, setSyncResult] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(summary?.autoSyncEnabled ?? true)
+  const [showRange, setShowRange] = useState(false)
   const [fromKey, setFromKey] = useState(todayDateKey())
   const [toKey, setToKey] = useState(todayDateKey())
 
@@ -51,19 +66,18 @@ export function StravaConnectCard({
     if (summary) setAutoSyncEnabled(summary.autoSyncEnabled)
   }, [summary?.autoSyncEnabled, summary])
 
-  function formatSyncOutcome(result: {
-    matched: number
-    imported: number
-    scanned: number
-  }, rangeLabel?: string) {
+  function formatSyncOutcome(
+    result: { matched: number; imported: number; scanned: number },
+    rangeLabel?: string,
+  ) {
     const parts = [
       result.matched > 0 ? `${result.matched} matched` : null,
-      result.imported > 0 ? `${result.imported} added as self-logged` : null,
+      result.imported > 0 ? `${result.imported} imported` : null,
     ].filter(Boolean)
-    const suffix = rangeLabel ? ` (${rangeLabel})` : ''
+    const suffix = rangeLabel ? ` · ${rangeLabel}` : ''
     return parts.length > 0
-      ? `Synced ${parts.join(', ')} from ${result.scanned} Strava activities${suffix}.`
-      : `Scanned ${result.scanned} Strava activities${suffix} — nothing new to sync.`
+      ? `${parts.join(', ')}${suffix}`
+      : `Nothing new${suffix}`
   }
 
   function handleSyncRecent() {
@@ -71,10 +85,9 @@ export function StravaConnectCard({
     setSyncResult(null)
     startTransition(async () => {
       try {
-        const result = await syncStravaActivities()
-        setSyncResult(formatSyncOutcome(result))
+        setSyncResult(formatSyncOutcome(await syncStravaActivities()))
       } catch (err) {
-        setActionError(err instanceof Error ? err.message : 'Sync failed')
+        setActionError(toStravaUserMessage(err, 'Could not sync with Strava. Please try again.'))
       }
     })
   }
@@ -84,12 +97,11 @@ export function StravaConnectCard({
     setSyncResult(null)
     startTransition(async () => {
       try {
-        const result = await syncStravaHistoryForFitness()
-        setSyncResult(
-          `${formatSyncOutcome(result, 'last 3 months')} Fitness profile will use this history.`,
-        )
+        setSyncResult(formatSyncOutcome(await syncStravaHistoryForFitness(), '3 months'))
       } catch (err) {
-        setActionError(err instanceof Error ? err.message : 'History sync failed')
+        setActionError(
+          toStravaUserMessage(err, 'Could not import Strava history. Please try again.'),
+        )
       }
     })
   }
@@ -103,7 +115,7 @@ export function StravaConnectCard({
         const rangeLabel = fromKey === toKey ? fromKey : `${fromKey} → ${toKey}`
         setSyncResult(formatSyncOutcome(result, rangeLabel))
       } catch (err) {
-        setActionError(err instanceof Error ? err.message : 'Sync failed')
+        setActionError(toStravaUserMessage(err, 'Could not sync with Strava. Please try again.'))
       }
     })
   }
@@ -114,14 +126,12 @@ export function StravaConnectCard({
     startTransition(async () => {
       try {
         await setStravaAutoSyncEnabled(next)
-        setSyncResult(
-          next
-            ? 'Auto-sync enabled — activities sync when you open the app.'
-            : 'Auto-sync disabled — use manual sync below.',
-        )
+        setSyncResult(next ? 'Auto-sync on.' : 'Auto-sync off.')
       } catch (err) {
         setAutoSyncEnabled(!next)
-        setActionError(err instanceof Error ? err.message : 'Could not update auto-sync')
+        setActionError(
+          toStravaUserMessage(err, 'Could not update auto-sync. Please try again.'),
+        )
       }
     })
   }
@@ -132,163 +142,145 @@ export function StravaConnectCard({
       try {
         await disconnectStrava()
       } catch (err) {
-        setActionError(err instanceof Error ? err.message : 'Disconnect failed')
+        setActionError(
+          toStravaUserMessage(err, 'Could not disconnect Strava. Please try again.'),
+        )
       }
     })
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start gap-4">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#FC4C02]/15">
-          <Activity className="h-6 w-6 text-[#FC4C02]" />
+    <div className="tt-integration-block space-y-3">
+      {!compact ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-base font-semibold">Strava</h2>
+          <Badge
+            variant={connected ? 'default' : 'outline'}
+            className={
+              connected ? 'bg-green-500/15 text-green-700 dark:text-green-400' : undefined
+            }
+          >
+            {connected ? 'Connected' : 'Not connected'}
+          </Badge>
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-lg font-semibold">Strava</h2>
-            {connected ? (
-              <Badge className="bg-green-500/15 text-green-700 dark:text-green-400">
-                Connected
-              </Badge>
-            ) : (
-              <Badge variant="outline">Not connected</Badge>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Import completed activities and match them to planned workouts by date and sport.
-          </p>
+      ) : (
+        <div className="tt-integration-status-row">
+          <Badge
+            variant={connected ? 'default' : 'outline'}
+            className={
+              connected ? 'bg-green-500/15 text-green-700 dark:text-green-400' : undefined
+            }
+          >
+            {connected ? 'Connected' : 'Not connected'}
+          </Badge>
+          {connected && summary ? (
+            <p className="text-xs text-muted-foreground">
+              {summary.linkedActivities} linked · Last sync {formatLastSync(summary.lastSyncedAt)}
+            </p>
+          ) : null}
         </div>
-      </div>
-
-      {!configured && (
-        <p className="rounded-2xl bg-muted/60 px-4 py-3 text-sm text-muted-foreground">
-          Add <code className="text-xs">STRAVA_CLIENT_ID</code> and{' '}
-          <code className="text-xs">STRAVA_CLIENT_SECRET</code> to your environment to enable
-          Strava.
-        </p>
       )}
 
-      {errorMessage && (
-        <p className="rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+      {!configured ? (
+        <p className="rounded-lg bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
+          Strava is not configured on this server.
+        </p>
+      ) : null}
+
+      {errorMessage ? (
+        <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
           {errorMessage}
         </p>
-      )}
-
-      {successMessage && (
-        <p className="rounded-2xl bg-green-500/10 px-4 py-3 text-sm text-green-700 dark:text-green-400">
+      ) : null}
+      {successMessage ? (
+        <p className="rounded-lg bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
           {successMessage}
         </p>
-      )}
-
-      {actionError && (
-        <p className="rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-400">
+      ) : null}
+      {actionError ? (
+        <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
           {actionError}
         </p>
-      )}
+      ) : null}
+      {syncResult ? (
+        <p className="rounded-lg bg-brand/10 px-3 py-2 text-sm text-brand">{syncResult}</p>
+      ) : null}
 
-      {syncResult && (
-        <p className="rounded-2xl bg-brand/10 px-4 py-3 text-sm text-brand">{syncResult}</p>
-      )}
+      {!connected && configured ? (
+        <Button asChild className="w-full sm:w-auto">
+          <Link href="/api/strava/connect">Connect Strava</Link>
+        </Button>
+      ) : null}
 
-      {connected && summary && (
+      {connected ? (
         <>
-          <dl className="grid gap-2 text-sm sm:grid-cols-2">
-            <div className="rounded-xl bg-muted/40 px-3 py-2">
-              <dt className="text-xs text-muted-foreground">Strava athlete ID</dt>
-              <dd className="font-medium">{summary.stravaAthleteId}</dd>
-            </div>
-            <div className="rounded-xl bg-muted/40 px-3 py-2">
-              <dt className="text-xs text-muted-foreground">Linked activities</dt>
-              <dd className="font-medium">{summary.linkedActivities}</dd>
-            </div>
-            <div className="rounded-xl bg-muted/40 px-3 py-2">
-              <dt className="text-xs text-muted-foreground">Last sync</dt>
-              <dd className="font-medium">
-                {summary.lastSyncedAt ? summary.lastSyncedAt.toLocaleString() : 'Never'}
-              </dd>
-            </div>
-            <div className="rounded-xl bg-muted/40 px-3 py-2">
-              <dt className="text-xs text-muted-foreground">Scopes</dt>
-              <dd className="font-medium">{summary.scope}</dd>
-            </div>
-          </dl>
+          <label className="tt-integration-check">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-[#FC4C02]"
+              checked={autoSyncEnabled}
+              disabled={isPending}
+              onChange={(e) => handleAutoSyncToggle(e.target.checked)}
+            />
+            <span>Auto-sync</span>
+          </label>
 
-          <div className="rounded-xl border border-border/60 px-3 py-3">
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                className="mt-1 h-4 w-4 accent-[#FC4C02]"
-                checked={autoSyncEnabled}
-                disabled={isPending}
-                onChange={(e) => handleAutoSyncToggle(e.target.checked)}
-              />
-              <span className="min-w-0">
-                <span className="block text-sm font-medium text-foreground">Auto-sync</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  When enabled, Strava activities sync automatically when you open the app (about
-                  once per hour). Turn off to sync only manually.
-                </span>
-              </span>
-            </label>
+          <div className="tt-integration-actions">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={isPending}
+              onClick={handleSyncHistory}
+              className="gap-1.5"
+            >
+              <RefreshCw className={cn('h-3.5 w-3.5', isPending && 'animate-spin')} />
+              {isPending ? 'Syncing…' : 'Import 3 months'}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isPending}
+              onClick={handleSyncRecent}
+            >
+              Sync recent
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={isPending}
+              onClick={() => setShowRange((v) => !v)}
+            >
+              {showRange ? 'Hide dates' : 'Custom dates'}
+            </Button>
           </div>
 
-          <div className="space-y-3 rounded-xl border border-border/60 px-3 py-3">
-            <div>
-              <p className="text-sm font-medium text-foreground">Manual sync</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Import up to 3 months for a stronger Fitness profile, sync recent activity, or pick
-                a custom range (max 90 days).
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={isPending}
-                onClick={handleSyncHistory}
-                className="gap-2"
-              >
-                <RefreshCw className={cn('h-3.5 w-3.5', isPending && 'animate-spin')} />
-                {isPending ? 'Syncing…' : 'Import last 3 months'}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={isPending}
-                onClick={handleSyncRecent}
-                className="gap-2"
-              >
-                Sync recent
-              </Button>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <FormField label="From">
-                <DateField
-                  value={fromKey}
-                  max={todayDateKey()}
-                  onChange={(next) => {
-                    setFromKey(next)
-                    if (toKey < next) setToKey(next)
-                  }}
-                  disabled={isPending}
-                />
-              </FormField>
-              <FormField label="To">
-                <DateField
-                  value={toKey}
-                  min={fromKey}
-                  max={todayDateKey()}
-                  onChange={setToKey}
-                  disabled={isPending}
-                />
-              </FormField>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
+          {showRange ? (
+            <div className="space-y-2 rounded-lg border border-border/60 p-3">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <FormField label="From">
+                  <DateField
+                    value={fromKey}
+                    max={todayDateKey()}
+                    onChange={(next) => {
+                      setFromKey(next)
+                      if (toKey < next) setToKey(next)
+                    }}
+                    disabled={isPending}
+                  />
+                </FormField>
+                <FormField label="To">
+                  <DateField
+                    value={toKey}
+                    min={fromKey}
+                    max={todayDateKey()}
+                    onChange={setToKey}
+                    disabled={isPending}
+                  />
+                </FormField>
+              </div>
               <Button
                 type="button"
                 variant="secondary"
@@ -296,72 +288,38 @@ export function StravaConnectCard({
                 disabled={isPending || !fromKey || !toKey}
                 onClick={handleSyncRange}
               >
-                {fromKey === toKey ? 'Sync this day' : 'Sync date range'}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={isPending}
-                onClick={() => {
-                  setFromKey(todayDateKey())
-                  setToKey(todayDateKey())
-                }}
-              >
-                Use today
+                Sync range
               </Button>
             </div>
-          </div>
-        </>
-      )}
+          ) : null}
 
-      <div className="flex flex-wrap gap-2">
-        {!connected && configured && (
-          <Button asChild variant="secondary">
-            <Link href="/api/strava/connect">Connect with Strava</Link>
-          </Button>
-        )}
-
-        {connected && (
-          <>
-            <Button asChild variant="secondary" className="gap-2">
+          <div className="tt-integration-actions tt-integration-actions--secondary">
+            <Button asChild variant="ghost" size="sm" className="gap-1.5">
               <Link href="/api/strava/connect?switch=1">
-                <Users className="h-4 w-4" />
-                Switch Strava account
+                <Users className="h-3.5 w-3.5" />
+                Switch account
               </Link>
             </Button>
             <Button
               type="button"
               variant="ghost"
+              size="sm"
               disabled={isPending}
               onClick={handleDisconnect}
-              className="gap-2"
+              className="gap-1.5"
             >
-              <Unplug className="h-4 w-4" />
+              <Unplug className="h-3.5 w-3.5" />
               Disconnect
             </Button>
-            <Button asChild variant="ghost" className="gap-2">
+            <Button asChild variant="ghost" size="sm" className="gap-1.5">
               <a href="https://www.strava.com/athlete/training" target="_blank" rel="noreferrer">
-                Open Strava
-                <ExternalLink className="h-4 w-4" />
+                Open
+                <ExternalLink className="h-3.5 w-3.5" />
               </a>
             </Button>
-          </>
-        )}
-      </div>
-
-      {connected ? (
-        <p className="text-xs text-muted-foreground">
-          Switch Strava account opens Strava’s login so you can authorize a different athlete
-          (not only the email used for TrainTrack) and replace the link on this profile.
-        </p>
+          </div>
+        </>
       ) : null}
-
-      <p className="text-xs text-muted-foreground">
-        Requires scopes <code>read</code>, <code>activity:read_all</code>, and{' '}
-        <code>profile:read_all</code>. Activities are matched to planned workouts (same day or
-        nearby), and unmatched ones are added as self-logged sessions.
-      </p>
     </div>
   )
 }

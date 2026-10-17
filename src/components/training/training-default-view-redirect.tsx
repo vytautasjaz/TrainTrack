@@ -2,7 +2,6 @@
 
 import { useLayoutEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { TrainingPageSkeleton } from '@/components/ui/route-skeletons'
 import {
   readStoredTrainingDefaultView,
   resolveTrainingDefaultView,
@@ -35,5 +34,5 @@ export function TrainingDefaultViewRedirect({
     router.replace(trainingDefaultViewHref(view))
   }, [router, role])
 
-  return <TrainingPageSkeleton />
+  return null
 }

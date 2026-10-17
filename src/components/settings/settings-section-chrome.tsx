@@ -51,21 +51,26 @@ export function SettingsPanel({
   id,
   title,
   description,
+  icon,
   children,
   className,
 }: {
   id: string
   title: string
   description?: string
+  icon?: ReactNode
   children: ReactNode
   className?: string
 }) {
   return (
     <section id={id} className={cn('tt-settings-panel scroll-mt-24', className)}>
       <div className="tt-settings-panel-header">
-        <h2 className="text-[17px] font-semibold tracking-tight text-[var(--tt-ink,#111)]">
-          {title}
-        </h2>
+        <div className="flex items-center gap-2.5">
+          {icon ? <span className="tt-settings-panel-icon shrink-0">{icon}</span> : null}
+          <h2 className="text-[17px] font-semibold tracking-tight text-[var(--tt-ink,#111)]">
+            {title}
+          </h2>
+        </div>
         {description ? (
           <p className="mt-1 text-[13px] leading-relaxed text-[var(--tt-ink-soft,#6b6b6b)]">
             {description}
@@ -100,6 +105,24 @@ export function SettingsGroup({
         </div>
       ) : null}
       {children}
+    </div>
+  )
+}
+
+/** Compact settings row: label left, control right. */
+export function SettingsPrefRow({
+  label,
+  children,
+  className,
+}: {
+  label: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <div className={cn('tt-settings-pref-row', className)}>
+      <p className="tt-settings-pref-row-label">{label}</p>
+      <div className="tt-settings-pref-row-control">{children}</div>
     </div>
   )
 }

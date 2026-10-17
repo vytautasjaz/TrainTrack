@@ -12,6 +12,7 @@ import {
   unlinkStravaFromRace,
   unlinkStravaFromRaceLeg,
 } from '@/app/actions/strava'
+import { toStravaUserMessage } from '@/lib/strava/errors'
 import type { StravaRaceActivityPickItem } from '@/lib/strava/sync'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -81,7 +82,9 @@ export function RaceStravaLinkPicker({
       })
       .catch((err) => {
         if (!cancelled) {
-          setLoadError(err instanceof Error ? err.message : 'Could not load Strava activities')
+          setLoadError(
+            toStravaUserMessage(err, 'Could not load Strava activities. Please try again.'),
+          )
           setItems([])
         }
       })
@@ -106,7 +109,7 @@ export function RaceStravaLinkPicker({
         router.refresh()
         onChanged?.()
       } catch (err) {
-        setLoadError(err instanceof Error ? err.message : 'Could not link activity')
+        setLoadError(toStravaUserMessage(err, 'Could not link that Strava activity.'))
       } finally {
         setAttachingId(null)
       }

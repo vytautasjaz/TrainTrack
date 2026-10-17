@@ -35,11 +35,15 @@ type TrainingZonesTabsProps = {
   embedded?: boolean
 }
 
-const EMBEDDED_TABS: { id: ZoneTab; label: string }[] = [
-  { id: 'run', label: 'Pace' },
+const EMBEDDED_TABS: {
+  id: ZoneTab
+  label: string
+  sport?: WorkoutType
+}[] = [
+  { id: 'run', label: 'Pace', sport: WorkoutType.RUN },
   { id: 'hr', label: 'Heart rate' },
-  { id: 'bike', label: 'Bike' },
-  { id: 'swim', label: 'Swim CSS' },
+  { id: 'bike', label: 'Bike', sport: WorkoutType.BIKE },
+  { id: 'swim', label: 'Swim CSS', sport: WorkoutType.SWIM },
 ]
 
 export function TrainingZonesTabs({
@@ -102,20 +106,36 @@ export function TrainingZonesTabs({
   }, [dirty])
 
   const tabControl = embedded ? (
-    <div className="flex flex-wrap gap-1 rounded-[8px] border border-[var(--tt-line,#ebebeb)] p-0.5">
+    <div className="-mx-1 flex gap-1 overflow-x-auto rounded-[8px] border border-[var(--tt-line,#ebebeb)] p-0.5 scrollbar-none sm:mx-0 sm:flex-wrap sm:overflow-visible">
       {EMBEDDED_TABS.map((item) => (
         <button
           key={item.id}
           type="button"
           onClick={() => requestTab(item.id)}
           className={cn(
-            'rounded-[6px] px-3 py-1.5 text-[12px] font-semibold transition',
+            'inline-flex shrink-0 items-center gap-1.5 rounded-[6px] px-2.5 py-2 text-[12px] font-semibold transition sm:px-3 sm:py-1.5',
             tab === item.id
               ? 'bg-[var(--tt-ink,#111)] text-white'
               : 'text-[var(--tt-ink-faint,#9a9a9a)] hover:text-[var(--tt-ink,#111)]',
           )}
         >
-          {item.label}
+          {item.sport ? (
+            <WorkoutSportIcon
+              type={item.sport}
+              size="xs"
+              className="!h-5 !w-5 !rounded"
+            />
+          ) : (
+            <span
+              className={cn(
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded',
+                tab === item.id ? 'bg-white/15 text-white' : 'bg-rose-500/15 text-rose-600',
+              )}
+            >
+              <Heart className="h-3 w-3" strokeWidth={2} aria-hidden />
+            </span>
+          )}
+          <span className="whitespace-nowrap">{item.label}</span>
         </button>
       ))}
     </div>
@@ -243,7 +263,6 @@ export function TrainingZonesTabs({
       <SettingsPanel
         id="zones"
         title="Training zones"
-        description="Your zones for prescriptions, structure intensity, and tools. Only you can change these — a coach may propose adjustments from Athletes."
         className={className}
       >
         {zoneForms}

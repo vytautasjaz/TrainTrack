@@ -3250,14 +3250,144 @@ body {
 .tt-settings-panel-header {
   border-bottom: 1px solid var(--tt-line, #ebebeb);
   background: color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 72%, #ffffff);
-  padding: 1rem 1.25rem 0.875rem;
+  padding: 0.875rem 1rem 0.75rem;
 }
 
 .tt-settings-panel-body {
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding: 1rem 1.25rem 1.25rem;
+  padding: 0.875rem 1rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .tt-settings-panel-header {
+    padding: 1rem 1.25rem 0.875rem;
+  }
+
+  .tt-settings-panel-body {
+    padding: 1rem 1.25rem 1.25rem;
+  }
+}
+
+/* Mobile settings hub — full vertical list (iOS / Android pattern) */
+.tt-settings-hub-list {
+  overflow: hidden;
+  border: 1px solid var(--tt-line, #ebebeb);
+  border-radius: 12px;
+  background: var(--tt-surface, #ffffff);
+  box-shadow: var(--tt-shadow, 0 1px 2px rgb(17 17 17 / 0.04), 0 8px 24px rgb(17 17 17 / 0.04));
+}
+
+.tt-settings-hub-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--tt-line, #ebebeb);
+  padding: 0.875rem 1rem;
+  text-align: left;
+  transition: background-color 120ms ease;
+}
+
+.tt-settings-hub-list > li:last-child .tt-settings-hub-row {
+  border-bottom: 0;
+}
+
+.tt-settings-hub-row:active,
+.tt-settings-hub-row:hover {
+  background: color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 80%, #ffffff);
+}
+
+.tt-settings-hub-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tt-ink, #111);
+}
+
+.tt-settings-hub-desc {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--tt-ink-soft, #6b6b6b);
+}
+
+.tt-settings-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin: 0 0 0.35rem -0.25rem;
+  padding: 0.25rem 0.35rem;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tt-ink-soft, #6b6b6b);
+}
+
+.tt-settings-back:hover {
+  background: var(--tt-sidebar, #f5f5f5);
+  color: var(--tt-ink, #111);
+}
+
+.tt-settings-mobile-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--tt-ink, #111);
+}
+
+/* Desktop sidebar nav */
+.tt-settings-nav {
+  display: none;
+}
+
+.tt-settings-nav-track {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tt-settings-nav-item {
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--tt-ink-soft, #6b6b6b);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.tt-settings-nav-item:hover {
+  background: var(--tt-sidebar, #f5f5f5);
+  color: var(--tt-ink, #111);
+}
+
+.tt-settings-nav-item--active {
+  background: var(--tt-ink, #111);
+  color: #fff;
+}
+
+.tt-settings-nav-item--active:hover {
+  background: var(--tt-ink, #111);
+  color: #fff;
+}
+
+@media (min-width: 1024px) {
+  .tt-settings-nav {
+    display: block;
+    position: sticky;
+    top: 1rem;
+    width: 11.5rem;
+    flex-shrink: 0;
+  }
+
+  .tt-settings-hub {
+    display: none;
+  }
 }
 
 .tt-settings-group + .tt-settings-group {
@@ -3285,6 +3415,64 @@ body {
   color: var(--tt-ink-soft, #6b6b6b);
 }
 
+.tt-settings-pref-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.tt-settings-pref-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-block: 0.75rem;
+  border-bottom: 1px solid var(--tt-line, #ebebeb);
+}
+
+.tt-settings-pref-row:first-child {
+  padding-top: 0;
+}
+
+.tt-settings-pref-row:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.tt-settings-pref-row-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tt-ink, #111);
+}
+
+.tt-settings-pref-row-control {
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .tt-settings-pref-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .tt-settings-pref-row-label {
+    flex-shrink: 0;
+    width: 8.5rem;
+  }
+
+  .tt-settings-pref-row-control {
+    display: flex;
+    justify-content: flex-end;
+    flex: 1;
+  }
+
+  .tt-settings-pref-row-control > * {
+    width: auto;
+    max-width: 22rem;
+  }
+}
+
 .tt-settings-divider {
   height: 1px;
   background: var(--tt-line, #ebebeb);
@@ -3307,6 +3495,55 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.875rem;
+}
+
+/* Integration service bodies (Strava / Calendar) */
+.tt-integration-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.tt-integration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.tt-integration-actions--secondary {
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--tt-line, #ebebeb);
+}
+
+.tt-integration-check {
+  display: inline-flex;
+  cursor: pointer;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tt-ink, #111);
+}
+
+.tt-integration-feed {
+  border: 1px solid var(--tt-line, #ebebeb);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.tt-integration-feed-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+@media (min-width: 640px) {
+  .tt-integration-feed-head {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 
 .tt-settings-block .card-elevated {
@@ -6941,6 +7178,17 @@ html.tt-week-portrait-lock body {
 
 .segmented-control-item-inactive {
   @apply text-muted-foreground hover:text-foreground;
+}
+
+/* Settings prefs: selected chip on charcoal so Metric/Imperial etc. read clearly */
+.tt-settings-panel .segmented-control-item-active {
+  background: var(--tt-ink, #111);
+  color: #fff;
+  box-shadow: none;
+}
+
+.tt-settings-panel .segmented-control-item-inactive:hover {
+  color: var(--tt-ink, #111);
 }
 
 /* ——— Pill select (loose filter / preset chips) ——— */

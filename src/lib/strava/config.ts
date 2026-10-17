@@ -1,10 +1,15 @@
+import { StravaError } from './errors'
+
 export function getStravaConfig() {
   const clientId = process.env.STRAVA_CLIENT_ID
   const clientSecret = process.env.STRAVA_CLIENT_SECRET
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
   if (!clientId || !clientSecret) {
-    throw new Error('STRAVA_CLIENT_ID and STRAVA_CLIENT_SECRET must be set')
+    throw new StravaError(
+      'Strava is not configured on this server yet.',
+      'not_configured',
+    )
   }
 
   return {

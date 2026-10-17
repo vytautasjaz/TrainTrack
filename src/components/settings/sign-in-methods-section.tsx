@@ -9,21 +9,93 @@ import { linkGoogleAccount, setPassword, unlinkProvider } from '@/app/actions/au
 import { SettingsPanel } from '@/components/settings/settings-section-chrome'
 import { cn } from '@/lib/utils'
 
-const googleEnabled = Boolean(process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET)
-
 type SignInMethodsSectionProps = {
   hasGoogle: boolean
   hasPassword: boolean
+  /** Server-only: AUTH_GOOGLE_* are not available in the client bundle. */
+  googleConfigured: boolean
   embedded?: boolean
 }
 
 export function SignInMethodsSection({
   hasGoogle,
   hasPassword,
+  googleConfigured,
   embedded = false,
 }: SignInMethodsSectionProps) {
   const [passwordPending, startPasswordTransition] = useTransition()
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordEditing, setPasswordEditing] = useState(false)
+
+  function openPasswordForm() {
+    setPasswordError(null)
+    setPasswordEditing(true)
+  }
+
+  function closePasswordForm() {
+    setPasswordError(null)
+    setPasswordEditing(false)
+  }
+
+  const passwordForm = (
+    <form
+      action={(formData) => {
+        setPasswordError(null)
+        const password = String(formData.get('password') ?? '')
+        const confirmPassword = String(formData.get('confirmPassword') ?? '')
+        if (password !== confirmPassword) {
+          setPasswordError('Passwords do not match')
+          return
+        }
+        startPasswordTransition(async () => {
+          try {
+            await setPassword(formData)
+            setPasswordEditing(false)
+          } catch (err) {
+            setPasswordError(err instanceof Error ? err.message : 'Could not update password')
+          }
+        })
+      }}
+      className="mt-3 flex flex-col gap-2"
+    >
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+        <Input
+          type="password"
+          name="password"
+          placeholder="New password (min. 8)"
+          minLength={8}
+          required
+          autoFocus
+          autoComplete="new-password"
+          className="sm:flex-1"
+        />
+        <Input
+          type="password"
+          name="confirmPassword"
+          placeholder="Confirm password"
+          minLength={8}
+          required
+          autoComplete="new-password"
+          className="sm:flex-1"
+        />
+      </div>
+      <FormError message={passwordError} />
+      <div className="flex gap-2">
+        <Button type="submit" variant="secondary" size="sm" disabled={passwordPending}>
+          {passwordPending ? 'Saving…' : hasPassword ? 'Update password' : 'Set password'}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          disabled={passwordPending}
+          onClick={closePasswordForm}
+        >
+          Cancel
+        </Button>
+      </div>
+    </form>
+  )
 
   const methodsBody = (
     <>
@@ -52,7 +124,7 @@ export function SignInMethodsSection({
               {hasGoogle ? 'Connected' : 'Not linked'}
             </p>
           </div>
-          {googleEnabled ? (
+          {googleConfigured ? (
             hasGoogle ? (
               <form action={unlinkProvider}>
                 <input type="hidden" name="provider" value="google" />
@@ -77,7 +149,7 @@ export function SignInMethodsSection({
             embedded ? 'py-3' : 'rounded-[6px] border border-border/60 px-3 py-2.5',
           )}
         >
-          <div className={cn(embedded && 'flex flex-wrap items-start justify-between gap-3')}>
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[13px] font-semibold text-[var(--tt-ink,#111)]">
                 Email &amp; password
@@ -91,43 +163,19 @@ export function SignInMethodsSection({
                 {hasPassword ? 'Set' : 'Not set'}
               </p>
             </div>
-            {!embedded ? (
-              <Caption className="mb-2 mt-1 block w-full">
-                {hasPassword ? 'Change your password' : 'Add a password for email sign-in'}
-              </Caption>
+            {!passwordEditing ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-[12px] font-medium"
+                onClick={openPasswordForm}
+              >
+                {hasPassword ? 'Update password' : 'Set password'}
+              </Button>
             ) : null}
           </div>
-          <form
-            action={(formData) => {
-              setPasswordError(null)
-              startPasswordTransition(async () => {
-                try {
-                  await setPassword(formData)
-                } catch (err) {
-                  setPasswordError(err instanceof Error ? err.message : 'Could not update password')
-                }
-              })
-            }}
-            className={cn(
-              'flex flex-col gap-2',
-              embedded ? 'mt-3 sm:flex-row sm:items-start' : 'sm:flex-row',
-            )}
-          >
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <Input
-                type="password"
-                name="password"
-                placeholder="At least 8 characters"
-                minLength={8}
-                required
-                className="sm:flex-1"
-              />
-              <FormError message={passwordError} />
-            </div>
-            <Button type="submit" variant="secondary" size="sm" disabled={passwordPending}>
-              {passwordPending ? 'Saving…' : hasPassword ? 'Update password' : 'Set password'}
-            </Button>
-          </form>
+          {passwordEditing ? passwordForm : null}
         </li>
       </ul>
     </>
@@ -135,11 +183,7 @@ export function SignInMethodsSection({
 
   if (embedded) {
     return (
-      <SettingsPanel
-        id="sign-in"
-        title="Sign-in methods"
-        description="How you authenticate. Keep at least one method linked."
-      >
+      <SettingsPanel id="sign-in" title="Sign-in methods">
         {methodsBody}
       </SettingsPanel>
     )
@@ -157,7 +201,7 @@ export function SignInMethodsSection({
             <p className="text-sm font-medium">Google</p>
             <Caption>{hasGoogle ? 'Linked' : 'Not linked'}</Caption>
           </div>
-          {googleEnabled ? (
+          {googleConfigured ? (
             hasGoogle ? (
               <form action={unlinkProvider}>
                 <input type="hidden" name="provider" value="google" />
@@ -177,40 +221,24 @@ export function SignInMethodsSection({
           )}
         </div>
         <div className="rounded-[6px] border border-border/60 px-3 py-2.5">
-          <p className="text-sm font-medium">
-            Email password {hasPassword ? '(set)' : '(not set)'}
-          </p>
-          <Caption className="mb-2">
-            {hasPassword ? 'Change your password' : 'Add a password for email sign-in'}
-          </Caption>
-          <form
-            action={(formData) => {
-              setPasswordError(null)
-              startPasswordTransition(async () => {
-                try {
-                  await setPassword(formData)
-                } catch (err) {
-                  setPasswordError(err instanceof Error ? err.message : 'Could not update password')
-                }
-              })
-            }}
-            className="flex flex-col gap-2 sm:flex-row"
-          >
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <Input
-                type="password"
-                name="password"
-                placeholder="At least 8 characters"
-                minLength={8}
-                required
-                className="sm:flex-1"
-              />
-              <FormError message={passwordError} />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium">
+                Email password {hasPassword ? '(set)' : '(not set)'}
+              </p>
+              {!passwordEditing ? (
+                <Caption className="mt-0.5">
+                  {hasPassword ? 'Change your password' : 'Add a password for email sign-in'}
+                </Caption>
+              ) : null}
             </div>
-            <Button type="submit" variant="secondary" size="sm" disabled={passwordPending}>
-              {passwordPending ? 'Saving…' : hasPassword ? 'Update password' : 'Set password'}
-            </Button>
-          </form>
+            {!passwordEditing ? (
+              <Button type="button" variant="outline" size="sm" onClick={openPasswordForm}>
+                {hasPassword ? 'Update password' : 'Set password'}
+              </Button>
+            ) : null}
+          </div>
+          {passwordEditing ? passwordForm : null}
         </div>
       </div>
     </section>

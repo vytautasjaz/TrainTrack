@@ -12,6 +12,7 @@ import {
   workoutTypeForRaceLeg,
 } from '@/lib/race-legs'
 import { fetchAllRecentActivities, fetchStravaActivity, fetchStravaActivityLaps, fetchStravaActivityStreams, getValidAccessToken, stravaActivityUrl } from './client'
+import { StravaError } from './errors'
 import { syncStravaAvatarForUser } from './avatar'
 import { mapStravaTypeToWorkoutType, workoutTypesCompatible } from './map-sport'
 import { stravaRoutePolyline, type StravaActivity } from './types'
@@ -123,18 +124,25 @@ function resolveSyncWindow(options: StravaSyncOptions | undefined, lastSyncedAt:
 
   if (fromKey || toKey) {
     if (!fromKey || !toKey || !isValidDateKey(fromKey) || !isValidDateKey(toKey)) {
-      throw new Error('Enter a valid date or date range (YYYY-MM-DD).')
+      throw new StravaError(
+        'Enter a valid date or date range (YYYY-MM-DD).',
+        'validation',
+      )
     }
     if (toKey < fromKey) {
-      throw new Error('End date must be on or after the start date.')
+      throw new StravaError(
+        'End date must be on or after the start date.',
+        'validation',
+      )
     }
     // Cap range to limit Strava API load
     const start = parseDateOnly(fromKey)
     const end = parseDateOnly(toKey)
     const maxMs = STRAVA_HISTORY_LOOKBACK_DAYS * 24 * 60 * 60 * 1000
     if (end.getTime() - start.getTime() > maxMs) {
-      throw new Error(
+      throw new StravaError(
         `Date range cannot exceed ${STRAVA_HISTORY_LOOKBACK_DAYS} days.`,
+        'validation',
       )
     }
     const afterUnix = Math.floor(start.getTime() / 1000) - 1
@@ -491,16 +499,23 @@ export async function syncStravaActivitiesForUser(
     },
   })
   if (!athlete) {
-    throw new Error('Athlete not found')
+    throw new StravaError('Athlete profile not found.', 'validation')
   }
   const privacyPrefs = normalizeAthletePrivacyPrefs(athlete.privacyPrefs)
   if (athlete.userId !== userId) {
-    throw new Error('Strava can only be synced for your own athlete profile')
+    throw new StravaError(
+      'Strava can only be synced for your own athlete profile.',
+      'forbidden',
+      { code: 'FORBIDDEN' },
+    )
   }
 
   const connection = await prisma.stravaConnection.findUnique({ where: { userId } })
   if (!connection) {
-    throw new Error('Strava is not connected')
+    throw new StravaError(
+      'Strava is not connected. Connect it in Settings → Integrations.',
+      'not_connected',
+    )
   }
 
   const accessToken = await getValidAccessToken(userId)
@@ -874,7 +889,10 @@ export async function syncDueStravaConnections(opts?: {
 export async function setStravaAutoSyncEnabledForUser(userId: string, enabled: boolean) {
   const connection = await prisma.stravaConnection.findUnique({ where: { userId } })
   if (!connection) {
-    throw new Error('Strava is not connected')
+    throw new StravaError(
+      'Strava is not connected. Connect it in Settings → Integrations.',
+      'not_connected',
+    )
   }
 
   await prisma.stravaConnection.update({

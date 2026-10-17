@@ -26,19 +26,19 @@ const ROWS: {
   {
     key: 'stravaSkipOnlyMe',
     label: 'Skip Strava “Only you” activities',
-    hint: 'Activities you mark private on Strava will not be imported or auto-linked in TrainTrack.',
+    hint: 'Private Strava activities stay out of TrainTrack.',
     positive: true,
   },
   {
     key: 'stravaSkipFollowersOnly',
     label: 'Skip Strava “Followers” activities',
-    hint: 'Also exclude activities visible only to your Strava followers.',
+    hint: 'Followers-only activities stay out of TrainTrack.',
     positive: true,
   },
   {
     key: 'shareWorkoutLogWithCoach',
     label: 'Share workout log with coach',
-    hint: 'When off, your coach still sees the plan but not completions, metrics, Strava links, or extra self-logged workouts.',
+    hint: 'When off, coach sees the plan only — not completions or metrics.',
     positive: true,
   },
 ]

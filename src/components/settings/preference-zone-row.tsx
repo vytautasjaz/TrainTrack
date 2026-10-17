@@ -41,7 +41,7 @@ export function PreferenceZoneRow({
   return (
     <div
       className={cn(
-        'flex items-center gap-3 border-b border-border/40 px-3 py-2.5 last:border-b-0 sm:gap-4 sm:px-4 sm:py-3',
+        'flex flex-col gap-2 border-b border-border/40 px-3 py-2.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-4 sm:px-4 sm:py-3',
         className,
       )}
     >
@@ -51,7 +51,7 @@ export function PreferenceZoneRow({
           <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{hint}</p>
         ) : null}
       </div>
-      <div className="flex shrink-0 items-baseline justify-end gap-1">
+      <div className="flex shrink-0 items-baseline justify-end gap-1 self-end sm:self-auto">
         {children}
         {unit ? (
           <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
