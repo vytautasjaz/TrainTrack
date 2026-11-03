@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 type PageHeaderSize = 'default' | 'compact'
 
 type PageHeaderProps = {
-  /** Page H1 — Bebas Neue via `PageHeaderTitle`. */
+  /** Page H1 — Inter 800 via `PageHeaderTitle`. */
   title?: string
   description?: string
   /** Uppercase meta above the title (e.g. Training · Coach). */
@@ -17,8 +17,8 @@ type PageHeaderProps = {
   /** Right-side actions (view switch, Library, primary CTA). */
   action?: ReactNode
   /**
-   * `default` — mock page H1 (Bebas · 48px / text-5xl).
-   * `compact` — mock compact (Bebas · 30px / text-3xl).
+   * `default` — design-system page H1 (Inter 800, 32–56px).
+   * `compact` — smaller H1 (~30px).
    */
   size?: PageHeaderSize
   /** Compose with PageHeaderEyebrow / Title / Description / Actions when needed. */

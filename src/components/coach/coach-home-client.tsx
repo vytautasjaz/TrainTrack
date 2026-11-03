@@ -211,8 +211,8 @@ export function CoachHomeClient({
         <CoachHomeMobileHero greeting={greeting} name={coachName} />
       <div className="tt-home-mobile-sheet space-y-4 md:contents md:space-y-0">
         <header className="hidden min-w-0 md:mb-8 md:block">
-          <h1 className="font-[family-name:var(--font-display)] text-[2rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
-            Home
+          <h1 className="title-display">
+            Home<span className="tt-title-dot">.</span>
           </h1>
         </header>
 
@@ -232,8 +232,8 @@ export function CoachHomeClient({
 
       <div className="tt-home-mobile-sheet space-y-4 md:contents md:space-y-0">
         <header className="hidden min-w-0 md:mb-8 md:block">
-          <h1 className="font-[family-name:var(--font-display)] text-[2rem] font-normal uppercase leading-none tracking-tight text-[var(--tt-ink)]">
-            Home
+          <h1 className="title-display">
+            Home<span className="tt-title-dot">.</span>
           </h1>
         </header>
 

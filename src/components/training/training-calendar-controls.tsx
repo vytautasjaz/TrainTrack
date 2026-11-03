@@ -68,13 +68,24 @@ export function TrainingCalendarControls({
     calendar: calendarHref,
     compare: compareHref ?? weekHref,
   }
+  const viewOptions =
+    isCoach && compareHref
+      ? [
+          ...VIEW_OPTIONS,
+          {
+            id: 'compare' as const,
+            label: 'Compare',
+            Icon: PanelRightOpen,
+          },
+        ]
+      : VIEW_OPTIONS
 
   const viewSwitch = (
     <div className="contents">
       {/* Wrapper needed: .segmented-control sets display and overrides Tailwind `hidden`. */}
       <div className="hidden lg:block">
         <SegmentedControl aria-label="Calendar view">
-          {VIEW_OPTIONS.map(({ id, label, Icon }) => (
+          {viewOptions.map(({ id, label, Icon }) => (
             <SegmentedControlItem key={id} asChild active={view === id}>
               <Link href={viewHrefs[id]} className="inline-flex items-center gap-1.5">
                 <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={2} aria-hidden />
@@ -82,21 +93,6 @@ export function TrainingCalendarControls({
               </Link>
             </SegmentedControlItem>
           ))}
-          {isCoach && compareHref ? (
-            <SegmentedControlItem asChild active={view === 'compare'}>
-              <Link
-                href={compareHref}
-                className="inline-flex items-center gap-1.5"
-              >
-                <PanelRightOpen
-                  className="h-3.5 w-3.5 shrink-0"
-                  strokeWidth={2}
-                  aria-hidden
-                />
-                Compare
-              </Link>
-            </SegmentedControlItem>
-          ) : null}
         </SegmentedControl>
       </div>
 
@@ -105,7 +101,7 @@ export function TrainingCalendarControls({
         role="tablist"
         aria-label="Calendar view"
       >
-        {VIEW_OPTIONS.map(({ id, label, Icon }) => (
+        {viewOptions.map(({ id, label, Icon }) => (
           <Link
             key={id}
             href={viewHrefs[id]}
@@ -121,27 +117,6 @@ export function TrainingCalendarControls({
             <span>{label}</span>
           </Link>
         ))}
-        {isCoach && compareHref ? (
-          <Link
-            href={compareHref}
-            role="tab"
-            aria-selected={view === 'compare'}
-            aria-label="Compare"
-            className={cn(
-              'pill-select-item inline-flex h-8 items-center gap-1 px-2.5 py-0',
-              view === 'compare'
-                ? 'pill-select-item-active'
-                : 'pill-select-item-inactive',
-            )}
-          >
-            <PanelRightOpen
-              className="h-3.5 w-3.5 shrink-0"
-              strokeWidth={2}
-              aria-hidden
-            />
-            <span>Compare</span>
-          </Link>
-        ) : null}
       </div>
     </div>
   )

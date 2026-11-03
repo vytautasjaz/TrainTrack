@@ -4,14 +4,18 @@ import { WorkoutStatus, WorkoutType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import {
   addDateOnlyDays,
+  endOfMonthDateOnly,
   endOfWeekDateOnly,
   parseDateOnly,
+  startOfMonthDateOnly,
   startOfWeekDateOnly,
   toDateKey,
 } from '@/lib/dates'
 import {
+  getDayNotesForRange,
   getPlanWorkoutsInRange,
   getRacesForRange,
+  groupDayNotesByDate,
   groupWorkoutsByDate,
 } from '@/lib/queries'
 import {
@@ -38,11 +42,16 @@ import { onTrainingCalendarDataChanged } from '@/lib/calendar-invalidation'
 import { revalidatePath } from 'next/cache'
 import { structureDiagramPrismaValue } from '@/lib/workout-builder/structure-diagram'
 
+export type CoachCompareRange = 'week' | 'month'
+
 export type CoachCompareAthletePane = {
   kind: 'athlete'
   athleteId: string
   athleteName: string
   weekStartKey: string
+  /** First day of the visible month when range is month. */
+  monthStartKey: string
+  range: CoachCompareRange
   days: PlanDay[]
 }
 
@@ -53,28 +62,59 @@ export type CoachCompareLibraryPane = {
   weekIndex: number
   weekCount: number
   weekStartKey: string
+  monthStartKey: string
+  range: CoachCompareRange
   days: PlanDay[]
 }
 
-export async function getCoachCompareAthleteWeek(payload: {
-  athleteId: string
-  weekStartKey: string
-}): Promise<CoachCompareAthletePane> {
-  const session = await requireSession()
-  if (!isCoach(session)) throw new Error('Coach only')
-  await requireCoachOwnsAthlete(session.userId, payload.athleteId)
+function librarySessionToDetail(
+  session: {
+    id: string
+    dayOfWeek: number
+    sortOrder: number
+    type: WorkoutType
+    sessionType: import('@prisma/client').SessionType
+    title: string
+    description: string | null
+    plannedDistance: number | null
+    plannedDuration: number | null
+    plannedDistanceMeters: number | null
+    swimEnvironment: import('@prisma/client').SwimEnvironment | null
+    structure: unknown
+    coachNotes: string | null
+    tags: string[]
+  },
+  dateKey: string,
+): PlanWorkoutDetail {
+  return {
+    id: `library:${session.id}`,
+    dateKey,
+    type: session.type,
+    sessionType: session.sessionType,
+    title: session.title,
+    description: session.description,
+    plannedDistance: session.plannedDistance,
+    plannedDuration: session.plannedDuration,
+    plannedDistanceMeters: session.plannedDistanceMeters,
+    swimEnvironment: session.swimEnvironment,
+    status: WorkoutStatus.PLANNED,
+    sortOrder: session.sortOrder,
+    tags: session.tags,
+    coachNotes: session.coachNotes,
+    structure: null,
+    structureRaw: session.structure,
+    swimStructure: null,
+    isRace: false,
+    selfLogged: false,
+    result: null,
+  }
+}
 
-  const athlete = await prisma.athlete.findUnique({
-    where: { id: payload.athleteId },
-    select: { id: true, name: true },
-  })
-  if (!athlete) throw new Error('Athlete not found')
-
-  const weekStart = startOfWeekDateOnly(parseDateOnly(payload.weekStartKey))
-  const weekEnd = endOfWeekDateOnly(weekStart)
-  const [rawWorkouts, races] = await Promise.all([
-    getPlanWorkoutsInRange(payload.athleteId, weekStart, weekEnd),
-    getRacesForRange(payload.athleteId, weekStart, weekEnd),
+async function loadAthleteDays(athleteId: string, rangeStart: Date, rangeEnd: Date) {
+  const [rawWorkouts, races, dayNotesRaw] = await Promise.all([
+    getPlanWorkoutsInRange(athleteId, rangeStart, rangeEnd),
+    getRacesForRange(athleteId, rangeStart, rangeEnd),
+    getDayNotesForRange(athleteId, rangeStart, rangeEnd),
   ])
   const byDateRaw = groupWorkoutsByDate(rawWorkouts)
   const byDateWorkouts = new Map(
@@ -89,14 +129,52 @@ export async function getCoachCompareAthleteWeek(payload: {
     ]),
   )
   const byDate = mergeRacesIntoByDate(byDateWorkouts, races)
-  const dates = Array.from({ length: 7 }, (_, i) => addDateOnlyDays(weekStart, i))
-  const days = buildPlanTableDays(dates, byDate)
+  const notesByDate = groupDayNotesByDate(dayNotesRaw, 'coach')
+  const dates: Date[] = []
+  for (
+    let d = rangeStart;
+    d.getTime() <= rangeEnd.getTime();
+    d = addDateOnlyDays(d, 1)
+  ) {
+    dates.push(d)
+  }
+  return buildPlanTableDays(dates, byDate, notesByDate)
+}
+
+export async function getCoachCompareAthleteWeek(payload: {
+  athleteId: string
+  weekStartKey: string
+  range?: CoachCompareRange
+}): Promise<CoachCompareAthletePane> {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Coach only')
+  await requireCoachOwnsAthlete(session.userId, payload.athleteId)
+
+  const athlete = await prisma.athlete.findUnique({
+    where: { id: payload.athleteId },
+    select: { id: true, name: true },
+  })
+  if (!athlete) throw new Error('Athlete not found')
+
+  const range = payload.range ?? 'week'
+  const anchor = parseDateOnly(payload.weekStartKey)
+  const weekStart = startOfWeekDateOnly(anchor)
+  const monthStart = startOfMonthDateOnly(anchor)
+  const rangeStart =
+    range === 'month' ? startOfWeekDateOnly(monthStart) : weekStart
+  const rangeEnd =
+    range === 'month'
+      ? endOfWeekDateOnly(endOfMonthDateOnly(monthStart))
+      : endOfWeekDateOnly(weekStart)
+  const days = await loadAthleteDays(payload.athleteId, rangeStart, rangeEnd)
 
   return {
     kind: 'athlete',
     athleteId: athlete.id,
     athleteName: athlete.name,
     weekStartKey: toDateKey(weekStart),
+    monthStartKey: toDateKey(monthStart),
+    range,
     days,
   }
 }
@@ -112,14 +190,30 @@ export async function listCoachComparePlans() {
   }))
 }
 
-/** Map library plan weekIndex onto a calendar week for display/drop targets. */
+/** Map library plan weekIndex onto a calendar week/month for display/drop targets. */
 export async function getCoachCompareLibraryWeek(payload: {
   planId: string
   weekStartKey: string
   weekIndex: number
+  range?: CoachCompareRange
 }): Promise<CoachCompareLibraryPane> {
   const session = await requireSession()
   if (!isCoach(session)) throw new Error('Coach only')
+
+  const range = payload.range ?? 'week'
+  const anchor = parseDateOnly(payload.weekStartKey)
+  const weekStart = startOfWeekDateOnly(anchor)
+  const monthStart = startOfMonthDateOnly(anchor)
+  const gridStart =
+    range === 'month' ? startOfWeekDateOnly(monthStart) : weekStart
+  const gridEnd =
+    range === 'month'
+      ? endOfWeekDateOnly(endOfMonthDateOnly(monthStart))
+      : endOfWeekDateOnly(weekStart)
+  const weekSpan = Math.round(
+    (gridEnd.getTime() - gridStart.getTime()) / (7 * 24 * 60 * 60 * 1000),
+  ) + 1
+  const weekIndexEnd = payload.weekIndex + Math.max(1, weekSpan) - 1
 
   const plan = await prisma.trainingPlan.findFirst({
     where: { id: payload.planId, coachId: session.userId },
@@ -128,8 +222,17 @@ export async function getCoachCompareLibraryWeek(payload: {
       title: true,
       weekCount: true,
       sessions: {
-        where: { weekIndex: payload.weekIndex },
-        orderBy: [{ dayOfWeek: 'asc' }, { sortOrder: 'asc' }],
+        where: {
+          weekIndex: {
+            gte: payload.weekIndex,
+            lte: weekIndexEnd,
+          },
+        },
+        orderBy: [
+          { weekIndex: 'asc' },
+          { dayOfWeek: 'asc' },
+          { sortOrder: 'asc' },
+        ],
         select: {
           id: true,
           weekIndex: true,
@@ -153,41 +256,37 @@ export async function getCoachCompareLibraryWeek(payload: {
   })
   if (!plan) throw new Error('Plan not found')
 
-  const weekStart = startOfWeekDateOnly(parseDateOnly(payload.weekStartKey))
   const byDate = new Map<string, PlanWorkoutDetail[]>()
-  for (const session of plan.sessions) {
-    if (session.type === WorkoutType.REST || session.type === WorkoutType.RECOVERY) {
+  for (const planSession of plan.sessions) {
+    if (
+      planSession.type === WorkoutType.REST ||
+      planSession.type === WorkoutType.RECOVERY
+    ) {
       continue
     }
-    const date = addDateOnlyDays(weekStart, session.dayOfWeek)
-    const dateKey = toDateKey(date)
-    const detail: PlanWorkoutDetail = {
-      id: `library:${session.id}`,
-      dateKey,
-      type: session.type,
-      sessionType: session.sessionType,
-      title: session.title,
-      description: session.description,
-      plannedDistance: session.plannedDistance,
-      plannedDuration: session.plannedDuration,
-      plannedDistanceMeters: session.plannedDistanceMeters,
-      swimEnvironment: session.swimEnvironment,
-      status: WorkoutStatus.PLANNED,
-      sortOrder: session.sortOrder,
-      tags: session.tags,
-      coachNotes: session.coachNotes,
-      structure: null,
-      structureRaw: session.structure,
-      swimStructure: null,
-      isRace: false,
-      selfLogged: false,
-      result: null,
+    const weekOffset = planSession.weekIndex - payload.weekIndex
+    const date = addDateOnlyDays(
+      gridStart,
+      weekOffset * 7 + planSession.dayOfWeek,
+    )
+    if (date.getTime() < gridStart.getTime() || date.getTime() > gridEnd.getTime()) {
+      continue
     }
+    const dateKey = toDateKey(date)
+    const detail = librarySessionToDetail(planSession, dateKey)
     const list = byDate.get(dateKey) ?? []
     list.push(detail)
     byDate.set(dateKey, list)
   }
-  const dates = Array.from({ length: 7 }, (_, i) => addDateOnlyDays(weekStart, i))
+
+  const dates: Date[] = []
+  for (
+    let d = gridStart;
+    d.getTime() <= gridEnd.getTime();
+    d = addDateOnlyDays(d, 1)
+  ) {
+    dates.push(d)
+  }
   const days = buildPlanTableDays(dates, byDate)
 
   return {
@@ -197,6 +296,8 @@ export async function getCoachCompareLibraryWeek(payload: {
     weekIndex: payload.weekIndex,
     weekCount: plan.weekCount,
     weekStartKey: toDateKey(weekStart),
+    monthStartKey: toDateKey(monthStart),
+    range,
     days,
   }
 }

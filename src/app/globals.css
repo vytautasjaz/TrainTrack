@@ -2503,9 +2503,45 @@ body {
 }
 
 /* ─── Athlete Home / Dashboard ──────────────────────────────────────────── */
+/*
+ * Transparent so every screen shares .app-gradient (charcoal → #F5F6F7).
+ * Do not paint a solid grey sheet here — that made Settings/Inbox/Coach look
+ * flatter and darker than Training / Progress / Season.
+ */
 .tt-dashboard-page {
-  background: var(--tt-bg, #ffffff);
+  background: transparent;
   min-height: 100%;
+}
+
+/*
+ * Page H1 + blurb on the shared fade (Settings, Inbox, Coach, Athletes).
+ * Same light ink as Progress / Training sticky chrome.
+ */
+.tt-dashboard-page :is(.title-display, .title-page, .tt-inbox-page-title, .tt-settings-mobile-title),
+.tt-settings-page :is(.title-display, .title-page, .tt-settings-mobile-title) {
+  color: #f4f6fb;
+}
+
+.tt-dashboard-page .title-eyebrow,
+.tt-settings-page .title-eyebrow,
+.tt-dashboard-page [data-page-header] .title-eyebrow {
+  color: rgb(244 246 251 / 0.55);
+}
+
+.tt-dashboard-page .page-header-description,
+.tt-settings-page .page-header-description {
+  color: #a0a6b3;
+}
+
+.tt-dashboard-page .tt-settings-back,
+.tt-settings-page .tt-settings-back {
+  color: #c5cad3;
+}
+
+.tt-dashboard-page .tt-settings-back:hover,
+.tt-settings-page .tt-settings-back:hover {
+  background: rgb(255 255 255 / 0.08);
+  color: #f4f6fb;
 }
 
 .tt-dashboard-content {
@@ -2643,7 +2679,8 @@ body {
   margin-top: -1.1rem;
   padding: 1.15rem 1rem 1.5rem;
   border-radius: 1.15rem 1.15rem 0 0;
-  background: var(--tt-bg, #fff);
+  /* White surface on the shared fade — not page-grey #F5F6F7 */
+  background: var(--tt-v2-light-panel, #ffffff);
   box-shadow: 0 -8px 28px rgb(0 0 0 / 0.12);
 }
 
@@ -3181,15 +3218,15 @@ body {
 }
 
 .tt-dashboard-title {
-  /* Same Level 1 as PageHeaderTitle / mock `tt-mock-h1` */
-  font-family: var(--font-display-family, 'Bebas Neue'), 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
-  font-size: 3rem;
-  line-height: 1.125;
-  font-weight: 400;
+  /* Alias of page H1 — Inter 800 (design system). */
+  font-family: var(--font-sans);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.05;
+  font-weight: 800;
   font-style: normal;
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  color: var(--tt-ink, #111111);
+  text-transform: none;
+  letter-spacing: -0.03em;
+  color: #f4f6fb;
   margin: 0;
 }
 
@@ -3261,8 +3298,8 @@ body {
 }
 
 .tt-settings-panel-header {
-  border-bottom: 1px solid var(--tt-line, #ebebeb);
-  background: color-mix(in srgb, var(--tt-sidebar, #f5f5f5) 72%, #ffffff);
+  border-bottom: 1px solid var(--tt-v2-light-panel-line, #e3e6e9);
+  background: var(--tt-v2-light-panel, #ffffff);
   padding: 0.875rem 1rem 0.75rem;
 }
 
@@ -6171,6 +6208,113 @@ html[data-calendar-expanded='true'] [data-app-main-column] {
   padding-bottom: 0.5rem;
 }
 
+/*
+ * Coach Compare — drop the 110rem main cap so dual week/month panes can use
+ * the full viewport (esp. ultrawide + month range).
+ */
+[data-app-main]:has(.tt-coach-compare-page) {
+  max-width: none;
+  width: 100%;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+@media (min-width: 1280px) {
+  [data-app-main]:has(.tt-coach-compare-page) {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  [data-app-main]:has(.tt-coach-compare-page) {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
+}
+
+html[data-sidebar-collapsed='true'] [data-app-main]:has(.tt-coach-compare-page),
+html[data-library-dock='true'] [data-app-main]:has(.tt-coach-compare-page) {
+  max-width: none;
+}
+
+/* Undo TrainingPlanShell’s asymmetric bleed — compare owns full width. */
+[data-app-main]:has(.tt-coach-compare-page) > * {
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
+  max-width: none;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.tt-coach-compare-page {
+  width: 100%;
+  max-width: none;
+}
+
+/*
+ * Compare top chrome sits on charcoal .app-gradient — same light ink remap as
+ * Training list sticky header so List/Week/Month/Compare + range toggles read.
+ * Pane cards keep default (dark-on-light) tokens.
+ */
+.tt-coach-compare-chrome {
+  --tt-ink: var(--tt-v2-ink, #f4f6fb);
+  --tt-ink-soft: var(--tt-v2-ink-soft, #a0a6b3);
+  --tt-ink-faint: var(--tt-v2-ink-faint, #7a8190);
+  --tt-line: rgb(255 255 255 / 0.14);
+  --color-foreground: #f4f6fb;
+  --color-muted-foreground: #c5cad3;
+  --color-border: rgb(255 255 255 / 0.18);
+  --color-muted: rgb(255 255 255 / 0.1);
+  --color-card: rgb(255 255 255 / 0.14);
+  --color-card-foreground: #f4f6fb;
+  --color-primary: #f4f6fb;
+  --color-primary-foreground: #111315;
+  --color-secondary: rgb(255 255 255 / 0.12);
+  --color-secondary-foreground: #f4f6fb;
+  --color-accent: rgb(255 255 255 / 0.1);
+  --color-accent-foreground: #f4f6fb;
+  color: #c5cad3;
+}
+
+.tt-coach-compare-chrome .segmented-control {
+  border-color: rgb(255 255 255 / 0.18);
+  background: rgb(255 255 255 / 0.08);
+}
+
+.tt-coach-compare-chrome .segmented-control-item-active {
+  background: rgb(255 255 255 / 0.16);
+  color: #f4f6fb;
+}
+
+.tt-coach-compare-chrome .segmented-control-item-inactive {
+  color: #c5cad3;
+}
+
+.tt-coach-compare-chrome .segmented-control-item-inactive:hover {
+  color: #f4f6fb;
+}
+
+.tt-coach-compare-chrome .pill-select-item-active {
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.16);
+  color: #f4f6fb;
+}
+
+.tt-coach-compare-chrome .pill-select-item-inactive {
+  color: #c5cad3;
+}
+
+.tt-coach-compare-chrome .pill-select-item-inactive:hover {
+  color: #f4f6fb;
+}
+
+/* Filter group labels (Filter / Layers / View / Cards) on charcoal */
+.tt-coach-compare-chrome [role='group'] > span:first-child {
+  color: rgb(197 202 211 / 0.72);
+}
+
 html[data-calendar-expanded='true'] .tt-calendar-expanded-root {
   display: flex;
   flex-direction: column;
@@ -6979,14 +7123,14 @@ html.tt-week-portrait-lock body {
 
 /* Legacy aliases → hierarchy */
 .text-page-title {
-  /* Prefer .title-page / PageHeaderTitle — mock page H1 48px */
-  font-family: var(--font-display-family, 'Bebas Neue'), 'Bebas Neue', ui-sans-serif, system-ui, sans-serif;
-  font-size: 3rem;
-  line-height: 1.125;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  color: var(--tt-ink, #111111);
+  /* Legacy alias → Inter page H1 (design system). Prefer PageHeaderTitle. */
+  font-family: var(--font-sans);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  line-height: 1.05;
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: -0.03em;
+  color: #f4f6fb;
 }
 
 .text-section-title {

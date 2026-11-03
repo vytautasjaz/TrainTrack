@@ -97,7 +97,7 @@ export function SettingsShell({ nav, isCoachView, sections }: SettingsShellProps
       {isCoachView ? (
         <div
           className={cn(
-            'rounded-[8px] border border-[var(--tt-line,#ebebeb)] bg-[var(--tt-sidebar,#f5f5f5)]/60 px-3.5 py-3 text-[13px] leading-relaxed text-[var(--tt-ink-soft,#6b6b6b)]',
+            'rounded-[10px] border border-[var(--tt-v2-light-panel-line,#e3e6e9)] bg-[var(--tt-v2-light-panel,#ffffff)] px-3.5 py-3 text-[13px] leading-relaxed text-[var(--tt-v2-light-ink-soft,#6b7280)]',
             !showMobileHub && 'hidden lg:block',
           )}
         >

@@ -581,6 +581,7 @@ export default async function TrainingPage({
       weekHref={weekHref}
       listHref={listHref}
       calendarHref={calendarHref}
+      compareHref={isCoach ? compareHref : undefined}
       canLogWorkout={canLogWorkout}
       isCoach={isCoach}
       athleteId={athleteId}
@@ -597,6 +598,7 @@ export default async function TrainingPage({
       weekHref={weekHref}
       listHref={listHref}
       calendarHref={calendarHref}
+      compareHref={isCoach ? compareHref : undefined}
       canLogWorkout={canLogWorkout}
       isCoach={isCoach}
       athleteId={athleteId}
@@ -710,12 +712,18 @@ export default async function TrainingPage({
           {listTableView}
         </TrainingListFrame>
       ) : view === "compare" && isCoach ? (
-        <div className="space-y-4 px-4 pb-6 lg:px-0">
-          <div className="flex justify-end">{calendarControls}</div>
+        <div className="tt-coach-compare-page w-full min-w-0 max-w-none space-y-4 pb-6">
+          <div className="tt-coach-compare-chrome flex justify-end">
+            {calendarControls}
+          </div>
           <CoachCompareView
             initialAthleteId={athleteId}
-            initialWeekStartKey={firstWeek.weekStartKey}
-            athletes={coachAthletes.map((a) => ({ id: a.id, name: a.name }))}
+            initialWeekStartKey={toDateKey(startOfWeekDateOnly(todayOnly))}
+            athletes={coachAthletes.map((a) => ({
+              id: a.id,
+              name: a.name,
+              avatarUrl: a.avatarUrl ?? null,
+            }))}
             weekHref={weekHref}
           />
         </div>
