@@ -1,6 +1,6 @@
 import { WorkoutStatus, type WorkoutType } from '@prisma/client'
 import { toDateKey } from '@/lib/dates'
-import { mapStravaTypeToWorkoutType, workoutTypesCompatible } from '@/lib/strava/map-sport'
+import { resolveStravaActivityWorkoutType, workoutTypesCompatible } from '@/lib/strava/map-sport'
 import type { StravaActivity } from '@/lib/strava/types'
 
 export type StravaMatchCandidate = {
@@ -26,7 +26,7 @@ export function findWorkoutForActivityInPool(
   activity: Pick<StravaActivity, 'type' | 'sport_type' | 'start_date_local'>,
   claimedWorkoutIds: Set<string>,
 ): { workout: StravaMatchCandidate; offDay: false } | null {
-  const activityType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+  const activityType = resolveStravaActivityWorkoutType(activity)
   if (!activityType) return null
 
   const dateKey = activity.start_date_local.slice(0, 10)
@@ -36,23 +36,25 @@ export function findWorkoutForActivityInPool(
   const pickCompatible = (
     candidates: StravaMatchCandidate[],
     statuses: WorkoutStatus[],
-  ) =>
-    candidates.find(
+  ) => {
+    const eligible = candidates.filter(
       (w) =>
         statuses.includes(w.status) &&
         workoutTypesCompatible(w.type, activityType) &&
         !w.result?.stravaActivityId,
-    ) ?? null
+    )
+    // Prefer exact sport (e.g. Workout→STRENGTH over HYROX; Crossfit→HYROX over STRENGTH).
+    return (
+      eligible.find((w) => w.type === activityType) ?? eligible[0] ?? null
+    )
+  }
 
   const sameDayPlanned = pickCompatible(sameDay, [WorkoutStatus.PLANNED])
   if (sameDayPlanned) return { workout: sameDayPlanned, offDay: false }
 
-  const sameDayIncomplete = sameDay.find(
-    (w) =>
-      w.status === WorkoutStatus.COMPLETED &&
-      workoutTypesCompatible(w.type, activityType) &&
-      !w.result?.stravaActivityId &&
-      !w.result?.actualDistance,
+  const sameDayIncomplete = pickCompatible(
+    sameDay.filter((w) => !w.result?.actualDistance),
+    [WorkoutStatus.COMPLETED],
   )
   if (sameDayIncomplete) return { workout: sameDayIncomplete, offDay: false }
 

@@ -18,6 +18,11 @@ import {
   copyWorkoutToDates,
   getAthleteDaySportsForMonth,
 } from '@/app/actions/workouts'
+import { listCoachAthletesForAssign } from '@/app/actions/workout-builder'
+import {
+  CoachAthleteMultiPicker,
+  type CoachAthleteOption,
+} from '@/components/coach/coach-athlete-multi-picker'
 import { WorkoutSportIcon } from '@/components/plan/workout-sport-icon'
 import { Button } from '@/components/ui/button'
 import {
@@ -62,12 +67,27 @@ export function CopyPlanWorkoutModal({
   })
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [daySports, setDaySports] = useState<Record<string, WorkoutType[]>>({})
+  const [roster, setRoster] = useState<CoachAthleteOption[]>([])
+  const [currentAthleteId, setCurrentAthleteId] = useState<string | null>(null)
+  const [athleteIds, setAthleteIds] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
     const [y, m] = sourceDateKey.split('-').map(Number)
     setMonthAnchor(new Date(y, (m ?? 1) - 1, 1))
     setSelected(new Set())
+    setError(null)
+    let cancelled = false
+    void listCoachAthletesForAssign().then((result) => {
+      if (cancelled) return
+      setRoster(result.athletes)
+      setCurrentAthleteId(result.currentAthleteId)
+      setAthleteIds(result.currentAthleteId ? [result.currentAthleteId] : [])
+    })
+    return () => {
+      cancelled = true
+    }
   }, [open, sourceDateKey, workoutId])
 
   useEffect(() => {
@@ -86,6 +106,7 @@ export function CopyPlanWorkoutModal({
   const days = useMemo(() => buildMonthDays(monthAnchor), [monthAnchor])
   const todayKey = format(new Date(), 'yyyy-MM-dd')
   const selectedCount = selected.size
+  const canSubmit = athleteIds.length > 0 && (selectedCount > 0 || Boolean(sourceDateKey))
 
   function toggleDate(dateKey: string, inMonth: boolean) {
     if (!inMonth) return
@@ -98,13 +119,22 @@ export function CopyPlanWorkoutModal({
   }
 
   function handleCopy() {
-    if (selectedCount === 0) return
+    if (!canSubmit) return
+    const dates =
+      selectedCount > 0 ? [...selected].sort() : sourceDateKey ? [sourceDateKey] : []
+    if (dates.length === 0 || athleteIds.length === 0) return
+    setError(null)
     startTransition(async () => {
-      await copyWorkoutToDates({
-        workoutId,
-        dates: [...selected].sort(),
-      })
-      onOpenChange(false)
+      try {
+        await copyWorkoutToDates({
+          workoutId,
+          dates,
+          athleteIds,
+        })
+        onOpenChange(false)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Could not copy workout')
+      }
     })
   }
 
@@ -114,12 +144,22 @@ export function CopyPlanWorkoutModal({
         <DialogHeader className="border-b border-border/60 px-5 py-4">
           <DialogTitle>Copy workout</DialogTitle>
           <DialogDescription>
-            Select one or more days to copy “{workoutTitle}”. Existing sessions on a day are
-            shown and do not block copying.
+            Copy “{workoutTitle}” to athletes and days. If no days are selected, the
+            source day ({sourceDateKey}) is used.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 px-5 py-4">
+        <div className="max-h-[min(70vh,36rem)] space-y-3 overflow-y-auto px-5 py-4">
+          {roster.length > 1 ? (
+            <CoachAthleteMultiPicker
+              label="Athletes"
+              athletes={roster}
+              selectedIds={athleteIds}
+              onChange={setAthleteIds}
+              currentAthleteId={currentAthleteId}
+            />
+          ) : null}
+
           <div className="flex items-center justify-between gap-2">
             <Button
               type="button"
@@ -174,7 +214,10 @@ export function CopyPlanWorkoutModal({
                     isSelected &&
                       day.inMonth &&
                       'border-brand bg-brand/[0.12] ring-1 ring-brand/30',
-                    isSource && day.inMonth && !isSelected && 'border-dashed border-muted-foreground/40',
+                    isSource &&
+                      day.inMonth &&
+                      !isSelected &&
+                      'border-dashed border-muted-foreground/40',
                   )}
                   aria-pressed={isSelected}
                   aria-label={`${day.dateKey}${isSelected ? ', selected' : ''}`}
@@ -198,7 +241,9 @@ export function CopyPlanWorkoutModal({
                         />
                       ))}
                       {sports.length > 4 ? (
-                        <span className="text-[9px] text-muted-foreground">+{sports.length - 4}</span>
+                        <span className="text-[9px] text-muted-foreground">
+                          +{sports.length - 4}
+                        </span>
                       ) : null}
                     </span>
                   ) : (
@@ -211,9 +256,10 @@ export function CopyPlanWorkoutModal({
 
           <p className="text-xs text-muted-foreground">
             {selectedCount === 0
-              ? 'No days selected'
+              ? `No days selected — will use ${sourceDateKey}`
               : `${selectedCount} day${selectedCount === 1 ? '' : 's'} selected`}
           </p>
+          {error ? <p className="text-xs text-destructive">{error}</p> : null}
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t border-border/60 px-5 py-3">
@@ -224,14 +270,10 @@ export function CopyPlanWorkoutModal({
             type="button"
             variant="secondary"
             size="sm"
-            disabled={pending || selectedCount === 0}
+            disabled={pending || !canSubmit}
             onClick={handleCopy}
           >
-            {pending
-              ? 'Copying…'
-              : selectedCount === 0
-                ? 'Copy'
-                : `Copy to ${selectedCount} day${selectedCount === 1 ? '' : 's'}`}
+            {pending ? 'Copying…' : 'Copy'}
           </Button>
         </div>
       </DialogContent>

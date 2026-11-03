@@ -8,6 +8,7 @@ import {
   toPlanWorkoutDetail,
   redactPlanWorkoutNotesForViewer,
 } from '@/lib/plan-workout'
+import { mergeRacesIntoPlanWorkouts } from '@/lib/races'
 
 function formatGreetingName(name: string) {
   const first = name.trim().split(/\s+/)[0] ?? name
@@ -40,11 +41,17 @@ export default async function DashboardPage() {
   if (!athleteId) redirect('/')
 
   const data = await getAthleteDashboard(athleteId)
-  const weekStatsWorkouts = data.weekStatsWindowWorkouts.map((w) =>
-    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+  const weekStatsWorkouts = mergeRacesIntoPlanWorkouts(
+    data.weekStatsWindowWorkouts.map((w) =>
+      redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+    ),
+    data.weekStatsWindowRaces,
   )
-  const weekPlanWorkouts = data.weekPlanWorkouts.map((w) =>
-    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+  const weekPlanWorkouts = mergeRacesIntoPlanWorkouts(
+    data.weekPlanWorkouts.map((w) =>
+      redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+    ),
+    data.weekPlanRaces,
   )
 
   return (

@@ -11,7 +11,7 @@ export default async function ProgressTrendsPage() {
     <>
       <StatsPageHeader
         title="Trends."
-        description="Weekly, monthly, and yearly training volume."
+        description="How your training volume moves over weeks, months, and years — planned vs completed from your calendar and synced sessions. Filter by sport and range to see load building, plateaus, or year-over-year change. Distances use your unit preference; strength and other non-distance sports fall back to duration."
       />
       <StatsTrendsSection stats={stats} />
     </>

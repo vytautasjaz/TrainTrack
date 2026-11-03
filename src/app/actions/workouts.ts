@@ -4,7 +4,15 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import { requireSession, resolveAthleteId, requireAthleteSession, athleteOwnedByCoachWhere, isCoach, isCoachView, coachCanAccessAthlete, requireCoachOwnsAthlete, isAthleteRole } from '@/lib/session'
-import { parseDateOnly, requireDateOnly, toDateKey, todayDateKey } from '@/lib/dates'
+import {
+  addDateOnlyDays,
+  endOfWeekDateOnly,
+  parseDateOnly,
+  requireDateOnly,
+  startOfWeekDateOnly,
+  toDateKey,
+  todayDateKey,
+} from '@/lib/dates'
 import { WorkoutStatus, WorkoutType, RaceType, SessionType, RacePriority, RaceIntent, RaceOutcome, RaceCourseType, TriathlonDistance, HyroxDivision, CoachAthleteLinkStatus, PlannedMetricSource, Prisma } from '@prisma/client'
 import { AthleteLogTypeValues, parseAthleteLogType, isAthleteLogSkipped } from '@/lib/athlete-log-type'
 import { defaultSportForRaceType } from '@/lib/races'
@@ -33,6 +41,11 @@ import {
   type RacePrepBlock,
 } from '@/lib/race-preparation'
 import { structureDiagramPrismaValue } from '@/lib/workout-builder/structure-diagram'
+import {
+  isCloneablePlanWorkout,
+  WORKOUT_CLONE_SELECT,
+  workoutCloneCreateData,
+} from '@/lib/workout-clone'
 import { getPlanWorkoutById } from '@/lib/queries'
 import {
   toPlanWorkoutDetail,
@@ -1214,10 +1227,44 @@ export async function duplicateWorkout(formData: FormData) {
   })
 }
 
-/** Copy a planned workout onto one or more calendar dates (coach). */
+const MAX_COPY_WORKOUTS = 50
+const MAX_COPY_ATHLETES = 40
+
+async function loadCloneableWorkoutForCoach(coachUserId: string, workoutId: string) {
+  const source = await prisma.workout.findFirst({
+    where: { id: workoutId },
+    select: WORKOUT_CLONE_SELECT,
+  })
+  if (!source) throw new Error('Workout not found')
+  await requireCoachOwnsAthlete(coachUserId, source.athleteId)
+  if (!isCloneablePlanWorkout(source)) {
+    throw new Error('This workout cannot be copied')
+  }
+  return source
+}
+
+async function resolveCopyTargetAthleteIds(
+  coachUserId: string,
+  athleteIds: string[] | undefined,
+  fallbackAthleteId: string,
+) {
+  const raw = athleteIds?.map((id) => id.trim()).filter(Boolean) ?? []
+  const targets = [...new Set(raw.length > 0 ? raw : [fallbackAthleteId])]
+  if (targets.length === 0) throw new Error('Select at least one athlete')
+  if (targets.length > MAX_COPY_ATHLETES) {
+    throw new Error(`Select at most ${MAX_COPY_ATHLETES} athletes`)
+  }
+  for (const id of targets) {
+    await requireCoachOwnsAthlete(coachUserId, id)
+  }
+  return targets
+}
+
+/** Copy a planned workout onto one or more calendar dates (and optional athletes). */
 export async function copyWorkoutToDates(payload: {
   workoutId: string
   dates: string[]
+  athleteIds?: string[]
 }) {
   const session = await requireSession()
   if (!isCoach(session)) throw new Error('Coach only')
@@ -1227,44 +1274,151 @@ export async function copyWorkoutToDates(payload: {
     throw new Error('Select at least one date')
   }
 
-  const athleteId = await resolveAthleteId(session)
-  if (!athleteId) throw new Error('No athlete selected')
+  const source = await loadCloneableWorkoutForCoach(session.userId, payload.workoutId)
+  const targets = await resolveCopyTargetAthleteIds(
+    session.userId,
+    payload.athleteIds,
+    source.athleteId,
+  )
 
-  const source = await prisma.workout.findFirst({
-    where: { id: payload.workoutId, athleteId },
-  })
-  if (!source) throw new Error('Workout not found')
-
-  for (const date of dates) {
-    const workoutDate = parseDateOnly(date)
-    const sortOrder = await getNextWorkoutSortOrder(source.athleteId, workoutDate)
-    await prisma.workout.create({
-      data: {
-        athleteId: source.athleteId,
-        templateId: source.templateId,
-        date: workoutDate,
-        sortOrder,
-        type: source.type,
-        sessionType: source.sessionType,
-        title: source.title,
-        description: source.description,
-        plannedDistance: source.plannedDistance,
-        plannedDuration: source.plannedDuration,
-        plannedDistanceMeters: source.plannedDistanceMeters,
-        swimEnvironment: source.swimEnvironment,
-        swimStructure: source.swimStructure ?? undefined,
-        coachNotes: source.coachNotes,
-        structure: source.structure ?? undefined,
-        structureDiagram: structureDiagramPrismaValue(source.structure, {
-          durationMinutes: source.plannedDuration,
+  for (const targetAthleteId of targets) {
+    for (const date of dates) {
+      const workoutDate = parseDateOnly(date)
+      const sortOrder = await getNextWorkoutSortOrder(targetAthleteId, workoutDate)
+      await prisma.workout.create({
+        data: workoutCloneCreateData(source, {
+          athleteId: targetAthleteId,
+          date: workoutDate,
+          sortOrder,
         }),
-        tags: source.tags,
-      },
-    })
+      })
+    }
+    await onTrainingCalendarDataChanged(targetAthleteId)
   }
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
+}
+
+/** Copy several workouts onto other athletes on each workout's own date. */
+export async function copyWorkoutsToAthletes(payload: {
+  workoutIds: string[]
+  athleteIds: string[]
+}) {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Coach only')
+
+  const workoutIds = [...new Set(payload.workoutIds.map((id) => id.trim()).filter(Boolean))]
+  const athleteIds = [...new Set(payload.athleteIds.map((id) => id.trim()).filter(Boolean))]
+  if (workoutIds.length === 0) throw new Error('Select at least one workout')
+  if (athleteIds.length === 0) throw new Error('Select at least one athlete')
+  if (workoutIds.length > MAX_COPY_WORKOUTS) {
+    throw new Error(`Select at most ${MAX_COPY_WORKOUTS} workouts`)
+  }
+  if (athleteIds.length > MAX_COPY_ATHLETES) {
+    throw new Error(`Select at most ${MAX_COPY_ATHLETES} athletes`)
+  }
+
+  for (const id of athleteIds) {
+    await requireCoachOwnsAthlete(session.userId, id)
+  }
+
+  const sources = await prisma.workout.findMany({
+    where: { id: { in: workoutIds } },
+    select: WORKOUT_CLONE_SELECT,
+  })
+  if (sources.length === 0) throw new Error('Workouts not found')
+
+  const affected = new Set<string>()
+  for (const source of sources) {
+    await requireCoachOwnsAthlete(session.userId, source.athleteId)
+    if (!isCloneablePlanWorkout(source)) continue
+    for (const targetAthleteId of athleteIds) {
+      if (targetAthleteId === source.athleteId) continue
+      const sortOrder = await getNextWorkoutSortOrder(targetAthleteId, source.date)
+      await prisma.workout.create({
+        data: workoutCloneCreateData(source, {
+          athleteId: targetAthleteId,
+          date: source.date,
+          sortOrder,
+        }),
+      })
+      affected.add(targetAthleteId)
+    }
+  }
+
+  for (const athleteId of affected) {
+    await onTrainingCalendarDataChanged(athleteId)
+  }
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
+}
+
+/** Copy an athlete's week onto another athlete's week (weekday-aligned). */
+export async function copyWeekBetweenAthletes(payload: {
+  sourceAthleteId: string
+  sourceWeekStartKey: string
+  targetAthleteId: string
+  targetWeekStartKey: string
+}) {
+  const session = await requireSession()
+  if (!isCoach(session)) throw new Error('Coach only')
+
+  await requireCoachOwnsAthlete(session.userId, payload.sourceAthleteId)
+  await requireCoachOwnsAthlete(session.userId, payload.targetAthleteId)
+  if (payload.sourceAthleteId === payload.targetAthleteId) {
+    throw new Error('Pick a different athlete')
+  }
+
+  const sourceWeekStart = startOfWeekDateOnly(parseDateOnly(payload.sourceWeekStartKey))
+  const sourceWeekEnd = endOfWeekDateOnly(sourceWeekStart)
+  const targetWeekStart = startOfWeekDateOnly(parseDateOnly(payload.targetWeekStartKey))
+
+  const sources = await prisma.workout.findMany({
+    where: {
+      athleteId: payload.sourceAthleteId,
+      date: { gte: sourceWeekStart, lte: sourceWeekEnd },
+      isRescheduleGhost: false,
+      type: { notIn: [WorkoutType.REST, WorkoutType.RECOVERY] },
+    },
+    select: WORKOUT_CLONE_SELECT,
+    orderBy: [{ date: 'asc' }, { sortOrder: 'asc' }],
+  })
+  if (sources.length > MAX_COPY_WORKOUTS) {
+    throw new Error(`Week has too many workouts to copy (max ${MAX_COPY_WORKOUTS})`)
+  }
+
+  for (const source of sources) {
+    const dayOffset = Math.round(
+      (source.date.getTime() - sourceWeekStart.getTime()) / (24 * 60 * 60 * 1000),
+    )
+    const targetDate = addDateOnlyDays(targetWeekStart, Math.max(0, Math.min(6, dayOffset)))
+    const sortOrder = await getNextWorkoutSortOrder(payload.targetAthleteId, targetDate)
+    await prisma.workout.create({
+      data: workoutCloneCreateData(source, {
+        athleteId: payload.targetAthleteId,
+        date: targetDate,
+        sortOrder,
+      }),
+    })
+  }
+
+  await onTrainingCalendarDataChanged(payload.targetAthleteId)
+  revalidatePath('/training')
+  revalidatePath('/dashboard')
+}
+
+/** Copy one workout onto another athlete on a chosen date (Compare DnD). */
+export async function copyWorkoutToAthleteDate(payload: {
+  workoutId: string
+  targetAthleteId: string
+  dateKey: string
+}) {
+  await copyWorkoutToDates({
+    workoutId: payload.workoutId,
+    dates: [payload.dateKey],
+    athleteIds: [payload.targetAthleteId],
+  })
 }
 
 /** Unique sport types already planned per day in a month (for copy calendar). */

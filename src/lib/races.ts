@@ -248,6 +248,20 @@ export function mergeRacesIntoByDate(
   return merged
 }
 
+/** Flat list merge for home / mobile (same race cards as the training table). */
+export function mergeRacesIntoPlanWorkouts(
+  workouts: PlanWorkoutDetail[],
+  races: RaceRecord[],
+): PlanWorkoutDetail[] {
+  const byDate = new Map<string, PlanWorkoutDetail[]>()
+  for (const workout of workouts) {
+    const list = byDate.get(workout.dateKey) ?? []
+    list.push(workout)
+    byDate.set(workout.dateKey, list)
+  }
+  return [...mergeRacesIntoByDate(byDate, races).values()].flat()
+}
+
 export function isRacePlanItem(workout: PlanWorkoutDetail): boolean {
   return Boolean(workout.isRace)
 }

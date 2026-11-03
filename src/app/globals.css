@@ -359,8 +359,15 @@ html[data-sidebar-collapsed='true'] {
  * Note: Radix Select content is role=listbox (no data-radix-select-content).
  * Menus use data-radix-menu-content. Non-modal menus also set inline
  * pointer-events:none — !important is required to win.
+ *
+ * react-remove-scroll (used by Radix Dialog) locks body via class
+ * `.block-interactivity-*`, not an inline style — match both.
  */
-body[style*='pointer-events: none'] :is(
+:is(
+  body[class*='block-interactivity'],
+  body[style*='pointer-events: none'],
+  body[style*='pointer-events:none']
+) :is(
   [data-radix-menu-content],
   [data-radix-dropdown-menu-content],
   [data-radix-select-content],
@@ -1246,6 +1253,12 @@ button.tt-v2-day-card:focus-visible,
 
 .tt-v2-home-widget .tt-v2-home-track-fill--accent {
   background: color-mix(in srgb, var(--tt-v2-accent, #f0440a) 78%, white);
+  border-radius: inherit;
+}
+
+/* Disabled-mode progress: readable gray fill on the light track. */
+.tt-v2-home-widget .tt-v2-home-track-fill--muted {
+  background: #9aa3ad;
   border-radius: inherit;
 }
 
@@ -3748,6 +3761,11 @@ html[data-inbox-mobile-detail='true'] .tt-inbox-thread-composer {
 
 [data-page-header] .tt-stats-page-description {
   color: #a0a6b3;
+}
+
+/* Section H2 on Analytics pages — same charcoal fade as the page title. */
+.tt-stats-section-title {
+  color: #f4f6fb;
 }
 
 /* List view mobile frame fills top bar → bottom nav — drop page chrome padding gaps. */
@@ -7759,38 +7777,14 @@ input[type='number'] {
 }
 
 /* ─── Season Plan page ──────────────────────────────────────────────────── */
+/* Sits on the shared .app-gradient charcoal→light fade (like Stats), not a white sheet. */
 .tt-season-page {
-  background: #ffffff;
+  background: transparent;
   min-height: 100%;
 }
 
 .tt-season-header {
   padding-bottom: 0;
-}
-
-.tt-season-header__abstract {
-  pointer-events: none;
-  position: absolute;
-  inset: -8% 45% -35% -8%;
-  background:
-    radial-gradient(
-      ellipse at 28% 70%,
-      rgb(244 81 30 / 0.1),
-      transparent 58%
-    ),
-    radial-gradient(
-      ellipse at 55% 40%,
-      rgb(148 163 184 / 0.08),
-      transparent 62%
-    ),
-    radial-gradient(
-      ellipse at 12% 20%,
-      rgb(176 183 194 / 0.06),
-      transparent 55%
-    );
-  filter: blur(40px);
-  opacity: 0.7;
-  z-index: 0;
 }
 
 .tt-season-header__poster {

@@ -4,6 +4,7 @@ import { parseRaceTimeToMinutes } from '@/lib/calculators/race-time'
 import {
   displayPersonalBestDate,
   formatPersonalBestValue,
+  type PersonalBestHistoryRecord,
   type PersonalBestRecord,
 } from '@/lib/personal-bests'
 import {
@@ -23,6 +24,10 @@ export type PersonalBestDistanceHistoryEntry = {
   /** Minutes (TIME) or raw value for sorting by result. */
   sortValue: number | null
   isPersonalBestRecord: boolean
+  /** Prior PB value that was overwritten. */
+  isPreviousPersonalBest?: boolean
+  /** ISO timestamp when this PB stopped being current. */
+  supersededAt?: string | null
 }
 
 function datesCompatible(raceDate: string, pbDateText: string | null | undefined): boolean {
@@ -56,13 +61,22 @@ function formatRaceDateLabel(dateKey: string): string {
   }
 }
 
+function formatSupersededLabel(iso: string): string {
+  try {
+    return format(parseISO(iso), 'd MMM yyyy')
+  } catch {
+    return iso.slice(0, 10)
+  }
+}
+
 /**
- * Race results for a PB distance, plus the PB itself when it is not already
- * represented by a matching race (same raceId, or same time + compatible date).
+ * Race results for a PB distance, the current PB (when not already a matching race),
+ * and archived prior PB values after overwrites.
  */
 export function buildPersonalBestDistanceHistory(
   results: RaceResultRow[],
   pb: PersonalBestRecord,
+  history: PersonalBestHistoryRecord[] = [],
 ): PersonalBestDistanceHistoryEntry[] {
   const races = filterRaceResultsForPersonalBest(results, pb)
 
@@ -98,5 +112,27 @@ export function buildPersonalBestDistanceHistory(
     })
   }
 
+  const pbHistory = history.filter((row) => row.personalBestId === pb.id && row.value > 0)
+  for (const row of pbHistory) {
+    entries.push({
+      id: `pb-history:${row.id}`,
+      sortDate: sortDateFromPbDateText(row.dateText),
+      dateLabel: displayPersonalBestDate(row.dateText),
+      event: row.event?.trim() || 'Previous personal best',
+      location: null,
+      resultLabel: formatPersonalBestValue(row.value, row.metric),
+      sortValue: row.value,
+      isPersonalBestRecord: false,
+      isPreviousPersonalBest: true,
+      supersededAt: row.supersededAt,
+    })
+  }
+
   return entries
+}
+
+export function previousPbChangeLabel(entry: PersonalBestDistanceHistoryEntry): string | null {
+  if (!entry.isPreviousPersonalBest) return null
+  if (!entry.supersededAt) return 'Previous personal best'
+  return `Previous PB · changed ${formatSupersededLabel(entry.supersededAt)}`
 }

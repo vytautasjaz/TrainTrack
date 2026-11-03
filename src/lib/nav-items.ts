@@ -106,8 +106,7 @@ const COACH_ATHLETE_SUBNAV: NavSubItem[] = [
   { href: '/season', label: 'Season' },
   { href: '/progress', label: 'Trends' },
   { href: '/progress/fitness', label: 'Fitness' },
-  { href: '/progress/personal-bests', label: 'Personal bests' },
-  { href: '/progress/races', label: 'Race results' },
+  { href: '/progress/results', label: 'Results' },
 ]
 
 const COACH_ATHLETES_NAV: NavItem = {
@@ -206,8 +205,7 @@ export function getMainNav(isCoach: boolean): NavItem[] {
       children: [
         { href: '/progress', label: 'Trends' },
         { href: '/progress/fitness', label: 'Fitness' },
-        { href: '/progress/personal-bests', label: 'Personal bests' },
-        { href: '/progress/races', label: 'Race results' },
+        { href: '/progress/results', label: 'Results' },
       ],
     },
     TOOLS_NAV,
@@ -266,8 +264,7 @@ export function getTopNav(isCoach: boolean): NavItem[] {
       children: [
         { href: '/progress', label: 'Trends' },
         { href: '/progress/fitness', label: 'Fitness' },
-        { href: '/progress/personal-bests', label: 'Personal bests' },
-        { href: '/progress/races', label: 'Race results' },
+        { href: '/progress/results', label: 'Results' },
       ],
     },
     TOOLS_TOP_NAV,

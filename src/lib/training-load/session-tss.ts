@@ -673,3 +673,42 @@ export function weekSessionLoadActual(
   }
   return Math.max(0, Math.round(sum))
 }
+
+/** Planned TSS for one sport in a week. */
+export function sportSessionLoadPlanned(
+  workouts: PlanWorkoutDetail[],
+  sport: WorkoutType,
+  thresholds: SessionLoadThresholds = {},
+): number {
+  let sum = 0
+  for (const workout of workouts) {
+    if (workout.type !== sport || workout.isRace) continue
+    if (workout.isRescheduleGhost) continue
+    if (workout.status === 'SKIPPED') continue
+    if (workout.selfLogged) continue
+    const estimate = estimateSessionLoad(workout, thresholds, {
+      preferPlanned: true,
+    })
+    if (estimate) sum += estimate.tss
+  }
+  return Math.max(0, Math.round(sum))
+}
+
+/** Actual TSS for one sport in a week. */
+export function sportSessionLoadActual(
+  workouts: PlanWorkoutDetail[],
+  sport: WorkoutType,
+  thresholds: SessionLoadThresholds = {},
+): number {
+  let sum = 0
+  for (const workout of workouts) {
+    if (workout.type !== sport || workout.isRace) continue
+    if (workout.isRescheduleGhost) continue
+    if (workout.status !== 'COMPLETED') continue
+    const estimate = estimateSessionLoad(workout, thresholds, {
+      preferPlanned: false,
+    })
+    if (estimate) sum += estimate.tss
+  }
+  return Math.max(0, Math.round(sum))
+}

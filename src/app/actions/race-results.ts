@@ -226,8 +226,7 @@ export async function createManualRaceResult(formData: FormData): Promise<{
 
   revalidatePath('/results')
   revalidatePath('/progress', 'layout')
-  revalidatePath('/progress/races')
-  revalidatePath('/progress/personal-bests')
+  revalidatePath('/progress/results')
   revalidatePath('/season')
   revalidatePath('/dashboard')
 
@@ -266,7 +265,6 @@ export async function deleteRaceResult(raceId: string): Promise<void> {
   await prisma.race.delete({ where: { id: race.id } })
   revalidatePath('/results')
   revalidatePath('/progress', 'layout')
-  revalidatePath('/progress/races')
-  revalidatePath('/progress/personal-bests')
+  revalidatePath('/progress/results')
   revalidatePath('/season')
 }

@@ -33,9 +33,12 @@ import type { ProfileRating } from '@/lib/coach-engine/physiology/interpret'
 import {
   rateTrainingResponse,
   trainingResponseInsight,
-  TONE_LEGEND,
 } from '@/lib/coach-engine/physiology/interpret'
-import { FITNESS_METRIC_DETAIL } from '@/components/physiology/metric-detail-copy'
+import {
+  FITNESS_METRIC_DETAIL,
+  FITNESS_SCORE_GUIDE,
+} from '@/components/physiology/metric-detail-copy'
+import { FitnessProfileRadar } from '@/components/physiology/fitness-profile-radar'
 
 /* ─── shared tone / format (unchanged visual language) ─── */
 
@@ -135,7 +138,11 @@ type FitnessRow = {
   id: string
   label: string
   scoreDisplay: string
+  /** Detail header — e.g. `78 / 100` for index scores. */
+  scoreDetailDisplay: string
   scoreNumeric: number
+  /** True when the primary value is a 0–100 model index (not km / days). */
+  isIndexScore: boolean
   rating: ProfileRating
   delta: string | null
   deltaImproving: boolean | null
@@ -198,15 +205,24 @@ const RECOVERY_CARD_IDS = [
 
 const ENDURANCE_CARD_IDS = ['longRunTolerance', 'marathonReadiness'] as const
 
+function isIndexUnit(unit?: string): boolean {
+  return !unit || unit === '%'
+}
+
 function cardToRow(card: PhysiologyMetricCardVm): FitnessRow {
   const primary = card.range ? card.range.current : card.value
   const delta = deltaText(primary, card.previousValue)
   const lowerBetter = card.id === 'overreachRisk'
+  const indexScore = !card.range && isIndexUnit(card.unit) && card.id !== 'longRunTolerance'
+  const rounded = Math.round(primary)
+  const scoreDisplay = formatValue(primary, card.unit)
   return {
     id: card.id,
     label: card.label,
-    scoreDisplay: formatValue(primary, card.unit),
+    scoreDisplay,
+    scoreDetailDisplay: indexScore ? `${rounded} / 100` : scoreDisplay,
     scoreNumeric: primary,
+    isIndexScore: indexScore,
     rating: card.rating,
     delta,
     deltaImproving:
@@ -238,7 +254,9 @@ function buildDomains(data: PhysiologyDashboardVm): DomainDef[] {
             id: r.key,
             label: r.label,
             scoreDisplay: String(score),
+            scoreDetailDisplay: `${score} / 100`,
             scoreNumeric: score,
+            isIndexScore: true,
             rating,
             delta: null,
             deltaImproving: null,
@@ -341,6 +359,28 @@ function buildInsights(
   }
 
   return insights.slice(0, 3)
+}
+
+function InsightIcon({ kind }: { kind: InsightCard['icon'] }) {
+  if (kind === 'up') {
+    return (
+      <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[var(--tt-good-soft)] text-[var(--tt-good)]">
+        <TrendingUp className="size-3.5" aria-hidden />
+      </span>
+    )
+  }
+  if (kind === 'focus') {
+    return (
+      <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[var(--tt-red-soft)] text-[var(--tt-v2-accent)]">
+        <Minus className="size-3.5" aria-hidden />
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[var(--tt-v2-wash-bike)] text-[var(--color-sport-bike)]">
+      <Info className="size-3.5" aria-hidden />
+    </span>
+  )
 }
 
 /* ─── sparkline (detail only) ─── */
@@ -546,6 +586,12 @@ function MetricRow({
         <div className="flex shrink-0 items-center gap-1.5">
           <span className="text-[13px] font-bold tabular-nums text-[var(--tt-ink)]">
             {row.scoreDisplay}
+            {row.isIndexScore ? (
+              <span className="font-medium text-[var(--tt-ink-faint)]">
+                {' '}
+                / 100
+              </span>
+            ) : null}
           </span>
           {row.delta ? (
             <span
@@ -630,7 +676,7 @@ function MetricDetailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideCloseButton
-        className="flex max-h-[min(36rem,85vh)] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--tt-line)] bg-white p-0 shadow-[var(--tt-v2-shadow-panel-hover)]"
+        className="flex max-h-[min(40rem,88vh)] w-[calc(100%-2rem)] max-w-md flex-col gap-0 overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--tt-line)] bg-white p-0 shadow-[var(--tt-v2-shadow-panel-hover)]"
         overlayClassName="bg-black/25"
       >
         <DialogHeader className="mb-0 space-y-0 border-b border-[var(--tt-line)] px-4 py-3 pr-4 text-left">
@@ -641,7 +687,7 @@ function MetricDetailDialog({
               </DialogTitle>
               <div className="mt-1.5 flex flex-wrap items-baseline gap-2">
                 <p className="text-[1.5rem] font-bold tabular-nums leading-none text-[var(--tt-ink)]">
-                  {row.scoreDisplay}
+                  {row.scoreDetailDisplay}
                 </p>
                 <StatusChip label={row.rating.label} tone={row.rating.tone} />
                 {row.delta ? (
@@ -658,6 +704,10 @@ function MetricDetailDialog({
               {row.lowerBetter ? (
                 <p className="mt-1 text-[10px] text-[var(--tt-ink-faint)]">
                   Lower is better
+                </p>
+              ) : row.isIndexScore ? (
+                <p className="mt-1 text-[10px] text-[var(--tt-ink-faint)]">
+                  Personal training-history score · not a world ranking
                 </p>
               ) : null}
             </div>
@@ -680,7 +730,11 @@ function MetricDetailDialog({
               <div className="mb-1 flex justify-between text-[10px] tabular-nums text-[var(--tt-ink-faint)]">
                 <span>0</span>
                 <span>
-                  {row.lowerBetter ? 'Lower is better' : 'Scale / 100'}
+                  {row.lowerBetter
+                    ? 'Lower is better'
+                    : row.isIndexScore
+                      ? 'Your score on 0–100'
+                      : 'Relative scale'}
                 </span>
                 <span>100</span>
               </div>
@@ -700,6 +754,14 @@ function MetricDetailDialog({
 
           {copy ? (
             <>
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
+                  What this number means
+                </p>
+                <p className="mt-1 text-[12px] leading-snug text-[var(--tt-ink)]">
+                  {copy.scale}
+                </p>
+              </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--tt-ink-faint)]">
                   Why it matters
@@ -725,28 +787,6 @@ function MetricDetailDialog({
         </div>
       </DialogContent>
     </Dialog>
-  )
-}
-
-function InsightIcon({ kind }: { kind: InsightCard['icon'] }) {
-  if (kind === 'up') {
-    return (
-      <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[var(--tt-good-soft)] text-[var(--tt-good)]">
-        <TrendingUp className="size-3.5" aria-hidden />
-      </span>
-    )
-  }
-  if (kind === 'focus') {
-    return (
-      <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[var(--tt-red-soft)] text-[var(--tt-v2-accent)]">
-        <Minus className="size-3.5" aria-hidden />
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-[6px] bg-[var(--tt-v2-wash-bike)] text-[var(--color-sport-bike)]">
-      <Info className="size-3.5" aria-hidden />
-    </span>
   )
 }
 
@@ -793,116 +833,123 @@ export function PhysiologyDashboard({
     return data.trends.find((t) => t.id === row.id) ?? null
   }
 
+  function openMetricById(metricId: string) {
+    for (const domain of domains) {
+      const row = domain.rows.find((r) => r.id === metricId)
+      if (row) {
+        setSelected(row)
+        return
+      }
+    }
+    const card = data.cards.find((c) => c.id === metricId)
+    if (card) setSelected(cardToRow(card))
+  }
+
   return (
     <section
       id="physiology"
       className={cn('scroll-mt-24 space-y-[var(--tt-space-section)]', className)}
     >
-      {/* 1. Top summary */}
-      {prediction && returnPct != null ? (
-        <div className="rounded-[var(--radius-2xl)] border border-[var(--tt-line)] bg-white p-4 sm:p-5">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.1fr)_minmax(16rem,1.15fr)] lg:grid-rows-[auto_1fr] lg:items-stretch">
-            <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4">
-              <ReturnGauge pct={returnPct} />
-              <div className="text-center sm:text-left">
+      {/* 1. Top strip: Next focus · Strongest responses · What this means */}
+      <div className="rounded-[var(--radius-2xl)] border border-[var(--tt-line)] bg-white p-4 sm:p-5">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-stretch lg:gap-0">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4 lg:pr-5">
+            {prediction && returnPct != null ? (
+              <>
+                <ReturnGauge pct={returnPct} />
+                <div className="min-w-0 text-center sm:text-left">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-soft)]">
+                    Next focus
+                  </p>
+                  <p className="mt-0.5 text-[14px] font-bold text-[var(--tt-ink)]">
+                    Training return potential
+                  </p>
+                  <p className="mt-1 text-[12px] capitalize leading-snug text-[var(--tt-ink-soft)]">
+                    Bias toward{' '}
+                    <span className="font-semibold text-[var(--tt-ink)]">
+                      {interventionLabel(prediction.primaryIntervention)}
+                    </span>
+                    {prediction.secondaryIntervention
+                      ? ` / ${interventionLabel(prediction.secondaryIntervention)}`
+                      : ''}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="min-w-0 py-1 text-center sm:text-left">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-soft)]">
                   Next focus
                 </p>
-                <p className="mt-0.5 text-[14px] font-bold text-[var(--tt-ink)]">
-                  Training return potential
-                </p>
-                <p className="mt-1 text-[12px] capitalize leading-snug text-[var(--tt-ink-soft)]">
-                  Bias toward{' '}
-                  <span className="font-semibold text-[var(--tt-ink)]">
-                    {interventionLabel(prediction.primaryIntervention)}
-                  </span>
-                  {prediction.secondaryIntervention
-                    ? ` / ${interventionLabel(prediction.secondaryIntervention)}`
-                    : ''}
+                <p className="mt-1 text-[12px] leading-snug text-[var(--tt-ink-soft)]">
+                  Sync more training to unlock return potential.
                 </p>
               </div>
-            </div>
+            )}
+          </div>
 
+          <div className="border-t border-[var(--tt-line)] pt-4 lg:border-l lg:border-t-0 lg:px-5 lg:pt-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-soft)]">
+              Strongest responses
+            </p>
             {drivers.length > 0 ? (
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-soft)]">
-                  Strongest responses
-                </p>
-                <ol className="mt-2 space-y-2">
-                  {drivers.map((d, i) => (
-                    <li key={d.key}>
-                      <div className="flex items-baseline justify-between gap-2 text-[12px]">
-                        <span className="font-medium text-[var(--tt-ink)]">
-                          <span className="mr-1.5 text-[var(--tt-ink-faint)]">
-                            {i + 1}.
-                          </span>
-                          {d.label}
+              <ol className="mt-2 space-y-2">
+                {drivers.map((d, i) => (
+                  <li key={d.key}>
+                    <div className="flex items-baseline justify-between gap-2 text-[12px]">
+                      <span className="font-medium text-[var(--tt-ink)]">
+                        <span className="mr-1.5 text-[var(--tt-ink-faint)]">
+                          {i + 1}.
                         </span>
-                        <span className="tabular-nums font-semibold text-[var(--tt-ink)]">
-                          {d.score}
+                        {d.label}
+                      </span>
+                      <span className="tabular-nums font-semibold text-[var(--tt-ink)]">
+                        {d.score}
+                        <span className="font-medium text-[var(--tt-ink-faint)]">
+                          {' '}
+                          / 100
                         </span>
-                      </div>
-                      <div className="mt-1 h-1 overflow-hidden rounded-[2px] bg-[var(--tt-wash)]">
-                        <div
-                          className={cn(
-                            'h-full rounded-[2px]',
-                            toneClasses(d.rating.tone).bar,
-                          )}
-                          style={{
-                            width: `${Math.min(100, Math.max(6, d.score))}%`,
-                          }}
-                        />
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ) : null}
+                      </span>
+                    </div>
+                    <div className="mt-1 h-1 overflow-hidden rounded-[2px] bg-[var(--tt-wash)]">
+                      <div
+                        className={cn(
+                          'h-full rounded-[2px]',
+                          toneClasses(d.rating.tone).bar,
+                        )}
+                        style={{
+                          width: `${Math.min(100, Math.max(6, d.score))}%`,
+                        }}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-2 text-[12px] leading-snug text-[var(--tt-ink-soft)]">
+                Response levers appear once enough history is available.
+              </p>
+            )}
+          </div>
 
-            {insights.length > 0 ? (
-              <div className="flex h-full min-h-0 min-w-0 flex-col rounded-[var(--radius-xl)] border border-[var(--tt-line)] bg-[var(--color-surface-subtle)] px-3.5 py-3 lg:row-span-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-soft)]">
-                  Insights
-                </p>
-                <ul className="mt-2.5 flex flex-1 flex-col gap-3">
-                  {insights.map((insight) => (
-                    <li key={insight.id} className="flex gap-2.5">
-                      <InsightIcon kind={insight.icon} />
-                      <div className="min-w-0">
-                        <p className="text-[12px] font-semibold text-[var(--tt-ink)]">
-                          {insight.title}
-                        </p>
-                        <p className="mt-0.5 text-[11px] leading-snug text-[var(--tt-ink-soft)]">
-                          {insight.body}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {meansBlurb ? (
-              <div className="flex h-full gap-2.5 self-stretch rounded-[var(--radius-xl)] border border-[color-mix(in_srgb,var(--tt-good)_22%,white)] bg-[var(--tt-good-soft)] px-3.5 py-3 lg:col-span-2">
-                <Lightbulb
-                  className="mt-0.5 size-4 shrink-0 text-[var(--tt-good)]"
-                  aria-hidden
-                />
-                <div className="min-w-0 self-center">
-                  <p className="text-[11px] font-semibold text-[var(--tt-good)]">
-                    What this means
-                  </p>
-                  <p className="mt-0.5 text-[12px] leading-snug text-[var(--tt-ink)]">
-                    {meansBlurb}
-                  </p>
-                </div>
-              </div>
-            ) : null}
+          <div className="min-w-0 border-t border-[var(--tt-line)] pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+            <p
+              className={cn(
+                'flex items-center gap-1.5 text-[11px] font-semibold',
+                meansBlurb ? 'text-[var(--tt-good)]' : 'text-[var(--tt-ink-soft)]',
+              )}
+            >
+              <Lightbulb className="size-3.5 shrink-0" aria-hidden />
+              What this means
+            </p>
+            <p className="mt-2 text-[12px] leading-snug text-[var(--tt-ink)]">
+              {meansBlurb ??
+                'As your strongest responses emerge, this card explains how to use them in training.'}
+            </p>
           </div>
         </div>
-      ) : null}
+      </div>
 
-      {/* 2. Four domains */}
+      {/* 2. Domain statistics */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {domains.map((domain) => (
           <DomainColumn
@@ -913,21 +960,76 @@ export function PhysiologyDashboard({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-[var(--tt-line)] pt-3">
-        <span className="text-[10px] font-medium uppercase tracking-wide text-[var(--tt-ink-faint)]">
-          Status
-        </span>
-        {TONE_LEGEND.map((item) => (
-          <span
-            key={item.tone}
-            className={cn(
-              'rounded-[4px] px-1.5 py-0.5 text-[10px] font-semibold',
-              toneClasses(item.tone).chip,
-            )}
-          >
-            {item.label}
-          </span>
-        ))}
+      {/* 3. Bottom strip: Insights · Profile shape · How to read 0–100 */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:items-stretch">
+        <div className="rounded-[var(--radius-2xl)] border border-[var(--tt-line)] bg-white px-4 py-3.5 sm:px-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-soft)]">
+            Insights
+          </p>
+          {insights.length > 0 ? (
+            <ul className="mt-3 space-y-3">
+              {insights.map((insight) => (
+                <li key={insight.id} className="flex gap-2.5">
+                  <InsightIcon kind={insight.icon} />
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-semibold text-[var(--tt-ink)]">
+                      {insight.title}
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-[var(--tt-ink-soft)]">
+                      {insight.body}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3 text-[12px] leading-snug text-[var(--tt-ink-soft)]">
+              Keep training and syncing — insights appear as your history grows.
+            </p>
+          )}
+        </div>
+
+        <FitnessProfileRadar
+          variant="panel"
+          cards={data.cards}
+          fingerprint={data.fingerprint}
+          onSelectMetric={openMetricById}
+        />
+
+        <div className="rounded-[var(--radius-2xl)] border border-[var(--tt-line)] bg-white px-4 py-3.5 sm:px-5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--tt-ink-soft)]">
+            {FITNESS_SCORE_GUIDE.title}
+          </p>
+          <p className="mt-2 text-[12px] leading-snug text-[var(--tt-ink)]">
+            {FITNESS_SCORE_GUIDE.summary}
+          </p>
+          <ul className="mt-3 space-y-2.5">
+            {FITNESS_SCORE_GUIDE.bands.map((band) => (
+              <li
+                key={band.range}
+                className="grid grid-cols-[3.5rem_minmax(0,1fr)] items-start gap-x-2 text-[11px] leading-snug"
+              >
+                <span className="pt-0.5 tabular-nums font-semibold text-[var(--tt-ink-soft)]">
+                  {band.range}
+                </span>
+                <div className="min-w-0">
+                  <span
+                    className={cn(
+                      'inline-block rounded-[4px] px-1.5 py-0.5 text-[10px] font-semibold',
+                      toneClasses(band.tone).chip,
+                    )}
+                  >
+                    {band.label}
+                  </span>
+                  <p className="mt-1 text-[var(--tt-ink)]">{band.meaning}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-[11px] leading-snug text-[var(--tt-ink-soft)]">
+            {FITNESS_SCORE_GUIDE.note}
+          </p>
+        </div>
       </div>
 
       {data.streamFeatures && data.streamFeatures.withHrCount > 0 ? (

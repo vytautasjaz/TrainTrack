@@ -36,6 +36,8 @@ export const swimWorkoutFormSchema = z.object({
   builderEnabled: z.boolean(),
   scheduledDate: z.string().optional(),
   athleteId: z.string().optional(),
+  /** Coach create: fan-out to multiple roster athletes. */
+  athleteIds: z.array(z.string().min(1)).optional(),
   templateId: z.string().optional(),
   tags: z.array(z.string()).optional(),
 })

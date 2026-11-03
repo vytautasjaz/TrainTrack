@@ -438,14 +438,21 @@ export function enabledSessionOptionRows(
   const rows = getPrefsRowsForSport(sportType, prefs)
   const defaults = defaultSessionOptionsForSport(sportType)
   const source = rows?.length ? rows : defaults
-  return source.filter((row) => row.enabled)
+  const enabled = source.filter((row) => row.enabled)
+  // Prefer enabled prefs; if coach disabled everything, fall back to defaults
+  // so the editor type menu is never empty.
+  if (enabled.length > 0) return enabled
+  return defaults.filter((row) => row.enabled)
 }
 
 export function enabledBikeOptionRows(
   prefs?: WorkoutTypePrefs | null,
 ): BikeKindOptionPref[] {
-  const rows = prefs?.BIKE?.length ? prefs.BIKE : defaultBikeKindOptions()
-  return rows.filter((row) => row.enabled)
+  const defaults = defaultBikeKindOptions()
+  const rows = prefs?.BIKE?.length ? prefs.BIKE : defaults
+  const enabled = rows.filter((row) => row.enabled)
+  if (enabled.length > 0) return enabled
+  return defaults.filter((row) => row.enabled)
 }
 
 export function enabledSessionTypes(

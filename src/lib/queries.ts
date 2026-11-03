@@ -534,7 +534,7 @@ async function getAthleteDashboardUncached(
     weekStatsWindowWorkouts,
     monthWorkouts,
     recentCompletedWorkouts,
-    weekRaces,
+    weekStatsWindowRaces,
     monthRaces,
     athletePlan,
     dayNotesRaw,
@@ -599,7 +599,8 @@ async function getAthleteDashboardUncached(
             take: 10,
           })
         : Promise.resolve([]),
-      getRacesForRange(athleteId, weekStart, weekEnd),
+      // Same ±4 week window as home week navigator / weekStatsWindowWorkouts.
+      getRacesForRange(athleteId, weekStatsWindowStart, weekStatsWindowEnd),
       getRacesForRange(athleteId, monthStart, monthEnd),
       athletePlanPromise,
       getDayNotesForRange(athleteId, weekStatsWindowStart, weekStatsWindowEnd),
@@ -625,6 +626,12 @@ async function getAthleteDashboardUncached(
 
   const weekWorkouts = weekStatsWindowWorkouts.filter(
     (w) => w.date >= weekStart && w.date <= weekEnd,
+  )
+  const weekRaces = weekStatsWindowRaces.filter(
+    (r) => r.date >= weekStart && r.date <= weekEnd,
+  )
+  const weekPlanRaces = weekStatsWindowRaces.filter(
+    (r) => r.date >= planWindowStart && r.date <= nextWeekEnd,
   )
 
   const { ensureTriathlonLegsForRace } = await import('@/lib/strava/sync')
@@ -702,6 +709,7 @@ async function getAthleteDashboardUncached(
   return {
     todayWorkouts,
     weekPlanWorkouts,
+    weekPlanRaces,
     nextRace: nextRaces[0] ?? null,
     nextRaces,
     pendingRaceFollowUps,
@@ -715,6 +723,7 @@ async function getAthleteDashboardUncached(
     recentCompletedWorkouts,
     unreadCoachReplies: await getUnreadCoachReplies(athleteId),
     weekStatsWindowWorkouts,
+    weekStatsWindowRaces,
     weekStatsAnchorStartKey: toDateKey(weekStart),
     weekStatsWindowStartKey: toDateKey(weekStatsWindowStart),
     weekStatsWindowEndKey: toDateKey(weekStatsWindowEnd),

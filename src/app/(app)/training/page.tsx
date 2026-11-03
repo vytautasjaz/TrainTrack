@@ -63,11 +63,12 @@ import { loadAthletePreferencesForBuilder } from "@/lib/workout-builder/load-ath
 import { sessionLoadThresholdsFromPreferences } from "@/lib/training-load/session-tss";
 import { TrainingPlanShell } from "@/components/training/training-plan-shell";
 import { TrainingDefaultViewRedirect } from "@/components/training/training-default-view-redirect";
+import { CoachCompareView } from "@/components/training/coach-compare-view";
 import { getYrWeatherSummaries } from "@/lib/weather/yr";
 import type { WeatherDaySummary } from "@/lib/weather/places";
 import { toTrainingPhaseBlock } from "@/lib/training-phase-context";
 
-type TrainingView = "week" | "list" | "calendar";
+type TrainingView = "week" | "list" | "calendar" | "compare";
 
 const MAX_WEEK_SPAN = 16;
 
@@ -88,6 +89,7 @@ function parseView(raw: string | undefined): TrainingView {
   if (raw === "calendar" || raw === "month") return "calendar";
   // New list = former infinite-scroll table; keep `table` as alias
   if (raw === "list" || raw === "table") return "list";
+  if (raw === "compare") return "compare";
   return "week";
 }
 
@@ -145,6 +147,10 @@ export default async function TrainingPage({
   const weekOffset = parseInt(params.week ?? "0", 10) || 0;
   const monthOffset = parseInt(params.month ?? "0", 10) || 0;
   const view = parseView(params.view);
+  const isCoachEarly = userIsCoach(session);
+  if (view === "compare" && !isCoachEarly) {
+    redirect(`/training?view=week&week=${weekOffset}`);
+  }
   const monthSpan = parseMonthSpan(params.months);
   const weekSpan = view === "week" ? parseWeekSpan(params.weeks) : 1;
   const usesMonthGrid = view === "calendar";
@@ -399,6 +405,7 @@ export default async function TrainingPage({
   const weekHref = `/training?view=week&${weekQuery}`;
   const listHref = `/training?view=list`;
   const calendarHref = `/training?view=calendar&${monthQuery}`;
+  const compareHref = `/training?view=compare&week=${weekOffset}`;
 
   const prevHref = usesMonthGrid
     ? `/training?view=calendar&month=${prevMonth}${monthSpanQuery}`
@@ -479,11 +486,12 @@ export default async function TrainingPage({
       weekHref={weekHref}
       listHref={listHref}
       calendarHref={calendarHref}
+      compareHref={isCoach ? compareHref : undefined}
       canLogWorkout={canLogWorkout}
       isCoach={isCoach}
       athleteId={athleteId}
       canAddNote
-      showAddMenu={view !== "list"}
+      showAddMenu={view !== "list" && view !== "compare"}
       showLibraryToggle={isCoach && view === "list"}
       showSportFilter={false}
     />
@@ -701,6 +709,16 @@ export default async function TrainingPage({
         <TrainingListFrame header={listPageHeader}>
           {listTableView}
         </TrainingListFrame>
+      ) : view === "compare" && isCoach ? (
+        <div className="space-y-4 px-4 pb-6 lg:px-0">
+          <div className="flex justify-end">{calendarControls}</div>
+          <CoachCompareView
+            initialAthleteId={athleteId}
+            initialWeekStartKey={firstWeek.weekStartKey}
+            athletes={coachAthletes.map((a) => ({ id: a.id, name: a.name }))}
+            weekHref={weekHref}
+          />
+        </div>
       ) : (
         <PlanMultiWeekTables
           weeks={weekViewBlocks}

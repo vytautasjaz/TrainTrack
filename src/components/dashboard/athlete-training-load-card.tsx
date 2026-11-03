@@ -132,6 +132,11 @@ function smoothPath(
   return d
 }
 
+function normalizeDaily(daily: number[], max: number): number[] {
+  const m = Math.max(max, 1)
+  return daily.map((v) => v / m)
+}
+
 /** Compact load sparkline — shared by home combined widget. */
 export function TrainingLoadChart({
   plannedDaily,
@@ -140,6 +145,8 @@ export function TrainingLoadChart({
   showActual,
   morphFrom,
   compact = false,
+  /** Actual series color — TSS orange vs time charcoal. */
+  seriesTone = 'accent',
 }: {
   plannedDaily: number[]
   actualDaily: number[]
@@ -147,22 +154,47 @@ export function TrainingLoadChart({
   showActual: boolean
   morphFrom: MorphPair | null
   compact?: boolean
+  seriesTone?: 'accent' | 'ink'
 }) {
   const chartH = compact ? CHART_H_COMPACT : CHART_H
   const padY = compact ? PAD_Y_COMPACT : PAD_Y
-  const displayPlanned = useMorphArray(plannedDaily, morphFrom?.planned ?? null)
-  const displayActual = useMorphArray(actualDaily, morphFrom?.actual ?? null)
-  const plannedPath = smoothPath(displayPlanned, yMax, chartH, padY)
-  const actualPath = smoothPath(displayActual, yMax, chartH, padY)
-  const plannedPoints = toPoints(displayPlanned, yMax, chartH, padY)
-  const actualPoints = toPoints(displayActual, yMax, chartH, padY)
+  // Morph in 0–1 chart space so unit switches (TSS ↔ km ↔ min) only slide
+  // points — they never “fall in” from a mismatched absolute scale.
+  const targetMax = Math.max(yMax, 1)
+  const fromMax = morphFrom
+    ? Math.max(...morphFrom.planned, ...morphFrom.actual, 1)
+    : targetMax
+  const plannedNorm = normalizeDaily(plannedDaily, targetMax)
+  const actualNorm = normalizeDaily(actualDaily, targetMax)
+  const morphFromNorm = morphFrom
+    ? {
+        planned: normalizeDaily(morphFrom.planned, fromMax),
+        actual: normalizeDaily(morphFrom.actual, fromMax),
+      }
+    : null
+  const displayPlanned = useMorphArray(
+    plannedNorm,
+    morphFromNorm?.planned ?? null,
+  )
+  const displayActual = useMorphArray(
+    actualNorm,
+    morphFromNorm?.actual ?? null,
+  )
+  const plannedPath = smoothPath(displayPlanned, 1, chartH, padY)
+  const actualPath = smoothPath(displayActual, 1, chartH, padY)
+  const plannedPoints = toPoints(displayPlanned, 1, chartH, padY)
+  const actualPoints = toPoints(displayActual, 1, chartH, padY)
   const actualStroke = compact ? 1.15 : 2.1
   const plannedStroke = compact ? 1 : 1.35
   const plannedDot = compact ? 2 : 3
   const actualDot = compact ? 2.5 : 4
+  const actualColor =
+    seriesTone === 'ink'
+      ? 'var(--tt-ink, #111315)'
+      : 'var(--tt-good, var(--tt-v2-accent, #f0440a))'
 
   return (
-    <div className={cn('w-full', compact ? 'mt-2' : 'mt-4')}>
+    <div className={cn('w-full', compact ? 'mt-0' : 'mt-4')}>
       <svg
         viewBox={`0 0 ${CHART_W} ${chartH}`}
         className="block h-auto w-full"
@@ -200,13 +232,13 @@ export function TrainingLoadChart({
             opacity="0.45"
           />
         ))}
-        {/* Actual load — uses --tt-good (orange on v2 home panels) */}
+        {/* Actual load — orange (TSS) or charcoal (time) */}
         {showActual ? (
           <>
             <path
               d={actualPath}
               fill="none"
-              stroke="var(--tt-good, var(--tt-v2-accent, #f0440a))"
+              stroke={actualColor}
               strokeWidth={actualStroke}
               strokeLinecap="square"
               strokeLinejoin="miter"
@@ -218,7 +250,7 @@ export function TrainingLoadChart({
                 y={p.y - actualDot / 2}
                 width={actualDot}
                 height={actualDot}
-                fill="var(--tt-good, var(--tt-v2-accent, #f0440a))"
+                fill={actualColor}
               />
             ))}
           </>
@@ -251,9 +283,13 @@ export function TrainingLoadChart({
           Planned
         </span>
         {showActual ? (
-          <span className="inline-flex items-center gap-1.5 text-[var(--tt-good,var(--tt-v2-accent,#f0440a))]">
+          <span
+            className="inline-flex items-center gap-1.5"
+            style={{ color: actualColor }}
+          >
             <span
-              className="inline-block h-px w-3 bg-[var(--tt-good,var(--tt-v2-accent,#f0440a))]"
+              className="inline-block h-px w-3"
+              style={{ backgroundColor: actualColor }}
               aria-hidden
             />
             Actual
@@ -283,7 +319,6 @@ export function AthleteTrainingLoadCard({
   const [paneActive, setPaneActive] = useState(CENTER_INDEX)
   const [metric, setMetric] = useState<LoadMetric>('tss')
   const [dailyMorphFrom, setDailyMorphFrom] = useState<MorphPair | null>(null)
-  const [morphGen, setMorphGen] = useState(0)
   const todayKey = todayDateKey()
   const syncTimerRef = useRef<number | null>(null)
 
@@ -366,7 +401,6 @@ export function AthleteTrainingLoadCard({
         planned: [...current.dailyPlanned],
         actual: [...current.dailyActual],
       })
-      setMorphGen((g) => g + 1)
       setMetric(next)
       window.setTimeout(() => setDailyMorphFrom(null), 500)
     },
@@ -405,7 +439,6 @@ export function AthleteTrainingLoadCard({
         planned: [...current.dailyPlanned],
         actual: [...current.dailyActual],
       })
-      setMorphGen((g) => g + 1)
       setActive(next)
       syncTimerRef.current = window.setTimeout(() => {
         syncTimerRef.current = null
@@ -528,9 +561,9 @@ export function AthleteTrainingLoadCard({
                           className={cn(
                             'transition',
                             metric === option.id
-                              ? isV2
-                                ? 'text-[var(--tt-v2-accent)]'
-                                : 'text-[var(--tt-ink,#111)]'
+                              ? option.id === 'time' || !isV2
+                                ? 'text-[var(--tt-ink,#111)]'
+                                : 'text-[var(--tt-v2-accent)]'
                               : 'text-[var(--tt-ink-faint,#9a9a9a)] hover:text-[var(--tt-ink-soft,#6b6b6b)]',
                           )}
                         >
@@ -543,13 +576,14 @@ export function AthleteTrainingLoadCard({
               </div>
 
               <TrainingLoadChart
-                key={`${slide.startKey}-${metric}-${isVisible ? morphGen : 'idle'}`}
+                key={slide.startKey}
                 plannedDaily={data.dailyPlanned}
                 actualDaily={data.dailyActual}
                 yMax={Math.max(...data.dailyPlanned, ...data.dailyActual, 1)}
                 showActual={showActual}
                 morphFrom={isVisible ? dailyMorphFrom : null}
                 compact={isV2}
+                seriesTone={metric === 'time' ? 'ink' : 'accent'}
               />
             </WeekSwipeSlide>
           )

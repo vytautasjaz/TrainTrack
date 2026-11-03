@@ -17,6 +17,7 @@ import {
 } from '@/components/plan/workout-card-corner-overlay'
 import { planWorkoutItemShellClass } from '@/components/plan/plan-workout-item-shell'
 import { usePlanWeekDnd } from '@/components/plan/plan-week-dnd'
+import { PlanBulkSelectCheckbox } from '@/components/plan/plan-bulk-select'
 import {
   athleteHasQuickLogActions,
   canDragPlanWorkout,
@@ -71,6 +72,7 @@ export function DraggableWorkoutItem({
         ),
       )}
     >
+      <PlanBulkSelectCheckbox workout={workout} />
       <WorkoutModalTrigger
         workout={workout}
         isCoach={isCoach}

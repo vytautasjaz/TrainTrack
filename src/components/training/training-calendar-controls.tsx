@@ -17,13 +17,14 @@ import { PlanSportFilterControl } from '@/components/training/plan-sport-filter-
 import { FeedbackLayerToggle } from '@/components/training/feedback-layer-toggle'
 import { cn } from '@/lib/utils'
 
-type TrainingView = 'week' | 'list' | 'calendar'
+type TrainingView = 'week' | 'list' | 'calendar' | 'compare'
 
 type TrainingCalendarControlsProps = {
   view: TrainingView
   weekHref: string
   listHref: string
   calendarHref: string
+  compareHref?: string
   canLogWorkout: boolean
   /** List-view Add menu (New workout / Log / Note / Event). */
   isCoach?: boolean
@@ -50,6 +51,7 @@ export function TrainingCalendarControls({
   weekHref,
   listHref,
   calendarHref,
+  compareHref,
   canLogWorkout,
   isCoach = false,
   athleteId,
@@ -64,6 +66,7 @@ export function TrainingCalendarControls({
     week: weekHref,
     list: listHref,
     calendar: calendarHref,
+    compare: compareHref ?? weekHref,
   }
 
   const viewSwitch = (
@@ -79,6 +82,21 @@ export function TrainingCalendarControls({
               </Link>
             </SegmentedControlItem>
           ))}
+          {isCoach && compareHref ? (
+            <SegmentedControlItem asChild active={view === 'compare'}>
+              <Link
+                href={compareHref}
+                className="inline-flex items-center gap-1.5"
+              >
+                <PanelRightOpen
+                  className="h-3.5 w-3.5 shrink-0"
+                  strokeWidth={2}
+                  aria-hidden
+                />
+                Compare
+              </Link>
+            </SegmentedControlItem>
+          ) : null}
         </SegmentedControl>
       </div>
 
@@ -103,6 +121,27 @@ export function TrainingCalendarControls({
             <span>{label}</span>
           </Link>
         ))}
+        {isCoach && compareHref ? (
+          <Link
+            href={compareHref}
+            role="tab"
+            aria-selected={view === 'compare'}
+            aria-label="Compare"
+            className={cn(
+              'pill-select-item inline-flex h-8 items-center gap-1 px-2.5 py-0',
+              view === 'compare'
+                ? 'pill-select-item-active'
+                : 'pill-select-item-inactive',
+            )}
+          >
+            <PanelRightOpen
+              className="h-3.5 w-3.5 shrink-0"
+              strokeWidth={2}
+              aria-hidden
+            />
+            <span>Compare</span>
+          </Link>
+        ) : null}
       </div>
     </div>
   )

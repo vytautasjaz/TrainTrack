@@ -199,6 +199,18 @@ export type PersonalBestRecord = {
   sortOrder: number
 }
 
+/** Archived value after a PB was overwritten. */
+export type PersonalBestHistoryRecord = {
+  id: string
+  personalBestId: string
+  value: number
+  metric: PersonalBestMetric
+  dateText: string | null
+  event: string | null
+  raceId: string | null
+  supersededAt: string
+}
+
 /** Sort key by distance (shorter first). Custom / unknown go last. */
 export function personalBestDistanceSortKey(record: {
   presetKey?: string | null

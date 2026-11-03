@@ -181,80 +181,89 @@ export function RaceResultsClient({ results }: RaceResultsClientProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <FilterSelect
-            label="Sport"
-            value={sport}
-            onChange={setSport}
-            options={[
-              { value: ALL, label: 'All sports' },
-              ...([
-                WorkoutType.RUN,
-                WorkoutType.BIKE,
-                WorkoutType.SWIM,
-                WorkoutType.TRIATHLON,
-                WorkoutType.HYROX,
-              ] as const).map((s) => ({
-                value: s,
-                label: WORKOUT_TYPE_LABELS[s],
-              })),
-            ]}
-          />
-          <FilterSelect
-            label="Distance"
-            value={distance}
-            onChange={setDistance}
-            options={[
-              { value: ALL, label: 'All distances' },
-              ...distanceOptions.map(([value, label]) => ({ value, label })),
-            ]}
-          />
-          <FilterSelect
-            label="Year"
-            value={year}
-            onChange={setYear}
-            options={[
-              { value: ALL, label: 'All years' },
-              ...years.map((y) => ({ value: String(y), label: String(y) })),
-            ]}
-          />
-          <FilterSelect
-            label="Outcome"
-            value={outcome}
-            onChange={setOutcome}
-            options={[
-              { value: ALL, label: 'All outcomes' },
-              { value: RaceOutcome.FINISHED, label: RACE_OUTCOME_LABELS.FINISHED },
-              { value: RaceOutcome.DNF, label: RACE_OUTCOME_LABELS.DNF },
-              {
-                value: RaceOutcome.DID_NOT_START,
-                label: RACE_OUTCOME_LABELS.DID_NOT_START,
-              },
-            ]}
-          />
-          <label className="min-w-[10rem] flex-1 space-y-1">
-            <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              Search
-            </span>
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Name, place, notes…"
-              className="h-9"
+    <div className="space-y-3">
+      <div
+        className={cn(
+          DATA_TABLE_SHELL,
+          'rounded-[var(--radius-xl)] border-[var(--tt-line)] bg-white',
+        )}
+      >
+        <div className="flex flex-col gap-3 border-b border-[var(--tt-line)] px-3 py-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:px-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <FilterSelect
+              label="Sport"
+              value={sport}
+              onChange={setSport}
+              options={[
+                { value: ALL, label: 'All sports' },
+                ...([
+                  WorkoutType.RUN,
+                  WorkoutType.BIKE,
+                  WorkoutType.SWIM,
+                  WorkoutType.TRIATHLON,
+                  WorkoutType.HYROX,
+                ] as const).map((s) => ({
+                  value: s,
+                  label: WORKOUT_TYPE_LABELS[s],
+                })),
+              ]}
             />
-          </label>
+            <FilterSelect
+              label="Distance"
+              value={distance}
+              onChange={setDistance}
+              options={[
+                { value: ALL, label: 'All distances' },
+                ...distanceOptions.map(([value, label]) => ({ value, label })),
+              ]}
+            />
+            <FilterSelect
+              label="Year"
+              value={year}
+              onChange={setYear}
+              options={[
+                { value: ALL, label: 'All years' },
+                ...years.map((y) => ({ value: String(y), label: String(y) })),
+              ]}
+            />
+            <FilterSelect
+              label="Outcome"
+              value={outcome}
+              onChange={setOutcome}
+              options={[
+                { value: ALL, label: 'All outcomes' },
+                { value: RaceOutcome.FINISHED, label: RACE_OUTCOME_LABELS.FINISHED },
+                { value: RaceOutcome.DNF, label: RACE_OUTCOME_LABELS.DNF },
+                {
+                  value: RaceOutcome.DID_NOT_START,
+                  label: RACE_OUTCOME_LABELS.DID_NOT_START,
+                },
+              ]}
+            />
+            <label className="min-w-[10rem] flex-1 space-y-1">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Search
+              </span>
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Name, place, notes…"
+                className="h-9"
+              />
+            </label>
+          </div>
+          <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Log past result
+          </Button>
         </div>
-        <Button type="button" size="sm" onClick={() => setAddOpen(true)}>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          Log past result
-        </Button>
-      </div>
 
-      {error ? <FormMessage variant="error">{error}</FormMessage> : null}
+        {error ? (
+          <div className="border-b border-[var(--tt-line)] px-3 py-2 sm:px-4">
+            <FormMessage variant="error">{error}</FormMessage>
+          </div>
+        ) : null}
 
-      <div className={DATA_TABLE_SHELL}>
         {filtered.length === 0 ? (
           <div className={DATA_EMPTY}>
             <p className="text-sm">

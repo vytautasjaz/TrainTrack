@@ -142,6 +142,81 @@ function formatPrescription(item: ExerciseItem): string {
   return `${p.value}`
 }
 
+/** Compact target for sets×target lines (no “reps” word). */
+function formatPrescriptionTarget(item: ExerciseItem): string {
+  const p = item.prescription
+  if (!p || p.mode === 'UNTIMED' || p.value == null) return ''
+  if (p.mode === 'REPS') return String(p.value)
+  if (p.mode === 'DISTANCE') {
+    return `${p.value} ${p.unit ?? 'm'}`
+  }
+  if (p.mode === 'TIME') {
+    if (p.unit === 'min') return `${p.value} min`
+    return `${p.value}"`
+  }
+  if (p.mode === 'CALORIES') return `${p.value} cal`
+  if (p.mode === 'WEIGHT') {
+    return p.unit ? `${p.value}${p.unit}` : String(p.value)
+  }
+  return p.unit ? `${p.value} ${p.unit}` : String(p.value)
+}
+
+function formatRestQuote(rest: {
+  type?: string
+  value?: number
+  unit?: string
+  label?: string
+} | null | undefined): string | null {
+  if (!rest) return null
+  if (rest.type === 'TIME' && rest.value != null) {
+    if (rest.unit === 'min') return `${rest.value} min`
+    return `${rest.value}"`
+  }
+  if (rest.label?.trim()) return rest.label.trim()
+  return null
+}
+
+/**
+ * Gym-style line: `3 × 10 / 60"` or `8 × 25 m / 90"`.
+ * Used for standalone EXERCISE blocks (sets on the block).
+ */
+export function formatExerciseRxCompact(
+  item: ExerciseItem,
+  opts?: {
+    rounds?: number | null
+    rest?: {
+      type?: string
+      value?: number
+      unit?: string
+      label?: string
+    } | null
+  },
+): string {
+  const rounds =
+    opts?.rounds != null && opts.rounds > 0 ? opts.rounds : null
+  const target = formatPrescriptionTarget(item)
+  const load = formatLoad(item)
+  const restQuote = formatRestQuote(opts?.rest ?? null)
+
+  const leftBits: string[] = []
+  if (rounds != null && target) {
+    leftBits.push(`${rounds} × ${target}`)
+  } else if (rounds != null) {
+    leftBits.push(`${rounds}×`)
+  } else if (target) {
+    // No sets — keep readable “10 reps” / “25 m”
+    leftBits.push(formatPrescription(item))
+  }
+  if (load) leftBits.push(load)
+  if (item.notes?.trim()) leftBits.push(item.notes.trim())
+
+  const left = leftBits.join(' · ')
+  if (restQuote) {
+    return left ? `${left} / ${restQuote}` : restQuote
+  }
+  return left
+}
+
 function formatLoad(item: ExerciseItem): string {
   const load = item.load
   if (!load) return ''
@@ -248,14 +323,26 @@ function appendV2ExerciseRows(
     return
   }
 
-  const blockRest =
-    block.type === 'EXERCISE' || block.type === 'CONTINUOUS'
-      ? formatExerciseRest(block.rest)
-      : null
-
   for (const item of exercisesFromBlock(block)) {
-    const { name, detail } = formatExerciseCardParts(item)
+    const name = `${item.order ? `${item.order} ` : ''}${item.name?.trim() || item.exerciseId}`
     if (!name.trim()) continue
+
+    if (block.type === 'EXERCISE') {
+      const detail = formatExerciseRxCompact(item, {
+        rounds: block.rounds,
+        rest: block.rest,
+      })
+      rows.push({
+        kind: 'exercise',
+        text: name,
+        ...(detail ? { detail } : {}),
+      })
+      continue
+    }
+
+    const { detail } = formatExerciseCardParts(item)
+    const blockRest =
+      block.type === 'CONTINUOUS' ? formatExerciseRest(block.rest) : null
     const withRest =
       blockRest && !detail?.includes('rest')
         ? detail
@@ -467,8 +554,26 @@ export function summarizeBlockV2(block: WorkoutBlockV2): string {
       }
       return r?.label?.trim() || ''
     }
-    case 'CONTINUOUS':
     case 'EXERCISE': {
+      if (exercises.length === 0) return ''
+      // Title already shows the exercise name — body is sets × target / rest.
+      if (exercises.length === 1) {
+        return formatExerciseRxCompact(exercises[0]!, {
+          rounds: block.rounds,
+          rest: block.rest,
+        })
+      }
+      return exercises
+        .map((item) =>
+          formatExerciseRxCompact(item, {
+            rounds: block.rounds,
+            rest: block.rest,
+          }),
+        )
+        .filter(Boolean)
+        .join('\n')
+    }
+    case 'CONTINUOUS': {
       if (exercises.length === 0) return ''
       const restBit = formatExerciseRest(block.rest)
       // Title already shows the exercise name — body is prescription/effort/rest.

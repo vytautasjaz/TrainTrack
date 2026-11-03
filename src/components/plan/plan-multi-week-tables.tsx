@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { PlanTableView } from '@/components/plan/plan-table-view'
 import { PlanWeekDndProvider, PlanWeekDndErrorBanner } from '@/components/plan/plan-week-dnd'
+import { PlanBulkSelectProvider } from '@/components/plan/plan-bulk-select'
 import { CalendarPeriodNav } from '@/components/plan/calendar-period-nav'
 import { EditDefaultPlanSportsButton } from '@/components/coach/edit-default-plan-sports-button'
 import { AddPlanSportRowButton } from '@/components/coach/add-plan-sport-row-button'
@@ -737,13 +738,8 @@ export function PlanMultiWeekTables({
     />
   )
 
-  const weekPlanBody = (
-    <div
-      className={cn(
-        'tt-week-view-root min-w-0 max-w-full space-y-4',
-        expanded && 'space-y-2',
-      )}
-    >
+  const weekPlanInner = (
+    <>
       {showCombined || expanded ? (
         <PlanWeekDndProvider mode={isCoach ? 'coach' : 'athlete'}>
           <PlanWeekDndErrorBanner className="mb-4" />
@@ -778,6 +774,21 @@ export function PlanMultiWeekTables({
           {footerControls}
         </div>
       ) : null}
+    </>
+  )
+
+  const weekPlanBody = (
+    <div
+      className={cn(
+        'tt-week-view-root min-w-0 max-w-full space-y-4',
+        expanded && 'space-y-2',
+      )}
+    >
+      {isCoach ? (
+        <PlanBulkSelectProvider enabled>{weekPlanInner}</PlanBulkSelectProvider>
+      ) : (
+        weekPlanInner
+      )}
     </div>
   )
 

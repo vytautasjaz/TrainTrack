@@ -94,7 +94,10 @@ type ExerciseRowEditorProps = {
   searchContext?: ExerciseSearchContext
   /** Show column header labels (first row only). */
   showHeaders?: boolean
-  /** Rest between sets/reps (EXERCISE blocks). */
+  /** Sets / series (standalone EXERCISE blocks). */
+  rounds?: number
+  onRoundsChange?: (rounds: number | undefined) => void
+  /** Rest between sets (EXERCISE blocks). */
   rest?: RestSpec
   onRestChange?: (rest: RestSpec | undefined) => void
   className?: string
@@ -107,11 +110,14 @@ export function ExerciseRowEditor({
   library,
   searchContext = 'GENERAL',
   showHeaders = false,
+  rounds,
+  onRoundsChange,
   rest,
   onRestChange,
   className,
 }: ExerciseRowEditorProps) {
   const [query, setQuery] = useState(item.name ?? '')
+  const showSets = typeof onRoundsChange === 'function'
   const showRest = typeof onRestChange === 'function'
 
   useEffect(() => {
@@ -140,6 +146,10 @@ export function ExerciseRowEditor({
   }, [libraryEntry, item.prescription?.mode])
 
   function applyPick(pick: ExercisePick) {
+    const unit =
+      pick.defaultMode === 'DISTANCE'
+        ? item.prescription?.unit ?? 'm'
+        : item.prescription?.unit
     onChange({
       ...item,
       exerciseId: pick.exerciseId,
@@ -147,16 +157,20 @@ export function ExerciseRowEditor({
       prescription: {
         mode: pick.defaultMode,
         value: item.prescription?.value ?? 10,
-        unit: item.prescription?.unit,
+        unit,
       },
     })
   }
 
   const mode = item.prescription?.mode ?? 'REPS'
-  // … Target · Effort · Rest (rest last) · delete
-  const gridClass = showRest
-    ? 'grid-cols-[1.75rem_minmax(0,1fr)_4.25rem_3.25rem_3.5rem_3rem_1.75rem]'
-    : 'grid-cols-[1.75rem_minmax(0,1fr)_4.25rem_3.25rem_3.5rem_1.75rem]'
+  // thumb · Exercise · [Sets] · Mode · Target · Effort · [Rest] · delete
+  const gridClass = showSets
+    ? showRest
+      ? 'grid-cols-[1.75rem_minmax(0,1fr)_2.35rem_4.25rem_3.25rem_3.5rem_3rem_1.75rem]'
+      : 'grid-cols-[1.75rem_minmax(0,1fr)_2.35rem_4.25rem_3.25rem_3.5rem_1.75rem]'
+    : showRest
+      ? 'grid-cols-[1.75rem_minmax(0,1fr)_4.25rem_3.25rem_3.5rem_3rem_1.75rem]'
+      : 'grid-cols-[1.75rem_minmax(0,1fr)_4.25rem_3.25rem_3.5rem_1.75rem]'
 
   return (
     <div className={cn('min-w-0', className)}>
@@ -172,6 +186,11 @@ export function ExerciseRowEditor({
           <span className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--tt-ink-faint,#9ca3af)]">
             Exercise
           </span>
+          {showSets ? (
+            <span className="text-right text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--tt-ink-faint,#9ca3af)]">
+              Sets
+            </span>
+          ) : null}
           <span className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--tt-ink-faint,#9ca3af)]">
             Mode
           </span>
@@ -216,18 +235,47 @@ export function ExerciseRowEditor({
           inputClassName={cn(fieldClass, 'font-medium')}
         />
 
+        {showSets ? (
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={rounds ?? ''}
+            onChange={(e) => {
+              const raw = e.target.value.trim()
+              if (!raw) {
+                onRoundsChange?.(undefined)
+                return
+              }
+              const n = Number.parseInt(raw, 10)
+              onRoundsChange?.(
+                Number.isFinite(n) && n > 0 ? n : undefined,
+              )
+            }}
+            placeholder="—"
+            className={cn(fieldClass, 'text-right')}
+            aria-label="Sets"
+            title="Sets / series"
+          />
+        ) : null}
+
         <select
           value={mode}
-          onChange={(e) =>
+          onChange={(e) => {
+            const nextMode = e.target.value as PrescriptionMode
+            const nextUnit =
+              nextMode === 'DISTANCE'
+                ? item.prescription?.unit ?? 'm'
+                : item.prescription?.unit
             onChange({
               ...item,
               prescription: {
-                mode: e.target.value as PrescriptionMode,
+                mode: nextMode,
                 value: item.prescription?.value,
-                unit: item.prescription?.unit,
+                unit: nextUnit,
               },
             })
-          }
+          }}
           className={cn(fieldClass, 'appearance-none pr-0 text-[11px]')}
           aria-label="Prescription mode"
         >

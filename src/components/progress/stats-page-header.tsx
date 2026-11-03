@@ -19,7 +19,7 @@ export function StatsPageHeader({
           {title}
         </PageHeaderTitle>
         {description ? (
-          <PageHeaderDescription className="tt-stats-page-description">
+          <PageHeaderDescription className="tt-stats-page-description max-w-2xl leading-relaxed">
             {description}
           </PageHeaderDescription>
         ) : null}

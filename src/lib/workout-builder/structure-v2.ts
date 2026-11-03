@@ -184,6 +184,8 @@ const continuousBlockSchema = blockBaseSchema.extend({
 
 const singleExerciseBlockSchema = blockBaseSchema.extend({
   type: z.literal('EXERCISE'),
+  /** Sets / series count — e.g. 3 in “3 × 10 / 60"”. */
+  rounds: z.number().int().positive().optional(),
   exercise: exerciseItemSchema.optional(),
   exercises: z.array(exerciseItemSchema).optional(),
   rest: restSchema.optional(),
@@ -432,7 +434,9 @@ export function createEmptyBlockV2(type: WorkoutBlockTypeV2): WorkoutBlockV2 {
       return {
         id,
         type: 'EXERCISE',
+        rounds: 3,
         exercise: createEmptyExerciseItem(),
+        rest: { type: 'TIME', value: 90, unit: 'sec' },
       }
     case 'REST':
       return {

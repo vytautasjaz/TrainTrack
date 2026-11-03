@@ -1,12 +1,11 @@
 "use client";
 
 import type { MouseEvent, ReactNode } from "react";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Clock, Eye, EyeOff, Link2 } from "lucide-react";
 import { WorkoutType } from "@prisma/client";
 import { WorkoutSportIcon } from "@/components/plan/workout-sport-icon";
 import { WorkoutCardEssenceLine } from "@/components/plan/workout-card-essence-line";
-import { WORKOUT_TYPE_LABELS } from "@/lib/constants";
+import { WorkoutSportPicker } from "@/components/workout-editor/workout-sport-picker";
 import type {
   DistanceUnit,
   DurationUnit,
@@ -356,45 +355,11 @@ export function EditableWorkoutCardShell({
     )
 
   const sportIcon = canChangeSport ? (
-    <DropdownMenu.Root modal={false}>
-      <DropdownMenu.Trigger asChild>
-        <button
-          type="button"
-          aria-label={`Sport: ${WORKOUT_TYPE_LABELS[sportType]}. Change sport`}
-          title="Change sport"
-          className="shrink-0 rounded-xl outline-none ring-offset-2 transition hover:opacity-90 focus-visible:ring-2 focus-visible:ring-foreground/20"
-        >
-          <WorkoutSportIcon type={sportType} size="md" />
-        </button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="start"
-          sideOffset={6}
-          data-tt-floating-ui=""
-          className="pointer-events-auto z-[250] min-w-[10.5rem] overflow-hidden rounded-[10px] border border-border bg-card p-1 shadow-lg"
-          onCloseAutoFocus={(e) => e.preventDefault()}
-        >
-          {sportOptions!.map((sport) => {
-            const selected = sport === sportType;
-            return (
-              <DropdownMenu.Item
-                key={sport}
-                onSelect={() => onSportChange?.(sport)}
-                className={cn(
-                  "flex cursor-pointer items-center gap-2 rounded-[6px] px-2.5 py-2 text-sm outline-none",
-                  "data-[highlighted]:bg-foreground/[0.04]",
-                  selected && "bg-foreground/[0.06] font-semibold",
-                )}
-              >
-                <WorkoutSportIcon type={sport} size="xs" />
-                <span className="flex-1">{WORKOUT_TYPE_LABELS[sport]}</span>
-              </DropdownMenu.Item>
-            );
-          })}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <WorkoutSportPicker
+      sportType={sportType}
+      sportOptions={sportOptions!}
+      onSportChange={onSportChange!}
+    />
   ) : (
     <WorkoutSportIcon type={sportType} size="md" className="mt-0.5 shrink-0" />
   );
@@ -460,14 +425,14 @@ export function EditableWorkoutCardShell({
         </div>
       ) : null}
 
-      <div className="mt-5 flex min-w-0 items-stretch overflow-hidden">
+      <div className="mt-5 flex min-w-0 items-stretch overflow-visible">
         {workoutTypeControl ? (
           <>
-            <div className="flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-hidden px-2 text-center">
+            <div className="relative z-20 flex min-w-0 flex-[1_1_0%] flex-col items-center overflow-visible px-2 text-center">
               <span className="flex h-4 shrink-0 items-center text-[10px] font-semibold uppercase tracking-wide text-white/50">
                 Workout type
               </span>
-              <div className="mt-1.5 flex h-8 w-full shrink-0 items-center justify-center overflow-hidden">
+              <div className="relative z-20 mt-1.5 flex min-h-8 w-full shrink-0 items-center justify-center overflow-visible">
                 {workoutTypeControl}
               </div>
             </div>

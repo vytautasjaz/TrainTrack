@@ -11,7 +11,6 @@ import {
   type MouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import * as SelectPrimitive from "@radix-ui/react-select";
 import {
   BookOpen,
   BookmarkPlus,
@@ -33,10 +32,7 @@ import { FormError } from "@/components/ui/form-error";
 import { FormField } from "@/components/ui/form-field";
 import { PrivateNoteToggle } from "@/components/ui/private-note-toggle";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  SelectDropdownContent,
-  SelectDropdownItem,
-} from "@/components/ui/select-dropdown";
+import { WorkoutTypePicker } from "@/components/workout-editor/workout-type-picker";
 import { CoachWorkoutChatPanel } from "@/components/plan/ask-coach-section";
 import { WorkoutEditorSectionSkeleton } from "@/components/workout-editor/workout-editor-section-skeleton";
 import { useWorkoutCoachingThread } from "@/hooks/use-workout-coaching-thread";
@@ -71,6 +67,7 @@ import {
   getAthletePreferencesForWorkoutModal,
   getCoachEditorPrefsForModal,
   getCoachLibraryForPicker,
+  listCoachAthletesForAssign,
   saveWorkoutDraftToLibrary,
   saveTemplateBuilder,
   updateAthleteWorkoutFromModal,
@@ -78,6 +75,10 @@ import {
   type WorkoutLibraryFolderPickerItem,
   type WorkoutTemplatePickerItem,
 } from "@/app/actions/workout-builder";
+import {
+  CoachAthleteMultiPicker,
+  type CoachAthleteOption,
+} from "@/components/coach/coach-athlete-multi-picker";
 import { adminSaveCoachEngineWorkoutBuilder } from "@/app/actions/admin-ai-library";
 import {
   createTrainingPlanSession,
@@ -890,6 +891,33 @@ export function SharedWorkoutEditor({
   /** Coach plan editor — pick templates while creating or editing a session. */
   const canShowLibrary =
     !athleteMode && !selfLoggedCreate && !isLibraryLike && !isTrainingPlan;
+  /** Coach plan create — fan-out to multiple athletes. */
+  const canAssignAthletes =
+    canShowLibrary && !isEdit;
+
+  const [assignRoster, setAssignRoster] = useState<CoachAthleteOption[]>([]);
+  const [assignCurrentAthleteId, setAssignCurrentAthleteId] = useState<
+    string | null
+  >(null);
+  const [assignAthleteIds, setAssignAthleteIds] = useState<string[]>([]);
+  const [assignOpen, setAssignOpen] = useState(false);
+
+  useEffect(() => {
+    if (!canAssignAthletes || !assignOpen) return;
+    let cancelled = false;
+    void listCoachAthletesForAssign().then((result) => {
+      if (cancelled) return;
+      setAssignRoster(result.athletes);
+      setAssignCurrentAthleteId(result.currentAthleteId);
+      setAssignAthleteIds((prev) => {
+        if (prev.length > 0) return prev;
+        return result.currentAthleteId ? [result.currentAthleteId] : [];
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [canAssignAthletes, assignOpen]);
 
   const metricsFromDetails = useMemo(() => {
     if (!detailsOpen) return false;
@@ -1833,6 +1861,9 @@ export function SharedWorkoutEditor({
           scheduledDate: date,
           templateId,
           tags: buildTags(),
+          ...(canAssignAthletes && assignAthleteIds.length > 0
+            ? { athleteIds: assignAthleteIds }
+            : {}),
         };
 
         if (isTemplate) {
@@ -2047,6 +2078,9 @@ export function SharedWorkoutEditor({
         templateId,
         allowPaceEstimate: typeSelected || persistDetails,
         tags: buildTags(),
+        ...(canAssignAthletes && assignAthleteIds.length > 0
+          ? { athleteIds: assignAthleteIds }
+          : {}),
       };
 
       if (isEdit && workout) {
@@ -2212,111 +2246,85 @@ export function SharedWorkoutEditor({
         })()
       : null;
 
+  function applyBikeWorkoutType(value: string) {
+    const row = bikePrefRows.find((item) => item.id === value);
+    if (row) {
+      setSelectedBikeOptionId(row.id);
+      setBikeKind(row.kind);
+      if (titleAuto || !title.trim()) {
+        setTitleAuto(true);
+        setTitle(
+          autoBikeTitleFromPrefs(environment, row.kind, typePrefs, row.id),
+        );
+      }
+      return;
+    }
+    setSelectedBikeOptionId(null);
+    setBikeKind(value as BikeWorkoutKind);
+    if (titleAuto || !title.trim()) {
+      setTitleAuto(true);
+      setTitle(
+        autoBikeTitleFromPrefs(
+          environment,
+          value as BikeWorkoutKind,
+          typePrefs,
+        ),
+      );
+    }
+  }
+
+  function applySessionWorkoutType(value: string) {
+    const row = sessionPrefRows.find((item) => item.id === value);
+    if (row) {
+      setSelectedSessionOptionId(row.id);
+      setSessionType(row.sessionType);
+      if (titleAuto || !title.trim()) {
+        setTitleAuto(true);
+        setTitle(row.name);
+      }
+      return;
+    }
+    const next = value as SessionType;
+    setSelectedSessionOptionId(null);
+    setSessionType(next);
+    if (titleAuto || !title.trim()) {
+      setTitleAuto(true);
+      setTitle(customSessionTypeLabel(next, sportType, typePrefs));
+    }
+  }
+
+  // Local picker (no portal) — Radix Select/Menu portals are blocked by Dialog.
   const workoutTypeControl =
     !athleteMode && sportType !== WorkoutType.SWIM ? (
       config.useBikeKinds ? (
-        <SelectPrimitive.Root
-          value={bikeSelectValue}
-          onValueChange={(value) => {
-            const row = bikePrefRows.find((item) => item.id === value);
-            if (row) {
-              setSelectedBikeOptionId(row.id);
-              setBikeKind(row.kind);
-              if (titleAuto || !title.trim()) {
-                setTitleAuto(true);
-                setTitle(
-                  autoBikeTitleFromPrefs(
-                    environment,
-                    row.kind,
-                    typePrefs,
-                    row.id,
-                  ),
-                );
-              }
-              return;
-            }
-            setSelectedBikeOptionId(null);
-            setBikeKind(value as BikeWorkoutKind);
-            if (titleAuto || !title.trim()) {
-              setTitleAuto(true);
-              setTitle(
-                autoBikeTitleFromPrefs(
-                  environment,
-                  value as BikeWorkoutKind,
-                  typePrefs,
-                ),
-              );
-            }
-          }}
-        >
-          <SelectPrimitive.Trigger
-            aria-label="Workout type"
-            className={cn(
-              "group inline-flex max-w-full items-center justify-center gap-1 bg-transparent text-center text-[20px] font-bold leading-tight outline-none",
-              bikeKind ? "text-white" : "text-white/35",
-            )}
-          >
-            <span className="truncate">
-              {bikeKind
-                ? customBikeKindLabel(bikeKind, typePrefs, selectedBikeOptionId)
-                : "Select"}
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white/50 transition group-data-[state=open]:rotate-180" />
-          </SelectPrimitive.Trigger>
-          <SelectDropdownContent align="center" className="z-[210]">
-            {bikeKindOptions.map((option) => (
-              <SelectDropdownItem key={option.value} option={option} />
-            ))}
-          </SelectDropdownContent>
-        </SelectPrimitive.Root>
+        <WorkoutTypePicker
+          label={
+            bikeKind
+              ? customBikeKindLabel(bikeKind, typePrefs, selectedBikeOptionId)
+              : "Select"
+          }
+          hasValue={Boolean(bikeKind)}
+          options={bikeKindOptions}
+          selectedValue={bikeSelectValue}
+          onSelect={applyBikeWorkoutType}
+        />
       ) : (
-        <SelectPrimitive.Root
-          value={sessionSelectValue}
-          onValueChange={(value) => {
-            const row = sessionPrefRows.find((item) => item.id === value);
-            if (row) {
-              setSelectedSessionOptionId(row.id);
-              setSessionType(row.sessionType);
-              if (titleAuto || !title.trim()) {
-                setTitleAuto(true);
-                setTitle(row.name);
-              }
-              return;
-            }
-            const next = value as SessionType;
-            setSelectedSessionOptionId(null);
-            setSessionType(next);
-            if (titleAuto || !title.trim()) {
-              setTitleAuto(true);
-              setTitle(customSessionTypeLabel(next, sportType, typePrefs));
-            }
-          }}
-        >
-          <SelectPrimitive.Trigger
-            aria-label="Workout type"
-            className={cn(
-              "group inline-flex max-w-full items-center justify-center gap-1 bg-transparent text-center text-[20px] font-bold leading-tight outline-none",
-              sessionType ? "text-white" : "text-white/35",
-            )}
-          >
-            <span className="truncate">
-              {sessionType
-                ? customSessionTypeLabel(
-                    sessionType,
-                    sportType,
-                    typePrefs,
-                    selectedSessionOptionId,
-                  )
-                : "Select"}
-            </span>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-white/50 transition group-data-[state=open]:rotate-180" />
-          </SelectPrimitive.Trigger>
-          <SelectDropdownContent align="center" className="z-[210]">
-            {sessionOptions.map((option) => (
-              <SelectDropdownItem key={option.value} option={option} />
-            ))}
-          </SelectDropdownContent>
-        </SelectPrimitive.Root>
+        <WorkoutTypePicker
+          label={
+            sessionType
+              ? customSessionTypeLabel(
+                  sessionType,
+                  sportType,
+                  typePrefs,
+                  selectedSessionOptionId,
+                )
+              : "Select"
+          }
+          hasValue={Boolean(sessionType)}
+          options={sessionOptions}
+          selectedValue={sessionSelectValue}
+          onSelect={applySessionWorkoutType}
+        />
       )
     ) : null;
 
@@ -2945,6 +2953,29 @@ export function SharedWorkoutEditor({
               />
             </FormField>
           )}
+
+          {canAssignAthletes && !chatOpen ? (
+            <div className="space-y-2">
+              {!assignOpen ? (
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+                  onClick={() => setAssignOpen(true)}
+                >
+                  Assign to other athletes…
+                </button>
+              ) : (
+                <CoachAthleteMultiPicker
+                  label="Assign to"
+                  athletes={assignRoster}
+                  selectedIds={assignAthleteIds}
+                  onChange={setAssignAthleteIds}
+                  currentAthleteId={assignCurrentAthleteId}
+                  emptyLabel="Loading athletes…"
+                />
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -3073,7 +3104,9 @@ export function SharedWorkoutEditor({
                   // Desktop: side panel — stretch with the editor row (no h-0/% traps)
                   "sm:max-h-none sm:min-h-0 sm:w-[20rem] sm:shrink-0 sm:self-stretch sm:border-l sm:border-t-0",
                 )
-              : "pointer-events-none max-h-0 w-full border-0 opacity-0 sm:max-h-none sm:w-0 sm:shrink-0 sm:self-stretch sm:opacity-100",
+              // Keep max-h-0 when closed on desktop too — sm:max-h-none let the
+              // template list's intrinsic height stretch the modal shell.
+              : "pointer-events-none max-h-0 w-full overflow-hidden border-0 opacity-0 sm:w-0 sm:max-h-0 sm:shrink-0",
           )}
         >
           <aside className="flex min-h-0 w-full flex-1 flex-col sm:w-[20rem]">

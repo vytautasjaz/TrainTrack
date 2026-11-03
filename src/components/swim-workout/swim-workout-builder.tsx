@@ -1,7 +1,6 @@
 'use client'
 
 import { useId, useState, type DragEvent } from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   ChevronDown,
   Copy,
@@ -11,6 +10,10 @@ import {
   StickyNote,
   Trash2,
 } from 'lucide-react'
+import {
+  FixedPortalMenu,
+  FixedPortalMenuItem,
+} from '@/components/ui/fixed-portal-menu'
 import { SuggestableInput } from '@/components/swim-workout/suggestable-input'
 import type { SwimSection, SwimSet } from '@/lib/swim-workout/types'
 import {
@@ -147,40 +150,44 @@ function SwimSetRow({
           </button>
         ) : null}
 
-        <DropdownMenu.Root modal={false}>
-          <DropdownMenu.Trigger asChild>
+        <FixedPortalMenu
+          align="end"
+          sideOffset={4}
+          menuClassName="min-w-[10rem] rounded-[6px] p-1"
+          trigger={({ props }) => (
             <button
-              type="button"
+              {...props}
               className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[4px] text-muted-foreground/50 transition hover:bg-muted/40 hover:text-muted-foreground"
               aria-label="Set options"
             >
               <MoreHorizontal className="h-4 w-4" />
             </button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              align="end"
-              sideOffset={4}
-              data-tt-floating-ui=""
-              className="pointer-events-auto z-[250] min-w-[10rem] rounded-[6px] border border-border bg-card p-1 shadow-md"
-              onCloseAutoFocus={(e) => e.preventDefault()}
-            >
-              <DropdownMenu.Item
-                className="cursor-pointer rounded-[4px] px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-muted/60"
-                onSelect={() => setNotesOpen((v) => !v)}
+          )}
+        >
+          {(close) => (
+            <>
+              <FixedPortalMenuItem
+                className="rounded-[4px] px-2 py-1.5 hover:bg-muted/60"
+                onSelect={() => {
+                  setNotesOpen((v) => !v)
+                  close()
+                }}
               >
                 {notesOpen || hasNotes ? 'Hide notes' : 'Add notes'}
-              </DropdownMenu.Item>
-              <DropdownMenu.Item
+              </FixedPortalMenuItem>
+              <FixedPortalMenuItem
                 disabled={!canDelete}
-                className="cursor-pointer rounded-[4px] px-2 py-1.5 text-sm text-red-600 outline-none data-[disabled]:opacity-40 data-[highlighted]:bg-red-50"
-                onSelect={onDelete}
+                className="rounded-[4px] px-2 py-1.5 text-red-600 hover:bg-red-50"
+                onSelect={() => {
+                  onDelete()
+                  close()
+                }}
               >
                 Delete set
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+              </FixedPortalMenuItem>
+            </>
+          )}
+        </FixedPortalMenu>
       </div>
 
       {/* Mobile secondary fields */}

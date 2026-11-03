@@ -7,7 +7,9 @@ import { prisma } from '@/lib/prisma'
 import { parseDateOnly } from '@/lib/dates'
 import {
   athleteOwnedByCoachWhere,
+  getCoachAthletes,
   requireAthleteSession,
+  requireCoachOwnsAthlete,
   requireSession,
   resolveAthleteId,
   isCoachView,
@@ -77,6 +79,8 @@ export type CreateWorkoutModalPayload = {
   tags?: string[]
   /** When false, missing duration/distance is not filled from pace/speed zones. */
   allowPaceEstimate?: boolean
+  /** Coach create: fan-out to these athletes (defaults to session athlete). */
+  athleteIds?: string[]
 }
 
 export type WorkoutTemplatePickerItem = {
@@ -96,6 +100,23 @@ export type WorkoutLibraryFolderPickerItem = {
   id: string
   sport: WorkoutType
   name: string
+}
+
+/** Roster + current athlete for create Assign-to / copy pickers. */
+export async function listCoachAthletesForAssign(): Promise<{
+  athletes: Array<{ id: string; name: string }>
+  currentAthleteId: string | null
+}> {
+  const session = await requireSession()
+  if (!isCoachView(session)) return { athletes: [], currentAthleteId: null }
+  const [athletes, currentAthleteId] = await Promise.all([
+    getCoachAthletes(session.userId),
+    resolveAthleteId(session),
+  ])
+  return {
+    athletes: athletes.map((a) => ({ id: a.id, name: a.name })),
+    currentAthleteId,
+  }
 }
 
 export async function getCoachLibraryForPicker(): Promise<{
@@ -243,85 +264,93 @@ export async function saveRecoveryDay(payload: SaveRecoveryDayPayload) {
 export async function createWorkoutFromModal(payload: CreateWorkoutModalPayload) {
   try {
     const session = await requireCoach()
-    const athleteId = await resolveAthleteId(session)
-    if (!athleteId) throw new Error('No athlete selected')
+    const sessionAthleteId = await resolveAthleteId(session)
+    const rawIds = payload.athleteIds?.map((id) => id.trim()).filter(Boolean) ?? []
+    const targetIds = [...new Set(rawIds.length > 0 ? rawIds : sessionAthleteId ? [sessionAthleteId] : [])]
+    if (targetIds.length === 0) throw new Error('No athlete selected')
+    for (const id of targetIds) {
+      await requireCoachOwnsAthlete(session.userId, id)
+    }
 
     const scheduledDate = parseModalScheduledDate(payload.scheduledDate)
-    const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
     const prepared = prepareStructureForPersist(payload.structure)
     const saveStructure = prepared.shouldSave
-    const athletePreferences = await loadAthletePreferencesForBuilder(athleteId)
-    const metrics = resolvePlannedWorkoutMetrics({
-      plannedDistance: payload.plannedDistance,
-      plannedDuration: payload.plannedDuration,
-      structure: saveStructure ? prepared.display : null,
-      preferences: athletePreferences,
-      sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
-      sessionType: payload.sessionType,
-      sportType: payload.sportType,
-      allowPaceEstimate: payload.allowPaceEstimate,
-      distanceSource: payload.plannedDistanceSource,
-      durationSource: payload.plannedDurationSource,
-    })
-    const tags = syncApproxTagsFromSources(payload.tags, {
-      distance: metrics.distanceSource,
-      duration: metrics.durationSource,
-    })
     const title = modalWorkoutTitle(payload.title, 'Workout')
     const storedCoachNotes =
       prepared.stored && 'coachNotes' in prepared.stored
         ? prepared.stored.coachNotes
         : undefined
 
-    if (!saveStructure || !prepared.stored) {
-      await prisma.workout.create({
-        data: {
-          athleteId,
-          templateId: payload.templateId,
-          date: scheduledDate,
-          sortOrder,
-          type: payload.sportType,
-          sessionType: payload.sessionType,
-          title,
-          description: payload.description?.trim() || null,
-          plannedDistance: metrics.plannedDistance ?? null,
-          plannedDuration: metrics.plannedDuration ?? null,
-          plannedDistanceSource: metrics.distanceSource,
-          plannedDurationSource: metrics.durationSource,
-          coachNotes: payload.coachNotes,
-          coachNotesPrivate: Boolean(payload.coachNotesPrivate),
-          tags,
-        },
+    for (const athleteId of targetIds) {
+      const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
+      const athletePreferences = await loadAthletePreferencesForBuilder(athleteId)
+      const metrics = resolvePlannedWorkoutMetrics({
+        plannedDistance: payload.plannedDistance,
+        plannedDuration: payload.plannedDuration,
+        structure: saveStructure ? prepared.display : null,
+        preferences: athletePreferences,
+        sportUsesDistance: sportUsesPlannedDistance(payload.sportType),
+        sessionType: payload.sessionType,
+        sportType: payload.sportType,
+        allowPaceEstimate: payload.allowPaceEstimate,
+        distanceSource: payload.plannedDistanceSource,
+        durationSource: payload.plannedDurationSource,
       })
-    } else {
-      await prisma.workout.create({
-        data: {
-          athleteId,
-          templateId: payload.templateId,
-          date: scheduledDate,
-          sortOrder,
-          type: payload.sportType,
-          sessionType: payload.sessionType,
-          title,
-          description: payload.description?.trim() || null,
-          plannedDuration: metrics.plannedDuration ?? null,
-          plannedDistance: metrics.plannedDistance ?? null,
-          plannedDistanceSource: metrics.distanceSource,
-          plannedDurationSource: metrics.durationSource,
-          coachNotes: storedCoachNotes ?? payload.coachNotes,
-          coachNotesPrivate: Boolean(payload.coachNotesPrivate),
-          structure: prepared.stored as Prisma.InputJsonValue,
-          structureDiagram: structureDiagramPrismaValue(prepared.display, {
-            durationMinutes: metrics.plannedDuration,
-          }),
-          tags,
-        },
+      const tags = syncApproxTagsFromSources(payload.tags, {
+        distance: metrics.distanceSource,
+        duration: metrics.durationSource,
       })
+
+      if (!saveStructure || !prepared.stored) {
+        await prisma.workout.create({
+          data: {
+            athleteId,
+            templateId: payload.templateId,
+            date: scheduledDate,
+            sortOrder,
+            type: payload.sportType,
+            sessionType: payload.sessionType,
+            title,
+            description: payload.description?.trim() || null,
+            plannedDistance: metrics.plannedDistance ?? null,
+            plannedDuration: metrics.plannedDuration ?? null,
+            plannedDistanceSource: metrics.distanceSource,
+            plannedDurationSource: metrics.durationSource,
+            coachNotes: payload.coachNotes,
+            coachNotesPrivate: Boolean(payload.coachNotesPrivate),
+            tags,
+          },
+        })
+      } else {
+        await prisma.workout.create({
+          data: {
+            athleteId,
+            templateId: payload.templateId,
+            date: scheduledDate,
+            sortOrder,
+            type: payload.sportType,
+            sessionType: payload.sessionType,
+            title,
+            description: payload.description?.trim() || null,
+            plannedDuration: metrics.plannedDuration ?? null,
+            plannedDistance: metrics.plannedDistance ?? null,
+            plannedDistanceSource: metrics.distanceSource,
+            plannedDurationSource: metrics.durationSource,
+            coachNotes: storedCoachNotes ?? payload.coachNotes,
+            coachNotesPrivate: Boolean(payload.coachNotesPrivate),
+            structure: prepared.stored as Prisma.InputJsonValue,
+            structureDiagram: structureDiagramPrismaValue(prepared.display, {
+              durationMinutes: metrics.plannedDuration,
+            }),
+            tags,
+          },
+        })
+      }
+      await onTrainingCalendarDataChanged(athleteId)
     }
 
     revalidatePath('/training')
     revalidatePath('/dashboard')
-    await onTrainingCalendarDataChanged(athleteId)
   } catch (error) {
     rethrowActionError('createWorkoutFromModal', error, 'Could not save workout')
   }

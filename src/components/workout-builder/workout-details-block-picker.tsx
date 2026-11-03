@@ -1,6 +1,5 @@
 'use client'
 
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { ChevronDown, Plus } from 'lucide-react'
 import type { WorkoutType } from '@prisma/client'
 import {
@@ -16,11 +15,13 @@ import {
   type WorkoutBuilderPrefs,
 } from '@/lib/workout-builder/workout-builder-prefs'
 import {
-  DragInsertIndicator,
   encodeAddBlockDragData,
   WORKOUT_ADD_BLOCK_MIME,
 } from '@/components/ui/drag-insert-indicator'
-import { SELECT_DROPDOWN_CONTENT_CLASS } from '@/components/ui/select-dropdown'
+import {
+  FixedPortalMenu,
+  FixedPortalMenuItem,
+} from '@/components/ui/fixed-portal-menu'
 import { cn } from '@/lib/utils'
 
 type WorkoutDetailsBlockPickerProps = {
@@ -97,43 +98,39 @@ export function WorkoutDetailsBlockPicker({
       })}
 
       {custom.length > 0 ? (
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger
-            type="button"
-            className={cn(
-              addButtonBaseClass,
-              'border-border/80 bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
-              'data-[state=open]:border-border data-[state=open]:bg-muted/70 data-[state=open]:text-foreground',
-            )}
-          >
-            <Plus className="h-3 w-3 shrink-0 opacity-70" />
-            <span>Custom</span>
-            <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              align="start"
-              side="top"
-              sideOffset={6}
-              collisionPadding={12}
-              data-tt-floating-ui=""
+        <FixedPortalMenu
+          side="top"
+          sideOffset={6}
+          menuClassName="max-h-[min(20rem,50vh)] w-56"
+          trigger={({ open, props }) => (
+            <button
+              {...props}
               className={cn(
-                SELECT_DROPDOWN_CONTENT_CLASS,
-                'z-[250] max-h-[min(20rem,50vh)] w-56',
+                addButtonBaseClass,
+                'border-border/80 bg-muted/30 text-muted-foreground hover:border-border hover:bg-muted/60 hover:text-foreground',
+                open && 'border-border bg-muted/70 text-foreground',
               )}
             >
-              {custom.map((option) => (
-                <DropdownMenu.Item
-                  key={option.kind}
-                  onSelect={() => onSelect(option.kind)}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition data-[highlighted]:bg-foreground/[0.04]"
-                >
-                  <span>{option.label}</span>
-                </DropdownMenu.Item>
-              ))}
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+              <Plus className="h-3 w-3 shrink-0 opacity-70" />
+              <span>Custom</span>
+              <ChevronDown className="h-3 w-3 shrink-0 opacity-60" />
+            </button>
+          )}
+        >
+          {(close) =>
+            custom.map((option) => (
+              <FixedPortalMenuItem
+                key={option.kind}
+                onSelect={() => {
+                  onSelect(option.kind)
+                  close()
+                }}
+              >
+                {option.label}
+              </FixedPortalMenuItem>
+            ))
+          }
+        </FixedPortalMenu>
       ) : null}
     </div>
   )

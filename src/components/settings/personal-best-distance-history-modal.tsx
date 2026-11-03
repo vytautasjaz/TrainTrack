@@ -18,9 +18,10 @@ import {
 } from '@/components/ui/data-sort-header'
 import {
   buildPersonalBestDistanceHistory,
+  previousPbChangeLabel,
   type PersonalBestDistanceHistoryEntry,
 } from '@/lib/personal-best-distance-history'
-import type { PersonalBestRecord } from '@/lib/personal-bests'
+import type { PersonalBestHistoryRecord, PersonalBestRecord } from '@/lib/personal-bests'
 import type { RaceResultRow } from '@/lib/race-results'
 import { cn } from '@/lib/utils'
 import {
@@ -37,6 +38,7 @@ type PersonalBestDistanceHistoryModalProps = {
   onOpenChange: (open: boolean) => void
   personalBest: PersonalBestRecord | null
   results: RaceResultRow[]
+  history?: PersonalBestHistoryRecord[]
 }
 
 function sortValue(
@@ -52,6 +54,7 @@ export function PersonalBestDistanceHistoryModal({
   onOpenChange,
   personalBest,
   results,
+  history = [],
 }: PersonalBestDistanceHistoryModalProps) {
   const [sort, setSort] = useState<DataSortState<SortColumn> | null>({
     key: 'date',
@@ -61,8 +64,8 @@ export function PersonalBestDistanceHistoryModal({
 
   const entries = useMemo(() => {
     if (!personalBest) return []
-    return buildPersonalBestDistanceHistory(results, personalBest)
-  }, [personalBest, results])
+    return buildPersonalBestDistanceHistory(results, personalBest, history)
+  }, [personalBest, results, history])
 
   const sorted = useMemo(() => {
     if (!sort) return entries
@@ -75,7 +78,7 @@ export function PersonalBestDistanceHistoryModal({
 
   const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
-  const pageRows = sorted.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
+  const pageRows = sorted.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
 
   const title = personalBest?.name ?? 'Distance history'
 
@@ -137,24 +140,29 @@ export function PersonalBestDistanceHistoryModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {pageRows.map((row) => (
-                    <tr key={row.id} className="border-b border-border/40 last:border-b-0">
-                      <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground">
-                        {row.dateLabel}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div className="font-medium leading-snug">{row.event}</div>
-                        {row.location ? (
-                          <div className="text-xs text-muted-foreground">{row.location}</div>
-                        ) : row.isPersonalBestRecord ? (
-                          <div className="text-xs text-muted-foreground">From personal best</div>
-                        ) : null}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold tabular-nums">
-                        {row.resultLabel || '—'}
-                      </td>
-                    </tr>
-                  ))}
+                  {pageRows.map((row) => {
+                    const previousLabel = previousPbChangeLabel(row)
+                    return (
+                      <tr key={row.id} className="border-b border-border/40 last:border-b-0">
+                        <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-muted-foreground">
+                          {row.dateLabel}
+                        </td>
+                        <td className="px-3 py-2.5">
+                          <div className="font-medium leading-snug">{row.event}</div>
+                          {row.location ? (
+                            <div className="text-xs text-muted-foreground">{row.location}</div>
+                          ) : previousLabel ? (
+                            <div className="text-xs text-muted-foreground">{previousLabel}</div>
+                          ) : row.isPersonalBestRecord ? (
+                            <div className="text-xs text-muted-foreground">Current personal best</div>
+                          ) : null}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 text-right font-semibold tabular-nums">
+                          {row.resultLabel || '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

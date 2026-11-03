@@ -132,43 +132,64 @@ export async function getSwimTemplateForEdit(id: string) {
 
 export async function createSwimWorkoutFromModal(payload: unknown) {
   const session = await requireCoach()
-  const athleteId = await resolveAthleteId(session)
-  if (!athleteId) throw new Error('No athlete selected')
-
+  const sessionAthleteId = await resolveAthleteId(session)
   const parsed = swimWorkoutFormSchema.parse(payload)
-  const scheduledDate = parseDateOnly(parsed.scheduledDate ?? new Date().toISOString().slice(0, 10))
-  const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
+  const rawIds = parsed.athleteIds?.map((id) => id.trim()).filter(Boolean) ?? []
+  const targetIds = [
+    ...new Set(
+      rawIds.length > 0
+        ? rawIds
+        : parsed.athleteId
+          ? [parsed.athleteId]
+          : sessionAthleteId
+            ? [sessionAthleteId]
+            : [],
+    ),
+  ]
+  if (targetIds.length === 0) throw new Error('No athlete selected')
+  for (const id of targetIds) {
+    await requireCoachOwnsAthlete(session.userId, id)
+  }
 
+  const scheduledDate = parseDateOnly(
+    parsed.scheduledDate ?? new Date().toISOString().slice(0, 10),
+  )
   const meters = resolvedDistanceMeters(parsed)
-  const workout = await prisma.workout.create({
-    data: {
-      athleteId,
-      date: scheduledDate,
-      sortOrder,
-      type: WorkoutType.SWIM,
-      sessionType: SessionType.CUSTOM,
-      title: parsed.title,
-      description: parsed.description || null,
-      swimEnvironment: parsed.swimEnvironment,
-      plannedDistanceMeters: meters,
-      plannedDistanceMetersSource:
-        meters != null && meters > 0 ? PlannedMetricSource.MANUAL : null,
-      plannedDuration: parsed.plannedDuration ?? null,
-      plannedDurationSource:
-        parsed.plannedDuration != null && parsed.plannedDuration > 0
-          ? PlannedMetricSource.MANUAL
-          : null,
-      coachNotes: parsed.coachNotes ?? null,
-      coachNotesPrivate: Boolean(parsed.coachNotesPrivate),
-      swimStructure: swimStructureJson(parsed.swimStructure),
-      templateId: parsed.templateId,
-    },
-  })
+  let firstId: string | null = null
+
+  for (const athleteId of targetIds) {
+    const sortOrder = await getNextWorkoutSortOrder(athleteId, scheduledDate)
+    const workout = await prisma.workout.create({
+      data: {
+        athleteId,
+        date: scheduledDate,
+        sortOrder,
+        type: WorkoutType.SWIM,
+        sessionType: SessionType.CUSTOM,
+        title: parsed.title,
+        description: parsed.description || null,
+        swimEnvironment: parsed.swimEnvironment,
+        plannedDistanceMeters: meters,
+        plannedDistanceMetersSource:
+          meters != null && meters > 0 ? PlannedMetricSource.MANUAL : null,
+        plannedDuration: parsed.plannedDuration ?? null,
+        plannedDurationSource:
+          parsed.plannedDuration != null && parsed.plannedDuration > 0
+            ? PlannedMetricSource.MANUAL
+            : null,
+        coachNotes: parsed.coachNotes ?? null,
+        coachNotesPrivate: Boolean(parsed.coachNotesPrivate),
+        swimStructure: swimStructureJson(parsed.swimStructure),
+        templateId: parsed.templateId,
+      },
+    })
+    if (!firstId) firstId = workout.id
+  }
 
   revalidatePath('/training')
   revalidatePath('/dashboard')
   revalidateSwimLibrary()
-  return workout.id
+  return firstId!
 }
 
 /** Athlete self-add — same swim modal payload as coach, always `selfLogged`. */

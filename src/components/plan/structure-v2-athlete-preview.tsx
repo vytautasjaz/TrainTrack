@@ -11,10 +11,14 @@ import {
 import {
   SECTION_TYPE_LABELS,
   type ExerciseItem,
+  type RestSpec,
   type WorkoutBlockV2,
   type WorkoutStructureV2,
 } from '@/lib/workout-builder/structure-v2'
-import { formatBlockV2Title } from '@/lib/workout-builder/structure-compat'
+import {
+  formatBlockV2Title,
+  formatExerciseRxCompact,
+} from '@/lib/workout-builder/structure-compat'
 import { cn } from '@/lib/utils'
 
 type StructureV2AthletePreviewProps = {
@@ -33,13 +37,22 @@ function exercisesOf(block: WorkoutBlockV2): ExerciseItem[] {
   return []
 }
 
-function prescriptionLine(item: ExerciseItem): string {
+function prescriptionLine(
+  item: ExerciseItem,
+  opts?: { rounds?: number; rest?: RestSpec },
+): string {
+  if (opts?.rounds != null || opts?.rest != null) {
+    return formatExerciseRxCompact(item, {
+      rounds: opts.rounds,
+      rest: opts.rest,
+    })
+  }
   const bits: string[] = []
   const p = item.prescription
   if (p && p.mode !== 'UNTIMED' && p.value != null) {
     if (p.mode === 'REPS') bits.push(`${p.value} reps`)
     else if (p.mode === 'TIME') bits.push(`${p.value}${p.unit ?? 'sec'}`)
-    else if (p.mode === 'DISTANCE') bits.push(`${p.value}${p.unit ?? 'm'}`)
+    else if (p.mode === 'DISTANCE') bits.push(`${p.value} ${p.unit ?? 'm'}`)
     else if (p.mode === 'CALORIES') bits.push(`${p.value} cal`)
     else if (p.mode === 'WEIGHT') bits.push(`${p.value}${p.unit ?? 'kg'}`)
   }
@@ -61,12 +74,16 @@ function isLabeledBlock(block: WorkoutBlockV2): boolean {
 function ExercisePreviewRow({
   item,
   thumbnailUrl,
+  rounds,
+  rest,
 }: {
   item: ExerciseItem
   thumbnailUrl?: string | null
+  rounds?: number
+  rest?: RestSpec
 }) {
   const name = item.name?.trim() || item.exerciseId
-  const detail = prescriptionLine(item)
+  const detail = prescriptionLine(item, { rounds, rest })
   const order = item.order?.trim()
 
   return (
@@ -155,6 +172,10 @@ function BlockPreview({
               key={`${item.exerciseId}-${item.order ?? index}`}
               item={item}
               thumbnailUrl={thumbnails[item.exerciseId] ?? null}
+              rounds={
+                block.type === 'EXERCISE' ? block.rounds : undefined
+              }
+              rest={block.type === 'EXERCISE' ? block.rest : undefined}
             />
           ))}
         </div>

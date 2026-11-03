@@ -4,6 +4,7 @@ import { requireAthleteSession } from '@/lib/session'
 import {
   getDayNotesForRange,
   getPlanWorkoutsInRange,
+  getRacesForRange,
   getSeasonEventsForRange,
   groupDayNotesByDate,
 } from '@/lib/queries'
@@ -12,6 +13,7 @@ import {
   toPlanWorkoutDetail,
   type PlanWorkoutDetail,
 } from '@/lib/plan-workout'
+import { mergeRacesIntoPlanWorkouts } from '@/lib/races'
 import type { DayNoteData } from '@/lib/day-notes'
 import type { SeasonEventData } from '@/lib/season-planner'
 import {
@@ -62,14 +64,18 @@ export async function fetchAthleteHomeWeekChunk(input: {
   const rangeStart = addDateOnlyDays(anchor, startOffset * 7)
   const rangeEnd = addDateOnlyDays(anchor, endOffset * 7 + 6)
 
-  const [rawWorkouts, dayNotesRaw, seasonEvents] = await Promise.all([
+  const [rawWorkouts, races, dayNotesRaw, seasonEvents] = await Promise.all([
     getPlanWorkoutsInRange(athleteId, rangeStart, rangeEnd),
+    getRacesForRange(athleteId, rangeStart, rangeEnd),
     getDayNotesForRange(athleteId, rangeStart, rangeEnd),
     getSeasonEventsForRange(athleteId, rangeStart, rangeEnd, 'athlete'),
   ])
 
-  const workouts = rawWorkouts.map((w) =>
-    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+  const workouts = mergeRacesIntoPlanWorkouts(
+    rawWorkouts.map((w) =>
+      redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+    ),
+    races,
   )
   const dayNotes = [...groupDayNotesByDate(dayNotesRaw, 'athlete').entries()].map(
     ([dateKey, note]) => ({ dateKey, ...note }),

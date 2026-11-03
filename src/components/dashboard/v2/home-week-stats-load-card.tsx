@@ -15,9 +15,12 @@ import { WORKOUT_TYPE_LABELS } from '@/lib/constants'
 import { WORKOUT_TYPE_ICONS } from '@/lib/workout-display'
 import {
   WEEK_STATS_SPORT_ICON_COLOR,
+  formatWeekSportTime,
+  sportSupportsDistance,
   weekSportMetric,
   weekSportProgressPercent,
   weekSportsWithPlannedWork,
+  type WeekSportStatMode,
 } from '@/lib/week-sport-stats'
 import { V2WidgetHeader } from '@/components/ui/v2'
 import { v2 } from '@/lib/design-tokens'
@@ -28,6 +31,12 @@ import {
 } from '@/components/dashboard/week-swipe-pane'
 import { MorphProgressBar } from '@/components/dashboard/week-nav-morph'
 import { TrainingLoadChart } from '@/components/dashboard/athlete-training-load-card'
+import {
+  WEEK_SPORT_STATS_GRID,
+  WeekSportMetricValue,
+  WeekSportStatModeToggle,
+  WeekVolumeMetric,
+} from '@/components/dashboard/week-sport-stat-metrics'
 import { cn } from '@/lib/utils'
 import { DASHBOARD_WEEK_NAV_CENTER } from '@/lib/dashboard-week-nav'
 import {
@@ -40,7 +49,6 @@ import {
 
 const CENTER_INDEX = DASHBOARD_WEEK_NAV_CENTER
 
-type LoadMetric = 'tss' | 'time'
 type MorphPair = { planned: number[]; actual: number[] }
 
 function weekDateKeys(weekStartKey: string): string[] {
@@ -49,10 +57,30 @@ function weekDateKeys(weekStartKey: string): string[] {
 }
 
 function formatHoursLabel(min: number): string {
-  if (min <= 0) return '0h'
-  const h = Math.floor(min / 60)
-  const m = Math.round(min % 60)
-  return m ? `${h}h${m}` : `${h}h`
+  return formatWeekSportTime(min)
+}
+
+function formatKmLabel(km: number): string {
+  if (km <= 0) return '0'
+  const rounded = Math.round(km * 10) / 10
+  return rounded % 1 === 0 ? String(rounded) : rounded.toFixed(1)
+}
+
+function workoutDistanceKm(
+  workout: PlanWorkoutDetail,
+  planned: boolean,
+): number {
+  if (planned) {
+    if (
+      workout.type === 'SWIM' &&
+      workout.plannedDistanceMeters != null &&
+      workout.plannedDistanceMeters > 0
+    ) {
+      return workout.plannedDistanceMeters / 1000
+    }
+    return workout.plannedDistance ?? 0
+  }
+  return workout.result?.actualDistance ?? 0
 }
 
 function dayMinutesPlanned(workouts: PlanWorkoutDetail[], dateKey: string): number {
@@ -75,6 +103,36 @@ function dayMinutesActual(workouts: PlanWorkoutDetail[], dateKey: string): numbe
     sum += w.result?.actualDuration ?? 0
   }
   return Math.max(0, Math.round(sum))
+}
+
+function dayDistancePlanned(workouts: PlanWorkoutDetail[], dateKey: string): number {
+  let sum = 0
+  for (const w of workouts) {
+    if (w.dateKey !== dateKey) continue
+    if (w.type === 'REST' || w.isRescheduleGhost) continue
+    if (w.status === 'SKIPPED') continue
+    if (!sportSupportsDistance(w.type)) continue
+    sum += workoutDistanceKm(w, true)
+  }
+  return Math.max(0, Math.round(sum * 10) / 10)
+}
+
+function dayDistanceActual(workouts: PlanWorkoutDetail[], dateKey: string): number {
+  let sum = 0
+  for (const w of workouts) {
+    if (w.dateKey !== dateKey) continue
+    if (w.type === 'REST' || w.isRescheduleGhost) continue
+    if (w.status !== 'COMPLETED') continue
+    if (!sportSupportsDistance(w.type)) continue
+    sum += workoutDistanceKm(w, false)
+  }
+  return Math.max(0, Math.round(sum * 10) / 10)
+}
+
+function unitLabelForMode(mode: WeekSportStatMode): string {
+  if (mode === 'tss') return 'TSS'
+  if (mode === 'time') return 'min'
+  return 'km'
 }
 
 export function HomeWeekStatsLoadCard({
@@ -122,12 +180,12 @@ export function HomeWeekStatsLoadCard({
     const idx = offsetList.indexOf(weekOffset)
     return idx >= 0 ? idx : centerSlide
   })
-  const [metric, setMetric] = useState<LoadMetric>('tss')
+  const [sportStatMode, setSportStatMode] =
+    useState<WeekSportStatMode>('distance')
   const [barMorphFrom, setBarMorphFrom] = useState<Record<string, number> | null>(
     null,
   )
   const [dailyMorphFrom, setDailyMorphFrom] = useState<MorphPair | null>(null)
-  const [morphGen, setMorphGen] = useState(0)
   const syncTimerRef = useRef<number | null>(null)
   const todayKey = todayDateKey()
 
@@ -169,14 +227,39 @@ export function HomeWeekStatsLoadCard({
 
       let plannedMin = 0
       let completedMin = 0
+      let plannedKm = 0
+      let completedKm = 0
       for (const sport of sportList) {
         const totals = sumSportWeekTotals(days, sport, options)
         plannedMin += totals.durationMin
         completedMin += totals.actualDurationMin
+        if (sport === 'SWIM') {
+          plannedKm += totals.distanceMeters / 1000
+          completedKm += totals.actualDistanceMeters / 1000
+        } else if (sportSupportsDistance(sport)) {
+          plannedKm += totals.distanceKm
+          completedKm += totals.actualDistanceKm
+        }
       }
+
+      const plannedTss = weekSessionLoadPlanned(all, thresholds)
+      const actualTss = weekSessionLoadActual(all, thresholds)
+
+      const volumePlanned =
+        sportStatMode === 'tss'
+          ? plannedTss
+          : sportStatMode === 'distance'
+            ? plannedKm
+            : plannedMin
+      const volumeActual =
+        sportStatMode === 'tss'
+          ? actualTss
+          : sportStatMode === 'distance'
+            ? completedKm
+            : completedMin
       const overallPct =
-        plannedMin > 0
-          ? Math.min(100, Math.round((completedMin / plannedMin) * 100))
+        volumePlanned > 0
+          ? Math.min(100, Math.round((volumeActual / volumePlanned) * 100))
           : 0
 
       const weekNum = getISOWeek(start)
@@ -198,18 +281,53 @@ export function HomeWeekStatsLoadCard({
       )
       const dailyPlannedTime = keys.map((k) => dayMinutesPlanned(workouts, k))
       const dailyActualTime = keys.map((k) => dayMinutesActual(workouts, k))
-      const dailyPlanned = metric === 'tss' ? dailyPlannedTss : dailyPlannedTime
-      const dailyActual = metric === 'tss' ? dailyActualTss : dailyActualTime
-      // Week totals: sum raw then round once (same as hero metrics).
-      // Daily bars still use per-day rounded values for the chart.
+      const dailyPlannedDistance = keys.map((k) =>
+        dayDistancePlanned(workouts, k),
+      )
+      const dailyActualDistance = keys.map((k) =>
+        dayDistanceActual(workouts, k),
+      )
+      const dailyPlanned =
+        sportStatMode === 'tss'
+          ? dailyPlannedTss
+          : sportStatMode === 'time'
+            ? dailyPlannedTime
+            : dailyPlannedDistance
+      const dailyActual =
+        sportStatMode === 'tss'
+          ? dailyActualTss
+          : sportStatMode === 'time'
+            ? dailyActualTime
+            : dailyActualDistance
+
       const plannedTotal =
-        metric === 'tss'
-          ? weekSessionLoadPlanned(all, thresholds)
-          : dailyPlannedTime.reduce((a, b) => a + b, 0)
+        sportStatMode === 'tss'
+          ? plannedTss
+          : sportStatMode === 'time'
+            ? dailyPlannedTime.reduce((a, b) => a + b, 0)
+            : Math.round(plannedKm * 10) / 10
       const actualTotal =
-        metric === 'tss'
-          ? weekSessionLoadActual(all, thresholds)
-          : dailyActualTime.reduce((a, b) => a + b, 0)
+        sportStatMode === 'tss'
+          ? actualTss
+          : sportStatMode === 'time'
+            ? dailyActualTime.reduce((a, b) => a + b, 0)
+            : Math.round(completedKm * 10) / 10
+
+      const overallLabels =
+        sportStatMode === 'tss'
+          ? {
+              plannedLabel: String(plannedTss),
+              completedLabel: String(actualTss),
+            }
+          : sportStatMode === 'distance'
+            ? {
+                plannedLabel: formatKmLabel(plannedKm),
+                completedLabel: formatKmLabel(completedKm),
+              }
+            : {
+                plannedLabel: formatHoursLabel(plannedMin),
+                completedLabel: formatHoursLabel(completedMin),
+              }
 
       return {
         weekStartKey,
@@ -220,8 +338,7 @@ export function HomeWeekStatsLoadCard({
         planDays: days,
         allWorkouts: all,
         overall: {
-          plannedLabel: formatHoursLabel(plannedMin),
-          completedLabel: formatHoursLabel(completedMin),
+          ...overallLabels,
           pct: overallPct,
         },
         plannedWeek,
@@ -238,13 +355,13 @@ export function HomeWeekStatsLoadCard({
     swimCssSecPer100m,
     thresholds,
     todayKey,
-    metric,
+    sportStatMode,
     offsetList,
   ])
 
   const safeActive = Math.max(0, Math.min(weeks.length - 1, active))
   const week = weeks[safeActive]!
-  const unitLabel = metric === 'tss' ? 'TSS' : 'min'
+  const unitLabel = unitLabelForMode(sportStatMode)
   const canPrev = safeActive > 0
   const canNext = safeActive < slideCount - 1
 
@@ -255,12 +372,36 @@ export function HomeWeekStatsLoadCard({
         const totals = sumSportWeekTotals(slide.planDays, sport, {
           swimCssSecPer100m,
         })
-        const m = weekSportMetric(sport, totals, slide.allWorkouts)
+        const m = weekSportMetric(
+          sport,
+          totals,
+          slide.allWorkouts,
+          sportStatMode,
+          thresholds,
+        )
         pcts[sport] = weekSportProgressPercent(m.actual, m.planned)
       }
       return pcts
     },
-    [swimCssSecPer100m],
+    [sportStatMode, swimCssSecPer100m, thresholds],
+  )
+
+  const switchSportStatMode = useCallback(
+    (next: WeekSportStatMode) => {
+      if (next === sportStatMode) return
+      const current = weeks[active]!
+      setBarMorphFrom(captureBarPcts(current))
+      setDailyMorphFrom({
+        planned: [...current.dailyPlanned],
+        actual: [...current.dailyActual],
+      })
+      setSportStatMode(next)
+      window.setTimeout(() => {
+        setBarMorphFrom(null)
+        setDailyMorphFrom(null)
+      }, 500)
+    },
+    [active, captureBarPcts, sportStatMode, weeks],
   )
 
   // Main board → overview only (overview arrows/swipe stay local).
@@ -313,7 +454,6 @@ export function HomeWeekStatsLoadCard({
         planned: [...current.dailyPlanned],
         actual: [...current.dailyActual],
       })
-      setMorphGen((g) => g + 1)
       setActive(next)
       syncTimerRef.current = window.setTimeout(() => {
         syncTimerRef.current = null
@@ -323,21 +463,6 @@ export function HomeWeekStatsLoadCard({
       }, 520)
     },
     [active, captureBarPcts, weeks],
-  )
-
-  const switchMetric = useCallback(
-    (next: LoadMetric) => {
-      if (next === metric) return
-      const current = weeks[active]!
-      setDailyMorphFrom({
-        planned: [...current.dailyPlanned],
-        actual: [...current.dailyActual],
-      })
-      setMorphGen((g) => g + 1)
-      setMetric(next)
-      window.setTimeout(() => setDailyMorphFrom(null), 500)
-    },
-    [active, metric, weeks],
   )
 
   useEffect(() => {
@@ -366,11 +491,19 @@ export function HomeWeekStatsLoadCard({
       <V2WidgetHeader
         title="Week overview"
         className="flex-nowrap"
-        trailing={nav}
+        trailing={
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+            <WeekSportStatModeToggle
+              mode={sportStatMode}
+              onChange={switchSportStatMode}
+            />
+            {nav}
+          </div>
+        }
       />
 
       <WeekSwipePane
-        className="tt-space-after-title"
+        className="mt-2"
         active={Math.max(0, Math.min(slideCount - 1, paneActive))}
         count={slideCount}
         onActiveChange={onActiveChange}
@@ -388,156 +521,127 @@ export function HomeWeekStatsLoadCard({
             <WeekSwipeSlide key={slide.weekStartKey} active={isVisible}>
               <div className="grid grid-cols-1 gap-3 min-[520px]:grid-cols-[minmax(0,0.9fr)_minmax(0,1.25fr)] min-[520px]:gap-4 min-[520px]:items-start">
                 {/* Left — week sport stats */}
-                <div className="flex min-w-0 flex-col gap-3">
+                <div className="flex min-w-0 flex-col gap-2.5">
                   {data.sports.length === 0 ? (
                     <p className="text-[11px] text-[var(--tt-ink-faint,#9a9a9a)]">
                       No sports planned
                     </p>
                   ) : (
-                    <div className="flex flex-col gap-2.5">
-                      {data.sports.map((sport) => {
-                        const totals = sumSportWeekTotals(data.planDays, sport, {
-                          swimCssSecPer100m,
-                        })
-                        const sportMetric = weekSportMetric(
-                          sport,
-                          totals,
-                          data.allWorkouts,
-                        )
-                        const pct = weekSportProgressPercent(
-                          sportMetric.actual,
-                          sportMetric.planned,
-                        )
-                        const Icon = WORKOUT_TYPE_ICONS[sport]
+                    <div className={cn(WEEK_SPORT_STATS_GRID, 'gap-y-1')}>
+                        {data.sports.map((sport, sportIndex) => {
+                          const totals = sumSportWeekTotals(
+                            data.planDays,
+                            sport,
+                            { swimCssSecPer100m },
+                          )
+                          const sportMetric = weekSportMetric(
+                            sport,
+                            totals,
+                            data.allWorkouts,
+                            sportStatMode,
+                            thresholds,
+                          )
+                          const pct = weekSportProgressPercent(
+                            sportMetric.actual,
+                            sportMetric.planned,
+                          )
+                          const unavailable = Boolean(
+                            sportMetric.unavailableForMode,
+                          )
+                          const Icon = WORKOUT_TYPE_ICONS[sport]
+                          const isLast = sportIndex === data.sports.length - 1
 
-                        return (
-                          <div key={sport} className="min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex min-w-0 items-center gap-1">
+                          return (
+                            <div key={sport} className="contents">
+                              <div
+                                className={cn(
+                                  'flex min-w-0 items-center gap-1',
+                                  unavailable && 'opacity-45',
+                                )}
+                              >
                                 <Icon
                                   className={cn(
-                                    'h-3 w-3 shrink-0',
-                                    WEEK_STATS_SPORT_ICON_COLOR[sport],
+                                    'h-3.5 w-3.5 shrink-0',
+                                    unavailable
+                                      ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
+                                      : WEEK_STATS_SPORT_ICON_COLOR[sport],
                                   )}
                                   strokeWidth={2.1}
                                   aria-hidden
                                 />
-                                <p className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
+                                <p
+                                  className={cn(
+                                    'truncate text-[10px] font-semibold uppercase tracking-[0.06em]',
+                                    unavailable
+                                      ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
+                                      : 'text-[var(--tt-ink,#111)]',
+                                  )}
+                                >
                                   {WORKOUT_TYPE_LABELS[sport]}
                                 </p>
                               </div>
-                              <p className="shrink-0 text-[11px] tabular-nums text-[var(--tt-ink,#111)]">
-                                <span className="font-semibold">
-                                  {sportMetric.actualLabel}
-                                </span>
-                                <span className="text-[var(--tt-ink-faint,#9a9a9a)]">
-                                  /{sportMetric.plannedLabel}
-                                  {sportMetric.unit
-                                    ? ` ${sportMetric.unit}`
-                                    : ''}
-                                </span>
-                              </p>
+                              <WeekSportMetricValue metric={sportMetric} />
+                              <div
+                                className={cn(
+                                  'col-span-2 tt-v2-home-track mt-0.5 h-1 overflow-hidden',
+                                  !isLast && 'mb-2',
+                                )}
+                              >
+                                <MorphProgressBar
+                                  pct={pct}
+                                  morphFrom={morph?.[sport] ?? null}
+                                  className={
+                                    unavailable
+                                      ? 'tt-v2-home-track-fill--muted'
+                                      : 'tt-v2-home-track-fill--accent'
+                                  }
+                                />
+                              </div>
                             </div>
-                            <div className="tt-v2-home-track mt-1.5 h-1 overflow-hidden">
-                              <MorphProgressBar
-                                pct={pct}
-                                morphFrom={morph?.[sport] ?? null}
-                                className="tt-v2-home-track-fill--accent"
-                              />
-                            </div>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
                     </div>
                   )}
 
-                  <div className="border-t border-[var(--tt-line,#ebebeb)] pt-2.5">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
-                        Volume
-                      </p>
-                      <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
-                        <span className="font-semibold text-[var(--tt-ink,#111)]">
-                          {data.overall.completedLabel}
-                        </span>
-                        <span>
-                          /{data.overall.plannedLabel} · {data.overall.pct}%
-                        </span>
-                      </p>
-                    </div>
-                    <div className="tt-v2-home-track mt-1.5 h-1 overflow-hidden">
+                  <div className="border-t border-[var(--tt-line,#ebebeb)] pt-2">
+                    <WeekVolumeMetric
+                      actual={data.overall.completedLabel}
+                      planned={data.overall.plannedLabel}
+                      mode={sportStatMode}
+                    />
+                    <div className="tt-v2-home-track mt-1 h-1 overflow-hidden">
                       <MorphProgressBar
                         pct={data.overall.pct}
                         morphFrom={morph?.__overall ?? null}
                         className="tt-v2-home-track-fill"
                       />
                     </div>
+                    <p className="mt-1 text-right text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
+                      {data.overall.pct}%
+                    </p>
                   </div>
                 </div>
 
                 {/* Right — training load graph */}
-                <div className="flex min-w-0 flex-col border-t border-[var(--tt-line,#ebebeb)] pt-3 min-[520px]:border-t-0 min-[520px]:border-l min-[520px]:pl-4 min-[520px]:pt-0">
-                  <div className="flex items-end justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="text-[1.35rem] font-semibold tabular-nums leading-none tracking-tight text-[var(--tt-ink,#111)]">
-                        {headlineTotal}{' '}
-                        <span className="text-[12px] font-medium normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
-                          {unitLabel}
-                          {data.plannedWeek ? ' plan' : ''}
-                        </span>
+                <div className="flex min-w-0 flex-col border-t border-[var(--tt-line,#ebebeb)] pt-2.5 min-[520px]:border-t-0 min-[520px]:border-l min-[520px]:pl-4 min-[520px]:pt-0">
+                  <div className="min-w-0">
+                    <p className="text-[1.35rem] font-semibold tabular-nums leading-none tracking-tight text-[var(--tt-ink,#111)]">
+                      {headlineTotal}{' '}
+                      <span className="text-[12px] font-medium normal-case tracking-normal text-[var(--tt-ink-soft,#6b6b6b)]">
+                        {unitLabel}
+                        {data.plannedWeek ? ' plan' : ''}
+                      </span>
+                    </p>
+                    {showActual && data.plannedTotal > 0 ? (
+                      <p className="mt-1 text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
+                        Planned {data.plannedTotal} {unitLabel}
                       </p>
-                      {showActual && data.plannedTotal > 0 ? (
-                        <p className="mt-1 text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
-                          Planned {data.plannedTotal} {unitLabel}
-                        </p>
-                      ) : null}
-                    </div>
-                    {isVisible ? (
-                      <div
-                        className="mb-0.5 flex shrink-0 items-center gap-1 text-[10px] font-medium tracking-[0.02em]"
-                        role="group"
-                        aria-label="Load metric"
-                      >
-                        {(
-                          [
-                            { id: 'tss' as const, label: 'TSS' },
-                            { id: 'time' as const, label: 'Time' },
-                          ] as const
-                        ).map((option, index) => (
-                          <span
-                            key={option.id}
-                            className="inline-flex items-center gap-1"
-                          >
-                            {index > 0 ? (
-                              <span
-                                className="text-[var(--tt-ink-faint,#9a9a9a)]"
-                                aria-hidden
-                              >
-                                ·
-                              </span>
-                            ) : null}
-                            <button
-                              type="button"
-                              aria-pressed={metric === option.id}
-                              onClick={() => switchMetric(option.id)}
-                              className={cn(
-                                'transition',
-                                metric === option.id
-                                  ? 'text-[var(--tt-v2-accent)]'
-                                  : 'text-[var(--tt-ink-faint,#9a9a9a)] hover:text-[var(--tt-ink-soft,#6b6b6b)]',
-                              )}
-                            >
-                              {option.label}
-                            </button>
-                          </span>
-                        ))}
-                      </div>
                     ) : null}
                   </div>
 
-                  <div className="mt-auto">
+                  <div className="mt-1.5">
                     <TrainingLoadChart
-                      key={`${slide.weekStartKey}-${metric}-${isVisible ? morphGen : 'idle'}`}
+                      key={slide.weekStartKey}
                       plannedDaily={data.dailyPlanned}
                       actualDaily={data.dailyActual}
                       yMax={Math.max(
@@ -548,6 +652,7 @@ export function HomeWeekStatsLoadCard({
                       showActual={showActual}
                       morphFrom={isVisible ? dailyMorphFrom : null}
                       compact
+                      seriesTone={sportStatMode === 'time' ? 'ink' : 'accent'}
                     />
                   </div>
                 </div>

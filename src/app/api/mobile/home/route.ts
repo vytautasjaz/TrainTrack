@@ -14,6 +14,7 @@ import {
   toPlanWorkoutDetail,
 } from '@/lib/plan-workout'
 import { getAthleteDashboard } from '@/lib/queries'
+import { mergeRacesIntoPlanWorkouts } from '@/lib/races'
 
 export async function GET(request: Request) {
   const auth = await requireMobileAthlete(request)
@@ -29,11 +30,17 @@ export async function GET(request: Request) {
       redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
     ),
   )
-  const weekPlanWorkouts = data.weekPlanWorkouts.map((w) =>
-    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+  const weekPlanWorkouts = mergeRacesIntoPlanWorkouts(
+    data.weekPlanWorkouts.map((w) =>
+      redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+    ),
+    data.weekPlanRaces,
   )
-  const weekStatsWorkouts = data.weekStatsWindowWorkouts.map((w) =>
-    redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+  const weekStatsWorkouts = mergeRacesIntoPlanWorkouts(
+    data.weekStatsWindowWorkouts.map((w) =>
+      redactPlanWorkoutNotesForViewer(toPlanWorkoutDetail(w), 'athlete'),
+    ),
+    data.weekStatsWindowRaces,
   )
 
   const upcoming = buildMobileUpcoming({

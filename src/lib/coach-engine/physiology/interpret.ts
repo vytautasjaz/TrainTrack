@@ -573,6 +573,178 @@ export const TONE_LEGEND: { tone: TrainingTone; label: string }[] = [
   { tone: 'bad', label: 'Needs attention' },
 ]
 
+/** Coaching readout of what the fitness radar shape implies. */
+export type ProfileShapeReadout = {
+  /** Short athlete-type label, e.g. "Threshold-oriented". */
+  typeLabel: string
+  /** 1–2 sentences: strengths, relative gaps, training implication. */
+  summary: string
+}
+
+type ProfilePillarId =
+  | 'aerobic'
+  | 'threshold'
+  | 'vo2'
+  | 'endurance'
+  | 'recovery'
+
+type ProfilePillar = {
+  id: ProfilePillarId
+  label: string
+  score: number
+}
+
+function avg(values: number[]): number | null {
+  if (values.length === 0) return null
+  return values.reduce((a, b) => a + b, 0) / values.length
+}
+
+function capitalize(s: string): string {
+  return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+function cardValue(
+  byId: Map<string, { value: number }>,
+  id: string,
+): number | null {
+  const c = byId.get(id)
+  if (!c) return null
+  return Math.min(100, Math.max(0, c.value))
+}
+
+function buildProfilePillars(
+  cards: Array<{ id: string; value: number }>,
+): ProfilePillar[] {
+  const byId = new Map(cards.map((c) => [c.id, c]))
+  const pillars: ProfilePillar[] = []
+
+  const aerobic = avg(
+    [cardValue(byId, 'aerobicStrength'), cardValue(byId, 'aerobicEfficiency')].filter(
+      (v): v is number => v != null,
+    ),
+  )
+  if (aerobic != null) {
+    pillars.push({ id: 'aerobic', label: 'aerobic base', score: aerobic })
+  }
+
+  const threshold = avg(
+    [
+      cardValue(byId, 'thresholdStrength'),
+      cardValue(byId, 'thresholdDurability'),
+    ].filter((v): v is number => v != null),
+  )
+  if (threshold != null) {
+    pillars.push({ id: 'threshold', label: 'threshold', score: threshold })
+  }
+
+  const vo2 = cardValue(byId, 'vo2Response')
+  if (vo2 != null) {
+    pillars.push({ id: 'vo2', label: 'VO₂ / speed', score: vo2 })
+  }
+
+  const endurance = avg(
+    [
+      cardValue(byId, 'fatigueResistance'),
+      cardValue(byId, 'marathonReadiness'),
+    ].filter((v): v is number => v != null),
+  )
+  if (endurance != null) {
+    pillars.push({
+      id: 'endurance',
+      label: 'long-endurance',
+      score: endurance,
+    })
+  }
+
+  const overreach = cardValue(byId, 'overreachRisk')
+  const recoverySpeed = cardValue(byId, 'recoverySpeed')
+  const recoveryParts: number[] = []
+  if (overreach != null) recoveryParts.push(100 - overreach)
+  if (recoverySpeed != null) recoveryParts.push(recoverySpeed)
+  const recovery = avg(recoveryParts)
+  if (recovery != null) {
+    pillars.push({ id: 'recovery', label: 'recovery / freshness', score: recovery })
+  }
+
+  return pillars
+}
+
+const PILLAR_TYPE: Record<ProfilePillarId, string> = {
+  aerobic: 'Aerobic / base-oriented',
+  threshold: 'Threshold-oriented',
+  vo2: 'Speed / VO₂-leaning',
+  endurance: 'Endurance / marathon-oriented',
+  recovery: 'Durable / recovery-strong',
+}
+
+/**
+ * Infer a readable athlete type from 0–100 profile cards
+ * (radar axes), optionally nudged by fingerprint responders.
+ */
+export function describeProfileShape(
+  cards: Array<{ id: string; value: number }>,
+  fingerprint?: {
+    volumeResponder: number
+    thresholdResponder: number
+    vo2Responder: number
+    longRunResponder: number
+    frequencyResponder: number
+  } | null,
+): ProfileShapeReadout | null {
+  const pillars = buildProfilePillars(cards)
+  if (pillars.length < 3) return null
+
+  const sorted = [...pillars].sort((a, b) => b.score - a.score)
+  const top = sorted[0]!
+  const second = sorted[1]!
+  const bottom = sorted[sorted.length - 1]!
+  const mean = avg(pillars.map((p) => p.score))!
+  const spread = top.score - bottom.score
+
+  const recovery = pillars.find((p) => p.id === 'recovery')
+
+  let typeLabel: string
+  let summary: string
+
+  if (recovery != null && recovery.score <= 40) {
+    typeLabel = 'Load-stressed right now'
+    summary = `Recovery and freshness are the limiting edge of this profile (${Math.round(recovery.score)} / 100). Protect easy volume and sleep before chasing the stronger qualities (${top.label} leads at ${Math.round(top.score)}).`
+  } else if (spread <= 12) {
+    typeLabel =
+      mean >= 70
+        ? 'Balanced high-rounder'
+        : mean >= 55
+          ? 'Balanced all-rounder'
+          : 'Evenly developing'
+    summary =
+      mean >= 55
+        ? `No single quality dominates — your shape is fairly even around ${Math.round(mean)} / 100. Build the weakest edge (${bottom.label}, ${Math.round(bottom.score)}) without neglecting what already works.`
+        : `The profile is still filling in evenly (around ${Math.round(mean)} / 100). Consistent easy work will lift the whole shape before specializing hard.`
+  } else if (top.score - second.score < 8) {
+    typeLabel = `${capitalize(top.label)} + ${second.label}`
+    summary = `Two qualities lead together — ${top.label} (${Math.round(top.score)}) and ${second.label} (${Math.round(second.score)}) — while ${bottom.label} sits softer (${Math.round(bottom.score)}). Keep the dual strengths sharp and lift the lagging edge gradually.`
+  } else {
+    typeLabel = PILLAR_TYPE[top.id]
+    summary = `${capitalize(top.label)} is the standout (${Math.round(top.score)} / 100), with ${bottom.label} relatively softer (${Math.round(bottom.score)}). Train with that shape in mind — lean on the strength, and raise the lagging edge gradually.`
+  }
+
+  if (fingerprint) {
+    const responders: { label: string; value: number }[] = [
+      { label: 'volume', value: fingerprint.volumeResponder },
+      { label: 'frequency', value: fingerprint.frequencyResponder },
+      { label: 'threshold', value: fingerprint.thresholdResponder },
+      { label: 'VO₂', value: fingerprint.vo2Responder },
+      { label: 'long-run', value: fingerprint.longRunResponder },
+    ]
+    const best = [...responders].sort((a, b) => b.value - a.value)[0]
+    if (best && best.value >= 0.7) {
+      summary += ` History also responds strongly to ${best.label} work.`
+    }
+  }
+
+  return { typeLabel, summary }
+}
+
 /** @deprecated */
 export type PhysiologyTone = TrainingTone
 /** @deprecated */

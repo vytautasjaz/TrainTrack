@@ -1,13 +1,12 @@
 'use client'
 
-import * as SelectPrimitive from '@radix-ui/react-select'
 import { ChevronDown } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import {
-  SelectDropdownContent,
-  SelectDropdownItem,
-  type SelectDropdownOption,
-} from '@/components/ui/select-dropdown'
+  FixedPortalMenu,
+  FixedPortalMenuItem,
+} from '@/components/ui/fixed-portal-menu'
+import type { SelectDropdownOption } from '@/components/ui/select-dropdown'
 import { cn } from '@/lib/utils'
 
 const inlineSelectTriggerClass = cn(
@@ -47,20 +46,44 @@ export function InlineSelect({
   'aria-label': ariaLabel,
   className,
 }: InlineSelectProps) {
+  const selected = options.find((option) => option.value === value)
+
   return (
-    <SelectPrimitive.Root value={value} onValueChange={onValueChange}>
-      <SelectPrimitive.Trigger aria-label={ariaLabel} className={cn(inlineSelectTriggerClass, className)}>
-        <SelectPrimitive.Value />
-        <SelectPrimitive.Icon asChild>
+    <FixedPortalMenu
+      role="listbox"
+      aria-label={ariaLabel}
+      align="center"
+      trigger={({ open, props }) => (
+        <button
+          {...props}
+          aria-label={ariaLabel}
+          className={cn(
+            inlineSelectTriggerClass,
+            open && 'text-foreground',
+            className,
+          )}
+        >
+          <span>{selected?.label ?? value}</span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        </SelectPrimitive.Icon>
-      </SelectPrimitive.Trigger>
-      <SelectDropdownContent>
-        {options.map((option) => (
-          <SelectDropdownItem key={option.value} option={option} />
-        ))}
-      </SelectDropdownContent>
-    </SelectPrimitive.Root>
+        </button>
+      )}
+    >
+      {(close) =>
+        options.map((option) => (
+          <FixedPortalMenuItem
+            key={option.value}
+            role="option"
+            selected={option.value === value}
+            onSelect={() => {
+              onValueChange(option.value)
+              close()
+            }}
+          >
+            {option.label}
+          </FixedPortalMenuItem>
+        ))
+      }
+    </FixedPortalMenu>
   )
 }
 

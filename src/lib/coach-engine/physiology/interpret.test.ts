@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  describeProfileShape,
   rateProfileMetric,
   rateTrainingResponse,
   trainingResponseInsight,
@@ -76,5 +77,49 @@ describe('rateTrainingResponse', () => {
     expect(trainingResponseInsight('vo2', 0.5).toLowerCase()).toContain(
       'stronger',
     )
+  })
+})
+
+describe('describeProfileShape', () => {
+  const base = [
+    { id: 'aerobicStrength', value: 72 },
+    { id: 'aerobicEfficiency', value: 68 },
+    { id: 'thresholdStrength', value: 45 },
+    { id: 'thresholdDurability', value: 42 },
+    { id: 'vo2Response', value: 40 },
+    { id: 'fatigueResistance', value: 55 },
+    { id: 'overreachRisk', value: 25 },
+    { id: 'recoverySpeed', value: 60 },
+    { id: 'marathonReadiness', value: 58 },
+  ]
+
+  it('labels an aerobic-led profile', () => {
+    const r = describeProfileShape(base)
+    expect(r?.typeLabel).toMatch(/aerobic|base/i)
+    expect(r?.summary.toLowerCase()).toContain('aerobic')
+  })
+
+  it('flags load stress when freshness is poor', () => {
+    const r = describeProfileShape(
+      base.map((c) =>
+        c.id === 'overreachRisk'
+          ? { ...c, value: 85 }
+          : c.id === 'recoverySpeed'
+            ? { ...c, value: 30 }
+            : c,
+      ),
+    )
+    expect(r?.typeLabel.toLowerCase()).toContain('load-stressed')
+  })
+
+  it('mentions a strong fingerprint responder', () => {
+    const r = describeProfileShape(base, {
+      volumeResponder: 0.5,
+      thresholdResponder: 0.92,
+      vo2Responder: 0.4,
+      longRunResponder: 0.55,
+      frequencyResponder: 0.5,
+    })
+    expect(r?.summary.toLowerCase()).toContain('threshold')
   })
 })

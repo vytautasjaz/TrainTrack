@@ -14,7 +14,10 @@ import {
 import { fetchAllRecentActivities, fetchStravaActivity, fetchStravaActivityLaps, fetchStravaActivityStreams, getValidAccessToken, stravaActivityUrl } from './client'
 import { StravaError } from './errors'
 import { syncStravaAvatarForUser } from './avatar'
-import { mapStravaTypeToWorkoutType, workoutTypesCompatible } from './map-sport'
+import {
+  resolveStravaActivityWorkoutType,
+  workoutTypesCompatible,
+} from './map-sport'
 import { stravaRoutePolyline, type StravaActivity } from './types'
 import { polylineFromLatLng } from '@/lib/polyline'
 import {
@@ -208,7 +211,7 @@ async function createSelfLoggedWorkoutFromActivity(
   activity: StravaActivity,
   accessToken: string,
 ): Promise<string> {
-  const workoutType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+  const workoutType = resolveStravaActivityWorkoutType(activity)
   if (!workoutType || workoutType === WorkoutType.REST) {
     throw new Error('That Strava activity type is not supported')
   }
@@ -771,7 +774,7 @@ async function processNewStravaActivity(opts: {
     }
   }
 
-  const activityType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+  const activityType = resolveStravaActivityWorkoutType(activity)
   if (!activityType || activityType === WorkoutType.REST) {
     return 'skipped'
   }
@@ -1088,7 +1091,7 @@ export async function listStravaActivitiesForWorkoutForAthlete(
 
   return activities
     .filter((activity) => {
-      const activityType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+      const activityType = resolveStravaActivityWorkoutType(activity)
       if (!activityType) return false
       return workoutTypesCompatible(workout.type, activityType)
     })
@@ -1164,7 +1167,7 @@ export async function attachStravaActivityToWorkoutForAthlete(
     )
   }
 
-  const activityType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+  const activityType = resolveStravaActivityWorkoutType(activity)
   if (!activityType || !workoutTypesCompatible(workout.type, activityType)) {
     throw new Error('That Strava activity does not match this workout sport')
   }
@@ -1279,7 +1282,7 @@ function activityMatchesLegSport(
   activity: StravaActivity,
   sportFilter: WorkoutType | null,
 ): boolean {
-  const activityType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+  const activityType = resolveStravaActivityWorkoutType(activity)
   if (!activityType) return false
   if (!sportFilter) return true
   return workoutTypesCompatible(sportFilter, activityType)
@@ -1576,7 +1579,7 @@ export async function listUnmatchedStravaActivitiesForAthlete(
 
   return activities
     .map((activity) => {
-      const workoutType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+      const workoutType = resolveStravaActivityWorkoutType(activity)
       if (!workoutType || workoutType === WorkoutType.REST) return null
       const id = String(activity.id)
       return {
@@ -1639,7 +1642,7 @@ export async function importStravaActivityAsWorkoutForAthlete(
     )
   }
 
-  const workoutType = mapStravaTypeToWorkoutType(activity.sport_type ?? activity.type)
+  const workoutType = resolveStravaActivityWorkoutType(activity)
   if (!workoutType || workoutType === WorkoutType.REST) {
     throw new Error('That Strava activity type is not supported')
   }

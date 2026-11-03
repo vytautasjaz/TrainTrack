@@ -17,10 +17,18 @@ import {
 } from '@/lib/workout-display'
 import {
   WEEK_STATS_SPORT_ICON_COLOR,
+  formatWeekSportTime,
   weekSportMetric,
   weekSportProgressPercent,
   weekSportsWithPlannedWork,
+  type WeekSportStatMode,
 } from '@/lib/week-sport-stats'
+import {
+  WEEK_SPORT_STATS_GRID,
+  WeekSportMetricValue,
+  WeekSportStatModeToggle,
+  WeekVolumeMetric,
+} from '@/components/dashboard/week-sport-stat-metrics'
 import {
   HomeMobileSectionHeader,
 } from '@/components/ui/mobile-accordion-body'
@@ -66,10 +74,7 @@ function weekDateKeys(weekStartKey: string): string[] {
 }
 
 function formatHoursLabel(min: number): string {
-  if (min <= 0) return '0h'
-  const h = Math.floor(min / 60)
-  const m = Math.round(min % 60)
-  return m ? `${h}h${m}` : `${h}h`
+  return formatWeekSportTime(min)
 }
 
 function buildWeekStats(
@@ -173,6 +178,8 @@ export function AthleteWeekStatsCard({
   const [active, setActive] = useState(CENTER_INDEX)
   /** Carousel track — only moves on swipe; arrows morph bars in place. */
   const [paneActive, setPaneActive] = useState(CENTER_INDEX)
+  const [sportStatMode, setSportStatMode] =
+    useState<WeekSportStatMode>('distance')
   const [barMorphFrom, setBarMorphFrom] = useState<Record<string, number> | null>(
     null,
   )
@@ -219,12 +226,29 @@ export function AthleteWeekStatsCard({
         const totals = sumSportWeekTotals(slide.planDays, sport, {
           swimCssSecPer100m,
         })
-        const metric = weekSportMetric(sport, totals, slide.allWorkouts)
+        const metric = weekSportMetric(
+          sport,
+          totals,
+          slide.allWorkouts,
+          sportStatMode,
+          loadThresholds,
+        )
         pcts[sport] = weekSportProgressPercent(metric.actual, metric.planned)
       }
       return pcts
     },
-    [swimCssSecPer100m],
+    [sportStatMode, swimCssSecPer100m, loadThresholds],
+  )
+
+  const switchSportStatMode = useCallback(
+    (next: WeekSportStatMode) => {
+      if (next === sportStatMode) return
+      const current = weeks[active]!
+      setBarMorphFrom(captureBarPcts(current))
+      setSportStatMode(next)
+      window.setTimeout(() => setBarMorphFrom(null), 500)
+    },
+    [active, captureBarPcts, sportStatMode, weeks],
   )
 
   const syncPaneToActive = useCallback(() => {
@@ -294,11 +318,11 @@ export function AthleteWeekStatsCard({
   )
 
   const trackClass = isV2
+    ? 'tt-v2-home-track mt-0.5 h-1.5 overflow-hidden'
+    : 'mt-0.5 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]'
+  const footerTrackClass = isV2
     ? 'tt-v2-home-track mt-1 h-1.5 overflow-hidden'
     : 'mt-1 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]'
-  const footerTrackClass = isV2
-    ? 'tt-v2-home-track mt-1.5 h-1.5 overflow-hidden'
-    : 'mt-1.5 h-1 overflow-hidden rounded-full bg-[var(--tt-line,#ebebeb)]'
 
   return (
     <section
@@ -308,17 +332,36 @@ export function AthleteWeekStatsCard({
       )}
     >
       {isV2 ? (
-        <V2WidgetHeader title={week.title} trailing={nav} />
+        <V2WidgetHeader
+          title={week.title}
+          trailing={
+            <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+              <WeekSportStatModeToggle
+                mode={sportStatMode}
+                onChange={switchSportStatMode}
+              />
+              {nav}
+            </div>
+          }
+        />
       ) : (
         <HomeMobileSectionHeader
           title={week.title}
           collapsible={false}
-          trailing={nav}
+          trailing={
+            <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+              <WeekSportStatModeToggle
+                mode={sportStatMode}
+                onChange={switchSportStatMode}
+              />
+              {nav}
+            </div>
+          }
         />
       )}
 
       <WeekSwipePane
-        className="tt-space-after-title"
+        className="mt-2"
         active={paneActive}
         count={WEEK_COUNT}
         onActiveChange={onActiveChange}
@@ -335,72 +378,89 @@ export function AthleteWeekStatsCard({
                   No sports planned
                 </p>
               ) : (
-                <div className="grid grid-cols-2 gap-x-3 gap-y-3">
-                  {data.sports.map((sport) => {
-                    const totals = sumSportWeekTotals(data.planDays, sport, {
-                      swimCssSecPer100m,
-                    })
-                    const metric = weekSportMetric(
-                      sport,
-                      totals,
-                      data.allWorkouts,
-                    )
-                    const pct = weekSportProgressPercent(
-                      metric.actual,
-                      metric.planned,
-                    )
-                    const Icon = WORKOUT_TYPE_ICONS[sport]
+                <div className={cn(WEEK_SPORT_STATS_GRID, 'gap-y-1')}>
+                    {data.sports.map((sport, sportIndex) => {
+                      const totals = sumSportWeekTotals(data.planDays, sport, {
+                        swimCssSecPer100m,
+                      })
+                      const metric = weekSportMetric(
+                        sport,
+                        totals,
+                        data.allWorkouts,
+                        sportStatMode,
+                        loadThresholds,
+                      )
+                      const pct = weekSportProgressPercent(
+                        metric.actual,
+                        metric.planned,
+                      )
+                      const unavailable = Boolean(metric.unavailableForMode)
+                      const Icon = WORKOUT_TYPE_ICONS[sport]
+                      const isLast = sportIndex === data.sports.length - 1
 
-                    return (
-                      <div key={sport} className="min-w-0">
-                        <div className="flex items-center gap-1">
-                          <Icon
+                      return (
+                        <div key={sport} className="contents">
+                          <div
                             className={cn(
-                              'h-3 w-3 shrink-0',
-                              WEEK_STATS_SPORT_ICON_COLOR[sport],
+                              'flex min-w-0 items-center gap-1',
+                              unavailable && 'opacity-45',
                             )}
-                            strokeWidth={1.75}
-                            aria-hidden
-                          />
-                          <p className="truncate text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
-                            {WORKOUT_TYPE_LABELS[sport]}
-                          </p>
+                          >
+                            <Icon
+                              className={cn(
+                                'h-3.5 w-3.5 shrink-0',
+                                unavailable
+                                  ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
+                                  : WEEK_STATS_SPORT_ICON_COLOR[sport],
+                              )}
+                              strokeWidth={1.75}
+                              aria-hidden
+                            />
+                            <p
+                              className={cn(
+                                'truncate text-[10px] font-semibold uppercase tracking-[0.06em]',
+                                unavailable
+                                  ? 'text-[var(--tt-ink-faint,#9a9a9a)]'
+                                  : 'text-[var(--tt-ink,#111)]',
+                              )}
+                            >
+                              {WORKOUT_TYPE_LABELS[sport]}
+                            </p>
+                          </div>
+                          <WeekSportMetricValue metric={metric} />
+                          <div
+                            className={cn(
+                              'col-span-2',
+                              trackClass,
+                              !isLast && 'mb-2',
+                            )}
+                          >
+                            <MorphProgressBar
+                              pct={pct}
+                              morphFrom={morph?.[sport] ?? null}
+                              className={
+                                unavailable
+                                  ? isV2
+                                    ? 'tt-v2-home-track-fill--muted'
+                                    : 'bg-[var(--tt-ink-faint,#9a9a9a)]'
+                                  : isV2
+                                    ? 'tt-v2-home-track-fill--accent'
+                                    : WORKOUT_TYPE_DOT_CLASS[sport]
+                              }
+                            />
+                          </div>
                         </div>
-                        <p className="mt-0.5 text-[11px] tabular-nums text-[var(--tt-ink,#111)]">
-                          <span className="font-semibold">{metric.actualLabel}</span>
-                          <span className="text-[var(--tt-ink-faint,#9a9a9a)]">
-                            /{metric.plannedLabel}
-                            {metric.unit ? ` ${metric.unit}` : ''}
-                          </span>
-                        </p>
-                        <div className={trackClass}>
-                          <MorphProgressBar
-                            pct={pct}
-                            morphFrom={morph?.[sport] ?? null}
-                            className={WORKOUT_TYPE_DOT_CLASS[sport]}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
                 </div>
               )}
 
-              <div className="mt-3 border-t border-[var(--tt-line,#ebebeb)] pt-2.5">
+              <div className="mt-2.5 border-t border-[var(--tt-line,#ebebeb)] pt-2">
                 <div className="min-w-0">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--tt-ink-faint,#9a9a9a)]">
-                      Volume
-                    </p>
-                    <p className="text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
-                      <span className="font-semibold text-[var(--tt-ink,#111)]">
-                        {data.overall.completedLabel}
-                      </span>
-                      <span>
-                        /{data.overall.plannedLabel} · {data.overall.pct}%
-                      </span>
-                    </p>
-                  </div>
+                  <WeekVolumeMetric
+                    actual={data.overall.completedLabel}
+                    planned={data.overall.plannedLabel}
+                  />
                   <div className={footerTrackClass}>
                     <MorphProgressBar
                       pct={data.overall.pct}
@@ -412,6 +472,9 @@ export function AthleteWeekStatsCard({
                       }
                     />
                   </div>
+                  <p className="mt-1 text-right text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
+                    {data.overall.pct}%
+                  </p>
                 </div>
               </div>
             </WeekSwipeSlide>

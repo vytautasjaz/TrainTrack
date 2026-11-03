@@ -935,13 +935,9 @@
   animation: tt-mock-athlete-expand-grow 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Season mock — match production white page canvas */
+/* Season mock — transparent page on shell fade (match production) */
 .tt-mock .tt-season-page {
-  background: var(--tt-bg);
-}
-
-.tt-mock .tt-season-header__abstract {
-  opacity: 0;
+  background: transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { ChevronDown, Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { NumberInput } from '@/components/ui/number-input'
 import { WorkoutStructureChart } from '@/components/workout-builder/workout-structure-chart'
-import { SELECT_DROPDOWN_CONTENT_CLASS } from '@/components/ui/select-dropdown'
+import {
+  FixedPortalMenu,
+  FixedPortalMenuItem,
+} from '@/components/ui/fixed-portal-menu'
 import type { Segment, SegmentUnit, WorkoutIncludeItem } from '@/lib/workout-builder/types'
 import {
   INCLUDE_PLACEMENTS,
@@ -486,48 +488,48 @@ export function IncludeItemsEditor({
             <span className="truncate">{preset.label}</span>
           </button>
         ))}
-        <DropdownMenu.Root modal={false}>
-          <DropdownMenu.Trigger
-            type="button"
-            className={cn(
-              ADD_BUTTON_CLASS,
-              'data-[state=open]:border-[#86D39A]/50 data-[state=open]:bg-[#F3FAF5]',
-            )}
-          >
-            <Plus className="h-3.5 w-3.5 shrink-0" />
-            <span className="truncate">Custom</span>
-            <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              align="start"
-              side="top"
-              sideOffset={6}
-              collisionPadding={12}
-              data-tt-floating-ui=""
+        <FixedPortalMenu
+          side="top"
+          sideOffset={6}
+          menuClassName="max-h-[min(20rem,50vh)] w-56"
+          trigger={({ open, props }) => (
+            <button
+              {...props}
               className={cn(
-                SELECT_DROPDOWN_CONTENT_CLASS,
-                'z-[250] max-h-[min(20rem,50vh)] w-56',
+                ADD_BUTTON_CLASS,
+                open && 'border-[#86D39A]/50 bg-[#F3FAF5]',
               )}
             >
+              <Plus className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Custom</span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-60" />
+            </button>
+          )}
+        >
+          {(close) => (
+            <>
               {CUSTOM_PRESETS.map((preset) => (
-                <DropdownMenu.Item
+                <FixedPortalMenuItem
                   key={preset.label}
-                  onSelect={() => onChange([...items, presetToItem(preset)])}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition data-[highlighted]:bg-foreground/[0.04]"
+                  onSelect={() => {
+                    onChange([...items, presetToItem(preset)])
+                    close()
+                  }}
                 >
-                  <span>{preset.label}</span>
-                </DropdownMenu.Item>
+                  {preset.label}
+                </FixedPortalMenuItem>
               ))}
-              <DropdownMenu.Item
-                onSelect={() => onChange([...items, defaultIncludeItem()])}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition data-[highlighted]:bg-foreground/[0.04]"
+              <FixedPortalMenuItem
+                onSelect={() => {
+                  onChange([...items, defaultIncludeItem()])
+                  close()
+                }}
               >
-                <span>Custom include</span>
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+                Custom include
+              </FixedPortalMenuItem>
+            </>
+          )}
+        </FixedPortalMenu>
       </div>
     </div>
   )

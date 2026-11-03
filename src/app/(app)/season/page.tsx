@@ -89,7 +89,7 @@ export default async function SeasonPlanPage() {
   const watchingSorted = [...watching].sort((a, b) => a.date.getTime() - b.date.getTime())
 
   return (
-    <div className="tt-season-page -mx-4 space-y-8 px-4 pb-8 sm:-mx-4 sm:px-4 lg:-mx-8 lg:px-8">
+    <div className="tt-season-page w-full min-w-0 max-w-[90rem] space-y-[var(--tt-space-section)] pb-8">
       <SeasonPlanHeader />
 
       <RacesPageClient

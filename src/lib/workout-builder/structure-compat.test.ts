@@ -102,6 +102,8 @@ describe('structure-compat', () => {
           block: {
             id: 'e1',
             type: 'EXERCISE',
+            rounds: 3,
+            rest: { type: 'TIME', value: 60, unit: 'sec' },
             exercise: {
               exerciseId: 'push_up',
               name: 'Push Ups',
@@ -115,8 +117,9 @@ describe('structure-compat', () => {
     const projected = projectStructureV2ToV1(flat)
     expect(projected.mainSet).toHaveLength(1)
     expect(projected.mainSet[0]?.name).toBe('Push Ups')
-    expect(projected.mainSet[0]?.text).toMatch(/20 reps/)
+    expect(projected.mainSet[0]?.text).toMatch(/3 × 20/)
     expect(projected.mainSet[0]?.text).toMatch(/20kg/)
+    expect(projected.mainSet[0]?.text).toMatch(/60"/)
     expect(projected.mainSet[0]?.name).not.toMatch(/Coach Notes/i)
   })
 

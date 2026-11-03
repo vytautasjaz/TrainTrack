@@ -455,6 +455,7 @@ model Athlete {
   coachLinks       CoachAthleteLink[]
   races            Race[]
   personalBests    PersonalBest[]
+  personalBestHistory PersonalBestHistory[]
   seasonPhaseBlocks SeasonPhaseBlock[]
   seasonEvents      SeasonEvent[]
   calendarFeeds     CalendarFeed[]
@@ -612,9 +613,34 @@ model PersonalBest {
 
   athlete Athlete @relation(fields: [athleteId], references: [id], onDelete: Cascade)
   race    Race?   @relation(fields: [raceId], references: [id], onDelete: SetNull)
+  history PersonalBestHistory[]
 
   @@index([athleteId, sortOrder])
   @@index([athleteId, presetKey])
+}
+
+/**
+ * Prior values for a personal best after it is overwritten.
+ * Current PB stays on PersonalBest; this table is append-only history.
+ */
+model PersonalBestHistory {
+  id             String             @id @default(cuid())
+  personalBestId String
+  athleteId      String
+  value          Float
+  metric         PersonalBestMetric
+  dateText       String?
+  event          String?
+  raceId         String?
+  /** When this value stopped being the current PB. */
+  supersededAt   DateTime           @default(now())
+  createdAt      DateTime           @default(now())
+
+  personalBest PersonalBest @relation(fields: [personalBestId], references: [id], onDelete: Cascade)
+  athlete      Athlete      @relation(fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@index([personalBestId, supersededAt])
+  @@index([athleteId, personalBestId])
 }
 
 /** Per-leg plan + result for triathlon (swim / T1 / bike / T2 / run). */
