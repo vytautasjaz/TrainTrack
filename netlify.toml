@@ -1,6 +1,10 @@
 # Explicitly enable Netlify's Next.js runtime during deploy packaging.
 # Production Neon was created with `db push` (no migration history). Sync schema
 # that way on build; do not run `migrate deploy` until migrations are baselined.
+#
+# PERF (required in Netlify UI — not settable for Next.js SSR via this file):
+# Project settings → Functions → Region → Frankfurt (fra).
+# Neon is aws-eu-central-1; default us-east-1 adds ~80–150ms per DB round-trip.
 [build]
   command = "npx prisma db push && npm run build"
   publish = ".next"
@@ -14,3 +18,5 @@
 
 [functions]
   directory = "netlify/functions"
+  # Next.js SSR + scheduled functions region is NOT settable here for OpenNext.
+  # Set in Netlify UI → Project configuration → Functions → Region → Frankfurt (fra).

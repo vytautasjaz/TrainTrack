@@ -90,6 +90,8 @@ function mapCoachHomeRaceLegs(
     stravaActivityName: string | null
     actualDistanceKm: number | null
     actualDurationMin: number | null
+    averageHeartrate?: number | null
+    elevationGainM?: number | null
   }>,
 ): RaceLegView[] {
   return legs.map((leg) => ({
@@ -105,6 +107,8 @@ function mapCoachHomeRaceLegs(
     stravaActivityName: leg.stravaActivityName,
     actualDistanceKm: leg.actualDistanceKm,
     actualDurationMin: leg.actualDurationMin,
+    averageHeartrate: leg.averageHeartrate ?? null,
+    elevationGainM: leg.elevationGainM ?? null,
   }))
 }
 
@@ -1767,6 +1771,12 @@ export async function getRacesForRange(athleteId: string, start: Date, end: Date
       outcome: true,
       resultTime: true,
       daySortOrder: true,
+      stravaActivityId: true,
+      stravaActivityUrl: true,
+      actualDistanceKm: true,
+      actualDurationMin: true,
+      averageHeartrate: true,
+      elevationGainM: true,
       legs: {
         select: {
           kind: true,
@@ -1775,6 +1785,9 @@ export async function getRacesForRange(athleteId: string, start: Date, end: Date
           plannedDistanceKm: true,
           plannedTime: true,
           resultTime: true,
+          averageHeartrate: true,
+          elevationGainM: true,
+          stravaActivityUrl: true,
         },
         orderBy: { sortOrder: 'asc' },
       },
@@ -2043,6 +2056,16 @@ export async function getProgressStats(athleteId: string) {
   const raceRows = races.flatMap((race) => {
     const bySport = resolveRaceDistancesBySport(race)
     const finished = race.outcome === 'FINISHED'
+    const hasStravaActuals =
+      Boolean(race.stravaActivityId) ||
+      (race.actualDistanceKm != null && race.actualDistanceKm > 0) ||
+      (race.actualDurationMin != null && race.actualDurationMin > 0) ||
+      race.legs.some(
+        (leg) =>
+          (leg.actualDistanceKm != null && leg.actualDistanceKm > 0) ||
+          (leg.actualDurationMin != null && leg.actualDurationMin > 0),
+      )
+    const completedForStats = finished || hasStravaActuals
     return (Object.entries(bySport) as [WorkoutType, NonNullable<(typeof bySport)[keyof typeof bySport]>][])
       .filter(
         ([, dist]) =>
@@ -2051,7 +2074,7 @@ export async function getProgressStats(athleteId: string) {
       .map(([type, dist]) => ({
         date: race.date,
         type,
-        status: finished ? WorkoutStatus.COMPLETED : WorkoutStatus.PLANNED,
+        status: completedForStats ? WorkoutStatus.COMPLETED : WorkoutStatus.PLANNED,
         plannedDistance: dist.plannedKm > 0 ? dist.plannedKm : null,
         plannedDuration: dist.plannedMin > 0 ? Math.round(dist.plannedMin) : null,
         result:

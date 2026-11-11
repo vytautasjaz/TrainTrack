@@ -340,10 +340,6 @@ html[data-sidebar-collapsed='true'] {
   border-bottom: 1px solid var(--tt-v2-grid-line-strong);
 }
 
-.tt-app-top-nav > .tt-v2-grid-overlay {
-  z-index: 0;
-}
-
 /*
  * Radix Dialog sets `pointer-events: none` on body while open, then restores
  * auto on the dialog content. Portaled menus/selects/date pickers are body
@@ -352,6 +348,24 @@ html[data-sidebar-collapsed='true'] {
 [role='dialog'],
 [data-radix-dialog-content] {
   pointer-events: auto;
+}
+
+/*
+ * Mobile web: keep dialogs inside the dynamic viewport and stop scroll chaining
+ * into the page (iOS rubber-band). Call sites often set max-h with `vh`, which
+ * ignores the iOS toolbars / keyboard — force dvh as the ceiling.
+ */
+@media (max-width: 639px) {
+  [role='dialog'],
+  [data-radix-dialog-content] {
+    max-height: min(92dvh, calc(100dvh - 1rem)) !important;
+    overscroll-behavior: contain;
+  }
+
+  [data-workout-editor-scroll] {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 /*
@@ -435,92 +449,10 @@ html[data-sidebar-collapsed='true'] {
 }
 
 /*
- * Top nav grid: keep outer rails + group dividers only.
- * Hide intra-group connectors (1|2, 3|4|5, 6|7).
- * Group edges use the same double rail as day columns (right + left across gutter).
- */
-.tt-v2-grid-overlay--top-nav .tt-v2-grid-overlay__days > span {
-  border-left: none;
-  border-right: none;
-}
-
-.tt-v2-grid-overlay--top-nav .tt-v2-grid-overlay__days > span:nth-child(2),
-.tt-v2-grid-overlay--top-nav .tt-v2-grid-overlay__days > span:nth-child(5) {
-  border-right: 1px solid var(--tt-v2-grid-line);
-}
-
-.tt-v2-grid-overlay--top-nav .tt-v2-grid-overlay__days > span:nth-child(3),
-.tt-v2-grid-overlay--top-nav .tt-v2-grid-overlay__days > span:nth-child(6) {
-  border-left: 1px solid var(--tt-v2-grid-line);
-}
-
-/*
- * Grid overlay — vertical rails only inside the active content box
- * (centered max 110rem). Side gutters stay clear.
- *   pad → [RED rail] → side-gap → 7 days → side-gap → [RED] → pad
+ * Grid overlay (day rails) — retired from product UI.
  */
 .tt-v2-grid-overlay {
-  --tt-v2-content-max: 110rem;
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  z-index: 0;
-  width: min(var(--tt-v2-content-max), 100%);
-  max-width: 100%;
-  transform: translateX(-50%);
-  padding-inline: var(--tt-v2-shell-pad-x);
-  box-sizing: border-box;
-  pointer-events: none;
-}
-
-/* Outer content rails */
-.tt-v2-grid-overlay::before,
-.tt-v2-grid-overlay::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--tt-v2-grid-line-strong);
-}
-
-.tt-v2-grid-overlay::before {
-  left: var(--tt-v2-shell-pad-x);
-}
-
-.tt-v2-grid-overlay::after {
-  right: var(--tt-v2-shell-pad-x);
-}
-
-/* 7 day columns, inset by side-gap from the red rails */
-.tt-v2-grid-overlay__days {
-  display: grid;
-  grid-template-columns: var(--tt-v2-mod-columns);
-  column-gap: var(--tt-v2-grid-gutter);
-  height: 100%;
-  margin-inline: var(--tt-v2-side-gap);
-}
-
-.tt-v2-grid-overlay__days > span {
-  min-width: 0;
-  border-left: 1px solid var(--tt-v2-grid-line);
-  border-right: 1px solid var(--tt-v2-grid-line);
-}
-
-/*
- * Mobile home is Today + list — no day columns — so drop the 7-track
- * verticals; keep only the outer content rails, a touch softer.
- */
-@media (max-width: 767px) {
-  .tt-v2-grid-overlay__days {
-    display: none;
-  }
-
-  .tt-v2-grid-overlay::before,
-  .tt-v2-grid-overlay::after {
-    background: var(--tt-v2-grid-line);
-  }
+  display: none !important;
 }
 
 .tt-athlete-home-v2 {
@@ -562,10 +494,6 @@ html[data-sidebar-collapsed='true'] {
   .tt-athlete-home-v2 {
     --tt-v2-home-fade-height: 44rem;
   }
-}
-
-.tt-athlete-home-v2 > .tt-v2-grid-overlay {
-  z-index: 0;
 }
 
 /*
@@ -724,20 +652,6 @@ html[data-sidebar-collapsed='true'] {
 /* Hero already draws the seam into the flex gap */
 .tt-athlete-home-v2-shell > .tt-v2-hero-band + *::before {
   content: none;
-}
-
-/*
- * Brand / title span Mon–Tue: drop the mid-gutter day rails in the nav
- * so they don’t stub into the nav bottom border.
- */
-@media (min-width: 1024px) {
-  .tt-app-top-nav .tt-v2-grid-overlay__days > span:first-child {
-    border-right-color: transparent;
-  }
-
-  .tt-app-top-nav .tt-v2-grid-overlay__days > span:nth-child(2) {
-    border-left-color: transparent;
-  }
 }
 
 .tt-v2-pixel-motif {
@@ -1288,27 +1202,6 @@ button.tt-v2-day-card:focus-visible,
 
   .tt-v2-hero-row .tt-v2-hero-copy {
     grid-column: 1 / span 2;
-  }
-
-  /*
-   * Title spans two day columns — keep outer rails, hide only the
-   * mid-gutter seam (incl. shell pad above the copy) so stubs don’t
-   * poke through the nav bottom border.
-   * Mid of first gutter: one day col + half gutter.
-   */
-  .tt-athlete-home-v2-shell > .tt-v2-hero-band::before {
-    content: '';
-    position: absolute;
-    left: calc(
-      (100% - 6 * var(--tt-v2-grid-gutter)) / 7 + var(--tt-v2-grid-gutter) / 2
-    );
-    top: calc(-1 * var(--tt-v2-shell-pad-top));
-    bottom: 0;
-    width: calc(var(--tt-v2-grid-gutter) + 4px);
-    transform: translateX(-50%);
-    background: var(--tt-v2-hero-bg);
-    pointer-events: none;
-    z-index: 0;
   }
 
   .tt-v2-hero-row .tt-v2-hero-metrics {

@@ -38,6 +38,10 @@ export type SeasonRace = {
   resultNotes?: string | null
   stravaActivityUrl?: string | null
   stravaActivityName?: string | null
+  actualDistanceKm?: number | null
+  actualDurationMin?: number | null
+  averageHeartrate?: number | null
+  elevationGainM?: number | null
   legs?: RaceLegView[]
 }
 

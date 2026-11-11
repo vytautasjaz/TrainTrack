@@ -1,6 +1,5 @@
 import { cn } from '@/lib/utils'
 import { v2 } from '@/lib/design-tokens'
-import { V2GridOverlay } from '@/components/ui/v2/v2-grid-overlay'
 
 export function V2Panel({
   title,
@@ -36,8 +35,6 @@ export function V2PageShell({
 }) {
   return (
     <div className={cn(v2.surfaces.page, className)}>
-      {/* Full-bleed so day rails reach the viewport edges on wide screens */}
-      <V2GridOverlay />
       <div className={cn(v2.surfaces.pageShell, 'tt-v2-mod-stack')}>
         {children}
       </div>

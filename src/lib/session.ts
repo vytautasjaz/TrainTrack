@@ -129,39 +129,27 @@ function rolesWithProfiles(
   return [...next]
 }
 
+const JWT_PROFILE_MAX_AGE_MS = 5 * 60 * 1000
+
 async function getSessionUncached(): Promise<SessionContext | null> {
   const cookieStore = await cookies()
 
   const session = await auth()
-  if (session?.user?.id) {
-    const athleteIdCookie = cookieStore.get('tt_athlete')?.value ?? null
-    // Prefer JWT profile flags when present to avoid a duplicate user round-trip
-    // on every layout/page. Re-check DB for disabled + authoritative profiles.
-    const dbUser = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        roles: true,
-        name: true,
-        onboardingSkippedAt: true,
-        disabledAt: true,
-        unitSystem: true,
-        swimDistanceUnit: true,
-        athleteProfile: { select: { id: true } },
-        coachProfile: { select: { id: true } },
-      },
-    })
-    if (!dbUser) return null
-    if (dbUser.disabledAt) return null
+  if (!session?.user?.id) return null
 
-    const hasAthlete = Boolean(dbUser.athleteProfile)
-    const hasCoach = Boolean(dbUser.coachProfile)
-    const roles = rolesWithProfiles(dbUser.roles ?? [], hasAthlete, hasCoach)
-    if (roles.length !== (dbUser.roles ?? []).length) {
-      void prisma.user
-        .update({ where: { id: session.user.id }, data: { roles } })
-        .catch(() => {})
-    }
-    const onboardingSkipped = Boolean(dbUser.onboardingSkippedAt)
+  const athleteIdCookie = cookieStore.get('tt_athlete')?.value ?? null
+  const jwtFresh =
+    typeof session.user.profileRefreshedAt === 'number' &&
+    Date.now() - session.user.profileRefreshedAt < JWT_PROFILE_MAX_AGE_MS &&
+    session.user.roles != null
+
+  // Fast path: trust JWT profile stamped by auth jwt callback (refreshed ≤5 min).
+  // Avoids a second user round-trip on every layout/page after a warm token.
+  if (jwtFresh) {
+    const hasAthlete = Boolean(session.user.hasAthlete)
+    const hasCoach = Boolean(session.user.hasCoach)
+    const roles = rolesWithProfiles(session.user.roles ?? [], hasAthlete, hasCoach)
+    const onboardingSkipped = Boolean(session.user.onboardingSkipped)
     const isAdminUser = hasRole(roles, UserRole.ADMIN)
     const viewMode = resolveViewMode(
       cookieStore.get(VIEW_MODE_COOKIE)?.value,
@@ -169,12 +157,12 @@ async function getSessionUncached(): Promise<SessionContext | null> {
       hasCoach,
     )
 
-    let athleteId: string | null = dbUser.athleteProfile?.id ?? null
+    let athleteId: string | null = session.user.athleteProfileId ?? null
     if (viewMode === 'coach' && hasCoach && athleteIdCookie) {
       const allowed = await coachCanAccessAthlete(session.user.id, athleteIdCookie)
       if (allowed) athleteId = athleteIdCookie
     } else if (viewMode === 'athlete' && hasAthlete) {
-      // keep own athlete id
+      // keep own athlete id from JWT
     } else if (!hasAthlete && athleteIdCookie && hasCoach) {
       const allowed = await coachCanAccessAthlete(session.user.id, athleteIdCookie)
       if (allowed) athleteId = athleteIdCookie
@@ -185,19 +173,78 @@ async function getSessionUncached(): Promise<SessionContext | null> {
       role: primaryRole(roles, { hasAthlete, hasCoach }),
       roles,
       athleteId,
-      name: dbUser.name ?? session.user.name ?? 'User',
+      name: session.user.name ?? 'User',
       hasAthlete,
       hasCoach,
       viewMode,
       onboardingSkipped,
       needsOnboarding:
         !isAdminUser && !hasAthlete && !hasCoach && !onboardingSkipped,
-      unitSystem: dbUser.unitSystem ?? DEFAULT_UNIT_SYSTEM,
-      swimDistanceUnit: dbUser.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT,
+      unitSystem: session.user.unitSystem ?? DEFAULT_UNIT_SYSTEM,
+      swimDistanceUnit:
+        session.user.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT,
     }
   }
 
-  return null
+  // Slow path: JWT missing/stale profile — authoritative DB read.
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      roles: true,
+      name: true,
+      onboardingSkippedAt: true,
+      disabledAt: true,
+      unitSystem: true,
+      swimDistanceUnit: true,
+      athleteProfile: { select: { id: true } },
+      coachProfile: { select: { id: true } },
+    },
+  })
+  if (!dbUser) return null
+  if (dbUser.disabledAt) return null
+
+  const hasAthlete = Boolean(dbUser.athleteProfile)
+  const hasCoach = Boolean(dbUser.coachProfile)
+  const roles = rolesWithProfiles(dbUser.roles ?? [], hasAthlete, hasCoach)
+  if (roles.length !== (dbUser.roles ?? []).length) {
+    void prisma.user
+      .update({ where: { id: session.user.id }, data: { roles } })
+      .catch(() => {})
+  }
+  const onboardingSkipped = Boolean(dbUser.onboardingSkippedAt)
+  const isAdminUser = hasRole(roles, UserRole.ADMIN)
+  const viewMode = resolveViewMode(
+    cookieStore.get(VIEW_MODE_COOKIE)?.value,
+    hasAthlete,
+    hasCoach,
+  )
+
+  let athleteId: string | null = dbUser.athleteProfile?.id ?? null
+  if (viewMode === 'coach' && hasCoach && athleteIdCookie) {
+    const allowed = await coachCanAccessAthlete(session.user.id, athleteIdCookie)
+    if (allowed) athleteId = athleteIdCookie
+  } else if (viewMode === 'athlete' && hasAthlete) {
+    // keep own athlete id
+  } else if (!hasAthlete && athleteIdCookie && hasCoach) {
+    const allowed = await coachCanAccessAthlete(session.user.id, athleteIdCookie)
+    if (allowed) athleteId = athleteIdCookie
+  }
+
+  return {
+    userId: session.user.id,
+    role: primaryRole(roles, { hasAthlete, hasCoach }),
+    roles,
+    athleteId,
+    name: dbUser.name ?? session.user.name ?? 'User',
+    hasAthlete,
+    hasCoach,
+    viewMode,
+    onboardingSkipped,
+    needsOnboarding:
+      !isAdminUser && !hasAthlete && !hasCoach && !onboardingSkipped,
+    unitSystem: dbUser.unitSystem ?? DEFAULT_UNIT_SYSTEM,
+    swimDistanceUnit: dbUser.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT,
+  }
 }
 
 /** Request-scoped: layout + page + shell share one session resolution. */
@@ -298,13 +345,14 @@ export const getCoachAthletes = cache(getCoachAthletesUncached)
 async function resolveAthleteIdUncached(
   session: SessionContext,
 ): Promise<string | null> {
-  // Athlete workspace: always the signed-in user's own athlete profile.
+  // Athlete workspace: prefer session.athleteId from JWT / getSession.
   if (session.hasAthlete && session.viewMode === 'athlete') {
+    if (session.athleteId) return session.athleteId
     const own = await prisma.athlete.findUnique({
       where: { userId: session.userId },
       select: { id: true },
     })
-    return own?.id ?? session.athleteId
+    return own?.id ?? null
   }
 
   if (session.athleteId) {
@@ -316,6 +364,7 @@ async function resolveAthleteIdUncached(
   }
 
   if (isAthleteRole(session) && session.hasAthlete) {
+    if (session.athleteId) return session.athleteId
     const own = await prisma.athlete.findUnique({
       where: { userId: session.userId },
       select: { id: true },

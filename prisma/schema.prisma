@@ -1,6 +1,8 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  // native = local Mac/Linux; rhel targets = Netlify/AWS Lambda (OpenSSL 1.0 + 3.0).
+  // Local `netlify deploy --build` must include these or production crashes.
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "rhel-openssl-1.0.x"]
 }
 
 datasource db {
@@ -565,6 +567,11 @@ model Race {
   stravaActivityId   String? @unique
   stravaActivityUrl  String?
   stravaActivityName String?
+  /** Strava-derived summary (single-sport); used in race report + week stats. */
+  actualDistanceKm   Float?
+  actualDurationMin  Int?
+  averageHeartrate   Float?
+  elevationGainM     Float?
   /**
    * Results-log entry only — shown in Results, not on the season plan / training calendar.
    * Used for manually logged historical races.
@@ -661,6 +668,8 @@ model RaceLeg {
   stravaActivityName String?
   actualDistanceKm   Float?
   actualDurationMin  Int?
+  averageHeartrate   Float?
+  elevationGainM     Float?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

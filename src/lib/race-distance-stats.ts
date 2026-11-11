@@ -27,6 +27,9 @@ export type RaceDistanceSource = {
   customDistanceKm?: number | null
   outcome?: RaceOutcome | null
   resultTime?: string | null
+  /** Single-sport Strava / logged actuals. */
+  actualDistanceKm?: number | null
+  actualDurationMin?: number | null
   legs?: Array<{
     kind: RaceLegKind
     actualDistanceKm?: number | null
@@ -182,11 +185,13 @@ export function resolveRaceDistancesBySport(
     positiveKm(runningPresetKm(race.type)) ??
     positiveKm(race.customDistanceKm) ??
     0
-  const actualMin = minutesFromClock(race.resultTime)
+  const actualKm = positiveKm(race.actualDistanceKm ?? null)
+  const actualMin =
+    positiveMin(race.actualDurationMin) ?? minutesFromClock(race.resultTime)
 
   const entry = withMetrics({
     plannedKm,
-    actualKm: null,
+    actualKm,
     plannedMin: 0,
     actualMin,
     finished,

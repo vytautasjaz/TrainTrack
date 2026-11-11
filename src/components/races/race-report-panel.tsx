@@ -1,9 +1,13 @@
 import {
+  Activity,
   Bike,
   FileText,
   Footprints,
+  Heart,
   Link2,
   Medal,
+  Mountain,
+  Route,
   StickyNote,
   Timer,
   Trophy,
@@ -44,6 +48,10 @@ export type RaceReportPanelData = {
   resultNotes?: string | null
   stravaActivityUrl?: string | null
   stravaActivityName?: string | null
+  actualDistanceKm?: number | null
+  actualDurationMin?: number | null
+  averageHeartrate?: number | null
+  elevationGainM?: number | null
   legs?: Array<
     Pick<
       RaceLegView,
@@ -61,6 +69,8 @@ export type RaceReportPanelData = {
           | 'actualDistanceKm'
           | 'actualDurationMin'
           | 'stravaActivityName'
+          | 'averageHeartrate'
+          | 'elevationGainM'
         >
       >
   > | null
@@ -78,14 +88,44 @@ function resultLabel(race: RaceReportPanelData): string {
   return RACE_OUTCOME_LABELS[outcome]
 }
 
+function hasRaceActivityMetrics(race: RaceReportPanelData): boolean {
+  if ((race.actualDistanceKm ?? 0) > 0) return true
+  if ((race.actualDurationMin ?? 0) > 0) return true
+  if ((race.averageHeartrate ?? 0) > 0) return true
+  if ((race.elevationGainM ?? 0) > 0) return true
+  return false
+}
+
 export function raceHasReportContent(race: RaceReportPanelData): boolean {
   const outcome = race.outcome as RaceOutcome | null
   if (outcome && outcome !== RaceOutcome.DISMISSED) return true
   if (race.stravaActivityUrl?.trim()) return true
+  if (hasRaceActivityMetrics(race)) return true
   if (!raceUsesLegs(race.type) || !race.legs?.length) return false
   return race.legs.some(
     (leg) => formatRaceLegResult(leg) !== '—' || Boolean(leg.stravaActivityUrl?.trim()),
   )
+}
+
+function formatReportDuration(min: number): string {
+  const total = Math.round(min)
+  if (total < 60) return `${total}m`
+  const h = Math.floor(total / 60)
+  const m = total % 60
+  return m > 0 ? `${h}h ${m}m` : `${h}h`
+}
+
+function formatReportDistance(km: number): string {
+  if (km >= 10) return `${km % 1 === 0 ? km.toFixed(0) : km.toFixed(1)} km`
+  return `${km % 1 === 0 ? km.toFixed(0) : km.toFixed(2)} km`
+}
+
+function formatReportPace(km: number, min: number): string | null {
+  if (km <= 0 || min <= 0) return null
+  const pace = min / km
+  const whole = Math.floor(pace)
+  const secs = Math.round((pace - whole) * 60)
+  return `${whole}:${String(secs).padStart(2, '0')}/km`
 }
 
 type RaceReportPanelProps = {
@@ -193,6 +233,67 @@ export function RaceReportPanel({
           >
             {race.stravaActivityName?.trim() || 'Open activity'}
           </a>
+        </RaceStatCell>
+      ),
+    })
+  }
+
+  const distanceKm = race.actualDistanceKm
+  const durationMin = race.actualDurationMin
+  if (distanceKm != null && distanceKm > 0) {
+    topCells.push({
+      key: 'distance',
+      node: (
+        <RaceStatCell icon={Route} label="Distance">
+          <span className="tabular-nums">{formatReportDistance(distanceKm)}</span>
+        </RaceStatCell>
+      ),
+    })
+  }
+  if (durationMin != null && durationMin > 0) {
+    topCells.push({
+      key: 'time',
+      node: (
+        <RaceStatCell icon={Timer} label="Time">
+          <span className="tabular-nums">{formatReportDuration(durationMin)}</span>
+        </RaceStatCell>
+      ),
+    })
+  }
+  const paceLabel =
+    distanceKm != null && durationMin != null
+      ? formatReportPace(distanceKm, durationMin)
+      : null
+  if (paceLabel) {
+    topCells.push({
+      key: 'pace',
+      node: (
+        <RaceStatCell icon={Activity} label="Avg pace">
+          <span className="tabular-nums">{paceLabel}</span>
+        </RaceStatCell>
+      ),
+    })
+  }
+  if ((race.elevationGainM ?? 0) > 0) {
+    topCells.push({
+      key: 'elev',
+      node: (
+        <RaceStatCell icon={Mountain} label="Elev">
+          <span className="tabular-nums">
+            {Math.round(race.elevationGainM!)} m
+          </span>
+        </RaceStatCell>
+      ),
+    })
+  }
+  if ((race.averageHeartrate ?? 0) > 0) {
+    topCells.push({
+      key: 'hr',
+      node: (
+        <RaceStatCell icon={Heart} label="Avg HR">
+          <span className="tabular-nums">
+            {Math.round(race.averageHeartrate!)} bpm
+          </span>
         </RaceStatCell>
       ),
     })

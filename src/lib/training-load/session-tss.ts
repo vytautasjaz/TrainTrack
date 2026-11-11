@@ -682,7 +682,7 @@ export function sportSessionLoadPlanned(
 ): number {
   let sum = 0
   for (const workout of workouts) {
-    if (workout.type !== sport || workout.isRace) continue
+    if (workout.type !== sport) continue
     if (workout.isRescheduleGhost) continue
     if (workout.status === 'SKIPPED') continue
     if (workout.selfLogged) continue
@@ -702,7 +702,7 @@ export function sportSessionLoadActual(
 ): number {
   let sum = 0
   for (const workout of workouts) {
-    if (workout.type !== sport || workout.isRace) continue
+    if (workout.type !== sport) continue
     if (workout.isRescheduleGhost) continue
     if (workout.status !== 'COMPLETED') continue
     const estimate = estimateSessionLoad(workout, thresholds, {

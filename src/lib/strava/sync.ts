@@ -37,6 +37,10 @@ import {
   shouldSkipStravaActivityForPrivacy,
 } from '@/lib/athlete-privacy'
 import { findWorkoutForActivityInPool } from '@/lib/strava/match-workout'
+import {
+  findRaceTargetForActivity,
+  type StravaRaceMatchCandidate,
+} from '@/lib/strava/match-race'
 
 /**
  * History window for first sync + “Import last 3 months”.
@@ -205,6 +209,36 @@ async function loadStravaMatchPool(athleteId: string, activities: StravaActivity
 }
 
 type StravaMatchPoolRow = Awaited<ReturnType<typeof loadStravaMatchPool>>[number]
+
+async function loadStravaRaceMatchPool(
+  athleteId: string,
+  activities: StravaActivity[],
+): Promise<StravaRaceMatchCandidate[]> {
+  if (activities.length === 0) return []
+  const keys = activities.map(activityDateKey)
+  const minKey = keys.reduce((a, b) => (a < b ? a : b))
+  const maxKey = keys.reduce((a, b) => (a > b ? a : b))
+  const fromDate = parseDateOnly(minKey)
+  const toDate = parseDateOnly(maxKey)
+  const races = await prisma.race.findMany({
+    where: {
+      athleteId,
+      date: { gte: fromDate, lte: toDate },
+      resultsLogOnly: false,
+    },
+    select: {
+      id: true,
+      date: true,
+      type: true,
+      sport: true,
+      stravaActivityId: true,
+      legs: {
+        select: { id: true, kind: true, stravaActivityId: true },
+      },
+    },
+  })
+  return races
+}
 
 async function createSelfLoggedWorkoutFromActivity(
   athleteId: string,
@@ -562,6 +596,9 @@ export async function syncStravaActivitiesForUser(
   let skipped = 0
 
   const matchPool = await loadStravaMatchPool(athleteId, activities)
+  const raceMatchPool = await loadStravaRaceMatchPool(athleteId, activities)
+  const claimedRaceIds = new Set<string>()
+  const claimedLegIds = new Set<string>()
   const claimedWorkoutIds = new Set<string>()
 
   await mapPool(activities, 4, async (activity) => {
@@ -722,7 +759,10 @@ export async function syncStravaActivitiesForUser(
       athleteId,
       userId,
       matchPool,
+      raceMatchPool,
       claimedWorkoutIds,
+      claimedRaceIds,
+      claimedLegIds,
     })
     if (outcome === 'matched') matched += 1
     else if (outcome === 'imported') imported += 1
@@ -745,16 +785,66 @@ async function processNewStravaActivity(opts: {
   athleteId: string
   userId: string
   matchPool: StravaMatchPoolRow[]
+  raceMatchPool: StravaRaceMatchCandidate[]
   claimedWorkoutIds: Set<string>
+  claimedRaceIds: Set<string>
+  claimedLegIds: Set<string>
 }): Promise<'matched' | 'imported' | 'skipped'> {
-  const { activity, accessToken, athleteId, matchPool, claimedWorkoutIds } = opts
+  const {
+    activity,
+    accessToken,
+    athleteId,
+    matchPool,
+    raceMatchPool,
+    claimedWorkoutIds,
+    claimedRaceIds,
+    claimedLegIds,
+  } = opts
+  const activityId = String(activity.id)
 
   // Re-check before attach/import — concurrent syncs can race past the earlier lookup.
-  const alreadyLinked = await prisma.workoutResult.findUnique({
-    where: { stravaActivityId: String(activity.id) },
-    select: { workoutId: true },
-  })
-  if (alreadyLinked) return 'skipped'
+  const [alreadyWorkout, alreadyRace, alreadyLeg] = await Promise.all([
+    prisma.workoutResult.findUnique({
+      where: { stravaActivityId: activityId },
+      select: { workoutId: true },
+    }),
+    prisma.race.findUnique({
+      where: { stravaActivityId: activityId },
+      select: { id: true },
+    }),
+    prisma.raceLeg.findUnique({
+      where: { stravaActivityId: activityId },
+      select: { id: true },
+    }),
+  ])
+  if (alreadyWorkout || alreadyRace || alreadyLeg) return 'skipped'
+
+  const raceTarget = findRaceTargetForActivity(
+    raceMatchPool,
+    activity,
+    claimedRaceIds,
+    claimedLegIds,
+  )
+  if (raceTarget) {
+    try {
+      if (raceTarget.kind === 'race') {
+        claimedRaceIds.add(raceTarget.raceId)
+        await writeStravaFieldsToRace(raceTarget.raceId, activity)
+      } else {
+        claimedLegIds.add(raceTarget.legId)
+        claimedRaceIds.add(raceTarget.raceId)
+        await writeStravaFieldsToRaceLeg(raceTarget.legId, activity)
+      }
+      return 'matched'
+    } catch (err) {
+      console.warn('Strava race match attach skipped:', err)
+      if (raceTarget.kind === 'race') claimedRaceIds.delete(raceTarget.raceId)
+      else {
+        claimedLegIds.delete(raceTarget.legId)
+        claimedRaceIds.delete(raceTarget.raceId)
+      }
+    }
+  }
 
   const match = findWorkoutForActivityInPool(matchPool, activity, claimedWorkoutIds)
   if (match) {
@@ -1211,6 +1301,8 @@ export async function attachStravaActivityToWorkoutForAthlete(
 export type StravaRaceActivityPickItem = ReturnType<typeof formatActivityPreview> & {
   linked: boolean
   linkedToThisTarget: boolean
+  /** Linked only to a same-athlete self-logged workout — can move onto this race. */
+  reclaimableFromSelfLogged?: boolean
 }
 
 async function assertAthleteOwnsUser(userId: string, athleteId: string) {
@@ -1253,14 +1345,58 @@ async function findRaceActivityLinks(activityIds: string[]) {
 function activityLinkedElsewhere(
   activityId: string,
   links: Awaited<ReturnType<typeof findRaceActivityLinks>>,
-  opts: { raceId?: string; legId?: string },
+  opts: { raceId?: string; legId?: string; allowWorkoutIds?: Set<string> },
 ): boolean {
-  if (links.workoutIds.has(activityId)) return true
+  const workoutOwner = links.workoutIds.get(activityId)
+  if (workoutOwner && !opts.allowWorkoutIds?.has(workoutOwner)) return true
   const raceOwner = links.raceIds.get(activityId)
   if (raceOwner && raceOwner !== opts.raceId) return true
   const legOwner = links.legIds.get(activityId)
   if (legOwner && legOwner !== opts.legId) return true
   return false
+}
+
+/** Self-logged workouts owned by this athlete for the given activity ids. */
+async function findSelfLoggedWorkoutOwners(
+  athleteId: string,
+  activityIds: string[],
+): Promise<Map<string, string>> {
+  if (activityIds.length === 0) return new Map()
+  const rows = await prisma.workoutResult.findMany({
+    where: {
+      stravaActivityId: { in: activityIds },
+      workout: { athleteId, selfLogged: true },
+    },
+    select: { stravaActivityId: true, workoutId: true },
+  })
+  return new Map(
+    rows
+      .filter((r): r is typeof r & { stravaActivityId: string } =>
+        Boolean(r.stravaActivityId),
+      )
+      .map((r) => [r.stravaActivityId, r.workoutId] as const),
+  )
+}
+
+async function reclaimSelfLoggedWorkoutIfNeeded(
+  athleteId: string,
+  activityId: string,
+): Promise<void> {
+  const result = await prisma.workoutResult.findUnique({
+    where: { stravaActivityId: activityId },
+    select: {
+      workoutId: true,
+      workout: { select: { id: true, athleteId: true, selfLogged: true } },
+    },
+  })
+  if (!result) return
+  if (
+    result.workout.athleteId !== athleteId ||
+    !result.workout.selfLogged
+  ) {
+    throw new Error('That Strava activity is already linked elsewhere')
+  }
+  await prisma.workout.delete({ where: { id: result.workoutId } })
 }
 
 async function fetchSameDayActivities(userId: string, dateKey: string) {
@@ -1327,7 +1463,11 @@ export async function listStravaActivitiesForRaceForAthlete(
     (activity) => !shouldSkipStravaActivityForPrivacy(activity, privacyPrefs),
   )
   const activityIds = activities.map((a) => String(a.id))
-  const links = await findRaceActivityLinks(activityIds)
+  const [links, selfLoggedOwners] = await Promise.all([
+    findRaceActivityLinks(activityIds),
+    findSelfLoggedWorkoutOwners(athleteId, activityIds),
+  ])
+  const allowWorkoutIds = new Set(selfLoggedOwners.values())
 
   return activities
     .filter((activity) => activityMatchesLegSport(activity, sportFilter))
@@ -1336,29 +1476,47 @@ export async function listStravaActivitiesForRaceForAthlete(
       const linkedToThis =
         currentActivityId === id ||
         (legId ? links.legIds.get(id) === legId : links.raceIds.get(id) === raceId)
+      const reclaimableFromSelfLogged =
+        !linkedToThis && selfLoggedOwners.has(id)
       const linked =
         linkedToThis ||
-        activityLinkedElsewhere(id, links, { raceId, legId })
+        activityLinkedElsewhere(id, links, {
+          raceId,
+          legId,
+          allowWorkoutIds,
+        })
       return {
         ...formatActivityPreview(activity),
         linked,
         linkedToThisTarget: linkedToThis,
+        reclaimableFromSelfLogged,
       }
     })
 }
 
 async function assertActivityFreeForRace(
   activityId: string,
-  opts: { raceId?: string; legId?: string },
+  opts: { raceId?: string; legId?: string; athleteId?: string },
 ) {
   const links = await findRaceActivityLinks([activityId])
-  if (activityLinkedElsewhere(activityId, links, opts)) {
+  const selfLoggedOwners = opts.athleteId
+    ? await findSelfLoggedWorkoutOwners(opts.athleteId, [activityId])
+    : new Map<string, string>()
+  const allowWorkoutIds = new Set(selfLoggedOwners.values())
+  if (
+    activityLinkedElsewhere(activityId, links, {
+      raceId: opts.raceId,
+      legId: opts.legId,
+      allowWorkoutIds,
+    })
+  ) {
     throw new Error('That Strava activity is already linked elsewhere')
   }
 }
 
 function stravaFieldsFromActivity(activity: StravaActivity) {
   const elapsed = activity.moving_time || activity.elapsed_time
+  const metrics = stravaMetricsFromActivity(activity)
   return {
     stravaActivityId: String(activity.id),
     stravaActivityUrl: stravaActivityUrl(activity.id),
@@ -1366,7 +1524,53 @@ function stravaFieldsFromActivity(activity: StravaActivity) {
     resultTime: formatElapsedClock(elapsed),
     actualDistanceKm: activity.distance > 0 ? metersToKm(activity.distance) : null,
     actualDurationMin: secondsToWholeMinutes(elapsed),
+    averageHeartrate: metrics.averageHeartrate,
+    elevationGainM: metrics.elevationGainM,
   }
+}
+
+async function writeStravaFieldsToRace(raceId: string, activity: StravaActivity) {
+  const race = await prisma.race.findUnique({
+    where: { id: raceId },
+    select: { resultTime: true },
+  })
+  if (!race) throw new Error('Race not found')
+  const fields = stravaFieldsFromActivity(activity)
+  await prisma.race.update({
+    where: { id: raceId },
+    data: {
+      stravaActivityId: fields.stravaActivityId,
+      stravaActivityUrl: fields.stravaActivityUrl,
+      stravaActivityName: fields.stravaActivityName,
+      resultTime: race.resultTime || fields.resultTime,
+      actualDistanceKm: fields.actualDistanceKm,
+      actualDurationMin: fields.actualDurationMin,
+      averageHeartrate: fields.averageHeartrate,
+      elevationGainM: fields.elevationGainM,
+    },
+  })
+}
+
+async function writeStravaFieldsToRaceLeg(legId: string, activity: StravaActivity) {
+  const leg = await prisma.raceLeg.findUnique({
+    where: { id: legId },
+    select: { resultTime: true },
+  })
+  if (!leg) throw new Error('Race leg not found')
+  const fields = stravaFieldsFromActivity(activity)
+  await prisma.raceLeg.update({
+    where: { id: legId },
+    data: {
+      stravaActivityId: fields.stravaActivityId,
+      stravaActivityUrl: fields.stravaActivityUrl,
+      stravaActivityName: fields.stravaActivityName,
+      resultTime: leg.resultTime || fields.resultTime,
+      actualDistanceKm: fields.actualDistanceKm,
+      actualDurationMin: fields.actualDurationMin,
+      averageHeartrate: fields.averageHeartrate,
+      elevationGainM: fields.elevationGainM,
+    },
+  })
 }
 
 export async function attachStravaActivityToRaceForAthlete(
@@ -1390,7 +1594,8 @@ export async function attachStravaActivityToRaceForAthlete(
 
   const numericId = Number(activityId)
   if (!Number.isFinite(numericId)) throw new Error('Invalid Strava activity')
-  await assertActivityFreeForRace(String(numericId), { raceId })
+  const id = String(numericId)
+  await assertActivityFreeForRace(id, { raceId, athleteId })
 
   const accessToken = await getValidAccessToken(userId)
   const activity = await fetchStravaActivity(accessToken, numericId)
@@ -1405,16 +1610,8 @@ export async function attachStravaActivityToRaceForAthlete(
     throw new Error('Pick a Strava activity from the same day as this race')
   }
 
-  const fields = stravaFieldsFromActivity(activity)
-  await prisma.race.update({
-    where: { id: raceId },
-    data: {
-      stravaActivityId: fields.stravaActivityId,
-      stravaActivityUrl: fields.stravaActivityUrl,
-      stravaActivityName: fields.stravaActivityName,
-      resultTime: race.resultTime || fields.resultTime,
-    },
-  })
+  await reclaimSelfLoggedWorkoutIfNeeded(athleteId, id)
+  await writeStravaFieldsToRace(raceId, activity)
 }
 
 export async function unlinkStravaFromRaceForAthlete(
@@ -1435,6 +1632,10 @@ export async function unlinkStravaFromRaceForAthlete(
       stravaActivityId: null,
       stravaActivityUrl: null,
       stravaActivityName: null,
+      actualDistanceKm: null,
+      actualDurationMin: null,
+      averageHeartrate: null,
+      elevationGainM: null,
     },
   })
 }
@@ -1462,7 +1663,12 @@ export async function attachStravaActivityToRaceLegForAthlete(
 
   const numericId = Number(activityId)
   if (!Number.isFinite(numericId)) throw new Error('Invalid Strava activity')
-  await assertActivityFreeForRace(String(numericId), { raceId: leg.raceId, legId })
+  const id = String(numericId)
+  await assertActivityFreeForRace(id, {
+    raceId: leg.raceId,
+    legId,
+    athleteId,
+  })
 
   const accessToken = await getValidAccessToken(userId)
   const activity = await fetchStravaActivity(accessToken, numericId)
@@ -1478,18 +1684,8 @@ export async function attachStravaActivityToRaceLegForAthlete(
     throw new Error('Pick a Strava activity from the same day as this race')
   }
 
-  const fields = stravaFieldsFromActivity(activity)
-  await prisma.raceLeg.update({
-    where: { id: legId },
-    data: {
-      stravaActivityId: fields.stravaActivityId,
-      stravaActivityUrl: fields.stravaActivityUrl,
-      stravaActivityName: fields.stravaActivityName,
-      resultTime: leg.resultTime || fields.resultTime,
-      actualDistanceKm: fields.actualDistanceKm,
-      actualDurationMin: fields.actualDurationMin,
-    },
-  })
+  await reclaimSelfLoggedWorkoutIfNeeded(athleteId, id)
+  await writeStravaFieldsToRaceLeg(legId, activity)
 }
 
 export async function unlinkStravaFromRaceLegForAthlete(
@@ -1512,6 +1708,8 @@ export async function unlinkStravaFromRaceLegForAthlete(
       stravaActivityName: null,
       actualDistanceKm: null,
       actualDurationMin: null,
+      averageHeartrate: null,
+      elevationGainM: null,
     },
   })
 }

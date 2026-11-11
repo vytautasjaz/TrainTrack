@@ -258,32 +258,41 @@ export async function listCoachInboxThreads(coachUserId: string, opts: ListOpts 
   return applyListFilters(threads, 'coach', opts).slice(0, opts.take ?? INBOX_LIST_MAX)
 }
 
+/**
+ * Shell badge count — no legacy migration, no message rows.
+ * Unread = has activity and (never read OR lastMessageAt > lastRead).
+ */
+function countUnreadFromRows(
+  threads: Array<{
+    lastMessageAt: Date
+    coachLastReadAt: Date | null
+    athleteLastReadAt: Date | null
+  }>,
+  role: 'athlete' | 'coach',
+): number {
+  let n = 0
+  for (const t of threads) {
+    const lastRead = role === 'coach' ? t.coachLastReadAt : t.athleteLastReadAt
+    if (!t.lastMessageAt) continue
+    if (lastRead == null || t.lastMessageAt.getTime() > lastRead.getTime()) n += 1
+  }
+  return n
+}
+
 export const getAthleteInboxUnreadCount = cache(async function getAthleteInboxUnreadCount(
   athleteId: string,
 ): Promise<number> {
-  await ensureLegacyWorkoutFeedbackMigrated(athleteId)
   const threads = await prisma.coachingThread.findMany({
     where: { athleteId },
     select: {
       lastMessageAt: true,
       coachLastReadAt: true,
       athleteLastReadAt: true,
-      messages: {
-        select: { authorRole: true, createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-      },
     },
     orderBy: { lastMessageAt: 'desc' },
     take: INBOX_LIST_MAX,
   })
-  return threads
-    .map((t) => ({
-      ...t,
-      // isThreadUnreadForRole reads messages.at(-1); normalize to one-item asc.
-      messages: [...t.messages].reverse(),
-    }))
-    .filter((t) => isThreadUnreadForRole(t, 'athlete')).length
+  return countUnreadFromRows(threads, 'athlete')
 })
 
 export const getCoachInboxUnreadCount = cache(async function getCoachInboxUnreadCount(
@@ -297,21 +306,11 @@ export const getCoachInboxUnreadCount = cache(async function getCoachInboxUnread
       lastMessageAt: true,
       coachLastReadAt: true,
       athleteLastReadAt: true,
-      messages: {
-        select: { authorRole: true, createdAt: true },
-        orderBy: { createdAt: 'desc' },
-        take: 1,
-      },
     },
     orderBy: { lastMessageAt: 'desc' },
     take: INBOX_LIST_MAX,
   })
-  return threads
-    .map((t) => ({
-      ...t,
-      messages: [...t.messages].reverse(),
-    }))
-    .filter((t) => isThreadUnreadForRole(t, 'coach')).length
+  return countUnreadFromRows(threads, 'coach')
 })
 
 /** Migrate legacy WorkoutResult notes/replies into FEEDBACK threads (idempotent). */

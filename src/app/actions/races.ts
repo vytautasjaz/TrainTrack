@@ -51,6 +51,10 @@ const SEASON_RACE_SELECT = {
   resultNotes: true,
   stravaActivityUrl: true,
   stravaActivityName: true,
+  actualDistanceKm: true,
+  actualDurationMin: true,
+  averageHeartrate: true,
+  elevationGainM: true,
   legs: { orderBy: { sortOrder: 'asc' as const } },
   athleteId: true,
 } as const

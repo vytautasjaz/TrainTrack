@@ -19,6 +19,8 @@ import {
   isCoachView,
   canSwitchViewMode,
   athleteHasConnectedCoach,
+  type CoachAthleteListItem,
+  type SessionContext,
 } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import {
@@ -33,6 +35,103 @@ import {
 import { CoachAthleteLinkStatus } from '@prisma/client'
 import { resolveCoachAvatarUrl } from '@/lib/coach-avatar'
 
+type ShellProfile = { name: string; avatarUrl: string | null }
+
+async function loadCoachShell(session: SessionContext): Promise<{
+  inboxNotificationCount: number
+  coachAthletes: CoachAthleteListItem[]
+  selectedAthleteId: string | null
+  athleteProfile: ShellProfile | null
+  durationNotation: DurationNotation
+}> {
+  const [inboxNotificationCount, coachAthletes, selectedAthleteId, coachUser] =
+    await Promise.all([
+      getCoachInboxUnreadCount(session.userId),
+      getCoachAthletes(session.userId),
+      resolveAthleteId(session),
+      prisma.user.findUnique({
+        where: { id: session.userId },
+        select: {
+          name: true,
+          image: true,
+          workoutBuilderPrefs: true,
+          coachProfile: { select: { avatarUrl: true } },
+        },
+      }),
+    ])
+
+  let durationNotation: DurationNotation = DEFAULT_DURATION_NOTATION
+  let athleteProfile: ShellProfile | null = null
+  if (coachUser) {
+    durationNotation =
+      parseWorkoutBuilderPrefs(coachUser.workoutBuilderPrefs).durationNotation ??
+      DEFAULT_DURATION_NOTATION
+    athleteProfile = {
+      name: coachUser.name,
+      avatarUrl: resolveCoachAvatarUrl(
+        coachUser.coachProfile?.avatarUrl,
+        coachUser.image,
+      ),
+    }
+  }
+
+  return {
+    inboxNotificationCount,
+    coachAthletes,
+    selectedAthleteId,
+    athleteProfile,
+    durationNotation,
+  }
+}
+
+async function loadAthleteShell(athleteId: string, fallbackName: string | null) {
+  const [inboxNotificationCount, athlete, showConnectCoach] = await Promise.all([
+    getAthleteInboxUnreadCount(athleteId),
+    prisma.athlete.findUnique({
+      where: { id: athleteId },
+      select: {
+        name: true,
+        avatarUrl: true,
+        coachLinks: {
+          where: { status: CoachAthleteLinkStatus.ACCEPTED },
+          take: 1,
+          select: {
+            coachProfile: {
+              select: {
+                user: { select: { workoutBuilderPrefs: true } },
+              },
+            },
+          },
+        },
+      },
+    }),
+    athleteHasConnectedCoach(athleteId).then((connected) => !connected),
+  ])
+
+  let durationNotation: DurationNotation = DEFAULT_DURATION_NOTATION
+  let athleteProfile: ShellProfile | null = null
+  if (athlete) {
+    const coachPrefs =
+      athlete.coachLinks[0]?.coachProfile?.user?.workoutBuilderPrefs
+    durationNotation =
+      parseWorkoutBuilderPrefs(coachPrefs).durationNotation ??
+      DEFAULT_DURATION_NOTATION
+    athleteProfile = {
+      name: athlete.name,
+      avatarUrl: athlete.avatarUrl,
+    }
+  } else if (fallbackName) {
+    athleteProfile = { name: fallbackName, avatarUrl: null }
+  }
+
+  return {
+    inboxNotificationCount,
+    athleteProfile,
+    durationNotation,
+    showConnectCoach,
+  }
+}
+
 export async function AppShell({ children }: { children: React.ReactNode }) {
   const session = await getSession()
   const showPreferences = Boolean(session)
@@ -41,84 +140,31 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const viewMode = session?.viewMode ?? 'athlete'
 
   let inboxNotificationCount = 0
-  let coachAthletes: Awaited<ReturnType<typeof getCoachAthletes>> = []
+  let coachAthletes: CoachAthleteListItem[] = []
   let selectedAthleteId: string | null = null
-  let athleteProfile: { name: string; avatarUrl: string | null } | null = null
+  let athleteProfile: ShellProfile | null = null
   let showConnectCoach = false
   let durationNotation: DurationNotation = DEFAULT_DURATION_NOTATION
 
-  if (session?.hasAthlete && (!coach || session.viewMode === 'athlete')) {
-    const ownAthlete = await prisma.athlete.findUnique({
-      where: { userId: session.userId },
-      select: { id: true },
-    })
-    if (ownAthlete) {
-      showConnectCoach = !(await athleteHasConnectedCoach(ownAthlete.id))
-    }
-  }
-
   if (session && coach) {
-    inboxNotificationCount = await getCoachInboxUnreadCount(session.userId)
-    coachAthletes = await getCoachAthletes(session.userId)
-    selectedAthleteId = await resolveAthleteId(session)
-    const coachUser = await prisma.user.findUnique({
-      where: { id: session.userId },
-      select: {
-        name: true,
-        image: true,
-        workoutBuilderPrefs: true,
-        coachProfile: { select: { avatarUrl: true } },
-      },
-    })
-    if (coachUser) {
-      durationNotation =
-        parseWorkoutBuilderPrefs(coachUser.workoutBuilderPrefs).durationNotation ??
-        DEFAULT_DURATION_NOTATION
-      athleteProfile = {
-        name: coachUser.name,
-        avatarUrl: resolveCoachAvatarUrl(
-          coachUser.coachProfile?.avatarUrl,
-          coachUser.image,
-        ),
-      }
+    const loaded = await loadCoachShell(session)
+    inboxNotificationCount = loaded.inboxNotificationCount
+    coachAthletes = loaded.coachAthletes
+    selectedAthleteId = loaded.selectedAthleteId
+    athleteProfile =
+      loaded.athleteProfile ??
+      (session.name ? { name: session.name, avatarUrl: null } : null)
+    durationNotation = loaded.durationNotation
+  } else if (session?.hasAthlete) {
+    const athleteId = session.athleteId ?? (await resolveAthleteId(session))
+    if (athleteId) {
+      const loaded = await loadAthleteShell(athleteId, session.name)
+      inboxNotificationCount = loaded.inboxNotificationCount
+      athleteProfile = loaded.athleteProfile
+      durationNotation = loaded.durationNotation
+      showConnectCoach = loaded.showConnectCoach
     } else if (session.name) {
       athleteProfile = { name: session.name, avatarUrl: null }
-    }
-  } else if (session?.hasAthlete) {
-    const athleteId = await resolveAthleteId(session)
-    if (athleteId) {
-      inboxNotificationCount = await getAthleteInboxUnreadCount(athleteId)
-      const athlete = await prisma.athlete.findUnique({
-        where: { id: athleteId },
-        select: {
-          name: true,
-          avatarUrl: true,
-          coachLinks: {
-            where: { status: CoachAthleteLinkStatus.ACCEPTED },
-            take: 1,
-            select: {
-              coachProfile: {
-                select: {
-                  user: { select: { workoutBuilderPrefs: true } },
-                },
-              },
-            },
-          },
-        },
-      })
-      if (athlete) {
-        const coachPrefs =
-          athlete.coachLinks[0]?.coachProfile?.user?.workoutBuilderPrefs
-        durationNotation =
-          parseWorkoutBuilderPrefs(coachPrefs).durationNotation ??
-          DEFAULT_DURATION_NOTATION
-        athleteProfile = {
-          name: athlete.name,
-          avatarUrl: athlete.avatarUrl,
-        }
-      } else if (session.name) {
-        athleteProfile = { name: session.name, avatarUrl: null }
-      }
     }
   } else if (session?.name) {
     athleteProfile = { name: session.name, avatarUrl: null }
@@ -143,6 +189,12 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const swimDistanceUnit =
     session?.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT
 
+  // Idle Strava sync is opt-in; hourly netlify/functions/strava-sync-cron covers
+  // production. Set NEXT_PUBLIC_STRAVA_IDLE_SYNC=1 to re-enable client fallback.
+  const stravaIdleSync =
+    process.env.NEXT_PUBLIC_STRAVA_IDLE_SYNC === '1' ||
+    process.env.NEXT_PUBLIC_STRAVA_IDLE_SYNC === 'true'
+
   return (
     <ViewModeSwitchProvider>
       <UnitsProvider
@@ -151,7 +203,7 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       >
       <DurationNotationProvider notation={durationNotation}>
       <div className="app-gradient flex min-h-dvh flex-col" data-v2-shell>
-      {session?.hasAthlete ? <StravaAutoSync /> : null}
+      {session?.hasAthlete && stravaIdleSync ? <StravaAutoSync /> : null}
       <Suspense fallback={null}>
         <DocumentChromeCleanup />
       </Suspense>

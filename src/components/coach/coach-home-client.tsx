@@ -237,20 +237,41 @@ export function CoachHomeClient({
           </h1>
         </header>
 
-        <div className="grid gap-4 md:gap-8 xl:grid-cols-[3fr_2fr] xl:items-start">
-          {showNeedsAttention ? (
-            <CoachHomeNeedsAttentionSection
-              className="order-3 md:order-none xl:col-start-1 xl:row-start-1"
-              items={filteredAttention}
-              selectedItemId={selectedAttentionId}
-              handledIds={handledIds}
-              exitingIds={exitingIds}
-              onSelectItem={handleSelectAttentionItem}
-              onDismissItem={scheduleDismiss}
-              onDismissItems={scheduleDismissMany}
+        <div
+          className={cn(
+            'grid gap-4 md:gap-8 xl:items-start',
+            activityFeedEnabled
+              ? 'xl:grid-cols-[3fr_2fr]'
+              : 'xl:grid-cols-1',
+          )}
+        >
+          {activityFeedEnabled ? (
+            <CoachHomeRecentActivityTable
+              className="order-2 md:order-none xl:order-none xl:col-start-1"
+              rows={activityRows}
+              initialCursor={activityFeedCursor}
+              initialHasMore={activityFeedHasMore}
+              athleteOptions={athleteOptions}
+              loadThresholdsByAthleteId={loadThresholdsByAthleteId}
             />
           ) : null}
-          <div className="order-1 space-y-4 md:order-none md:space-y-8 xl:col-start-2 xl:row-start-1 xl:row-span-2">
+          <div
+            className={cn(
+              'order-1 space-y-4 md:order-none md:space-y-8',
+              activityFeedEnabled && 'xl:col-start-2',
+            )}
+          >
+            {showNeedsAttention ? (
+              <CoachHomeNeedsAttentionSection
+                items={filteredAttention}
+                selectedItemId={selectedAttentionId}
+                handledIds={handledIds}
+                exitingIds={exitingIds}
+                onSelectItem={handleSelectAttentionItem}
+                onDismissItem={scheduleDismiss}
+                onDismissItems={scheduleDismissMany}
+              />
+            ) : null}
             <CoachHomeCoachingRequests requests={coachingRequests} />
             {selectedAttentionItem ? (
               <CoachHomeAttentionActionPanel
@@ -267,19 +288,6 @@ export function CoachHomeClient({
               />
             )}
           </div>
-          {activityFeedEnabled ? (
-            <CoachHomeRecentActivityTable
-              className={cn(
-                'order-2 md:order-none xl:col-start-1',
-                showNeedsAttention ? 'xl:row-start-2' : 'xl:row-start-1',
-              )}
-              rows={activityRows}
-              initialCursor={activityFeedCursor}
-              initialHasMore={activityFeedHasMore}
-              athleteOptions={athleteOptions}
-              loadThresholdsByAthleteId={loadThresholdsByAthleteId}
-            />
-          ) : null}
         </div>
       </div>
     </div>

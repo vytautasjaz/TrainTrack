@@ -53,6 +53,34 @@ function paneLayerClass(isActive: boolean, stacked: boolean) {
   )
 }
 
+function buildInitialPanes(opts: {
+  summaryPolyline?: string | null
+  canFetch: boolean
+  hasPowerHint: boolean
+  hasHrHint: boolean
+  hasElevationHint: boolean
+}): FeedMediaPane[] {
+  const panes: FeedMediaPane[] = []
+  if (opts.summaryPolyline?.trim()) panes.push('map')
+  if (opts.canFetch && opts.hasPowerHint) panes.push('power')
+  if (opts.canFetch && opts.hasHrHint) panes.push('hr')
+  if (opts.canFetch && opts.hasElevationHint) panes.push('elevation')
+  // No map and no scalar hints: still try charts after fetch (below).
+  return panes
+}
+
+function filterPanesWithStreams(
+  summaryPolyline: string | null | undefined,
+  result: WorkoutStravaStreamsResult | null,
+): FeedMediaPane[] {
+  const next: FeedMediaPane[] = []
+  if (summaryPolyline?.trim()) next.push('map')
+  if (result?.watts) next.push('power')
+  if (result?.heartrate) next.push('hr')
+  if (result?.altitude) next.push('elevation')
+  return next
+}
+
 export function ActivityFeedMediaCarousel({
   workoutId,
   stravaActivityId,
@@ -64,26 +92,36 @@ export function ActivityFeedMediaCarousel({
   className,
 }: ActivityFeedMediaCarouselProps) {
   const canFetch = Boolean(stravaActivityId)
+  const hasMap = Boolean(summaryPolyline?.trim())
 
-  const initialPanes = useMemo(() => {
-    const panes: FeedMediaPane[] = []
-    if (summaryPolyline?.trim()) panes.push('map')
-    if (canFetch && hasPowerHint) panes.push('power')
-    if (canFetch && hasHrHint) panes.push('hr')
-    if (canFetch && hasElevationHint) panes.push('elevation')
-    // Linked Strava with no polyline still offers charts if hints exist;
-    // if only id, try all chart panes after fetch.
-    if (panes.length === 0 && canFetch) {
-      panes.push('power', 'hr', 'elevation')
-    }
-    return panes
-  }, [summaryPolyline, canFetch, hasPowerHint, hasHrHint, hasElevationHint])
+  const initialPanes = useMemo(
+    () =>
+      buildInitialPanes({
+        summaryPolyline,
+        canFetch,
+        hasPowerHint,
+        hasHrHint,
+        hasElevationHint,
+      }),
+    [summaryPolyline, canFetch, hasPowerHint, hasHrHint, hasElevationHint],
+  )
+
+  // Fetch when we might have chart panes, or when there is Strava but no map yet.
+  const shouldResolveStreams =
+    canFetch &&
+    (hasPowerHint ||
+      hasHrHint ||
+      hasElevationHint ||
+      !hasMap ||
+      initialPanes.some((p) => p !== 'map'))
 
   const [panes, setPanes] = useState<FeedMediaPane[]>(initialPanes)
   const [index, setIndex] = useState(0)
   const [streams, setStreams] = useState<WorkoutStravaStreamsResult | null>(null)
+  const [streamsResolved, setStreamsResolved] = useState(!shouldResolveStreams)
   const [loadError, setLoadError] = useState(false)
   const [pending, startTransition] = useTransition()
+  const fetchedForWorkoutRef = useRef<string | null>(null)
   const mapSlotRef = useRef<HTMLDivElement | null>(null)
   const [mapFrameHeightPx, setMapFrameHeightPx] = useState<number | null>(null)
 
@@ -93,7 +131,11 @@ export function ActivityFeedMediaCarousel({
   useEffect(() => {
     setPanes(initialPanes)
     setIndex(0)
-  }, [initialPanes])
+    setStreams(null)
+    setLoadError(false)
+    setStreamsResolved(!shouldResolveStreams)
+    fetchedForWorkoutRef.current = null
+  }, [initialPanes, shouldResolveStreams, workoutId])
 
   // Keep chart panes the same outer size as the map slot.
   useEffect(() => {
@@ -113,40 +155,59 @@ export function ActivityFeedMediaCarousel({
   }, [summaryPolyline])
 
   useEffect(() => {
-    if (!active || active === 'map' || streams || loadError || !canFetch) return
+    if (!shouldResolveStreams) return
+    if (fetchedForWorkoutRef.current === workoutId) return
+    fetchedForWorkoutRef.current = workoutId
+
     startTransition(async () => {
       try {
         const result = await getWorkoutStravaStreams(workoutId)
         setStreams(result)
-        if (!result) {
-          setLoadError(true)
-          return
+        const confirmed = filterPanesWithStreams(summaryPolyline, result)
+        // Keep map even when cache is empty; drop optimistic chart panes
+        // that have no stream so arrows don't appear for map-only cards.
+        if (confirmed.length > 0) {
+          setPanes(confirmed)
+        } else if (summaryPolyline?.trim()) {
+          setPanes(['map'])
+        } else {
+          setPanes([])
         }
-        setPanes((prev) => {
-          const next = prev.filter((pane) => {
-            if (pane === 'map') return Boolean(summaryPolyline?.trim())
-            if (pane === 'power') return Boolean(result.watts)
-            if (pane === 'hr') return Boolean(result.heartrate)
-            if (pane === 'elevation') return Boolean(result.altitude)
-            return false
-          })
-          // Keep map if we still have it; ensure at least something remains.
-          if (next.length === 0 && summaryPolyline?.trim()) return ['map']
-          return next.length > 0 ? next : prev.filter((p) => p === 'map')
-        })
       } catch {
         setLoadError(true)
+        setPanes(
+          summaryPolyline?.trim()
+            ? ['map']
+            : initialPanes.filter((p) => p === 'map'),
+        )
+      } finally {
+        setStreamsResolved(true)
       }
     })
-  }, [active, streams, loadError, canFetch, workoutId, summaryPolyline])
+  }, [shouldResolveStreams, workoutId, summaryPolyline, initialPanes])
 
   useEffect(() => {
     if (index >= panes.length) setIndex(Math.max(0, panes.length - 1))
   }, [panes, index])
 
-  if (!active || panes.length === 0) return null
+  if (!active || panes.length === 0) {
+    if (shouldResolveStreams && !streamsResolved) {
+      return (
+        <div
+          className={cn(
+            'flex min-h-[5.5rem] items-center justify-center px-4 text-center text-[12px] text-[var(--tt-ink-soft,#6b6b6b)]',
+            className,
+          )}
+        >
+          Loading activity media…
+        </div>
+      )
+    }
+    return null
+  }
 
-  const showControls = panes.length > 1
+  // Arrows only after we know there is more than one real pane.
+  const showControls = streamsResolved && panes.length > 1
   const compactCharts = !summaryPolyline?.trim()
   const showPower = panes.includes('power')
   const showHr = panes.includes('hr')
@@ -201,8 +262,8 @@ export function ActivityFeedMediaCarousel({
           ) : active === 'power' ? (
             <StreamPlaceholder
               label="Power"
-              pending={pending}
-              empty={Boolean(streams) || loadError}
+              pending={pending && !streamsResolved}
+              empty={streamsResolved || loadError}
               compact={compactCharts}
               frameHeightPx={mapFrameHeightPx}
             />
@@ -229,8 +290,8 @@ export function ActivityFeedMediaCarousel({
           ) : active === 'hr' ? (
             <StreamPlaceholder
               label="Heart rate"
-              pending={pending}
-              empty={Boolean(streams) || loadError}
+              pending={pending && !streamsResolved}
+              empty={streamsResolved || loadError}
               compact={compactCharts}
               frameHeightPx={mapFrameHeightPx}
             />
@@ -258,8 +319,8 @@ export function ActivityFeedMediaCarousel({
           ) : active === 'elevation' ? (
             <StreamPlaceholder
               label="Elevation"
-              pending={pending}
-              empty={Boolean(streams) || loadError}
+              pending={pending && !streamsResolved}
+              empty={streamsResolved || loadError}
               compact={compactCharts}
               frameHeightPx={mapFrameHeightPx}
             />

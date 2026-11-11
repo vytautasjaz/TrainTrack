@@ -41,7 +41,7 @@ export function PlanSessionEditorDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[min(92vh,52rem)] w-[calc(100%-1.5rem)] max-w-[min(64rem,calc(100%-1.5rem))] flex-col gap-0 overflow-hidden border-0 bg-transparent p-0 shadow-none sm:w-auto"
+        className="flex max-h-[min(92dvh,52rem)] w-[calc(100%-1.5rem)] max-w-[min(64rem,calc(100%-1.5rem))] flex-col gap-0 overflow-hidden border-0 bg-transparent p-0 shadow-none sm:max-h-[min(92vh,52rem)] sm:w-auto"
         overlayClassName="bg-black/50"
         hideCloseButton
         preventDismissOnOutside

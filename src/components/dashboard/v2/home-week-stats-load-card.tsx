@@ -135,6 +135,77 @@ function unitLabelForMode(mode: WeekSportStatMode): string {
   return 'km'
 }
 
+type WeekModeSeries = {
+  dailyPlanned: number[]
+  dailyActual: number[]
+  plannedTotal: number
+  actualTotal: number
+  overall: {
+    plannedLabel: string
+    completedLabel: string
+    pct: number
+  }
+}
+
+function buildModeSeries(args: {
+  plannedTss: number
+  actualTss: number
+  plannedKm: number
+  completedKm: number
+  plannedMin: number
+  completedMin: number
+  dailyPlannedTss: number[]
+  dailyActualTss: number[]
+  dailyPlannedTime: number[]
+  dailyActualTime: number[]
+  dailyPlannedDistance: number[]
+  dailyActualDistance: number[]
+}): Record<WeekSportStatMode, WeekModeSeries> {
+  const distancePlanned = Math.round(args.plannedKm * 10) / 10
+  const distanceActual = Math.round(args.completedKm * 10) / 10
+  const timePlanned = args.dailyPlannedTime.reduce((a, b) => a + b, 0)
+  const timeActual = args.dailyActualTime.reduce((a, b) => a + b, 0)
+
+  const pct = (actual: number, planned: number) =>
+    planned > 0 ? Math.min(100, Math.round((actual / planned) * 100)) : 0
+
+  return {
+    distance: {
+      dailyPlanned: args.dailyPlannedDistance,
+      dailyActual: args.dailyActualDistance,
+      plannedTotal: distancePlanned,
+      actualTotal: distanceActual,
+      overall: {
+        plannedLabel: formatKmLabel(args.plannedKm),
+        completedLabel: formatKmLabel(args.completedKm),
+        pct: pct(args.completedKm, args.plannedKm),
+      },
+    },
+    time: {
+      dailyPlanned: args.dailyPlannedTime,
+      dailyActual: args.dailyActualTime,
+      plannedTotal: timePlanned,
+      actualTotal: timeActual,
+      overall: {
+        plannedLabel: formatHoursLabel(args.plannedMin),
+        completedLabel: formatHoursLabel(args.completedMin),
+        pct: pct(args.completedMin, args.plannedMin),
+      },
+    },
+    tss: {
+      dailyPlanned: args.dailyPlannedTss,
+      dailyActual: args.dailyActualTss,
+      plannedTotal: args.plannedTss,
+      actualTotal: args.actualTss,
+      overall: {
+        plannedLabel: String(args.plannedTss),
+        completedLabel: String(args.actualTss),
+        pct: pct(args.actualTss, args.plannedTss),
+      },
+    },
+  }
+}
+
 export function HomeWeekStatsLoadCard({
   workouts,
   anchorWeekStartKey,
@@ -180,8 +251,17 @@ export function HomeWeekStatsLoadCard({
     const idx = offsetList.indexOf(weekOffset)
     return idx >= 0 ? idx : centerSlide
   })
+  /** Left sport bars / volume — default distance. */
   const [sportStatMode, setSportStatMode] =
     useState<WeekSportStatMode>('distance')
+  /**
+   * Right load graph starts on TSS; after the user picks a mode once,
+   * chart + graph stay in sync with `sportStatMode`.
+   */
+  const [graphFollowsMode, setGraphFollowsMode] = useState(false)
+  const graphMode: WeekSportStatMode = graphFollowsMode
+    ? sportStatMode
+    : 'tss'
   const [barMorphFrom, setBarMorphFrom] = useState<Record<string, number> | null>(
     null,
   )
@@ -245,23 +325,6 @@ export function HomeWeekStatsLoadCard({
       const plannedTss = weekSessionLoadPlanned(all, thresholds)
       const actualTss = weekSessionLoadActual(all, thresholds)
 
-      const volumePlanned =
-        sportStatMode === 'tss'
-          ? plannedTss
-          : sportStatMode === 'distance'
-            ? plannedKm
-            : plannedMin
-      const volumeActual =
-        sportStatMode === 'tss'
-          ? actualTss
-          : sportStatMode === 'distance'
-            ? completedKm
-            : completedMin
-      const overallPct =
-        volumePlanned > 0
-          ? Math.min(100, Math.round((volumeActual / volumePlanned) * 100))
-          : 0
-
       const weekNum = getISOWeek(start)
       const weekLabel =
         weekOffset === 0
@@ -287,47 +350,21 @@ export function HomeWeekStatsLoadCard({
       const dailyActualDistance = keys.map((k) =>
         dayDistanceActual(workouts, k),
       )
-      const dailyPlanned =
-        sportStatMode === 'tss'
-          ? dailyPlannedTss
-          : sportStatMode === 'time'
-            ? dailyPlannedTime
-            : dailyPlannedDistance
-      const dailyActual =
-        sportStatMode === 'tss'
-          ? dailyActualTss
-          : sportStatMode === 'time'
-            ? dailyActualTime
-            : dailyActualDistance
 
-      const plannedTotal =
-        sportStatMode === 'tss'
-          ? plannedTss
-          : sportStatMode === 'time'
-            ? dailyPlannedTime.reduce((a, b) => a + b, 0)
-            : Math.round(plannedKm * 10) / 10
-      const actualTotal =
-        sportStatMode === 'tss'
-          ? actualTss
-          : sportStatMode === 'time'
-            ? dailyActualTime.reduce((a, b) => a + b, 0)
-            : Math.round(completedKm * 10) / 10
-
-      const overallLabels =
-        sportStatMode === 'tss'
-          ? {
-              plannedLabel: String(plannedTss),
-              completedLabel: String(actualTss),
-            }
-          : sportStatMode === 'distance'
-            ? {
-                plannedLabel: formatKmLabel(plannedKm),
-                completedLabel: formatKmLabel(completedKm),
-              }
-            : {
-                plannedLabel: formatHoursLabel(plannedMin),
-                completedLabel: formatHoursLabel(completedMin),
-              }
+      const byMode = buildModeSeries({
+        plannedTss,
+        actualTss,
+        plannedKm,
+        completedKm,
+        plannedMin,
+        completedMin,
+        dailyPlannedTss,
+        dailyActualTss,
+        dailyPlannedTime,
+        dailyActualTime,
+        dailyPlannedDistance,
+        dailyActualDistance,
+      })
 
       return {
         weekStartKey,
@@ -337,15 +374,8 @@ export function HomeWeekStatsLoadCard({
         sports: sportList,
         planDays: days,
         allWorkouts: all,
-        overall: {
-          ...overallLabels,
-          pct: overallPct,
-        },
         plannedWeek,
-        dailyPlanned,
-        dailyActual,
-        plannedTotal,
-        actualTotal,
+        byMode,
       }
     })
   }, [
@@ -355,19 +385,20 @@ export function HomeWeekStatsLoadCard({
     swimCssSecPer100m,
     thresholds,
     todayKey,
-    sportStatMode,
     offsetList,
   ])
 
   const safeActive = Math.max(0, Math.min(weeks.length - 1, active))
   const week = weeks[safeActive]!
-  const unitLabel = unitLabelForMode(sportStatMode)
+  const unitLabel = unitLabelForMode(graphMode)
   const canPrev = safeActive > 0
   const canNext = safeActive < slideCount - 1
 
   const captureBarPcts = useCallback(
     (slide: (typeof weeks)[number]) => {
-      const pcts: Record<string, number> = { __overall: slide.overall.pct }
+      const pcts: Record<string, number> = {
+        __overall: slide.byMode[sportStatMode].overall.pct,
+      }
       for (const sport of slide.sports) {
         const totals = sumSportWeekTotals(slide.planDays, sport, {
           swimCssSecPer100m,
@@ -388,20 +419,28 @@ export function HomeWeekStatsLoadCard({
 
   const switchSportStatMode = useCallback(
     (next: WeekSportStatMode) => {
-      if (next === sportStatMode) return
+      if (next === sportStatMode && graphFollowsMode) return
       const current = weeks[active]!
       setBarMorphFrom(captureBarPcts(current))
       setDailyMorphFrom({
-        planned: [...current.dailyPlanned],
-        actual: [...current.dailyActual],
+        planned: [...current.byMode[graphMode].dailyPlanned],
+        actual: [...current.byMode[graphMode].dailyActual],
       })
       setSportStatMode(next)
+      setGraphFollowsMode(true)
       window.setTimeout(() => {
         setBarMorphFrom(null)
         setDailyMorphFrom(null)
       }, 500)
     },
-    [active, captureBarPcts, sportStatMode, weeks],
+    [
+      active,
+      captureBarPcts,
+      graphFollowsMode,
+      graphMode,
+      sportStatMode,
+      weeks,
+    ],
   )
 
   // Main board → overview only (overview arrows/swipe stay local).
@@ -451,8 +490,8 @@ export function HomeWeekStatsLoadCard({
       const current = weeks[active]!
       setBarMorphFrom(captureBarPcts(current))
       setDailyMorphFrom({
-        planned: [...current.dailyPlanned],
-        actual: [...current.dailyActual],
+        planned: [...current.byMode[graphMode].dailyPlanned],
+        actual: [...current.byMode[graphMode].dailyActual],
       })
       setActive(next)
       syncTimerRef.current = window.setTimeout(() => {
@@ -462,7 +501,7 @@ export function HomeWeekStatsLoadCard({
         setPaneActive(next)
       }, 520)
     },
-    [active, captureBarPcts, weeks],
+    [active, captureBarPcts, graphMode, weeks],
   )
 
   useEffect(() => {
@@ -512,10 +551,12 @@ export function HomeWeekStatsLoadCard({
       >
         {weeks.map((slide, i) => {
           const data = i === paneActive ? weeks[active]! : slide
+          const chart = data.byMode[sportStatMode]
+          const graph = data.byMode[graphMode]
           const isVisible = i === paneActive
           const morph = isVisible ? barMorphFrom : null
           const showActual = !data.plannedWeek
-          const headlineTotal = showActual ? data.actualTotal : data.plannedTotal
+          const headlineTotal = showActual ? graph.actualTotal : graph.plannedTotal
 
           return (
             <WeekSwipeSlide key={slide.weekStartKey} active={isVisible}>
@@ -605,19 +646,19 @@ export function HomeWeekStatsLoadCard({
 
                   <div className="border-t border-[var(--tt-line,#ebebeb)] pt-2">
                     <WeekVolumeMetric
-                      actual={data.overall.completedLabel}
-                      planned={data.overall.plannedLabel}
+                      actual={chart.overall.completedLabel}
+                      planned={chart.overall.plannedLabel}
                       mode={sportStatMode}
                     />
                     <div className="tt-v2-home-track mt-1 h-1 overflow-hidden">
                       <MorphProgressBar
-                        pct={data.overall.pct}
+                        pct={chart.overall.pct}
                         morphFrom={morph?.__overall ?? null}
                         className="tt-v2-home-track-fill"
                       />
                     </div>
                     <p className="mt-1 text-right text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
-                      {data.overall.pct}%
+                      {chart.overall.pct}%
                     </p>
                   </div>
                 </div>
@@ -632,9 +673,9 @@ export function HomeWeekStatsLoadCard({
                         {data.plannedWeek ? ' plan' : ''}
                       </span>
                     </p>
-                    {showActual && data.plannedTotal > 0 ? (
+                    {showActual && graph.plannedTotal > 0 ? (
                       <p className="mt-1 text-[11px] tabular-nums text-[var(--tt-ink-faint,#9a9a9a)]">
-                        Planned {data.plannedTotal} {unitLabel}
+                        Planned {graph.plannedTotal} {unitLabel}
                       </p>
                     ) : null}
                   </div>
@@ -642,17 +683,17 @@ export function HomeWeekStatsLoadCard({
                   <div className="mt-1.5">
                     <TrainingLoadChart
                       key={slide.weekStartKey}
-                      plannedDaily={data.dailyPlanned}
-                      actualDaily={data.dailyActual}
+                      plannedDaily={graph.dailyPlanned}
+                      actualDaily={graph.dailyActual}
                       yMax={Math.max(
-                        ...data.dailyPlanned,
-                        ...data.dailyActual,
+                        ...graph.dailyPlanned,
+                        ...graph.dailyActual,
                         1,
                       )}
                       showActual={showActual}
                       morphFrom={isVisible ? dailyMorphFrom : null}
                       compact
-                      seriesTone={sportStatMode === 'time' ? 'ink' : 'accent'}
+                      seriesTone={graphMode === 'time' ? 'ink' : 'accent'}
                     />
                   </div>
                 </div>

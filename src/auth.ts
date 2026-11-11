@@ -4,6 +4,7 @@ import Google from 'next-auth/providers/google'
 import Credentials from 'next-auth/providers/credentials'
 import type { Provider } from 'next-auth/providers'
 import bcrypt from 'bcryptjs'
+import type { SwimDistanceUnit, UnitSystem } from '@prisma/client'
 import { UserRole } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { resolveCoachAvatarUrl } from '@/lib/coach-avatar'
@@ -133,6 +134,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               image: true,
               disabledAt: true,
               onboardingSkippedAt: true,
+              unitSystem: true,
+              swimDistanceUnit: true,
               athleteProfile: { select: { id: true } },
               coachProfile: { select: { id: true, avatarUrl: true } },
             },
@@ -154,7 +157,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               ) ?? undefined
             token.hasAthlete = Boolean(dbUser.athleteProfile)
             token.hasCoach = Boolean(dbUser.coachProfile)
+            token.athleteProfileId = dbUser.athleteProfile?.id ?? null
             token.onboardingSkipped = Boolean(dbUser.onboardingSkippedAt)
+            token.unitSystem = dbUser.unitSystem
+            token.swimDistanceUnit = dbUser.swimDistanceUnit
             token.profileRefreshedAt = Date.now()
           }
         } catch (err) {
@@ -170,6 +176,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.hasAthlete = Boolean(token.hasAthlete)
         session.user.hasCoach = Boolean(token.hasCoach)
         session.user.onboardingSkipped = Boolean(token.onboardingSkipped)
+        session.user.athleteProfileId =
+          typeof token.athleteProfileId === 'string'
+            ? token.athleteProfileId
+            : null
+        session.user.unitSystem = token.unitSystem as UnitSystem | undefined
+        session.user.swimDistanceUnit =
+          token.swimDistanceUnit as SwimDistanceUnit | undefined
+        session.user.profileRefreshedAt =
+          typeof token.profileRefreshedAt === 'number'
+            ? token.profileRefreshedAt
+            : undefined
       }
       return session
     },

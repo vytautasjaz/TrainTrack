@@ -1825,6 +1825,12 @@ export function SharedWorkoutEditor({
     });
   }
 
+  function finishSave() {
+    onSaved?.();
+    // Ensure dialog/page dismisses even if a parent only wires onCancel.
+    onCancel?.();
+  }
+
   function save() {
     startTransition(async () => {
       setSaveError(null);
@@ -1840,7 +1846,7 @@ export function SharedWorkoutEditor({
           plannedDuration: durationMin > 0 ? durationMin : undefined,
           description: subtitle.trim() || undefined,
         });
-        onSaved?.();
+        finishSave();
         return;
       }
 
@@ -1868,7 +1874,7 @@ export function SharedWorkoutEditor({
 
         if (isTemplate) {
           await saveSwimTemplateFromModal(entityId ?? null, payload);
-          onSaved?.();
+          finishSave();
           return;
         }
 
@@ -1887,7 +1893,7 @@ export function SharedWorkoutEditor({
                 ? payload.plannedDistanceMeters / 1000
                 : null,
           });
-          onSaved?.();
+          finishSave();
           return;
         }
 
@@ -1920,7 +1926,7 @@ export function SharedWorkoutEditor({
           } else {
             await createTrainingPlanSession(sessionPayload);
           }
-          onSaved?.();
+          finishSave();
           return;
         }
 
@@ -1930,7 +1936,7 @@ export function SharedWorkoutEditor({
           } else {
             await createAthleteSwimWorkoutFromModal(payload);
           }
-          onSaved?.();
+          finishSave();
           return;
         }
 
@@ -1939,7 +1945,7 @@ export function SharedWorkoutEditor({
         } else {
           await createSwimWorkoutFromModal(payload);
         }
-        onSaved?.();
+        finishSave();
         return;
       }
 
@@ -2000,7 +2006,7 @@ export function SharedWorkoutEditor({
         } else {
           await saveTemplateBuilder(payload);
         }
-        onSaved?.();
+        finishSave();
         return;
       }
 
@@ -2016,7 +2022,7 @@ export function SharedWorkoutEditor({
           estimatedDuration: durationMin > 0 ? durationMin : undefined,
           estimatedDistanceKm: distanceKm > 0 ? distanceKm : null,
         });
-        onSaved?.();
+        finishSave();
         return;
       }
 
@@ -2056,7 +2062,7 @@ export function SharedWorkoutEditor({
         } else {
           await createTrainingPlanSession(sessionPayload);
         }
-        onSaved?.();
+        finishSave();
         return;
       }
 
@@ -2097,7 +2103,7 @@ export function SharedWorkoutEditor({
       } else {
         await createWorkoutFromModal(payload);
       }
-      onSaved?.();
+      finishSave();
       } catch (err) {
         setSaveError(toUserMessage(err, 'Could not save workout'));
       }
@@ -2224,7 +2230,7 @@ export function SharedWorkoutEditor({
             onClick={save}
           >
             <Save className="h-3.5 w-3.5" />
-            {pending ? "Saving…" : "Save"}
+            {pending ? "Saving…" : "Save & Close"}
           </Button>
         </div>
       </div>
@@ -2489,7 +2495,10 @@ export function SharedWorkoutEditor({
         </div>
       ) : null}
 
-      <div data-workout-editor-scroll className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        data-workout-editor-scroll
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
+      >
         <EditableWorkoutCardShell
           sportType={sportType}
           title={title}
@@ -3149,7 +3158,9 @@ export function SharedWorkoutEditor({
           onPointerUp={onHeightResizePointerUp}
           onPointerCancel={onHeightResizePointerUp}
           className={cn(
-            "absolute inset-x-0 bottom-0 z-30 flex h-4 cursor-ns-resize items-end justify-center pb-1.5",
+            // Desktop-only: on mobile this touch-none handle fights scroll and
+            // makes the sheet feel stuck / bounce while trying to dismiss.
+            "absolute inset-x-0 bottom-0 z-30 hidden h-4 cursor-ns-resize items-end justify-center pb-1.5 sm:flex",
             "touch-none select-none",
             isResizingHeight && "bg-black/[0.03]",
           )}

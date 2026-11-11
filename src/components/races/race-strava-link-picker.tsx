@@ -55,6 +55,7 @@ export function RaceStravaLinkPicker({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [attachingId, setAttachingId] = useState<string | null>(null)
+  const [reclaimTarget, setReclaimTarget] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
@@ -96,7 +97,11 @@ export function RaceStravaLinkPicker({
     }
   }, [open, raceId, legId])
 
-  function handleAttach(activityId: string) {
+  function handleAttach(activityId: string, reclaim = false) {
+    if (reclaim) {
+      setReclaimTarget(activityId)
+      return
+    }
     setAttachingId(activityId)
     startTransition(async () => {
       try {
@@ -106,6 +111,7 @@ export function RaceStravaLinkPicker({
           await attachStravaActivityToRace(raceId, activityId)
         }
         setOpen(false)
+        setReclaimTarget(null)
         router.refresh()
         onChanged?.()
       } catch (err) {
@@ -114,6 +120,13 @@ export function RaceStravaLinkPicker({
         setAttachingId(null)
       }
     })
+  }
+
+  function confirmReclaimAttach() {
+    if (!reclaimTarget) return
+    const activityId = reclaimTarget
+    setReclaimTarget(null)
+    handleAttach(activityId, false)
   }
 
   function handleDetach() {
@@ -225,14 +238,17 @@ export function RaceStravaLinkPicker({
               <Caption>No matching Strava activities found for this day.</Caption>
             ) : (
               items.map((item) => {
-                const disabled =
-                  item.commute || (item.linked && !item.linkedToThisTarget) || pending
+                const reclaimable = Boolean(item.reclaimableFromSelfLogged)
+                const blockedElsewhere =
+                  item.linked && !item.linkedToThisTarget && !reclaimable
+                const disabled = item.commute || blockedElsewhere || pending
                 const meta = [
                   item.startTimeLocal,
                   item.distanceKm != null ? formatDistance(item.distanceKm) : null,
                   formatDuration(item.durationMin),
                   item.commute ? 'Commute' : null,
-                  item.linked && !item.linkedToThisTarget ? 'Already linked' : null,
+                  reclaimable ? 'On self-logged · move to race' : null,
+                  blockedElsewhere ? 'Already linked' : null,
                   item.linkedToThisTarget ? 'Current link' : null,
                 ]
                   .filter(Boolean)
@@ -243,7 +259,7 @@ export function RaceStravaLinkPicker({
                     key={item.id}
                     type="button"
                     disabled={disabled || attachingId === item.id}
-                    onClick={() => handleAttach(item.id)}
+                    onClick={() => handleAttach(item.id, reclaimable)}
                     className={cn(
                       'flex w-full flex-col gap-0.5 rounded-[6px] border border-border/60 px-3 py-2.5 text-left transition',
                       disabled
@@ -264,6 +280,20 @@ export function RaceStravaLinkPicker({
           </div>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={Boolean(reclaimTarget)}
+        onOpenChange={(next) => {
+          if (!next) setReclaimTarget(null)
+        }}
+        title="Move Strava link to this race?"
+        description="Removes the duplicate self-logged workout and attaches that Strava activity to this race instead."
+        confirmLabel="Move to race"
+        cancelLabel="Cancel"
+        tone="default"
+        pending={pending}
+        onConfirm={confirmReclaimAttach}
+      />
     </>
   )
 }

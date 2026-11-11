@@ -58,6 +58,8 @@ export type RaceLegView = {
   stravaActivityName: string | null
   actualDistanceKm: number | null
   actualDurationMin: number | null
+  averageHeartrate?: number | null
+  elevationGainM?: number | null
 }
 
 export function formatRaceLegResult(leg: {

@@ -41,8 +41,17 @@ export type RaceRecord = {
     plannedDistanceKm?: number | null
     plannedTime?: string | null
     resultTime?: string | null
+    averageHeartrate?: number | null
+    elevationGainM?: number | null
+    stravaActivityUrl?: string | null
   }> | null
   resultTime?: string | null
+  stravaActivityId?: string | null
+  stravaActivityUrl?: string | null
+  actualDistanceKm?: number | null
+  actualDurationMin?: number | null
+  averageHeartrate?: number | null
+  elevationGainM?: number | null
 }
 
 /** Sports that can be assigned when scheduling a race on the plan. */
@@ -93,6 +102,9 @@ function racePrimaryPlannedKm(bySport: RaceDistancesBySport): number | null {
 function raceResultFromMetrics(args: {
   actualDistanceKm: number | null
   actualDurationMin: number | null
+  averageHeartrate?: number | null
+  elevationGainM?: number | null
+  stravaActivityUrl?: string | null
 }) {
   const hasDistance =
     args.actualDistanceKm != null &&
@@ -107,9 +119,31 @@ function raceResultFromMetrics(args: {
     athleteNotes: null,
     coachReply: null,
     coachReplyReadAt: null,
-    stravaActivityUrl: null,
+    stravaActivityUrl: args.stravaActivityUrl ?? null,
+    averageHeartrate: args.averageHeartrate ?? null,
+    elevationGainM: args.elevationGainM ?? null,
     logType: null,
   }
+}
+
+/** Linked Strava / logged actuals → count as completed training for week stats. */
+function raceCountsAsCompletedTraining(race: RaceRecord): boolean {
+  if (race.stravaActivityId) return true
+  if (
+    race.actualDistanceKm != null &&
+    Number.isFinite(race.actualDistanceKm) &&
+    race.actualDistanceKm > 0
+  ) {
+    return true
+  }
+  if (race.actualDurationMin != null && race.actualDurationMin > 0) return true
+  if (race.legs?.some((leg) => Boolean(leg.stravaActivityUrl) || (leg.actualDistanceKm ?? 0) > 0 || (leg.actualDurationMin ?? 0) > 0)) {
+    return true
+  }
+  return (
+    race.outcome === RaceOutcome.FINISHED ||
+    race.outcome === RaceOutcome.DNF
+  )
 }
 
 /** DNF / DNS with no logged distance → show 0 km on the card. */
@@ -131,8 +165,11 @@ function baseRaceFields(race: RaceRecord) {
   return {
     dateKey: toDateKey(race.date),
     sessionType: SessionType.RACE_PACE,
-    // Race chips are not workout status — keep PLANNED so completed/skipped styles never apply.
-    status: WorkoutStatus.PLANNED,
+    // Completed when Strava/actuals exist so week compliance + TSS treat races as done training.
+    // Race plan chrome still keys off `isRace` rather than workout completed styles.
+    status: raceCountsAsCompletedTraining(race)
+      ? WorkoutStatus.COMPLETED
+      : WorkoutStatus.PLANNED,
     description: null,
     swimEnvironment: null,
     coachNotes: race.goal,
@@ -173,7 +210,15 @@ export function raceToPlanWorkoutDetail(race: RaceRecord): PlanWorkoutDetail {
       Object.keys(raceDistanceBySport).length > 0 ? raceDistanceBySport : undefined,
     result: raceResultFromMetrics({
       actualDistanceKm: actualKm,
-      actualDurationMin: actualDuration > 0 ? actualDuration : null,
+      actualDurationMin:
+        actualDuration > 0
+          ? actualDuration
+          : race.actualDurationMin != null && race.actualDurationMin > 0
+            ? race.actualDurationMin
+            : null,
+      averageHeartrate: race.averageHeartrate ?? null,
+      elevationGainM: race.elevationGainM ?? null,
+      stravaActivityUrl: race.stravaActivityUrl ?? null,
     }),
   }
 }
@@ -192,6 +237,12 @@ function triathlonRaceToPlanWorkoutDetails(race: RaceRecord): PlanWorkoutDetail[
     const plannedMin = dist?.plannedMin ?? 0
     const actualKm = raceActualKmForCard(race, dist?.actualKm ?? null)
     const actualMin = dist?.actualMin ?? null
+    const leg = race.legs?.find((row) => {
+      if (sport === WorkoutType.SWIM) return row.kind === RaceLegKind.SWIM
+      if (sport === WorkoutType.BIKE) return row.kind === RaceLegKind.BIKE
+      if (sport === WorkoutType.RUN) return row.kind === RaceLegKind.RUN
+      return false
+    })
 
     return {
       ...base,
@@ -208,6 +259,9 @@ function triathlonRaceToPlanWorkoutDetails(race: RaceRecord): PlanWorkoutDetail[
       result: raceResultFromMetrics({
         actualDistanceKm: actualKm,
         actualDurationMin: actualMin,
+        averageHeartrate: leg?.averageHeartrate ?? null,
+        elevationGainM: leg?.elevationGainM ?? null,
+        stravaActivityUrl: leg?.stravaActivityUrl ?? null,
       }),
     }
   })

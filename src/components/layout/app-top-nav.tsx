@@ -6,7 +6,6 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import { Bell, ChevronDown, Search } from 'lucide-react'
 import { AthleteAvatar } from '@/components/athlete/athlete-avatar'
 import { TrainTrackMark } from '@/components/brand/traintrack-logo'
-import { V2GridOverlay } from '@/components/ui/v2'
 import { useInboxNavBadge } from '@/components/layout/inbox-nav-badge'
 import { SignOutButton } from '@/components/layout/sign-out-button'
 import { ViewModeSwitcher } from '@/components/layout/view-mode-switcher'
@@ -201,7 +200,6 @@ export function AppTopNav({
       className="tt-app-top-nav sticky top-0 z-40 hidden lg:block"
       data-app-top-nav
     >
-      <V2GridOverlay className="tt-v2-grid-overlay tt-v2-grid-overlay--top-nav" />
       <div className="tt-app-top-nav-inner">
         <Link
           href="/dashboard"

@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getSession, isAdminOnly } from '@/lib/session'
 import { AuthEmailPanel } from '@/components/auth/auth-email-panel'
@@ -7,12 +8,12 @@ import { nextAuthErrorMessage } from '@/lib/auth-form-errors'
 import {
   coachInvitePath,
   resolveCoachInvite,
-  getCoachInviteCookie,
+  COACH_INVITE_COOKIE,
 } from '@/lib/coach-invite'
 import {
   parseAthleteClaimToken,
   resolveAthleteClaim,
-  getAthleteClaimCookie,
+  ATHLETE_CLAIM_COOKIE,
   athleteClaimPath,
 } from '@/lib/athlete-claim'
 
@@ -41,16 +42,18 @@ export default async function HomePage({
   // Invite deep-link: middleware seeds the cookie from ?invite=; signed-in users resume join.
   const inviteFromQuery = params.invite ? await resolveCoachInvite(params.invite) : null
 
+  const cookieStore = await cookies()
+  const inviteCookie = cookieStore.get(COACH_INVITE_COOKIE)?.value ?? null
+  const claimToken = cookieStore.get(ATHLETE_CLAIM_COOKIE)?.value ?? null
+
   if (session) {
     if (inviteFromQuery) {
       redirect(coachInvitePath(inviteFromQuery.code))
     }
-    const inviteCookie = await getCoachInviteCookie()
     if (inviteCookie) {
       const invite = await resolveCoachInvite(inviteCookie)
       if (invite) redirect(coachInvitePath(invite.code))
     }
-    const claimToken = await getAthleteClaimCookie()
     if (claimToken) {
       const claim = await resolveAthleteClaim(claimToken)
       if (claim && !claim.alreadyClaimed) {
@@ -62,8 +65,8 @@ export default async function HomePage({
     redirect('/dashboard')
   }
 
+  // Logged-out common path: no claim cookie → skip DB entirely.
   const invite = inviteFromQuery
-  const claimToken = await getAthleteClaimCookie()
   const claim = claimToken ? await resolveAthleteClaim(claimToken) : null
 
   return (

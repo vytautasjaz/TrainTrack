@@ -1,5 +1,5 @@
 import type { DefaultSession } from 'next-auth'
-import type { UserRole } from '@prisma/client'
+import type { SwimDistanceUnit, UnitSystem, UserRole } from '@prisma/client'
 
 declare module 'next-auth' {
   interface Session {
@@ -9,6 +9,12 @@ declare module 'next-auth' {
       hasAthlete: boolean
       hasCoach: boolean
       onboardingSkipped: boolean
+      /** Own athlete profile id when hasAthlete; avoids shell DB lookup. */
+      athleteProfileId?: string | null
+      unitSystem?: UnitSystem
+      swimDistanceUnit?: SwimDistanceUnit
+      /** Epoch ms of last JWT profile DB refresh. */
+      profileRefreshedAt?: number
     }
   }
 
@@ -23,5 +29,9 @@ declare module 'next-auth/jwt' {
     hasAthlete?: boolean
     hasCoach?: boolean
     onboardingSkipped?: boolean
+    athleteProfileId?: string | null
+    unitSystem?: UnitSystem
+    swimDistanceUnit?: SwimDistanceUnit
+    profileRefreshedAt?: number
   }
 }
