@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation'
 import { maybeAutoSyncStravaActivities } from '@/app/actions/strava'
 
 /**
- * Debounced Strava sync after the shell is idle — fallback when hourly cron
- * (`/api/cron/strava-sync`) is not configured. Server still no-ops if synced
- * within the last hour.
+ * Debounced Strava sync after the shell is idle (post-login / navigation).
+ * Server no-ops if not connected, auto-sync is off, or synced within the last hour.
  */
 export function StravaAutoSync() {
   const router = useRouter()

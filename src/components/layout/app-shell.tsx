@@ -189,12 +189,6 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
   const swimDistanceUnit =
     session?.swimDistanceUnit ?? DEFAULT_SWIM_DISTANCE_UNIT
 
-  // Idle Strava sync is opt-in; hourly netlify/functions/strava-sync-cron covers
-  // production. Set NEXT_PUBLIC_STRAVA_IDLE_SYNC=1 to re-enable client fallback.
-  const stravaIdleSync =
-    process.env.NEXT_PUBLIC_STRAVA_IDLE_SYNC === '1' ||
-    process.env.NEXT_PUBLIC_STRAVA_IDLE_SYNC === 'true'
-
   return (
     <ViewModeSwitchProvider>
       <UnitsProvider
@@ -203,7 +197,8 @@ export async function AppShell({ children }: { children: React.ReactNode }) {
       >
       <DurationNotationProvider notation={durationNotation}>
       <div className="app-gradient flex min-h-dvh flex-col" data-v2-shell>
-      {session?.hasAthlete && stravaIdleSync ? <StravaAutoSync /> : null}
+      {/* Idle sync after login/shell load; server no-ops if synced within ~1h. */}
+      {session?.hasAthlete ? <StravaAutoSync /> : null}
       <Suspense fallback={null}>
         <DocumentChromeCleanup />
       </Suspense>

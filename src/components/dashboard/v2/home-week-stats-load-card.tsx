@@ -135,6 +135,11 @@ function unitLabelForMode(mode: WeekSportStatMode): string {
   return 'km'
 }
 
+/** Unlinked left defaults: Run/Bike/Swim → km, Strength → time (hours). */
+function defaultSportBarMode(sport: WorkoutType): WeekSportStatMode {
+  return sportSupportsDistance(sport) ? 'distance' : 'time'
+}
+
 type WeekModeSeries = {
   dailyPlanned: number[]
   dailyActual: number[]
@@ -251,17 +256,21 @@ export function HomeWeekStatsLoadCard({
     const idx = offsetList.indexOf(weekOffset)
     return idx >= 0 ? idx : centerSlide
   })
-  /** Left sport bars / volume — default distance. */
-  const [sportStatMode, setSportStatMode] =
-    useState<WeekSportStatMode>('distance')
   /**
-   * Right load graph starts on TSS; after the user picks a mode once,
-   * chart + graph stay in sync with `sportStatMode`.
+   * Toggle highlights TSS by default. Until the user picks a mode once:
+   * left sports use km (run/bike) / time (strength), volume stays hours,
+   * right graph stays on TSS. After that both sides follow `sportStatMode`.
    */
-  const [graphFollowsMode, setGraphFollowsMode] = useState(false)
-  const graphMode: WeekSportStatMode = graphFollowsMode
-    ? sportStatMode
-    : 'tss'
+  const [sportStatMode, setSportStatMode] =
+    useState<WeekSportStatMode>('tss')
+  const [modeLinked, setModeLinked] = useState(false)
+  const volumeMode: WeekSportStatMode = modeLinked ? sportStatMode : 'time'
+  const graphMode: WeekSportStatMode = modeLinked ? sportStatMode : 'tss'
+  const sportBarMode = useCallback(
+    (sport: WorkoutType): WeekSportStatMode =>
+      modeLinked ? sportStatMode : defaultSportBarMode(sport),
+    [modeLinked, sportStatMode],
+  )
   const [barMorphFrom, setBarMorphFrom] = useState<Record<string, number> | null>(
     null,
   )
@@ -397,9 +406,10 @@ export function HomeWeekStatsLoadCard({
   const captureBarPcts = useCallback(
     (slide: (typeof weeks)[number]) => {
       const pcts: Record<string, number> = {
-        __overall: slide.byMode[sportStatMode].overall.pct,
+        __overall: slide.byMode[volumeMode].overall.pct,
       }
       for (const sport of slide.sports) {
+        const mode = sportBarMode(sport)
         const totals = sumSportWeekTotals(slide.planDays, sport, {
           swimCssSecPer100m,
         })
@@ -407,19 +417,19 @@ export function HomeWeekStatsLoadCard({
           sport,
           totals,
           slide.allWorkouts,
-          sportStatMode,
+          mode,
           thresholds,
         )
         pcts[sport] = weekSportProgressPercent(m.actual, m.planned)
       }
       return pcts
     },
-    [sportStatMode, swimCssSecPer100m, thresholds],
+    [sportBarMode, swimCssSecPer100m, thresholds, volumeMode],
   )
 
   const switchSportStatMode = useCallback(
     (next: WeekSportStatMode) => {
-      if (next === sportStatMode && graphFollowsMode) return
+      if (next === sportStatMode && modeLinked) return
       const current = weeks[active]!
       setBarMorphFrom(captureBarPcts(current))
       setDailyMorphFrom({
@@ -427,7 +437,7 @@ export function HomeWeekStatsLoadCard({
         actual: [...current.byMode[graphMode].dailyActual],
       })
       setSportStatMode(next)
-      setGraphFollowsMode(true)
+      setModeLinked(true)
       window.setTimeout(() => {
         setBarMorphFrom(null)
         setDailyMorphFrom(null)
@@ -436,8 +446,8 @@ export function HomeWeekStatsLoadCard({
     [
       active,
       captureBarPcts,
-      graphFollowsMode,
       graphMode,
+      modeLinked,
       sportStatMode,
       weeks,
     ],
@@ -551,7 +561,7 @@ export function HomeWeekStatsLoadCard({
       >
         {weeks.map((slide, i) => {
           const data = i === paneActive ? weeks[active]! : slide
-          const chart = data.byMode[sportStatMode]
+          const chart = data.byMode[volumeMode]
           const graph = data.byMode[graphMode]
           const isVisible = i === paneActive
           const morph = isVisible ? barMorphFrom : null
@@ -570,6 +580,7 @@ export function HomeWeekStatsLoadCard({
                   ) : (
                     <div className={cn(WEEK_SPORT_STATS_GRID, 'gap-y-1')}>
                         {data.sports.map((sport, sportIndex) => {
+                          const mode = sportBarMode(sport)
                           const totals = sumSportWeekTotals(
                             data.planDays,
                             sport,
@@ -579,7 +590,7 @@ export function HomeWeekStatsLoadCard({
                             sport,
                             totals,
                             data.allWorkouts,
-                            sportStatMode,
+                            mode,
                             thresholds,
                           )
                           const pct = weekSportProgressPercent(
@@ -648,7 +659,7 @@ export function HomeWeekStatsLoadCard({
                     <WeekVolumeMetric
                       actual={chart.overall.completedLabel}
                       planned={chart.overall.plannedLabel}
-                      mode={sportStatMode}
+                      mode={volumeMode}
                     />
                     <div className="tt-v2-home-track mt-1 h-1 overflow-hidden">
                       <MorphProgressBar

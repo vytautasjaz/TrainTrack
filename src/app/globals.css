@@ -533,8 +533,7 @@ html[data-sidebar-collapsed='true'] {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  /* Visible so horizontal rules can reach page gutters; page clips overflow. */
-  overflow-x: visible;
+  overflow-x: clip;
   background: transparent;
   border-radius: 0;
   margin-inline: auto;
@@ -559,24 +558,6 @@ html[data-sidebar-collapsed='true'] {
   position: relative;
   z-index: 1;
   width: 100%;
-}
-
-/*
- * Horizontal section bands — full viewport width (breaks out of centered shell).
- * `50% - 50vw` anchors to the viewport regardless of content max-width.
- */
-.tt-athlete-home-v2-shell > * + *::before {
-  content: '';
-  position: absolute;
-  left: calc(50% - 50vw);
-  width: 100vw;
-  right: auto;
-  top: calc(-1 * var(--tt-v2-grid-gutter));
-  height: var(--tt-v2-grid-gutter);
-  border-top: 1px solid var(--tt-v2-grid-line-strong);
-  border-bottom: 1px solid var(--tt-v2-grid-line-strong);
-  pointer-events: none;
-  z-index: 0;
 }
 
 /* Stack sections on gutter rhythm */
@@ -629,29 +610,6 @@ html[data-sidebar-collapsed='true'] {
   margin-bottom: 0;
   padding-bottom: 0;
   width: 100%;
-}
-
-/*
- * Full-bleed double rule under the hero — same viewport breakout as section bands.
- */
-.tt-athlete-home-v2-shell > .tt-v2-hero-band::after {
-  content: '';
-  position: absolute;
-  left: calc(50% - 50vw);
-  width: 100vw;
-  right: auto;
-  top: 100%;
-  height: var(--tt-v2-grid-gutter);
-  box-sizing: border-box;
-  border-top: 1px solid var(--tt-v2-grid-line-strong);
-  border-bottom: 1px solid var(--tt-v2-grid-line-strong);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Hero already draws the seam into the flex gap */
-.tt-athlete-home-v2-shell > .tt-v2-hero-band + *::before {
-  content: none;
 }
 
 .tt-v2-pixel-motif {
@@ -960,10 +918,10 @@ html[data-sidebar-collapsed='true'] {
 
 .tt-v2-hero-metric-strip > .tt-v2-metric,
 .tt-v2-hero-metric-strip > .tt-home-v2-metric {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
+  background: rgb(255 255 255 / 0.06);
+  border: 1px solid rgb(255 255 255 / 0.08);
+  border-radius: var(--radius-xl);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.03);
   padding: var(--tt-v2-grid-gutter);
   padding-bottom: calc(var(--tt-v2-grid-gutter) * 0.5);
   min-width: 0;
@@ -977,25 +935,13 @@ html[data-sidebar-collapsed='true'] {
 @media (max-width: 639px) {
   .tt-v2-hero-metric-strip {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    column-gap: 0;
+    column-gap: 0.35rem;
   }
 
   .tt-v2-hero-metric-strip > .tt-v2-metric,
   .tt-v2-hero-metric-strip > .tt-home-v2-metric {
     position: relative;
     padding: 0.35rem 0.55rem 0.3rem;
-  }
-
-  .tt-v2-hero-metric-strip > .tt-v2-metric:not(:last-child)::after,
-  .tt-v2-hero-metric-strip > .tt-home-v2-metric:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    top: 0.25rem;
-    right: 0;
-    bottom: 0.2rem;
-    width: 1px;
-    background: rgb(255 255 255 / 0.12);
-    pointer-events: none;
   }
 
   .tt-v2-hero-metric-strip .tt-v2-eyebrow {

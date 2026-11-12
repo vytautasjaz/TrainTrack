@@ -134,8 +134,8 @@ export async function setStravaAutoSyncEnabled(enabled: boolean) {
 }
 
 /**
- * Background auto-sync on app load. No-ops if not connected, disabled, or synced recently.
- * Prefer hourly cron (`/api/cron/strava-sync`); this is a local/dev fallback.
+ * Background auto-sync on app load / login. No-ops if not connected, disabled,
+ * or synced within the last hour. Hourly cron is complementary when configured.
  */
 export async function maybeAutoSyncStravaActivities() {
   const session = await requireAthleteSession()
@@ -144,7 +144,10 @@ export async function maybeAutoSyncStravaActivities() {
     session.athleteId,
   )
 
-  if (result.status === 'synced' && result.matched > 0) {
+  if (
+    result.status === 'synced' &&
+    (result.matched > 0 || result.imported > 0)
+  ) {
     await revalidateAfterStrava(session.athleteId)
   }
 
